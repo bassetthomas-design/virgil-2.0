@@ -11,6 +11,11 @@ on:
         description: "Branch to create/update"
         required: true
         default: "virgil-2-tactical-hud"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/trigger-import-virgil-v1.txt"
 
 permissions:
   contents: write
@@ -20,6 +25,7 @@ jobs:
   import:
     name: Import Virgil v1
     runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-import-virgil-v1]')
 
     steps:
       - name: Checkout Virgil 2.0
@@ -27,6 +33,21 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure import variables
+        id: vars
+        shell: pwsh
+        run: |
+          $sourceRepo = "https://github.com/bassetthomas-design/Virgil.git"
+          $targetBranch = "virgil-2-tactical-hud"
+
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $sourceRepo = "${{ github.event.inputs.source_repo }}"
+            $targetBranch = "${{ github.event.inputs.target_branch }}"
+          }
+
+          "source_repo=$sourceRepo" >> $env:GITHUB_OUTPUT
+          "target_branch=$targetBranch" >> $env:GITHUB_OUTPUT
 
       - name: Configure Git
         shell: pwsh
@@ -37,7 +58,7 @@ jobs:
       - name: Prepare target branch
         shell: pwsh
         run: |
-          git checkout -B "${{ github.event.inputs.target_branch }}"
+          git checkout -B "${{ steps.vars.outputs.target_branch }}"
 
       - name: Backup Virgil 2.0 files
         shell: pwsh
@@ -68,7 +89,7 @@ jobs:
       - name: Clone Virgil v1 source
         shell: pwsh
         run: |
-          $source = "${{ github.event.inputs.source_repo }}"
+          $source = "${{ steps.vars.outputs.source_repo }}"
           $sourceDir = Join-Path $env:RUNNER_TEMP "virgil-v1-source"
           git clone --depth 1 $source $sourceDir
 
@@ -143,4 +164,4 @@ jobs:
       - name: Push branch
         shell: pwsh
         run: |
-          git push --force-with-lease origin "${{ github.event.inputs.target_branch }}"
+          git push --force-with-lease origin "${{ steps.vars.outputs.target_branch }}"
