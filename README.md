@@ -1,72 +1,81 @@
 # Virgil 2.0
 
-**Virgil 2.0** est la nouvelle base du projet Virgil : un assistant PC Windows local orienté surveillance, nettoyage, diagnostic et assistance système, avec une interface tactique sombre/orange.
+**Virgil 2.0** est un nouveau projet créé de zéro : un assistant PC Windows local orienté diagnostic, surveillance, maintenance encadrée et interface tactique sombre/orange.
 
-> Objectif : garder le nom **Virgil**, repartir sur une base propre, reprendre les fonctions utiles de Virgil v1 et donner une vraie identité visuelle d'agent système.
+## Décision de travail
 
-## Positionnement
+Le projet se travaille uniquement sur **GitHub**.
+
+Aucun développement local n'est requis pour avancer :
+
+- les fichiers sont créés et modifiés par commits GitHub ;
+- la compilation se fait avec GitHub Actions ;
+- les artefacts testables sont générés par GitHub Actions ;
+- l'objectif final est un installateur Windows téléchargeable depuis une release GitHub.
+
+Virgil v1 reste une référence d'idée, mais Virgil 2.0 repart sur une base neuve.
+
+## Objectif final
+
+L'utilisateur final doit pouvoir :
+
+1. télécharger un installateur ;
+2. installer Virgil ;
+3. lancer l'application ;
+4. analyser son PC ;
+5. valider les actions proposées.
+
+Aucun add-on manuel. Aucun SDK à installer. Aucun bricolage. Le minimum syndical pour ne pas transformer l'utilisateur en technicien malgré lui.
+
+## Identité
 
 Virgil 2.0 vise une ambiance originale :
 
-- HUD sombre
-- accent orange / ambre
-- notifications système brèves
-- effet scan
-- avatar / agent animé
-- diagnostic local
-- actions validées par l'utilisateur
+- HUD sombre ;
+- accent orange / ambre ;
+- notifications système brèves ;
+- diagnostic local ;
+- actions validées par l'utilisateur ;
+- aucune copie d'asset, son, nom ou élément propriétaire issu d'une licence tierce.
 
-Aucun asset, son, nom ou élément propriétaire issu d'un jeu tiers ne doit être intégré.
+## Base technique
 
-## Base technique visée
-
-- **.NET 8**
-- **WPF**
-- **Windows x64**
-- Architecture séparée : App / Core / Agent / Tests
-- Actions importantes uniquement après confirmation
-- Logs dans `%APPDATA%\\Virgil\\logs`
+- .NET 8
+- WPF
+- Windows x64
+- Publication self-contained
+- Build GitHub Actions
+- Artefact installable à terme
 
 ## Modules cibles
 
 | Module | But |
 | --- | --- |
 | Monitoring | CPU, RAM, disque, réseau, température si disponible |
-| Nettoyage | TEMP, cache léger, prévisualisation avant action |
+| Nettoyage | Prévisualisation avant action |
 | Démarrage | Analyse des applications lancées avec Windows |
-| Pilotes | Scan des pilotes disponibles, bouton d'installation après résultats |
-| Applications | Mise à jour via winget |
+| Pilotes | Scan puis bouton d'installation si résultat |
+| Applications | Vérification et mise à jour encadrée |
 | Assistant | Notifications internes et recommandations lisibles |
-| HUD | Interface orange/noir avec état système et effets de scan |
+| HUD | Interface orange/noir avec état système |
 
 ## Principe de sécurité
 
-Virgil doit fonctionner en trois niveaux :
+Virgil fonctionne en trois niveaux :
 
 1. **Observation** : lire l'état du PC sans rien modifier.
 2. **Recommandation** : proposer une action claire.
-3. **Action validée** : exécuter uniquement après validation.
-
-## Démarrage depuis Virgil v1
-
-Le script prévu :
-
-```powershell
-.\\scripts\\Initialize-Virgil2FromVirgil.ps1 `
-  -SourceRepo "https://github.com/bassetthomas-design/Virgil.git" `
-  -DestinationRepo "https://github.com/bassetthomas-design/virgil-2.0.git" `
-  -WorkDir "C:\\Dev\\Virgil2"
-```
-
-Ce script clone Virgil v1, prépare la copie Virgil 2.0, applique les premiers fichiers de thème Tactical HUD et configure le dépôt de destination.
+3. **Action validée** : agir uniquement après validation.
 
 ## Documentation
 
 - `PROJECT_STATUS.md`
+- `docs/CLEAN_REWRITE_DECISION.md`
+- `docs/GITHUB_ONLY_WORKFLOW.md`
 - `docs/ARCHITECTURE.md`
 - `docs/ROADMAP.md`
 - `docs/UI_DIRECTION.md`
 
 ## Statut
 
-Projet initialisé comme base **Virgil 2.0 Tactical HUD**.
+Base neuve Virgil 2.0 en cours de création sur GitHub uniquement.
