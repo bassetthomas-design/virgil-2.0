@@ -8,6 +8,34 @@ Il observe l'état du système, explique clairement les problèmes détectés, p
 
 Virgil n'est pas un nettoyeur agressif, ni un antivirus, ni un outil magique. C'est un assistant de maintenance lisible, prudent et prêt à l'emploi.
 
+## 1.1 Rôle officiel
+
+Virgil est défini comme :
+
+```text
+70 % agent tactique PC
+20 % assistant système prudent
+10 % compagnon intelligent
+```
+
+### Agent tactique PC - 70 %
+
+Virgil doit donner l'impression d'un système opérationnel : précis, direct, visuel, orienté diagnostic et action contrôlée.
+
+Il parle peu, affiche clairement l'état du PC et guide l'utilisateur avec des messages courts.
+
+### Assistant système prudent - 20 %
+
+Virgil doit rester sûr : il explique, demande confirmation et évite toute action risquée sans validation explicite.
+
+Il ne doit jamais se comporter comme un outil de nettoyage agressif.
+
+### Compagnon intelligent - 10 %
+
+Virgil peut accompagner l'utilisateur avec une chat box textuelle, des explications simples et une présence visuelle vivante.
+
+Il ne doit pas devenir bavard, intrusif ou trop humain.
+
 ## 2. Promesse utilisateur
 
 L'utilisateur doit pouvoir :
@@ -31,6 +59,8 @@ Virgil s'adresse à des utilisateurs Windows classiques :
 - personnes qui veulent un outil prêt à l'emploi.
 
 ## 4. Ce que Virgil doit faire
+
+Les actions ci-dessous sont des catégories à définir et valider ensemble avant implémentation définitive.
 
 ### Diagnostic
 
@@ -94,7 +124,7 @@ Virgil ne doit pas :
 
 ## 6. Ton de Virgil
 
-Virgil parle comme un assistant système calme, précis et légèrement tactique.
+Virgil parle comme un agent tactique PC calme, précis et prudent.
 
 Il doit être :
 
