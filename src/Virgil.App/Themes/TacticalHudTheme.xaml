@@ -63,7 +63,6 @@
         <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="CharacterSpacing" Value="80" />
     </Style>
 
     <Style x:Key="VirgilHudMetric" TargetType="TextBlock">
