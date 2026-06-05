@@ -7,19 +7,21 @@
     <Color x:Key="VirgilColorBackground">#05070A</Color>
     <Color x:Key="VirgilColorPanel">#0B1016</Color>
     <Color x:Key="VirgilColorCard">#111820</Color>
-    <Color x:Key="VirgilColorBorder">#24303A</Color>
+    <Color x:Key="VirgilColorCardAlt">#151A1F</Color>
+    <Color x:Key="VirgilColorBorder">#293440</Color>
+    <Color x:Key="VirgilColorBorderSoft">#1C252E</Color>
     <Color x:Key="VirgilColorAccent">#FF8A00</Color>
     <Color x:Key="VirgilColorAccentSoft">#FFB14A</Color>
     <Color x:Key="VirgilColorTextPrimary">#F4F7FA</Color>
-    <Color x:Key="VirgilColorTextSecondary">#9AA6B2</Color>
+    <Color x:Key="VirgilColorTextSecondary">#A3AFBA</Color>
     <Color x:Key="VirgilColorWarning">#FFB020</Color>
     <Color x:Key="VirgilColorError">#FF4D2E</Color>
     <Color x:Key="VirgilColorSuccess">#40D47E</Color>
 
-    <!-- Alias historiques App.* pour faciliter la migration depuis Virgil v1 -->
     <SolidColorBrush x:Key="App.BackgroundBrush" Color="{StaticResource VirgilColorBackground}" />
     <SolidColorBrush x:Key="App.PanelBrush" Color="{StaticResource VirgilColorPanel}" />
     <SolidColorBrush x:Key="App.BorderBrush" Color="{StaticResource VirgilColorBorder}" />
+    <SolidColorBrush x:Key="App.BorderSoftBrush" Color="{StaticResource VirgilColorBorderSoft}" />
     <SolidColorBrush x:Key="App.AccentBrush" Color="{StaticResource VirgilColorAccent}" />
     <SolidColorBrush x:Key="App.AccentBrushSoft" Color="#33220B" />
     <SolidColorBrush x:Key="App.TextPrimaryBrush" Color="{StaticResource VirgilColorTextPrimary}" />
@@ -28,7 +30,6 @@
     <SolidColorBrush x:Key="App.ErrorBrush" Color="{StaticResource VirgilColorError}" />
     <SolidColorBrush x:Key="App.SuccessBrush" Color="{StaticResource VirgilColorSuccess}" />
 
-    <!-- Alias utilisés par l'UI existante -->
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource VirgilColorBackground}" />
     <SolidColorBrush x:Key="PanelBackgroundBrush" Color="{StaticResource VirgilColorPanel}" />
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource VirgilColorCard}" />
@@ -38,42 +39,122 @@
     <DropShadowEffect x:Key="VirgilAccentGlow"
                       BlurRadius="18"
                       ShadowDepth="0"
-                      Opacity="0.42"
+                      Opacity="0.36"
                       Color="#FF8A00" />
 
-    <Style x:Key="VirgilHudCard" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+    <Style x:Key="VirgilHudPanel" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource App.PanelBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style x:Key="VirgilMetricCard" TargetType="Border" BasedOn="{StaticResource VirgilHudPanel}">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
         <Setter Property="Padding" Value="14" />
-        <Setter Property="Margin" Value="8" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+        <Setter Property="MinHeight" Value="118" />
+    </Style>
+
+    <Style x:Key="VirgilOverlayPanel" TargetType="Border" BasedOn="{StaticResource VirgilHudPanel}">
+        <Setter Property="Background" Value="#F00B1016" />
+        <Setter Property="Padding" Value="22" />
     </Style>
 
     <Style x:Key="VirgilPrimaryButton" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
-        <Setter Property="Background" Value="#1A1208" />
+        <Setter Property="Background" Value="#27190A" />
         <Setter Property="BorderBrush" Value="{DynamicResource App.AccentBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Padding" Value="14,9" />
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#3A230B" />
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource App.AccentBrushSoft}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#4A2B0C" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="VirgilSecondaryButton" TargetType="Button" BasedOn="{StaticResource VirgilPrimaryButton}">
+        <Setter Property="Background" Value="#141A20" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+
+    <Style x:Key="VirgilAppTitle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="VirgilSectionTitle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style x:Key="VirgilHudTitle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="CharacterSpacing" Value="80" />
     </Style>
 
     <Style x:Key="VirgilHudMetric" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
-        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontSize" Value="27" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style x:Key="VirgilHudSecondaryText" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="12.5" />
+    </Style>
+
+    <Style x:Key="VirgilMicroLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="VirgilCoreStatusText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrushSoft}" />
+        <Setter Property="FontFamily" Value="Consolas" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="VirgilChatBubble" TargetType="Border">
+        <Setter Property="Background" Value="#121922" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderSoftBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,0,0,10" />
     </Style>
 </ResourceDictionary>
