@@ -6,15 +6,27 @@ public sealed class CleanupPreviewService : ICleanupService
 {
     public CleanupPreview PreviewTemporaryFiles()
     {
-        var tempPath = Path.GetTempPath();
         var targets = new List<CleanupTarget>();
+        var tempPath = TryGetTempPath();
 
-        if (Directory.Exists(tempPath))
+        if (!string.IsNullOrWhiteSpace(tempPath) && Directory.Exists(tempPath))
         {
             targets.Add(ReadDirectorySize("Temporaires utilisateur", tempPath));
         }
 
         return new CleanupPreview(DateTimeOffset.Now, targets);
+    }
+
+    private static string? TryGetTempPath()
+    {
+        try
+        {
+            return Path.GetTempPath();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static CleanupTarget ReadDirectorySize(string name, string directoryPath)
@@ -32,7 +44,7 @@ public sealed class CleanupPreviewService : ICleanupService
             }
             catch
             {
-                // Best effort preview.
+                // Best effort preview only. Inaccessible files are skipped.
             }
         }
 
