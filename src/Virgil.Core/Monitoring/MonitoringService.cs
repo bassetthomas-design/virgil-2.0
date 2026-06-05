@@ -6,16 +6,8 @@ public sealed class MonitoringService : IMonitoringService
 {
     public SystemHealthSnapshot CaptureSnapshot()
     {
-        var memory = MemoryReader.Read();
-        var drives = DriveInfo.GetDrives()
-            .Where(drive => drive.IsReady && drive.DriveType == DriveType.Fixed)
-            .Select(drive => new DriveStatus(
-                drive.Name,
-                string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.Name : drive.VolumeLabel,
-                drive.TotalSize,
-                drive.AvailableFreeSpace))
-            .ToList();
-
+        var memory = ReadMemoryStatus();
+        var drives = ReadFixedDrives();
         var recommendations = BuildRecommendations(memory, drives);
         var overallStatus = recommendations.Count == 0 ? "Stable" : "Attention recommandée";
 
@@ -28,17 +20,74 @@ public sealed class MonitoringService : IMonitoringService
             recommendations);
     }
 
+    private static MemoryStatus ReadMemoryStatus()
+    {
+        try
+        {
+            return MemoryReader.Read();
+        }
+        catch
+        {
+            return new MemoryStatus(0, 0);
+        }
+    }
+
+    private static IReadOnlyList<DriveStatus> ReadFixedDrives()
+    {
+        try
+        {
+            return DriveInfo.GetDrives()
+                .Select(TryReadDrive)
+                .OfType<DriveStatus>()
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static DriveStatus? TryReadDrive(DriveInfo drive)
+    {
+        try
+        {
+            if (!drive.IsReady || drive.DriveType != DriveType.Fixed)
+            {
+                return null;
+            }
+
+            return new DriveStatus(
+                drive.Name,
+                string.IsNullOrWhiteSpace(drive.VolumeLabel) ? drive.Name : drive.VolumeLabel,
+                drive.TotalSize,
+                drive.AvailableFreeSpace);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static List<string> BuildRecommendations(MemoryStatus memory, IReadOnlyList<DriveStatus> drives)
     {
         var result = new List<string>();
 
-        if (memory.UsedPercent >= 85)
+        if (memory.TotalBytes == 0)
+        {
+            result.Add("RAM inaccessible : lecture système à relancer.");
+        }
+        else if (memory.UsedPercent >= 85)
         {
             result.Add("RAM très utilisée : analyser les processus actifs.");
         }
         else if (memory.UsedPercent >= 70)
         {
             result.Add("RAM élevée : surveillance conseillée.");
+        }
+
+        if (drives.Count == 0)
+        {
+            result.Add("Disque système inaccessible : vérification impossible.");
         }
 
         foreach (var drive in drives.Where(drive => drive.UsedPercent >= 90))
