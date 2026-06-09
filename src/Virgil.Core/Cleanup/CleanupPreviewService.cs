@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.IO;
 using Virgil.Domain;
 
 namespace Virgil.Core.Cleanup;
@@ -6,15 +8,44 @@ public sealed class CleanupPreviewService : ICleanupService
 {
     public CleanupPreview PreviewTemporaryFiles()
     {
-        var tempPath = Path.GetTempPath();
         var targets = new List<CleanupTarget>();
+        var tempPath = TryGetTempPath();
 
-        if (Directory.Exists(tempPath))
+        if (CanReadDirectory(tempPath))
         {
             targets.Add(ReadDirectorySize("Temporaires utilisateur", tempPath));
         }
 
         return new CleanupPreview(DateTimeOffset.Now, targets);
+    }
+
+    private static string? TryGetTempPath()
+    {
+        try
+        {
+            return Path.GetTempPath();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool CanReadDirectory(string? directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Directory.Exists(directoryPath);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static CleanupTarget ReadDirectorySize(string name, string directoryPath)
@@ -48,35 +79,39 @@ public sealed class CleanupPreviewService : ICleanupService
         {
             var current = pending.Pop();
 
-            string[] files;
-            try
-            {
-                files = Directory.GetFiles(current);
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (var file in files)
+            foreach (var file in GetFiles(current))
             {
                 yield return file;
             }
 
-            string[] children;
-            try
-            {
-                children = Directory.GetDirectories(current);
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (var child in children)
+            foreach (var child in GetDirectories(current))
             {
                 pending.Push(child);
             }
+        }
+    }
+
+    private static IReadOnlyList<string> GetFiles(string directoryPath)
+    {
+        try
+        {
+            return Directory.GetFiles(directoryPath);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> GetDirectories(string directoryPath)
+    {
+        try
+        {
+            return Directory.GetDirectories(directoryPath);
+        }
+        catch
+        {
+            return [];
         }
     }
 }
