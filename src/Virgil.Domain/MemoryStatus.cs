@@ -4,9 +4,9 @@ public sealed record MemoryStatus(
     ulong TotalBytes,
     ulong AvailableBytes)
 {
-    public ulong UsedBytes => TotalBytes > AvailableBytes ? TotalBytes - AvailableBytes : 0;
+    // Windows can show slightly different RAM values because sampling timing, cache,
+    // compressed memory, and Task Manager presentation can vary.
+    public ulong UsedBytes => ScanRules.CalculateMemoryUsedBytes(TotalBytes, AvailableBytes);
 
-    public double UsedPercent => TotalBytes == 0
-        ? 0
-        : Math.Round((double)UsedBytes / TotalBytes * 100, 1);
+    public double UsedPercent => ScanRules.CalculateUsedPercent(UsedBytes, TotalBytes);
 }
