@@ -12,7 +12,7 @@ public sealed class CleanupPreviewService : ICleanupService
         var targets = new List<CleanupTarget>();
         var tempPath = TryGetTempPath();
 
-        if (CanReadDirectory(tempPath))
+        if (!string.IsNullOrWhiteSpace(tempPath) && CanReadDirectory(tempPath))
         {
             targets.Add(ReadDirectorySize("Temporaires utilisateur", tempPath));
         }
@@ -32,13 +32,8 @@ public sealed class CleanupPreviewService : ICleanupService
         }
     }
 
-    private static bool CanReadDirectory(string? directoryPath)
+    private static bool CanReadDirectory(string directoryPath)
     {
-        if (string.IsNullOrWhiteSpace(directoryPath))
-        {
-            return false;
-        }
-
         try
         {
             return Directory.Exists(directoryPath);
