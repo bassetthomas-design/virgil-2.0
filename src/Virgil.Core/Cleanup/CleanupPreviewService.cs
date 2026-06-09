@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Virgil.Domain;
@@ -99,7 +100,7 @@ public sealed class CleanupPreviewService : ICleanupService
         }
         catch
         {
-            return [];
+            return Array.Empty<string>();
         }
     }
 
@@ -111,7 +112,7 @@ public sealed class CleanupPreviewService : ICleanupService
         }
         catch
         {
-            return [];
+            return Array.Empty<string>();
         }
     }
 }
