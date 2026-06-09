@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Virgil.Domain;
 
 public enum ScanMode
