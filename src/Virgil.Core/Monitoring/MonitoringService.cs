@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -55,7 +56,7 @@ public sealed class MonitoringService : IMonitoringService
         }
         catch
         {
-            return [];
+            return Array.Empty<DriveInfo>();
         }
     }
 
