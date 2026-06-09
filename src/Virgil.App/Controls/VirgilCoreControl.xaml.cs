@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -75,8 +76,8 @@ public partial class VirgilCoreControl : UserControl
     private void StartIdlePulse()
     {
         var storyboard = new Storyboard();
-        AddDouble(storyboard, CenterGlow, OpacityProperty, 0.28, 0.46, 2.6, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, OuterHalo, OpacityProperty, 0.16, 0.28, 2.6, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.28, 0.46, 2.6, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.16, 0.28, 2.6, true, RepeatBehavior.Forever);
         AddDouble(storyboard, HaloScale, ScaleTransform.ScaleXProperty, 0.98, 1.04, 2.6, true, RepeatBehavior.Forever);
         AddDouble(storyboard, HaloScale, ScaleTransform.ScaleYProperty, 0.98, 1.04, 2.6, true, RepeatBehavior.Forever);
         BeginStoryboard(storyboard);
@@ -86,10 +87,10 @@ public partial class VirgilCoreControl : UserControl
     {
         var storyboard = new Storyboard();
         AddDouble(storyboard, SegmentRingRotate, RotateTransform.AngleProperty, 0, 360, 7.2, false, RepeatBehavior.Forever);
-        AddDouble(storyboard, ScanLine, OpacityProperty, 0.12, 0.76, 1.2, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, ScanLine, UIElement.OpacityProperty, 0.12, 0.76, 1.2, true, RepeatBehavior.Forever);
         AddDouble(storyboard, ScanLineTransform, TranslateTransform.YProperty, -58, 58, 2.4, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, CenterGlow, OpacityProperty, 0.34, 0.64, 1.1, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, OuterHalo, OpacityProperty, 0.22, 0.38, 1.1, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.34, 0.64, 1.1, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.22, 0.38, 1.1, true, RepeatBehavior.Forever);
         BeginStoryboard(storyboard);
     }
 
@@ -99,9 +100,9 @@ public partial class VirgilCoreControl : UserControl
         CenterGlow.Fill = FindBrush(brushKey);
 
         var storyboard = new Storyboard();
-        AddDouble(storyboard, StatusFlash, OpacityProperty, 0.78, 0, 0.85);
-        AddDouble(storyboard, CenterGlow, OpacityProperty, 0.7, 0.34, 0.85);
-        AddDouble(storyboard, OuterHalo, OpacityProperty, 0.48, 0.2, 0.85);
+        AddDouble(storyboard, StatusFlash, UIElement.OpacityProperty, 0.78, 0, 0.85);
+        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.7, 0.34, 0.85);
+        AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.48, 0.2, 0.85);
 
         EventHandler completed = (_, _) =>
         {
