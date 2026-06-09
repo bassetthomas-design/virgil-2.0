@@ -9,19 +9,16 @@ on:
       - main
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
@@ -35,7 +32,7 @@ jobs:
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Virgil-2.0-win-x64
           path: artifacts/Virgil2
