@@ -1,0 +1,142 @@
+<UserControl x:Class="Virgil.App.Controls.VirgilCoreControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False"
+             Loaded="OnLoaded"
+             Unloaded="OnUnloaded">
+    <Viewbox Stretch="Uniform">
+        <Grid Width="260" Height="260" RenderTransformOrigin="0.5,0.5">
+            <Ellipse x:Name="OuterHalo"
+                     Width="246"
+                     Height="246"
+                     Fill="#22FF7A00"
+                     Opacity="0.2"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center">
+                <Ellipse.RenderTransform>
+                    <ScaleTransform x:Name="HaloScale" ScaleX="1" ScaleY="1" />
+                </Ellipse.RenderTransform>
+            </Ellipse>
+
+            <Ellipse Width="214"
+                     Height="214"
+                     Stroke="{DynamicResource App.BorderBrush}"
+                     StrokeThickness="1"
+                     StrokeDashArray="5 9"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+            <Ellipse Width="178"
+                     Height="178"
+                     Stroke="{DynamicResource App.BorderActiveBrush}"
+                     StrokeThickness="1.2"
+                     StrokeDashArray="18 12"
+                     Opacity="0.75"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+
+            <Grid x:Name="SegmentRing" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <RotateTransform x:Name="SegmentRingRotate" Angle="0" />
+                </Grid.RenderTransform>
+                <Path Data="M 130,18 A 112,112 0 0 1 228,76"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      StrokeThickness="3"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Path Data="M 242,130 A 112,112 0 0 1 186,228"
+                      Stroke="{DynamicResource App.AccentLightBrush}"
+                      StrokeThickness="3"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Path Data="M 130,242 A 112,112 0 0 1 32,184"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      StrokeThickness="3"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Path Data="M 18,130 A 112,112 0 0 1 74,32"
+                      Stroke="{DynamicResource App.AccentSoftBrush}"
+                      StrokeThickness="3"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+            </Grid>
+
+            <Grid x:Name="TechnicalMarks" Opacity="0.84">
+                <Line X1="130" Y1="0" X2="130" Y2="24" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
+                <Line X1="130" Y1="236" X2="130" Y2="260" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
+                <Line X1="0" Y1="130" X2="24" Y2="130" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
+                <Line X1="236" Y1="130" X2="260" Y2="130" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
+                <Path Data="M 50,50 L 70,50 M 50,50 L 50,70"
+                      Stroke="{DynamicResource App.BorderActiveBrush}"
+                      StrokeThickness="1" />
+                <Path Data="M 210,50 L 190,50 M 210,50 L 210,70"
+                      Stroke="{DynamicResource App.BorderActiveBrush}"
+                      StrokeThickness="1" />
+                <Path Data="M 50,210 L 70,210 M 50,210 L 50,190"
+                      Stroke="{DynamicResource App.BorderActiveBrush}"
+                      StrokeThickness="1" />
+                <Path Data="M 210,210 L 190,210 M 210,210 L 210,190"
+                      Stroke="{DynamicResource App.BorderActiveBrush}"
+                      StrokeThickness="1" />
+            </Grid>
+
+            <Grid x:Name="InnerFragments" RenderTransformOrigin="0.5,0.5">
+                <Path Data="M 130,58 L 150,96 L 130,88 L 110,96 Z"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      Fill="#10FF7A00"
+                      StrokeThickness="1.2" />
+                <Path Data="M 202,130 L 164,150 L 172,130 L 164,110 Z"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      Fill="#10FF7A00"
+                      StrokeThickness="1.2" />
+                <Path Data="M 130,202 L 110,164 L 130,172 L 150,164 Z"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      Fill="#10FF7A00"
+                      StrokeThickness="1.2" />
+                <Path Data="M 58,130 L 96,110 L 88,130 L 96,150 Z"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      Fill="#10FF7A00"
+                      StrokeThickness="1.2" />
+            </Grid>
+
+            <Rectangle x:Name="ScanLine"
+                       Width="156"
+                       Height="2"
+                       Fill="{DynamicResource App.AccentLightBrush}"
+                       Opacity="0"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center">
+                <Rectangle.RenderTransform>
+                    <TranslateTransform x:Name="ScanLineTransform" Y="-54" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
+
+            <Ellipse Width="72"
+                     Height="72"
+                     Stroke="{DynamicResource App.BorderBrush}"
+                     StrokeThickness="1"
+                     Fill="{DynamicResource App.SecondaryBackgroundBrush}"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+            <Ellipse x:Name="CenterGlow"
+                     Width="44"
+                     Height="44"
+                     Fill="{DynamicResource App.AccentBrush}"
+                     Opacity="0.34"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+            <Ellipse Width="18"
+                     Height="18"
+                     Fill="{DynamicResource App.AccentLightBrush}"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+            <Ellipse x:Name="StatusFlash"
+                     Width="230"
+                     Height="230"
+                     Stroke="{DynamicResource App.AccentLightBrush}"
+                     StrokeThickness="2"
+                     Opacity="0"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Grid>
+    </Viewbox>
+</UserControl>
