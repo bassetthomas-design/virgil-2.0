@@ -1,25 +1,25 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
-using Virgil.Core.Cleanup;
-using Virgil.Core.Monitoring;
+using Virgil.Core.Scanning;
 using Virgil.Domain;
 
 namespace Virgil.App;
 
 public partial class MainWindow : Window
 {
-    private readonly IMonitoringService _monitoringService = new MonitoringService();
-    private readonly ICleanupService _cleanupService = new CleanupPreviewService();
+    private readonly ISystemScanService _systemScanService = new SystemScanService();
+    private readonly HashSet<string> _reportedProgressSteps = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _activeScanCancellation;
     private bool _scanInProgress;
-    private SystemHealthSnapshot? _lastSnapshot;
-    private CleanupPreview? _lastCleanupPreview;
-    private bool _lastScanIncludedCleanup;
+    private SystemScanReport? _lastReport;
 
     public MainWindow()
     {
@@ -33,17 +33,37 @@ public partial class MainWindow : Window
 
     private void CloseScanProtocol_Click(object sender, RoutedEventArgs e) => CloseScanProtocol();
 
-    private async void RunQuickScan_Click(object sender, RoutedEventArgs e) => await RunQuickScanAsync();
+    private async void RunQuickScan_Click(object sender, RoutedEventArgs e) => await RunScanAsync(ScanMode.Quick);
 
-    private async void RunDeepScan_Click(object sender, RoutedEventArgs e) => await RunDeepScanAsync();
+    private async void RunDeepScan_Click(object sender, RoutedEventArgs e) => await RunScanAsync(ScanMode.Deep);
+
+    private void CloseReport_Click(object sender, RoutedEventArgs e) => CloseReport();
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
+        if (e.Key != Key.Escape)
+        {
+            return;
+        }
+
+        if (ReportOverlay.Visibility == Visibility.Visible)
+        {
+            CloseReport();
+            e.Handled = true;
+            return;
+        }
+
+        if (ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
         {
             CloseScanProtocol();
             e.Handled = true;
         }
+    }
+
+    private void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        _activeScanCancellation?.Cancel();
+        VirgilCore.SetState(VirgilCoreState.Idle);
     }
 
     private void Home_Click(object sender, RoutedEventArgs e)
@@ -60,17 +80,13 @@ public partial class MainWindow : Window
 
     private void LastReport_Click(object sender, RoutedEventArgs e)
     {
-        if (_lastSnapshot is null && _lastCleanupPreview is null)
+        if (_lastReport is null)
         {
-            AppendVirgilMessage("Aucun rapport disponible.");
+            AppendVirgilMessage("Aucun rapport disponible.\nLancez une analyse systeme.");
             return;
         }
 
-        var status = _lastSnapshot?.OverallStatus ?? "partiel";
-        var cleanup = _lastScanIncludedCleanup && _lastCleanupPreview is not null
-            ? FormatBytes(_lastCleanupPreview.TotalBytes)
-            : "non analyse";
-        AppendVirgilMessage($"Dernier rapport : {status}. Nettoyage potentiel : {cleanup}.");
+        ShowLastReport(_lastReport);
     }
 
     private void OpenScanProtocol()
@@ -91,33 +107,35 @@ public partial class MainWindow : Window
         MainScanButton.Focus();
     }
 
-    private async Task RunQuickScanAsync()
+    private async Task RunScanAsync(ScanMode mode)
     {
-        if (!BeginScan("Scan rapide lance."))
+        if (!BeginScan(mode))
         {
             return;
         }
 
-        var errors = new List<string>();
-        SystemHealthSnapshot? snapshot = null;
-
         try
         {
-            snapshot = await CaptureSnapshotAsync(errors);
-            _lastSnapshot = snapshot;
-            _lastCleanupPreview = null;
-            _lastScanIncludedCleanup = false;
+            var progress = new Progress<ScanProgress>(HandleProgress);
+            var report = await _systemScanService.RunAsync(mode, progress, _activeScanCancellation!.Token);
+            _lastReport = report;
 
-            ApplySnapshot(snapshot, errors);
-            ApplyCleanup(null, attempted: false, errors);
-            CompleteScan(snapshot is not null, errors, "Diagnostic termine.");
+            ApplyReport(report);
+            CompleteScan(report);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = "ANNULE";
+            GlobalStatusText.Text = "ANNULE";
+            SetVirgilState(VirgilCoreState.Idle, "REPOS");
+            AppendVirgilMessage("Analyse annulee.\nAucune modification effectuee.");
         }
         catch
         {
-            AddError(errors, "Analyse interrompue.");
-            ApplySnapshot(snapshot, errors);
-            ApplyCleanup(null, attempted: false, errors);
-            CompleteScan(hasPrimaryData: false, errors, "Diagnostic indisponible.");
+            StatusText.Text = "ERREUR";
+            GlobalStatusText.Text = "ECHEC DU SCAN";
+            SetVirgilState(VirgilCoreState.Error, "ERREUR");
+            AppendVirgilMessage("Analyse indisponible.\nAucune modification effectuee.");
         }
         finally
         {
@@ -125,43 +143,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RunDeepScanAsync()
-    {
-        if (!BeginScan("Analyse approfondie lancee."))
-        {
-            return;
-        }
-
-        var errors = new List<string>();
-        SystemHealthSnapshot? snapshot = null;
-        CleanupPreview? preview = null;
-
-        try
-        {
-            snapshot = await CaptureSnapshotAsync(errors);
-            preview = await PreviewCleanupAsync(errors);
-            _lastSnapshot = snapshot;
-            _lastCleanupPreview = preview;
-            _lastScanIncludedCleanup = true;
-
-            ApplySnapshot(snapshot, errors);
-            ApplyCleanup(preview, attempted: true, errors);
-            CompleteScan(snapshot is not null || preview is not null, errors, "Analyse approfondie terminee.");
-        }
-        catch
-        {
-            AddError(errors, "Analyse interrompue.");
-            ApplySnapshot(snapshot, errors);
-            ApplyCleanup(preview, attempted: true, errors);
-            CompleteScan(hasPrimaryData: false, errors, "Analyse indisponible.");
-        }
-        finally
-        {
-            FinishScan();
-        }
-    }
-
-    private bool BeginScan(string message)
+    private bool BeginScan(ScanMode mode)
     {
         if (_scanInProgress)
         {
@@ -170,13 +152,23 @@ public partial class MainWindow : Window
         }
 
         _scanInProgress = true;
+        _reportedProgressSteps.Clear();
+        _activeScanCancellation = new CancellationTokenSource();
+        CloseReport();
         CloseScanProtocol();
         SetInterfaceBusy(true);
         SetVirgilState(VirgilCoreState.Scanning, "SCAN EN COURS");
         StatusText.Text = "ANALYSE";
         GlobalStatusText.Text = "ANALYSE EN COURS";
+        ReportCpuText.Text = "EN COURS";
+        ReportRamText.Text = "EN COURS";
+        ReportDiskText.Text = "EN COURS";
+        ReportCleanupText.Text = mode == ScanMode.Deep ? "EN COURS" : "NON ANALYSE";
+        ReportRecommendationsText.Text = "ANALYSE EN COURS";
         ReportErrorsText.Text = "AUCUNE";
-        AppendVirgilMessage(message);
+
+        AppendVirgilMessage($"Protocole d'analyse initialise.\nMode : {ModeLabel(mode).ToLowerInvariant()}.");
+        AppendVirgilMessage("Analyse systeme en cours.");
         return true;
     }
 
@@ -184,150 +176,161 @@ public partial class MainWindow : Window
     {
         SetInterfaceBusy(false);
         _scanInProgress = false;
+        _activeScanCancellation?.Dispose();
+        _activeScanCancellation = null;
         SessionTimeText.Text = $"SESSION {DateTime.Now:HH:mm}";
     }
 
-    private async Task<SystemHealthSnapshot?> CaptureSnapshotAsync(ICollection<string> errors)
+    private void HandleProgress(ScanProgress progress)
     {
-        try
-        {
-            return await Task.Run(() => _monitoringService.CaptureSnapshot());
-        }
-        catch
-        {
-            AddError(errors, "Diagnostic systeme indisponible.");
-            return null;
-        }
-    }
+        StatusText.Text = progress.Step.ToUpperInvariant();
 
-    private async Task<CleanupPreview?> PreviewCleanupAsync(ICollection<string> errors)
-    {
-        try
+        if (!_reportedProgressSteps.Add(progress.Step))
         {
-            return await Task.Run(() => _cleanupService.PreviewTemporaryFiles());
-        }
-        catch
-        {
-            AddError(errors, "Dossier TEMP inaccessible.");
-            return null;
-        }
-    }
-
-    private void ApplySnapshot(SystemHealthSnapshot? snapshot, ICollection<string> errors)
-    {
-        if (snapshot is null)
-        {
-            MemoryValueText.Text = "N/A";
-            MemoryDetailText.Text = "LECTURE INDISPONIBLE";
-            DiskValueText.Text = "N/A";
-            DiskDetailText.Text = "LECTURE INDISPONIBLE";
-            GlobalStatusText.Text = "INDISPONIBLE";
-            ReportRamText.Text = "N/A - lecture indisponible";
-            ReportDiskText.Text = "N/A - lecture indisponible";
-            ReportRecommendationsText.Text = "Diagnostic non disponible.";
             return;
         }
 
-        ApplyMemory(snapshot.Memory, errors);
-        ApplyDisk(snapshot.Drives.FirstOrDefault(), errors);
-        GlobalStatusText.Text = snapshot.OverallStatus.ToUpperInvariant();
-        ReportRecommendationsText.Text = snapshot.Recommendations.Count == 0
-            ? "Aucune recommandation critique."
-            : string.Join("\n", snapshot.Recommendations.Take(3));
+        if (progress.Step is "Informations Windows" or "Stockage" or "Nettoyage potentiel")
+        {
+            AppendVirgilMessage(progress.Message);
+        }
     }
 
-    private void ApplyMemory(MemoryStatus memory, ICollection<string> errors)
+    private void ApplyReport(SystemScanReport report)
     {
-        if (memory.TotalBytes == 0)
+        var systemDisk = ScanRules.SelectSystemDisk(report.Disks, Environment.SystemDirectory);
+        var priorityCount = CountPriorities(report);
+
+        GlobalStatusText.Text = report.OverallStatus.ToUpperInvariant();
+        ReportCpuText.Text = $"{report.Processor.UsagePercent:0.0} % - {report.Processor.Status}";
+        ReportRamText.Text = report.Memory.TotalPhysicalBytes == 0
+            ? "N/A - lecture memoire indisponible"
+            : $"{report.Memory.UsedPercent:0.0} % utilises";
+        ReportDiskText.Text = systemDisk is null
+            ? "N/A - aucun disque fixe accessible"
+            : $"{systemDisk.Name} : {systemDisk.UsedPercent:0.0} % utilises";
+        ReportCleanupText.Text = report.Cleanup.WasAnalyzed
+            ? $"{FormatBytes(report.Cleanup.PotentialBytes)} potentiels. Aucune suppression."
+            : "Non analyse pour scan rapide.";
+        ReportRecommendationsText.Text = report.Recommendations.Count == 0
+            ? "Aucune recommandation prioritaire."
+            : string.Join("\n", report.Recommendations.Take(3));
+        ReportErrorsText.Text = report.Errors.Count == 0
+            ? "AUCUNE"
+            : string.Join("\n", report.Errors.Distinct().Take(4));
+
+        ApplyMemoryCard(report.Memory);
+        ApplyDiskCard(systemDisk);
+        ApplyCleanupCard(report.Cleanup);
+        UpdatePriorities(priorityCount);
+    }
+
+    private void ApplyMemoryCard(MemoryScanInfo memory)
+    {
+        if (memory.TotalPhysicalBytes == 0)
         {
             MemoryValueText.Text = "N/A";
             MemoryDetailText.Text = "LECTURE MEMOIRE ECHOUEE";
-            ReportRamText.Text = "N/A - lecture memoire indisponible";
-            AddError(errors, "Lecture memoire indisponible.");
             return;
         }
 
         MemoryValueText.Text = $"{memory.UsedPercent:0.0} %";
-        MemoryDetailText.Text = $"{FormatBytes(memory.UsedBytes)} / {FormatBytes(memory.TotalBytes)}";
-        ReportRamText.Text = $"{memory.UsedPercent:0.0} % utilises";
+        MemoryDetailText.Text = $"{FormatBytes(memory.UsedPhysicalBytes)} / {FormatBytes(memory.TotalPhysicalBytes)}";
     }
 
-    private void ApplyDisk(DriveStatus? drive, ICollection<string> errors)
+    private void ApplyDiskCard(DiskScanInfo? disk)
     {
-        if (drive is null || drive.TotalBytes <= 0)
+        if (disk is null || disk.TotalBytes <= 0)
         {
             DiskValueText.Text = "N/A";
             DiskDetailText.Text = "AUCUN DISQUE ACCESSIBLE";
-            ReportDiskText.Text = "N/A - aucun disque fixe accessible";
-            AddError(errors, "Aucun disque fixe accessible.");
             return;
         }
 
-        DiskValueText.Text = $"{drive.UsedPercent:0.0} %";
-        DiskDetailText.Text = $"{drive.Name} - {FormatBytes(drive.UsedBytes)} / {FormatBytes(drive.TotalBytes)}";
-        ReportDiskText.Text = $"{drive.Name} : {drive.UsedPercent:0.0} % utilises";
+        DiskValueText.Text = $"{disk.UsedPercent:0.0} %";
+        DiskDetailText.Text = $"{disk.Name} - {FormatBytes(disk.UsedBytes)} / {FormatBytes(disk.TotalBytes)}";
     }
 
-    private void ApplyCleanup(CleanupPreview? preview, bool attempted, ICollection<string> errors)
+    private void ApplyCleanupCard(CleanupScanInfo cleanup)
     {
-        if (!attempted)
+        if (!cleanup.WasAnalyzed)
         {
             CleanupValueText.Text = "--";
             CleanupDetailText.Text = "NON ANALYSE";
-            ReportCleanupText.Text = "Non analyse pour scan rapide.";
             return;
         }
 
-        if (preview is null || preview.Targets.Count == 0)
-        {
-            CleanupValueText.Text = "N/A";
-            CleanupDetailText.Text = "TEMP INACCESSIBLE";
-            ReportCleanupText.Text = "N/A - dossier TEMP inaccessible";
-            AddError(errors, "Dossier TEMP inaccessible ou vide.");
-            return;
-        }
-
-        CleanupValueText.Text = FormatBytes(preview.TotalBytes);
-        CleanupDetailText.Text = $"{preview.TotalFiles} fichiers. Aucune suppression.";
-        ReportCleanupText.Text = $"{FormatBytes(preview.TotalBytes)} potentiels. Aucune suppression.";
+        CleanupValueText.Text = FormatBytes(cleanup.PotentialBytes);
+        CleanupDetailText.Text = $"{cleanup.FileCount} fichiers. Aucune suppression.";
     }
 
-    private void CompleteScan(bool hasPrimaryData, ICollection<string> errors, string message)
+    private void CompleteScan(SystemScanReport report)
     {
-        var visibleErrors = errors.Distinct().ToList();
-        ReportErrorsText.Text = visibleErrors.Count == 0 ? "AUCUNE" : string.Join("\n", visibleErrors);
-        UpdatePriorities(visibleErrors.Count);
+        var priorityCount = CountPriorities(report);
 
-        if (!hasPrimaryData)
-        {
-            StatusText.Text = "ERREUR";
-            SetVirgilState(VirgilCoreState.Error, "ERREUR");
-            AppendVirgilMessage(message);
-            return;
-        }
-
-        if (visibleErrors.Count > 0)
-        {
-            StatusText.Text = "ATTENTION";
-            SetVirgilState(VirgilCoreState.Warning, "ATTENTION");
-        }
-        else
+        if (IsStable(report))
         {
             StatusText.Text = "SCAN TERMINE";
             SetVirgilState(VirgilCoreState.Success, "SUCCES");
         }
+        else
+        {
+            StatusText.Text = "ATTENTION";
+            SetVirgilState(VirgilCoreState.Warning, "ATTENTION");
+        }
 
-        AppendVirgilMessage(message);
+        if (report.Mode == ScanMode.Deep)
+        {
+            AppendVirgilMessage($"Analyse approfondie terminee.\nNettoyage potentiel : {FormatBytes(report.Cleanup.PotentialBytes)}.\nRapport disponible.");
+            return;
+        }
+
+        AppendVirgilMessage($"Scan rapide termine.\nEtat systeme : {report.OverallStatus.ToLowerInvariant()}.\nPriorites detectees : {priorityCount}.");
     }
 
-    private void UpdatePriorities(int errorCount)
+    private void ShowLastReport(SystemScanReport report)
     {
-        var recommendationCount = _lastSnapshot?.Recommendations.Count ?? 0;
-        var total = recommendationCount + errorCount;
-        PriorityValueText.Text = total.ToString();
-        PriorityDetailText.Text = total == 0
+        var systemDisk = ScanRules.SelectSystemDisk(report.Disks, Environment.SystemDirectory);
+
+        ReportPopupSummaryText.Text = $"{ModeLabel(report.Mode)} - {report.OverallStatus} - {report.CapturedAt:yyyy-MM-dd HH:mm:ss}";
+        ReportPopupDetailsText.Text = string.Join("\n", new[]
+        {
+            $"Mode : {ModeLabel(report.Mode)}",
+            $"Date : {report.CapturedAt:yyyy-MM-dd HH:mm:ss}",
+            $"Duree : {report.Duration.TotalSeconds:0.0} s",
+            $"Etat general : {report.OverallStatus}",
+            $"Windows : {report.Windows.Edition} - {report.Windows.Version} - build {report.Windows.Build}",
+            $"Architecture : systeme {report.Windows.SystemArchitecture}, processus {report.Windows.ProcessArchitecture}",
+            $"Machine : {report.Windows.MachineName}",
+            $"Uptime : {FormatDuration(report.Windows.Uptime)}",
+            $"CPU : {report.Processor.Name} - {report.Processor.LogicalProcessorCount} logiques - {report.Processor.UsagePercent:0.0} % ({report.Processor.Status})",
+            $"Memoire : {FormatBytes(report.Memory.UsedPhysicalBytes)} / {FormatBytes(report.Memory.TotalPhysicalBytes)} ({report.Memory.UsedPercent:0.0} %)",
+            $"Disque systeme : {FormatDisk(systemDisk)}",
+            $"Reseau : {FormatNetwork(report.Network)}",
+            $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}"
+        });
+        ReportPopupRecommendationsText.Text = report.Recommendations.Count == 0
+            ? "Aucune recommandation prioritaire."
+            : string.Join("\n", report.Recommendations);
+        ReportPopupErrorsText.Text = report.Errors.Count == 0
+            ? "Aucune"
+            : string.Join("\n", report.Errors);
+
+        ReportOverlay.Visibility = Visibility.Visible;
+        CloseReportButton.Focus();
+    }
+
+    private void CloseReport()
+    {
+        ReportOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void UpdatePriorities(int priorityCount)
+    {
+        PriorityValueText.Text = priorityCount.ToString();
+        PriorityDetailText.Text = priorityCount == 0
             ? "AUCUNE PRIORITE"
-            : total == 1 ? "1 POINT A VERIFIER" : $"{total} POINTS A VERIFIER";
+            : priorityCount == 1 ? "1 POINT A VERIFIER" : $"{priorityCount} POINTS A VERIFIER";
     }
 
     private void AppendVirgilMessage(string message)
@@ -366,12 +369,14 @@ public partial class MainWindow : Window
         CancelProtocolButton.IsEnabled = !busy;
     }
 
-    private static void AddError(ICollection<string> errors, string message)
+    private static int CountPriorities(SystemScanReport report)
     {
-        if (!errors.Contains(message))
-        {
-            errors.Add(message);
-        }
+        return report.Findings.Count(finding => finding.Severity >= ScanSeverity.Attention);
+    }
+
+    private static bool IsStable(SystemScanReport report)
+    {
+        return string.Equals(report.OverallStatus, "Stable", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeVirgilMessage(string message)
@@ -387,22 +392,48 @@ public partial class MainWindow : Window
         return cleanMessage;
     }
 
-    private static string FormatBytes(ulong bytes) => FormatBytes((double)bytes);
-
-    private static string FormatBytes(long bytes) => FormatBytes((double)Math.Max(0, bytes));
-
-    private static string FormatBytes(double bytes)
+    private static string ModeLabel(ScanMode mode)
     {
-        string[] units = ["o", "Ko", "Mo", "Go", "To"];
-        var value = Math.Max(0, bytes);
-        var unit = 0;
-
-        while (value >= 1024 && unit < units.Length - 1)
-        {
-            value /= 1024;
-            unit++;
-        }
-
-        return $"{value:0.##} {units[unit]}";
+        return mode == ScanMode.Deep ? "Approfondi" : "Rapide";
     }
+
+    private static string FormatDisk(DiskScanInfo? disk)
+    {
+        return disk is null
+            ? "N/A"
+            : $"{disk.Name} {FormatBytes(disk.UsedBytes)} / {FormatBytes(disk.TotalBytes)} ({disk.UsedPercent:0.0} %, {disk.Status})";
+    }
+
+    private static string FormatNetwork(NetworkScanInfo network)
+    {
+        var speed = network.SpeedBitsPerSecond > 0
+            ? $"{network.SpeedBitsPerSecond / 1_000_000d:0.#} Mb/s"
+            : "N/A";
+        var dns = network.DnsServers.Count == 0 ? "N/A" : string.Join(", ", network.DnsServers);
+
+        return $"{network.Name} - {network.Type} - {network.Status} - {speed} - IPv4 {network.IPv4Address} - passerelle {network.Gateway} - DNS {dns}";
+    }
+
+    private static string FormatCleanup(CleanupScanInfo cleanup)
+    {
+        return cleanup.WasAnalyzed
+            ? $"{FormatBytes(cleanup.PotentialBytes)}, {cleanup.FileCount} fichiers, zones : {FormatZones(cleanup.Zones)}"
+            : "Non analyse";
+    }
+
+    private static string FormatZones(IReadOnlyList<string> zones)
+    {
+        return zones.Count == 0 ? "N/A" : string.Join(", ", zones);
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalDays >= 1
+            ? $"{(int)duration.TotalDays} j {duration.Hours} h"
+            : $"{duration.Hours} h {duration.Minutes} min";
+    }
+
+    private static string FormatBytes(ulong bytes) => ScanRules.FormatBytes(bytes);
+
+    private static string FormatBytes(long bytes) => ScanRules.FormatBytes(bytes);
 }
