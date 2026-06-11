@@ -14,7 +14,8 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
-        KeyDown="Window_KeyDown">
+        KeyDown="Window_KeyDown"
+        Closing="Window_Closing">
     <Grid Background="{DynamicResource App.BackgroundBrush}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Auto"
@@ -181,6 +182,8 @@
                                     <StackPanel>
                                         <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
                                         <TextBlock x:Name="GlobalStatusText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                        <TextBlock Text="CPU" Style="{StaticResource VirgilMicroLabel}" />
+                                        <TextBlock x:Name="ReportCpuText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
                                         <TextBlock Text="RAM" Style="{StaticResource VirgilMicroLabel}" />
                                         <TextBlock x:Name="ReportRamText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
                                         <TextBlock Text="DISQUE" Style="{StaticResource VirgilMicroLabel}" />
@@ -337,6 +340,80 @@
                                 AutomationProperties.Name="Annuler le protocole"
                                 Click="CloseScanProtocol_Click" />
                     </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ReportOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    Width="760"
+                    MaxWidth="900"
+                    MaxHeight="760"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl Width="72"
+                                                Height="72"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau Virgil rapport" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock Text="DERNIER RAPPORT"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock x:Name="ReportPopupSummaryText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                            <Rectangle Style="{StaticResource VirgilSeparator}" Margin="0,12,0,12" />
+                            <TextBlock x:Name="ReportPopupDetailsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap" />
+                            <Rectangle Style="{StaticResource VirgilSeparator}" Margin="0,12,0,12" />
+                            <TextBlock Text="RECOMMANDATIONS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ReportPopupRecommendationsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="ERREURS PARTIELLES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ReportPopupErrorsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Button x:Name="CloseReportButton"
+                            Grid.Row="2"
+                            Grid.ColumnSpan="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer le rapport"
+                            Click="CloseReport_Click" />
                 </Grid>
             </Border>
         </Grid>
