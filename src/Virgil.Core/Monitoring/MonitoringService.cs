@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Virgil.Core.Scanning;
 using Virgil.Domain;
 
 namespace Virgil.Core.Monitoring;
@@ -17,11 +18,23 @@ public sealed class MonitoringService : IMonitoringService
 
         return new SystemHealthSnapshot(
             DateTimeOffset.Now,
-            CpuUsagePercent: 0,
+            ReadCpuUsagePercent(),
             memory,
             drives,
             overallStatus,
             recommendations);
+    }
+
+    private static double ReadCpuUsagePercent()
+    {
+        try
+        {
+            return ProcessorReader.MeasureUsageBlocking();
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static MemoryStatus ReadMemory()
