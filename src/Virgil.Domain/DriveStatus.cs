@@ -6,9 +6,7 @@ public sealed record DriveStatus(
     long TotalBytes,
     long AvailableBytes)
 {
-    public long UsedBytes => TotalBytes > AvailableBytes ? TotalBytes - AvailableBytes : 0;
+    public long UsedBytes => ScanRules.CalculateDiskUsedBytes(TotalBytes, AvailableBytes);
 
-    public double UsedPercent => TotalBytes <= 0
-        ? 0
-        : Math.Round((double)UsedBytes / TotalBytes * 100, 1);
+    public double UsedPercent => ScanRules.CalculateUsedPercent(UsedBytes, TotalBytes);
 }
