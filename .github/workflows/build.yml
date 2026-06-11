@@ -28,6 +28,9 @@ jobs:
       - name: Build
         run: dotnet build Virgil.sln --configuration Release --no-restore
 
+      - name: Test
+        run: dotnet test Virgil.sln --configuration Release --no-build
+
       - name: Publish app
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
 
