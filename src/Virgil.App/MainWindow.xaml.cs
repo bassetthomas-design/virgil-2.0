@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Virgil.App.Controls;
 using Virgil.Core.Scanning;
 using Virgil.Domain;
@@ -18,13 +21,17 @@ public partial class MainWindow : Window
     private readonly ISystemScanService _systemScanService = new SystemScanService();
     private readonly HashSet<string> _reportedProgressSteps = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _activeScanCancellation;
+    private Storyboard? _startupStoryboard;
     private bool _scanInProgress;
+    private bool _startupAnimationPlayed;
     private SystemScanReport? _lastReport;
 
     public MainWindow()
     {
         InitializeComponent();
         SessionTimeText.Text = $"SESSION {DateTime.Now:HH:mm}";
+        LastReportButton.IsEnabled = false;
+        PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
     }
@@ -38,6 +45,8 @@ public partial class MainWindow : Window
     private async void RunDeepScan_Click(object sender, RoutedEventArgs e) => await RunScanAsync(ScanMode.Deep);
 
     private void CloseReport_Click(object sender, RoutedEventArgs e) => CloseReport();
+
+    private void Window_ContentRendered(object? sender, EventArgs e) => PlayStartupAnimation();
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
@@ -63,6 +72,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _activeScanCancellation?.Cancel();
+        StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
 
@@ -325,6 +335,177 @@ public partial class MainWindow : Window
         ReportOverlay.Visibility = Visibility.Collapsed;
     }
 
+    private void PlayStartupAnimation()
+    {
+        if (_startupAnimationPlayed)
+        {
+            return;
+        }
+
+        _startupAnimationPlayed = true;
+
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            FinishStartupVisuals();
+            return;
+        }
+
+        try
+        {
+            PrepareStartupVisuals();
+
+            var storyboard = new Storyboard
+            {
+                FillBehavior = FillBehavior.Stop
+            };
+
+            AddOpacityAnimation(storyboard, HeaderPanel, 0, 1, 0.00, 0.32);
+            AddOpacityAnimation(storyboard, NavigationContainer, 0, 1, 0.12, 0.42);
+            AddTranslateAnimation(storyboard, NavigationStartupTransform, TranslateTransform.XProperty, -10, 0, 0.12, 0.42);
+            AddOpacityAnimation(storyboard, VirgilMainContainer, 0, 1, 0.24, 0.46);
+            AddTranslateAnimation(storyboard, VirgilMainStartupTransform, TranslateTransform.YProperty, 10, 0, 0.24, 0.46);
+            AddOpacityAnimation(storyboard, CommunicationContainer, 0, 1, 0.48, 0.38);
+            AddTranslateAnimation(storyboard, CommunicationStartupTransform, TranslateTransform.XProperty, 10, 0, 0.48, 0.38);
+            AddMetricAnimation(storyboard, MemoryMetricCard, MemoryMetricTransform, 0.62);
+            AddMetricAnimation(storyboard, DiskMetricCard, DiskMetricTransform, 0.70);
+            AddMetricAnimation(storyboard, CleanupMetricCard, CleanupMetricTransform, 0.78);
+            AddMetricAnimation(storyboard, PriorityMetricCard, PriorityMetricTransform, 0.86);
+
+            storyboard.Completed += StartupAnimation_Completed;
+            _startupStoryboard = storyboard;
+            storyboard.Begin(this, true);
+        }
+        catch
+        {
+            StopStartupStoryboard();
+            FinishStartupVisuals();
+        }
+    }
+
+    private void StartupAnimation_Completed(object? sender, EventArgs e)
+    {
+        if (_startupStoryboard is not null)
+        {
+            _startupStoryboard.Completed -= StartupAnimation_Completed;
+            _startupStoryboard.Remove(this);
+            _startupStoryboard = null;
+        }
+
+        FinishStartupVisuals();
+    }
+
+    private void StopStartupStoryboard()
+    {
+        if (_startupStoryboard is null)
+        {
+            return;
+        }
+
+        _startupStoryboard.Completed -= StartupAnimation_Completed;
+        _startupStoryboard.Stop(this);
+        _startupStoryboard.Remove(this);
+        _startupStoryboard = null;
+    }
+
+    private void PrepareStartupVisuals()
+    {
+        if (!SystemParameters.ClientAreaAnimation)
+        {
+            FinishStartupVisuals();
+            return;
+        }
+
+        HeaderPanel.Opacity = 0;
+        NavigationContainer.Opacity = 0;
+        VirgilMainContainer.Opacity = 0;
+        CommunicationContainer.Opacity = 0;
+        NavigationStartupTransform.X = -10;
+        VirgilMainStartupTransform.Y = 10;
+        CommunicationStartupTransform.X = 10;
+        SetMetricCardState(0, 8);
+    }
+
+    private void FinishStartupVisuals()
+    {
+        HeaderPanel.Opacity = 1;
+        NavigationContainer.Opacity = 1;
+        VirgilMainContainer.Opacity = 1;
+        CommunicationContainer.Opacity = 1;
+        NavigationStartupTransform.X = 0;
+        VirgilMainStartupTransform.Y = 0;
+        CommunicationStartupTransform.X = 0;
+        MetricsStartupTransform.Y = 0;
+        SetMetricCardState(1, 0);
+        ScanProtocolOverlay.Visibility = Visibility.Collapsed;
+        ReportOverlay.Visibility = Visibility.Collapsed;
+        SetVirgilState(VirgilCoreState.Idle, "REPOS");
+    }
+
+    private void SetMetricCardState(double opacity, double offsetY)
+    {
+        MemoryMetricCard.Opacity = opacity;
+        DiskMetricCard.Opacity = opacity;
+        CleanupMetricCard.Opacity = opacity;
+        PriorityMetricCard.Opacity = opacity;
+        MemoryMetricTransform.Y = offsetY;
+        DiskMetricTransform.Y = offsetY;
+        CleanupMetricTransform.Y = offsetY;
+        PriorityMetricTransform.Y = offsetY;
+    }
+
+    private static void AddMetricAnimation(
+        Storyboard storyboard,
+        UIElement card,
+        TranslateTransform transform,
+        double beginSeconds)
+    {
+        AddOpacityAnimation(storyboard, card, 0, 1, beginSeconds, 0.28);
+        AddTranslateAnimation(storyboard, transform, TranslateTransform.YProperty, 8, 0, beginSeconds, 0.28);
+    }
+
+    private static void AddOpacityAnimation(
+        Storyboard storyboard,
+        DependencyObject target,
+        double from,
+        double to,
+        double beginSeconds,
+        double durationSeconds)
+    {
+        AddDoubleAnimation(storyboard, target, UIElement.OpacityProperty, from, to, beginSeconds, durationSeconds);
+    }
+
+    private static void AddTranslateAnimation(
+        Storyboard storyboard,
+        DependencyObject target,
+        DependencyProperty property,
+        double from,
+        double to,
+        double beginSeconds,
+        double durationSeconds)
+    {
+        AddDoubleAnimation(storyboard, target, property, from, to, beginSeconds, durationSeconds);
+    }
+
+    private static void AddDoubleAnimation(
+        Storyboard storyboard,
+        DependencyObject target,
+        DependencyProperty property,
+        double from,
+        double to,
+        double beginSeconds,
+        double durationSeconds)
+    {
+        var animation = new DoubleAnimation(from, to, TimeSpan.FromSeconds(durationSeconds))
+        {
+            BeginTime = TimeSpan.FromSeconds(beginSeconds),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+
+        Storyboard.SetTarget(animation, target);
+        Storyboard.SetTargetProperty(animation, new PropertyPath(property));
+        storyboard.Children.Add(animation);
+    }
+
     private void UpdatePriorities(int priorityCount)
     {
         PriorityValueText.Text = priorityCount.ToString();
@@ -344,11 +525,15 @@ public partial class MainWindow : Window
         var entry = new TextBlock
         {
             Text = "[VIRGIL]\n" + cleanMessage,
-            Style = TryFindResource("VirgilChatMessageText") as Style
+            Style = TryFindResource("VirgilChatMessageText") as Style,
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
 
         ChatMessagesPanel.Children.Add(entry);
-        ChatScrollViewer.Dispatcher.InvokeAsync(() => ChatScrollViewer.ScrollToEnd());
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(() => ChatScrollViewer.ScrollToEnd()));
     }
 
     private void SetVirgilState(VirgilCoreState state, string label)
@@ -361,8 +546,7 @@ public partial class MainWindow : Window
     {
         Cursor = busy ? Cursors.Wait : Cursors.Arrow;
         MainScanButton.IsEnabled = !busy;
-        ChatScanButton.IsEnabled = !busy;
-        LastReportButton.IsEnabled = !busy;
+        LastReportButton.IsEnabled = !busy && _lastReport is not null;
         NavigationPanel.IsEnabled = !busy;
         QuickScanButton.IsEnabled = !busy;
         DeepScanButton.IsEnabled = !busy;
