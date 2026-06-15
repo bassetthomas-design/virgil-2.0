@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         SessionTimeText.Text = $"SESSION {DateTime.Now:HH:mm}";
         LastReportButton.IsEnabled = false;
+        WireCleanupModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
@@ -62,6 +63,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (CleanupModuleView.Visibility == Visibility.Visible && CleanupModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
         {
             CloseScanProtocol();
@@ -72,20 +79,61 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _activeScanCancellation?.Cancel();
+        CleanupModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
 
     private void Home_Click(object sender, RoutedEventArgs e)
     {
+        ShowHome();
+    }
+
+    private void Cleanup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nNettoyage indisponible.");
+            return;
+        }
+
+        ShowCleanup();
+    }
+
+    private void ShowHome()
+    {
+        HomeContentGrid.Visibility = Visibility.Visible;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        HomeNavButton.Tag = "Active";
+        CleanupNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
+        SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Accueil actif.");
+    }
+
+    private void ShowCleanup()
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = "Active";
+        StatusText.Text = "NETTOYAGE";
+        SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
+        AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
+        CleanupModuleView.FocusAnalyzeButton();
     }
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
     {
         StatusText.Text = "MODULE PRET";
         AppendVirgilMessage("Module en preparation.");
+    }
+
+    private void WireCleanupModule()
+    {
+        CleanupModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        CleanupModuleView.VirgilStateRequested += SetVirgilState;
+        CleanupModuleView.ReturnHomeRequested += (_, _) => ShowHome();
     }
 
     private void LastReport_Click(object sender, RoutedEventArgs e)
@@ -105,6 +153,11 @@ public partial class MainWindow : Window
         {
             AppendVirgilMessage("Analyse deja en cours.");
             return;
+        }
+
+        if (CleanupModuleView.Visibility == Visibility.Visible)
+        {
+            ShowHome();
         }
 
         ScanProtocolOverlay.Visibility = Visibility.Visible;

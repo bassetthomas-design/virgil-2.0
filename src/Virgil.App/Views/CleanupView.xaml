@@ -1,0 +1,251 @@
+<UserControl x:Class="Virgil.App.Views.CleanupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Virgil.App.Controls"
+             Focusable="True"
+             KeyboardNavigation.TabNavigation="Cycle">
+    <Grid ClipToBounds="True">
+        <Grid x:Name="CleanupContentRoot"
+              ClipToBounds="True">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:VirgilCoreControl x:Name="CleanupMiniCore"
+                                            Width="58"
+                                            Height="58"
+                                            IsHitTestVisible="False"
+                                            AutomationProperties.Name="Mini noyau Virgil nettoyage" />
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="NETTOYAGE SECURISE"
+                               Style="{StaticResource VirgilHudSectionTitle}"
+                               FontSize="22" />
+                    <TextBlock Text="ANALYSE ET VALIDATION PAR ZONE"
+                               Style="{StaticResource VirgilHudSecondaryText}"
+                               Margin="0,4,0,0" />
+                    <TextBlock x:Name="CleanupStatusText"
+                               Text="Aucune analyse nettoyage lancee."
+                               Style="{StaticResource VirgilHudSecondaryText}"
+                               Margin="0,10,0,0" />
+                </StackPanel>
+            </Grid>
+
+            <WrapPanel Grid.Row="1"
+                       Margin="0,16,0,10"
+                       KeyboardNavigation.TabNavigation="Continue">
+                <Button x:Name="AnalyzeZonesButton"
+                        Content="ANALYSER LES ZONES"
+                        Style="{StaticResource VirgilPrimaryButton}"
+                        AutomationProperties.Name="Analyser les zones de nettoyage"
+                        Click="AnalyzeZones_Click" />
+                <Button x:Name="LaunchCleanupButton"
+                        Content="LANCER LE NETTOYAGE GUIDE"
+                        Style="{StaticResource VirgilPrimaryButton}"
+                        Margin="8,0,0,0"
+                        IsEnabled="False"
+                        AutomationProperties.Name="Lancer le nettoyage guide"
+                        Click="LaunchCleanup_Click" />
+                <Button x:Name="ViewCleanupReportButton"
+                        Content="VOIR LE DERNIER RAPPORT"
+                        Style="{StaticResource VirgilSecondaryButton}"
+                        Margin="8,0,0,0"
+                        IsEnabled="False"
+                        AutomationProperties.Name="Voir le dernier rapport de nettoyage"
+                        Click="ViewCleanupReport_Click" />
+                <Button x:Name="ReturnHomeButton"
+                        Content="RETOUR ACCUEIL"
+                        Style="{StaticResource VirgilSecondaryButton}"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Retour accueil"
+                        Click="ReturnHome_Click" />
+            </WrapPanel>
+
+            <ScrollViewer Grid.Row="2"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Focusable="False"
+                          ClipToBounds="True">
+                <StackPanel x:Name="ZonesPanel">
+                    <Border Style="{StaticResource VirgilHudCard}"
+                            Margin="0,6,0,6">
+                        <TextBlock Text="Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan."
+                                   Style="{StaticResource VirgilHudSecondaryText}" />
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <Grid x:Name="ZoneValidationOverlay"
+              Panel.ZIndex="40"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="640"
+                    MaxHeight="720"
+                    Margin="18"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="82" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <controls:VirgilCoreControl x:Name="ValidationCore"
+                                                Width="64"
+                                                Height="64"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau Virgil nettoyage" />
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL"
+                                   Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ValidationZoneTitleText"
+                                   Text="VALIDATION REQUISE"
+                                   FontSize="21"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock x:Name="ValidationReasonText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       FontWeight="SemiBold" />
+                            <Rectangle Style="{StaticResource VirgilSeparator}" />
+                            <TextBlock Text="RACINE LOGIQUE"
+                                       Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationRootText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,3,0,10" />
+                            <TextBlock Text="PREVISUALISATION"
+                                       Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationMetricsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,3,0,10" />
+                            <TextBlock Text="EFFET"
+                                       Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationEffectText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,3,0,10" />
+                            <TextBlock Text="NON TOUCHE"
+                                       Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationNotTouchedText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,3,0,10" />
+                            <TextBlock Text="AVERTISSEMENT"
+                                       Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationWarningText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,3,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                KeyboardNavigation.TabNavigation="Continue">
+                        <Button x:Name="ExecuteZoneButton"
+                                Content="EXECUTER"
+                                Style="{StaticResource VirgilPrimaryButton}"
+                                AutomationProperties.Name="Executer le nettoyage de cette zone"
+                                Click="ExecuteZone_Click" />
+                        <Button x:Name="SkipZoneButton"
+                                Content="PASSER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Passer cette zone"
+                                Click="SkipZone_Click" />
+                        <Button x:Name="CancelAllButton"
+                                Content="ANNULER TOUT"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Annuler tout le nettoyage guide"
+                                Click="CancelAll_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="CleanupReportOverlay"
+              Panel.ZIndex="45"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="700"
+                    MaxHeight="720"
+                    Margin="18"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <controls:VirgilCoreControl x:Name="ReportCore"
+                                                    Width="58"
+                                                    Height="58"
+                                                    IsHitTestVisible="False"
+                                                    AutomationProperties.Name="Mini noyau Virgil rapport nettoyage" />
+                        <StackPanel Grid.Column="1"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="VIRGIL"
+                                       Style="{StaticResource VirgilHudSectionTitle}" />
+                            <TextBlock Text="RAPPORT NETTOYAGE"
+                                       FontSize="21"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <TextBlock x:Name="CleanupReportText"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </ScrollViewer>
+                    <Button x:Name="CloseCleanupReportButton"
+                            Grid.Row="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer le rapport nettoyage"
+                            Click="CloseCleanupReport_Click" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
