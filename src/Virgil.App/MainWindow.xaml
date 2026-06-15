@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:Virgil.App.Controls"
+        xmlns:views="clr-namespace:Virgil.App.Views"
         Title="Virgil 2.0"
         Width="1440"
         Height="900"
@@ -102,7 +103,8 @@
                                       ClipToBounds="True">
                             <StackPanel x:Name="NavigationPanel"
                                         KeyboardNavigation.TabNavigation="Continue">
-                                <Button Style="{StaticResource VirgilNavButton}"
+                                <Button x:Name="HomeNavButton"
+                                        Style="{StaticResource VirgilNavButton}"
                                         Tag="Active"
                                         AutomationProperties.Name="Accueil"
                                         Click="Home_Click">
@@ -118,7 +120,7 @@
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Scan" Click="ModulePlaceholder_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Ellipse Width="10" Height="10" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="SCAN" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Nettoyage" Click="ModulePlaceholder_Click">
+                                <Button x:Name="CleanupNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Nettoyage" Click="Cleanup_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,8 L8,2 L12,8 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="NETTOYAGE" /></Grid>
                                 </Button>
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Ressources" Click="ModulePlaceholder_Click">
@@ -156,76 +158,82 @@
                         <TranslateTransform x:Name="VirgilMainStartupTransform" Y="0" />
                     </Border.RenderTransform>
                     <Grid ClipToBounds="True">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                        <Grid x:Name="HomeContentGrid" ClipToBounds="True">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                        <StackPanel HorizontalAlignment="Center" Margin="0,4,0,18">
-                            <controls:VirgilCoreControl x:Name="VirgilCore"
-                                                        Width="310"
-                                                        Height="310"
-                                                        HorizontalAlignment="Center"
-                                                        AutomationProperties.Name="Noyau Virgil" />
-                            <TextBlock x:Name="VirgilStateText"
-                                       Text="ETAT VIRGIL : REPOS"
-                                       Style="{StaticResource VirgilHudSectionTitle}"
-                                       HorizontalAlignment="Center"
-                                       Margin="0,8,0,0" />
-                            <Button x:Name="MainScanButton"
-                                    Content="SCAN COMPLET"
-                                    Style="{StaticResource VirgilPrimaryButton}"
-                                    FontSize="15"
-                                    Padding="28,12"
-                                    Margin="0,18,0,0"
-                                    AutomationProperties.Name="Scan complet"
-                                    Click="OpenScanProtocol_Click" />
-                            <TextBlock Text="ANALYSE RAPIDE OU APPROFONDIE"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
-                                       HorizontalAlignment="Center"
-                                       Margin="0,8,0,0" />
-                        </StackPanel>
+                            <StackPanel HorizontalAlignment="Center" Margin="0,4,0,18">
+                                <controls:VirgilCoreControl x:Name="VirgilCore"
+                                                            Width="310"
+                                                            Height="310"
+                                                            HorizontalAlignment="Center"
+                                                            AutomationProperties.Name="Noyau Virgil" />
+                                <TextBlock x:Name="VirgilStateText"
+                                           Text="ETAT VIRGIL : REPOS"
+                                           Style="{StaticResource VirgilHudSectionTitle}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,8,0,0" />
+                                <Button x:Name="MainScanButton"
+                                        Content="SCAN COMPLET"
+                                        Style="{StaticResource VirgilPrimaryButton}"
+                                        FontSize="15"
+                                        Padding="28,12"
+                                        Margin="0,18,0,0"
+                                        AutomationProperties.Name="Scan complet"
+                                        Click="OpenScanProtocol_Click" />
+                                <TextBlock Text="ANALYSE RAPIDE OU APPROFONDIE"
+                                           Style="{StaticResource VirgilHudSecondaryText}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,8,0,0" />
+                            </StackPanel>
 
-                        <ScrollViewer Grid.Row="1"
-                                      Margin="0,4,0,0"
-                                      VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      Focusable="False"
-                                      ClipToBounds="True">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <Rectangle Style="{StaticResource VirgilSeparator}" />
-                                <TextBlock Grid.Row="1" Text="RAPPORT TACTIQUE" Style="{StaticResource VirgilHudSectionTitle}" />
-                                <Grid Grid.Row="2" Margin="0,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.1*" />
-                                        <ColumnDefinition Width="1.4*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="GlobalStatusText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
-                                        <TextBlock Text="CPU" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportCpuText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
-                                        <TextBlock Text="RAM" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportRamText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
-                                        <TextBlock Text="DISQUE" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportDiskText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="18,0,0,0">
-                                        <TextBlock Text="NETTOYAGE POTENTIEL" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportCleanupText" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
-                                        <TextBlock Text="RECOMMANDATIONS" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportRecommendationsText" Text="AUCUN SCAN" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
-                                        <TextBlock Text="ERREURS" Style="{StaticResource VirgilMicroLabel}" />
-                                        <TextBlock x:Name="ReportErrorsText" Text="AUCUNE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
-                                    </StackPanel>
+                            <ScrollViewer Grid.Row="1"
+                                          Margin="0,4,0,0"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Focusable="False"
+                                          ClipToBounds="True">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Rectangle Style="{StaticResource VirgilSeparator}" />
+                                    <TextBlock Grid.Row="1" Text="RAPPORT TACTIQUE" Style="{StaticResource VirgilHudSectionTitle}" />
+                                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.1*" />
+                                            <ColumnDefinition Width="1.4*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="GlobalStatusText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock Text="CPU" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportCpuText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock Text="RAM" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportRamText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock Text="DISQUE" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportDiskText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="18,0,0,0">
+                                            <TextBlock Text="NETTOYAGE POTENTIEL" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportCleanupText" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock Text="RECOMMANDATIONS" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportRecommendationsText" Text="AUCUN SCAN" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock Text="ERREURS" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock x:Name="ReportErrorsText" Text="AUCUNE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                    </Grid>
                                 </Grid>
-                            </Grid>
-                        </ScrollViewer>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <views:CleanupView x:Name="CleanupModuleView"
+                                           Visibility="Collapsed"
+                                           AutomationProperties.Name="Module nettoyage securise" />
                     </Grid>
                 </Border>
 
