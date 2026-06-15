@@ -92,6 +92,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
 
         var eligible = preview.Candidates.Where(candidate => candidate.IsEligible).ToList();
+        Report(progress, preview.Definition.Id, "Suppression", 0, eligible.Count, preview.Definition.DisplayName);
 
         for (var index = 0; index < eligible.Count; index++)
         {
@@ -103,8 +104,6 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             }
 
             var candidate = eligible[index];
-            Report(progress, preview.Definition.Id, "Suppression", index, eligible.Count, preview.Definition.DisplayName);
-
             var result = TryDeleteCandidate(preview.Definition, candidate);
             deletedFiles += result.Deleted ? 1 : 0;
             deletedBytes += result.Deleted ? result.Bytes : 0;
@@ -115,9 +114,24 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             {
                 errors.Add(result.Error);
             }
+
+            Report(
+                progress,
+                preview.Definition.Id,
+                "Suppression",
+                index + 1,
+                eligible.Count,
+                preview.Definition.DisplayName,
+                deletedFiles,
+                deletedBytes,
+                skippedFiles,
+                errorFiles);
         }
 
-        DeleteEmptySubdirectories(preview.Definition, errors);
+        if (status != CleanupStepStatus.Cancelled)
+        {
+            DeleteEmptySubdirectories(preview.Definition, errors);
+        }
         stopwatch.Stop();
 
         if (status != CleanupStepStatus.Cancelled)
@@ -125,7 +139,17 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             status = errorFiles > 0 ? CleanupStepStatus.PartialFailure : CleanupStepStatus.Completed;
         }
 
-        Report(progress, preview.Definition.Id, "Termine", eligible.Count, eligible.Count, preview.Definition.DisplayName);
+        Report(
+            progress,
+            preview.Definition.Id,
+            "Termine",
+            eligible.Count,
+            eligible.Count,
+            preview.Definition.DisplayName,
+            deletedFiles,
+            deletedBytes,
+            skippedFiles,
+            errorFiles);
 
         return new CleanupStepResult(
             preview.Definition,
@@ -291,10 +315,24 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         string step,
         int current,
         int total,
-        string displayName)
+        string displayName,
+        int deletedFiles = 0,
+        long deletedBytes = 0,
+        int skippedFiles = 0,
+        int errorFiles = 0)
     {
         var percent = total == 0 ? 100 : (int)Math.Round(current * 100d / total);
-        progress?.Report(new CleanupProgress(zoneId, step, percent, displayName));
+        progress?.Report(new CleanupProgress(
+            zoneId,
+            step,
+            percent,
+            displayName,
+            current,
+            total,
+            deletedFiles,
+            deletedBytes,
+            skippedFiles,
+            errorFiles));
     }
 
     private sealed record CandidateDeleteResult(

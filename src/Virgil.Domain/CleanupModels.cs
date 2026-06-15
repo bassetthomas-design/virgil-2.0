@@ -66,7 +66,13 @@ public sealed record CleanupProgress(
     CleanupZoneId? ZoneId,
     string Step,
     int? Percent,
-    string Message);
+    string Message,
+    int ProcessedFiles = 0,
+    int TotalFiles = 0,
+    int DeletedFiles = 0,
+    long DeletedBytes = 0,
+    int SkippedFiles = 0,
+    int ErrorFiles = 0);
 
 public sealed record CleanupStepResult(
     CleanupZoneDefinition Zone,
