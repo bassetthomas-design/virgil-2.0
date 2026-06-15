@@ -584,6 +584,7 @@ public partial class MainWindow : Window
         };
 
         ChatMessagesPanel.Children.Add(entry);
+        VirgilCore.NotifyCommunication();
         Dispatcher.BeginInvoke(
             DispatcherPriority.Background,
             new Action(() => ChatScrollViewer.ScrollToEnd()));

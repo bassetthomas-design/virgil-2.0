@@ -186,6 +186,7 @@ public partial class CleanupView : UserControl
             {
                 _operationCancellation!.Token.ThrowIfCancellationRequested();
                 var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
+                RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
 
                 if (decision == CleanupZoneDecision.CancelAll)
                 {
@@ -201,7 +202,7 @@ public partial class CleanupView : UserControl
                     continue;
                 }
 
-                RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
+                RequestVirgilState(VirgilCoreState.Executing, "NETTOYAGE");
                 var result = await _executionService
                     .ExecuteZoneAsync(preview, new Progress<CleanupProgress>(HandleProgress), _operationCancellation.Token)
                     .ConfigureAwait(true);
@@ -317,8 +318,8 @@ public partial class CleanupView : UserControl
         ValidationNotTouchedText.Text = preview.Definition.NotTouched;
         ValidationWarningText.Text = preview.Definition.Warning;
         ZoneValidationOverlay.Visibility = Visibility.Visible;
-        RequestVirgilState(VirgilCoreState.Warning, "VALIDATION");
-        ValidationCore.SetState(VirgilCoreState.Warning);
+        RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+        ValidationCore.SetState(VirgilCoreState.SensitiveAction);
         VirgilMessageRequested?.Invoke($"Validation requise.\nZone : {preview.Definition.DisplayName.ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.");
         ExecuteZoneButton.Focus();
     }
