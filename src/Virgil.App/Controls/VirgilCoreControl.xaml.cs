@@ -224,19 +224,19 @@ public partial class VirgilCoreControl : UserControl
         var storyboard = new Storyboard { FillBehavior = FillBehavior.Stop };
         var profile = VirgilMotionProfiles.Boot(IsCompact());
 
-        CenterGlow.Opacity = 0.8;
-        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.82, 0.42, 1.55);
-        AddDouble(storyboard, CommunicationWave, UIElement.OpacityProperty, 0.42, 0.0, 1.2, false, null, 0.22);
-        AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleXProperty, 0.42, 1.9, 1.2, false, null, 0.22);
-        AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleYProperty, 0.42, 1.9, 1.2, false, null, 0.22);
-        AddDouble(storyboard, DataSweepAssembly, UIElement.OpacityProperty, 0.0, 0.7, 0.18, false, null, 0.28);
-        AddDouble(storyboard, DataSweepAssembly, UIElement.OpacityProperty, 0.7, 0.0, 0.46, false, null, 0.92);
+        CenterGlow.Opacity = 0.66;
+        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.68, 0.38, 1.55);
+        AddDouble(storyboard, CommunicationWave, UIElement.OpacityProperty, 0.30, 0.0, 1.2, false, null, 0.22);
+        AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleXProperty, 0.42, 1.6, 1.2, false, null, 0.22);
+        AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleYProperty, 0.42, 1.6, 1.2, false, null, 0.22);
+        AddDouble(storyboard, DataSweepAssembly, UIElement.OpacityProperty, 0.0, 0.42, 0.18, false, null, 0.28);
+        AddDouble(storyboard, DataSweepAssembly, UIElement.OpacityProperty, 0.42, 0.0, 0.46, false, null, 0.92);
 
         AnimateRotate(OuterMotionAssemblyRotate, 0, profile.OuterRotationDegrees, profile.OuterRotationSeconds);
         AnimateRotate(InnerMotionAssemblyRotate, 0, profile.InnerRotationDegrees, profile.InnerRotationSeconds);
         AnimateRotate(SegmentRingRotate, 0, profile.SegmentRotationDegrees, profile.SegmentRotationSeconds);
         AnimateRotate(DataSweepAssemblyRotate, -65, 74, 0.95, beginSeconds: 0.3);
-        AnimateFragmentBurst(profile.FragmentTranslationPixels, 0.72, beginSeconds: 0.16);
+        AnimateFragmentBurst(Math.Min(profile.FragmentTranslationPixels, 5), 0.72, beginSeconds: 0.16);
 
         EventHandler completed = (_, _) =>
         {
@@ -264,17 +264,17 @@ public partial class VirgilCoreControl : UserControl
         var profile = VirgilMotionProfiles.For(VirgilCoreState.Communicating, IsCompact());
         var storyboard = new Storyboard { FillBehavior = FillBehavior.Stop };
 
-        AddDouble(storyboard, CommunicationFlash, UIElement.OpacityProperty, 0.0, 0.58, 0.16);
-        AddDouble(storyboard, CommunicationFlash, UIElement.OpacityProperty, 0.58, 0.0, 0.34, false, null, 0.16);
-        AddDouble(storyboard, CommunicationWave, UIElement.OpacityProperty, 0.48, 0.0, 0.56);
+        AddDouble(storyboard, CommunicationFlash, UIElement.OpacityProperty, 0.0, 0.38, 0.16);
+        AddDouble(storyboard, CommunicationFlash, UIElement.OpacityProperty, 0.38, 0.0, 0.34, false, null, 0.16);
+        AddDouble(storyboard, CommunicationWave, UIElement.OpacityProperty, 0.32, 0.0, 0.56);
         AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleXProperty, 0.42, 1.72, 0.56);
         AddDouble(storyboard, CommunicationWaveScale, ScaleTransform.ScaleYProperty, 0.42, 1.72, 0.56);
-        AddDouble(storyboard, CommunicationFragments, UIElement.OpacityProperty, 0.0, 0.92, 0.12, false, null, 0.04);
-        AddDouble(storyboard, CommunicationFragments, UIElement.OpacityProperty, 0.92, 0.0, 0.28, false, null, 0.32);
+        AddDouble(storyboard, CommunicationFragments, UIElement.OpacityProperty, 0.0, 0.72, 0.12, false, null, 0.04);
+        AddDouble(storyboard, CommunicationFragments, UIElement.OpacityProperty, 0.72, 0.0, 0.28, false, null, 0.32);
 
         AnimateRotate(OuterMotionAssemblyKickRotate, 0, profile.CommunicationRotationDegrees, 0.56);
-        AnimateFragmentBurst(profile.CommunicationTranslationPixels, 0.56);
-        AnimateCommunicationFragments(profile.CommunicationTranslationPixels, 0.56);
+        AnimateFragmentBurst(VisualCommunicationOffset(profile), 0.56);
+        AnimateCommunicationFragments(VisualCommunicationOffset(profile), 0.56);
 
         EventHandler completed = (_, _) =>
         {
@@ -290,11 +290,11 @@ public partial class VirgilCoreControl : UserControl
 
     private void BuildIdle(Storyboard storyboard, VirgilMotionProfile profile)
     {
-        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.35, 0.45, 3.1, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.16, 0.25, 3.4, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, VerticalMarks, UIElement.OpacityProperty, 0.72, 0.96, 4.0, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, HorizontalMarks, UIElement.OpacityProperty, 0.70, 0.94, 4.2, true, RepeatBehavior.Forever, 0.7);
-        AddDouble(storyboard, CornerMarks, UIElement.OpacityProperty, 0.72, 0.94, 4.5, true, RepeatBehavior.Forever, 1.2);
+        AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.34, 0.42, 3.1, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.14, 0.20, 3.4, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, VerticalMarks, UIElement.OpacityProperty, 0.56, 0.74, 4.0, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, HorizontalMarks, UIElement.OpacityProperty, 0.54, 0.72, 4.2, true, RepeatBehavior.Forever, 0.7);
+        AddDouble(storyboard, CornerMarks, UIElement.OpacityProperty, 0.52, 0.70, 4.5, true, RepeatBehavior.Forever, 1.2);
 
         AddContinuousRotation(OuterMotionAssemblyRotate, 0, profile.OuterRotationDegrees, profile.OuterRotationSeconds);
         AddContinuousRotation(InnerMotionAssemblyRotate, 0, profile.InnerRotationDegrees, profile.InnerRotationSeconds);
@@ -304,10 +304,9 @@ public partial class VirgilCoreControl : UserControl
         AnimateScalePulse(CenterGlowScale, 0.97, 1.04, 3.1);
         AnimateScalePulse(HaloScale, 0.98, 1.035, 3.4);
         AnimateFragments(profile);
-        AnimateIdleSweep();
-
         if (!IsCompact())
         {
+            AnimateIdleSweep();
             AddAmbientActivity(storyboard);
         }
     }
@@ -316,7 +315,7 @@ public partial class VirgilCoreControl : UserControl
     {
         AddDouble(storyboard, CenterGlow, UIElement.OpacityProperty, 0.48, 0.74, 1.05, true, RepeatBehavior.Forever);
         AddDouble(storyboard, OuterHalo, UIElement.OpacityProperty, 0.28, 0.44, 1.25, true, RepeatBehavior.Forever);
-        AddDouble(storyboard, ScanLine, UIElement.OpacityProperty, 0.22, 0.86, 0.68, true, RepeatBehavior.Forever);
+        AddDouble(storyboard, ScanLine, UIElement.OpacityProperty, 0.18, 0.62, 0.68, true, RepeatBehavior.Forever);
         AddDouble(storyboard, SegmentA, UIElement.OpacityProperty, 0.62, 1.0, 0.72, true, RepeatBehavior.Forever, 0.0);
         AddDouble(storyboard, SegmentB, UIElement.OpacityProperty, 0.54, 0.96, 0.72, true, RepeatBehavior.Forever, 0.18);
         AddDouble(storyboard, SegmentC, UIElement.OpacityProperty, 0.58, 1.0, 0.72, true, RepeatBehavior.Forever, 0.36);
@@ -396,15 +395,15 @@ public partial class VirgilCoreControl : UserControl
 
     private void AddAmbientActivity(Storyboard storyboard)
     {
-        AddCyclicPulse(storyboard, AmbientWave, UIElement.OpacityProperty, 0, 0.34, 0, 8.4, 6.2, 6.58, 7.04);
+        AddCyclicPulse(storyboard, AmbientWave, UIElement.OpacityProperty, 0, 0.20, 0, 8.4, 6.2, 6.58, 7.04);
         AddCyclicPulse(storyboard, AmbientWaveScale, ScaleTransform.ScaleXProperty, 0.42, 1.65, 0.42, 8.4, 6.2, 6.58, 7.04);
         AddCyclicPulse(storyboard, AmbientWaveScale, ScaleTransform.ScaleYProperty, 0.42, 1.65, 0.42, 8.4, 6.2, 6.58, 7.04);
-        AddCyclicPulse(storyboard, AmbientSegments, UIElement.OpacityProperty, 0, 0.46, 0, 8.4, 6.42, 6.76, 7.12);
+        AddCyclicPulse(storyboard, AmbientSegments, UIElement.OpacityProperty, 0, 0.22, 0, 8.4, 6.42, 6.76, 7.12);
     }
 
     private void AnimateFragments(VirgilMotionProfile profile)
     {
-        var offset = profile.FragmentTranslationPixels;
+        var offset = VisualFragmentOffset(profile);
         AddFragmentOpacityPulse(FragmentTop, profile);
         AddFragmentOpacityPulse(FragmentRight, profile);
         AddFragmentOpacityPulse(FragmentBottom, profile);
@@ -413,6 +412,28 @@ public partial class VirgilCoreControl : UserControl
         AnimateTranslation(FragmentRightTransform, TranslateTransform.XProperty, 0, offset, profile.FragmentCycleSeconds + 0.24, true, RepeatBehavior.Forever, 0.32);
         AnimateTranslation(FragmentBottomTransform, TranslateTransform.YProperty, 0, offset, profile.FragmentCycleSeconds + 0.18, true, RepeatBehavior.Forever, 0.64);
         AnimateTranslation(FragmentLeftTransform, TranslateTransform.XProperty, 0, -offset, profile.FragmentCycleSeconds + 0.36, true, RepeatBehavior.Forever, 0.96);
+    }
+
+    private static double VisualFragmentOffset(VirgilMotionProfile profile)
+    {
+        if (profile.IsCompact)
+        {
+            return profile.FragmentTranslationPixels;
+        }
+
+        return profile.State switch
+        {
+            VirgilCoreState.Idle => Math.Min(profile.FragmentTranslationPixels, 5),
+            VirgilCoreState.Scanning or VirgilCoreState.Executing => Math.Min(profile.FragmentTranslationPixels, 7),
+            _ => profile.FragmentTranslationPixels
+        };
+    }
+
+    private static double VisualCommunicationOffset(VirgilMotionProfile profile)
+    {
+        return profile.IsCompact
+            ? Math.Min(profile.CommunicationTranslationPixels, 2.5)
+            : Math.Min(profile.CommunicationTranslationPixels, 4);
     }
 
     private void AnimateFragmentBurst(double offset, double seconds, double beginSeconds = 0)
@@ -425,7 +446,7 @@ public partial class VirgilCoreControl : UserControl
 
     private void AnimateCommunicationFragments(double offset, double seconds)
     {
-        CommunicationFragments.Opacity = 0.92;
+        CommunicationFragments.Opacity = 0.72;
         AnimateTranslation(CommunicationTopTransform, TranslateTransform.YProperty, 0, -offset, seconds / 2, true);
         AnimateTranslation(CommunicationRightTransform, TranslateTransform.XProperty, 0, offset, seconds / 2, true, beginSeconds: 0.02);
         AnimateTranslation(CommunicationBottomTransform, TranslateTransform.YProperty, 0, offset, seconds / 2, true, beginSeconds: 0.04);
@@ -447,8 +468,8 @@ public partial class VirgilCoreControl : UserControl
     {
         var animation = new DoubleAnimation
         {
-            From = 0.75,
-            To = 1.0,
+            From = 0.68,
+            To = 0.88,
             Duration = TimeSpan.FromSeconds(profile.FragmentCycleSeconds),
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever,
@@ -467,8 +488,8 @@ public partial class VirgilCoreControl : UserControl
         };
         opacity.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
         opacity.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(5.8))));
-        opacity.KeyFrames.Add(new SplineDoubleKeyFrame(0.56, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(6.08))));
-        opacity.KeyFrames.Add(new SplineDoubleKeyFrame(0.18, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(7.02))));
+        opacity.KeyFrames.Add(new SplineDoubleKeyFrame(0.34, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(6.08))));
+        opacity.KeyFrames.Add(new SplineDoubleKeyFrame(0.10, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(7.02))));
         opacity.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(7.32))));
         DataSweepAssembly.BeginAnimation(UIElement.OpacityProperty, opacity);
 
@@ -669,43 +690,53 @@ public partial class VirgilCoreControl : UserControl
         CenterGlow.Fill = FindBrush(accent);
         StatusFlash.Stroke = FindBrush(light);
         CenterDot.Fill = FindBrush(light);
+        OuterGuideRing.Opacity = isCompact ? 0.46 : 0.66;
+        InnerGuideRing.Opacity = isCompact ? 0.0 : 0.48;
+        TechnicalMarks.Opacity = isCompact ? 0.42 : 0.68;
+        OuterMotionAssembly.Opacity = isCompact ? 0.58 : 0.72;
+        InnerMotionAssembly.Opacity = isCompact ? 0.0 : 0.54;
+        OuterOrbitalTracer.Opacity = isCompact ? 0.50 : 0.72;
 
         switch (state)
         {
             case VirgilCoreState.Scanning:
             case VirgilCoreState.Executing:
                 CenterGlow.Opacity = 0.62;
-                OuterHalo.Opacity = isCompact ? 0.3 : 0.36;
-                ScanLine.Opacity = isCompact ? 0.2 : 0.34;
-                DataSweepAssembly.Opacity = isCompact ? 0.16 : 0.28;
+                OuterHalo.Opacity = isCompact ? 0.24 : 0.30;
+                ScanLine.Opacity = isCompact ? 0.14 : 0.26;
+                DataSweepAssembly.Opacity = isCompact ? 0.0 : 0.22;
+                OuterMotionAssembly.Opacity = isCompact ? 0.66 : 0.82;
+                InnerMotionAssembly.Opacity = isCompact ? 0.0 : 0.64;
+                OuterOrbitalTracer.Opacity = isCompact ? 0.58 : 0.84;
                 break;
             case VirgilCoreState.Warning:
             case VirgilCoreState.SensitiveAction:
                 CenterGlow.Fill = FindBrush("App.AccentLightBrush");
-                CenterGlow.Opacity = 0.62;
-                OuterHalo.Opacity = 0.32;
-                StatusFlash.Opacity = 0.16;
+                CenterGlow.Opacity = 0.58;
+                OuterHalo.Opacity = 0.26;
+                StatusFlash.Opacity = 0.12;
                 break;
             case VirgilCoreState.Error:
-                CenterGlow.Opacity = 0.7;
-                OuterHalo.Opacity = 0.28;
-                StatusFlash.Opacity = 0.2;
+                CenterGlow.Opacity = 0.66;
+                OuterHalo.Opacity = 0.24;
+                StatusFlash.Opacity = 0.18;
                 break;
             case VirgilCoreState.Success:
                 CenterGlow.Fill = FindBrush("App.AccentLightBrush");
-                CenterGlow.Opacity = 0.72;
-                OuterHalo.Opacity = 0.3;
-                StatusFlash.Opacity = 0.22;
+                CenterGlow.Opacity = 0.68;
+                OuterHalo.Opacity = 0.26;
+                StatusFlash.Opacity = 0.18;
                 break;
             default:
                 CenterGlow.Opacity = 0.34;
-                OuterHalo.Opacity = 0.2;
+                OuterHalo.Opacity = 0.18;
                 break;
         }
     }
 
     private void ResetVisuals()
     {
+        var isCompact = IsCompact();
         ClearMotionAnimations();
         SegmentRingRotate.Angle = 0;
         OuterMotionAssemblyRotate.Angle = 0;
@@ -746,19 +777,23 @@ public partial class VirgilCoreControl : UserControl
         CommunicationFlash.Opacity = 0;
         CommunicationWave.Opacity = 0;
         StatusFlash.Opacity = 0;
-        FragmentTop.Opacity = 0.78;
-        FragmentRight.Opacity = 0.78;
-        FragmentBottom.Opacity = 0.78;
-        FragmentLeft.Opacity = 0.78;
+        FragmentTop.Opacity = 0.74;
+        FragmentRight.Opacity = 0.72;
+        FragmentBottom.Opacity = 0.70;
+        FragmentLeft.Opacity = 0.72;
         SegmentA.Opacity = 1;
         SegmentB.Opacity = 1;
         SegmentC.Opacity = 1;
         SegmentD.Opacity = 1;
-        VerticalMarks.Opacity = 1;
-        HorizontalMarks.Opacity = 1;
-        CornerMarks.Opacity = 1;
-        OuterMotionAssembly.Opacity = 1;
-        InnerMotionAssembly.Opacity = 0.95;
+        VerticalMarks.Opacity = 0.68;
+        HorizontalMarks.Opacity = 0.66;
+        CornerMarks.Opacity = 0.64;
+        OuterGuideRing.Opacity = isCompact ? 0.46 : 0.66;
+        InnerGuideRing.Opacity = isCompact ? 0.0 : 0.48;
+        TechnicalMarks.Opacity = isCompact ? 0.42 : 0.68;
+        OuterMotionAssembly.Opacity = isCompact ? 0.58 : 0.72;
+        InnerMotionAssembly.Opacity = isCompact ? 0.0 : 0.54;
+        OuterOrbitalTracer.Opacity = isCompact ? 0.50 : 0.72;
         CenterGlow.Fill = FindBrush("App.AccentBrush");
         CenterDot.Fill = FindBrush("App.AccentLightBrush");
         CenterGlow.Opacity = 0.34;
