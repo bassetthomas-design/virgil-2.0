@@ -21,6 +21,7 @@
                 <controls:VirgilCoreControl x:Name="CleanupMiniCore"
                                             Width="58"
                                             Height="58"
+                                            AnimationDetailLevel="Compact"
                                             IsHitTestVisible="False"
                                             AutomationProperties.Name="Mini noyau Virgil nettoyage" />
                 <StackPanel Grid.Column="1"
@@ -109,6 +110,7 @@
                     <controls:VirgilCoreControl x:Name="ValidationCore"
                                                 Width="64"
                                                 Height="64"
+                                                AnimationDetailLevel="Compact"
                                                 IsHitTestVisible="False"
                                                 AutomationProperties.Name="Mini noyau Virgil nettoyage" />
                     <StackPanel Grid.Column="1"
@@ -215,6 +217,7 @@
                         <controls:VirgilCoreControl x:Name="ReportCore"
                                                     Width="58"
                                                     Height="58"
+                                                    AnimationDetailLevel="Compact"
                                                     IsHitTestVisible="False"
                                                     AutomationProperties.Name="Mini noyau Virgil rapport nettoyage" />
                         <StackPanel Grid.Column="1"

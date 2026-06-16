@@ -169,6 +169,7 @@
                                                             Width="310"
                                                             Height="310"
                                                             HorizontalAlignment="Center"
+                                                            AnimationDetailLevel="Full"
                                                             AutomationProperties.Name="Noyau Virgil" />
                                 <TextBlock x:Name="VirgilStateText"
                                            Text="ETAT VIRGIL : REPOS"
@@ -365,6 +366,7 @@
                     </Grid.ColumnDefinitions>
                     <controls:VirgilCoreControl Width="72"
                                                 Height="72"
+                                                AnimationDetailLevel="Compact"
                                                 IsHitTestVisible="False"
                                                 AutomationProperties.Name="Mini noyau Virgil" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -432,6 +434,7 @@
                     </Grid.ColumnDefinitions>
                     <controls:VirgilCoreControl Width="72"
                                                 Height="72"
+                                                AnimationDetailLevel="Compact"
                                                 IsHitTestVisible="False"
                                                 AutomationProperties.Name="Mini noyau Virgil rapport" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
