@@ -145,4 +145,119 @@ public sealed class VirgilCoreAnimationControllerTests
         Assert.Equal(VirgilCoreState.Idle, plan.RenderState);
         Assert.True(plan.StartPermanent);
     }
+
+    [Fact]
+    public void Idle_full_profile_has_opposing_visible_rotations()
+    {
+        var profile = VirgilMotionProfiles.For(VirgilCoreState.Idle, compact: false);
+
+        Assert.True(profile.HasOpposingRotations);
+        Assert.InRange(profile.OuterRotationSeconds, 14, 18);
+        Assert.InRange(profile.InnerRotationSeconds, 8, 12);
+        Assert.InRange(profile.SegmentRotationSeconds, 20, 24);
+        Assert.True(profile.OuterRotationSeconds < 20);
+    }
+
+    [Fact]
+    public void Fragment_motion_has_full_and_compact_amplitudes()
+    {
+        var full = VirgilMotionProfiles.For(VirgilCoreState.Idle, compact: false);
+        var compact = VirgilMotionProfiles.For(VirgilCoreState.Idle, compact: true);
+
+        Assert.True(full.FragmentTranslationPixels >= 5);
+        Assert.InRange(full.FragmentCycleSeconds, 2.2, 3.2);
+        Assert.InRange(compact.FragmentTranslationPixels, 2, 3);
+    }
+
+    [Fact]
+    public void Scanning_profile_is_faster_than_idle()
+    {
+        var idle = VirgilMotionProfiles.For(VirgilCoreState.Idle, compact: false);
+        var scanning = VirgilMotionProfiles.For(VirgilCoreState.Scanning, compact: false);
+
+        Assert.True(scanning.OuterRotationSeconds < idle.OuterRotationSeconds);
+        Assert.True(scanning.InnerRotationSeconds < idle.InnerRotationSeconds);
+        Assert.True(scanning.SegmentRotationSeconds < idle.SegmentRotationSeconds);
+        Assert.True(scanning.FragmentTranslationPixels > idle.FragmentTranslationPixels);
+    }
+
+    [Fact]
+    public void Communication_profile_has_spatial_motion_without_changing_state()
+    {
+        var controller = new VirgilCoreAnimationController();
+        controller.SetState(VirgilCoreState.Scanning, canAnimate: true);
+        var profile = VirgilMotionProfiles.For(VirgilCoreState.Communicating, compact: false);
+
+        var plan = controller.PulseCommunication(canAnimate: true);
+
+        Assert.Equal(VirgilCoreState.Scanning, controller.State);
+        Assert.True(plan.StartCommunication);
+        Assert.InRange(profile.CommunicationRotationDegrees, 20, 35);
+        Assert.InRange(profile.CommunicationTranslationPixels, 4, 6);
+        Assert.True(profile.HasPhysicalMotion);
+    }
+
+    [Fact]
+    public void Success_profile_contains_rotation_and_translation()
+    {
+        var profile = VirgilMotionProfiles.For(VirgilCoreState.Success, compact: false);
+
+        Assert.InRange(profile.SuccessRotationDegrees, 70, 110);
+        Assert.True(profile.SuccessTranslationPixels > 0);
+        Assert.True(profile.HasRotation);
+        Assert.True(profile.HasTranslation);
+    }
+
+    [Fact]
+    public void Animated_profiles_are_not_opacity_only()
+    {
+        foreach (var state in new[]
+        {
+            VirgilCoreState.Idle,
+            VirgilCoreState.Scanning,
+            VirgilCoreState.Warning,
+            VirgilCoreState.SensitiveAction,
+            VirgilCoreState.Executing,
+            VirgilCoreState.Success,
+            VirgilCoreState.Error,
+            VirgilCoreState.Communicating
+        })
+        {
+            var profile = VirgilMotionProfiles.For(state, compact: false);
+
+            Assert.False(profile.IsOpacityOnly);
+            Assert.True(profile.HasPhysicalMotion);
+        }
+    }
+
+    [Fact]
+    public void Continuous_rotation_profiles_are_linear()
+    {
+        foreach (var state in new[]
+        {
+            VirgilCoreState.Idle,
+            VirgilCoreState.Scanning,
+            VirgilCoreState.Warning,
+            VirgilCoreState.Executing
+        })
+        {
+            var profile = VirgilMotionProfiles.For(state, compact: false);
+
+            Assert.True(profile.UsesLinearContinuousRotation);
+            Assert.Equal(360, profile.OuterRotationDegrees);
+            Assert.Equal(-360, profile.InnerRotationDegrees);
+        }
+    }
+
+    [Fact]
+    public void Boot_profile_has_short_mechanical_startup_motion()
+    {
+        var profile = VirgilMotionProfiles.Boot(compact: false);
+
+        Assert.InRange(profile.OuterRotationSeconds, 1.3, 1.8);
+        Assert.InRange(profile.OuterRotationDegrees, 120, 180);
+        Assert.InRange(Math.Abs(profile.InnerRotationDegrees), 90, 140);
+        Assert.Equal(7, profile.FragmentTranslationPixels);
+        Assert.True(profile.HasTacticalSweep);
+    }
 }

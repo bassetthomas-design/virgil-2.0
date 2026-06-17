@@ -170,6 +170,7 @@
                                                             Height="310"
                                                             HorizontalAlignment="Center"
                                                             AnimationDetailLevel="Full"
+                                                            PlayBootSequence="True"
                                                             AutomationProperties.Name="Noyau Virgil" />
                                 <TextBlock x:Name="VirgilStateText"
                                            Text="ETAT VIRGIL : REPOS"

@@ -39,6 +39,7 @@
                      Stroke="{DynamicResource App.BorderBrush}"
                      StrokeThickness="1"
                      StrokeDashArray="5 9"
+                     Opacity="0.66"
                      HorizontalAlignment="Center"
                      VerticalAlignment="Center"
                      RenderTransformOrigin="0.5,0.5">
@@ -52,7 +53,7 @@
                      Stroke="{DynamicResource App.BorderActiveBrush}"
                      StrokeThickness="1.2"
                      StrokeDashArray="18 12"
-                     Opacity="0.75"
+                     Opacity="0.48"
                      HorizontalAlignment="Center"
                      VerticalAlignment="Center"
                      RenderTransformOrigin="0.5,0.5">
@@ -60,6 +61,76 @@
                     <RotateTransform x:Name="InnerGuideRingRotate" Angle="0" />
                 </Ellipse.RenderTransform>
             </Ellipse>
+
+            <Grid x:Name="OuterMotionAssembly"
+                  Opacity="0.72"
+                  RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TransformGroup>
+                        <RotateTransform x:Name="OuterMotionAssemblyRotate" Angle="0" />
+                        <RotateTransform x:Name="OuterMotionAssemblyKickRotate" Angle="0" />
+                    </TransformGroup>
+                </Grid.RenderTransform>
+                <Path Data="M 44,88 A 102,102 0 0 1 148,31"
+                      Stroke="{DynamicResource App.AccentSoftBrush}"
+                      StrokeThickness="2.1"
+                      Opacity="0.76"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Path Data="M 210,90 A 102,102 0 0 1 214,162"
+                      Stroke="{DynamicResource App.AccentBrush}"
+                      StrokeThickness="1.8"
+                      Opacity="0.68"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Line X1="188"
+                      Y1="72"
+                      X2="203"
+                      Y2="78"
+                      Stroke="{DynamicResource App.AccentLightBrush}"
+                      StrokeThickness="1.4"
+                      Opacity="0.58"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Ellipse x:Name="OuterOrbitalTracer"
+                         Width="5"
+                         Height="5"
+                         Fill="{DynamicResource App.AccentLightBrush}"
+                         Opacity="0.72"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Top"
+                         Margin="178,31,0,0" />
+            </Grid>
+
+            <Grid x:Name="InnerMotionAssembly"
+                  Opacity="0.54"
+                  RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TransformGroup>
+                        <RotateTransform x:Name="InnerMotionAssemblyRotate" Angle="0" />
+                        <RotateTransform x:Name="InnerMotionAssemblyKickRotate" Angle="0" />
+                    </TransformGroup>
+                </Grid.RenderTransform>
+                <Path Data="M 82,99 A 67,67 0 0 1 143,66"
+                      Stroke="{DynamicResource App.BorderActiveBrush}"
+                      StrokeThickness="1.55"
+                      Opacity="0.66"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Path Data="M 187,126 A 67,67 0 0 1 158,184"
+                      Stroke="{DynamicResource App.AccentSoftBrush}"
+                      StrokeThickness="1.35"
+                      Opacity="0.48"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
+                <Ellipse Width="3"
+                         Height="3"
+                         Fill="{DynamicResource App.AccentLightBrush}"
+                         Opacity="0.34"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Top"
+                         Margin="163,73,0,0" />
+            </Grid>
 
             <Grid x:Name="SegmentRing" RenderTransformOrigin="0.5,0.5">
                 <Grid.RenderTransform>
@@ -95,24 +166,24 @@
                 <Path x:Name="AmbientSegmentA"
                       Data="M 130,18 A 112,112 0 0 1 228,76"
                       Stroke="{DynamicResource App.AccentLightBrush}"
-                      StrokeThickness="4"
+                      StrokeThickness="2.4"
                       StrokeStartLineCap="Square"
                       StrokeEndLineCap="Square" />
                 <Path x:Name="AmbientSegmentB"
                       Data="M 242,130 A 112,112 0 0 1 186,228"
                       Stroke="{DynamicResource App.AccentLightBrush}"
-                      StrokeThickness="4"
+                      StrokeThickness="2.4"
                       StrokeStartLineCap="Square"
                       StrokeEndLineCap="Square" />
                 <Path x:Name="AmbientSegmentC"
                       Data="M 130,242 A 112,112 0 0 1 32,184"
                       Stroke="{DynamicResource App.AccentLightBrush}"
-                      StrokeThickness="4"
+                      StrokeThickness="2.4"
                       StrokeStartLineCap="Square"
                       StrokeEndLineCap="Square" />
             </Grid>
 
-            <Grid x:Name="TechnicalMarks" Opacity="0.84">
+            <Grid x:Name="TechnicalMarks" Opacity="0.68">
                 <Grid x:Name="VerticalMarks">
                     <Line X1="130" Y1="0" X2="130" Y2="24" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
                     <Line X1="130" Y1="236" X2="130" Y2="260" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" />
@@ -135,6 +206,30 @@
                           Stroke="{DynamicResource App.BorderActiveBrush}"
                           StrokeThickness="1" />
                 </Grid>
+            </Grid>
+
+            <Grid x:Name="DataSweepAssembly"
+                  Opacity="0"
+                  RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <RotateTransform x:Name="DataSweepAssemblyRotate" Angle="0" />
+                </Grid.RenderTransform>
+                <Rectangle Width="110"
+                           Height="1.2"
+                           Fill="{DynamicResource App.AccentLightBrush}"
+                           Opacity="0.62"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center">
+                    <Rectangle.RenderTransform>
+                        <TranslateTransform x:Name="DataSweepLineTransform" X="-18" />
+                    </Rectangle.RenderTransform>
+                </Rectangle>
+                <Path Data="M 64,80 A 78,78 0 0 1 182,60"
+                      Stroke="{DynamicResource App.AccentSoftBrush}"
+                      StrokeThickness="1.1"
+                      Opacity="0.5"
+                      StrokeStartLineCap="Square"
+                      StrokeEndLineCap="Square" />
             </Grid>
 
             <Grid x:Name="InnerFragments" RenderTransformOrigin="0.5,0.5">
@@ -189,22 +284,38 @@
                       Data="M 130,58 L 150,96 L 130,88 L 110,96 Z"
                       Stroke="{DynamicResource App.AccentLightBrush}"
                       Fill="#24FF9A2E"
-                      StrokeThickness="1.4" />
+                      StrokeThickness="1.4">
+                    <Path.RenderTransform>
+                        <TranslateTransform x:Name="CommunicationTopTransform" />
+                    </Path.RenderTransform>
+                </Path>
                 <Path x:Name="CommunicationFragmentRight"
                       Data="M 202,130 L 164,150 L 172,130 L 164,110 Z"
                       Stroke="{DynamicResource App.AccentLightBrush}"
                       Fill="#24FF9A2E"
-                      StrokeThickness="1.4" />
+                      StrokeThickness="1.4">
+                    <Path.RenderTransform>
+                        <TranslateTransform x:Name="CommunicationRightTransform" />
+                    </Path.RenderTransform>
+                </Path>
                 <Path x:Name="CommunicationFragmentBottom"
                       Data="M 130,202 L 110,164 L 130,172 L 150,164 Z"
                       Stroke="{DynamicResource App.AccentLightBrush}"
                       Fill="#24FF9A2E"
-                      StrokeThickness="1.4" />
+                      StrokeThickness="1.4">
+                    <Path.RenderTransform>
+                        <TranslateTransform x:Name="CommunicationBottomTransform" />
+                    </Path.RenderTransform>
+                </Path>
                 <Path x:Name="CommunicationFragmentLeft"
                       Data="M 58,130 L 96,110 L 88,130 L 96,150 Z"
                       Stroke="{DynamicResource App.AccentLightBrush}"
                       Fill="#24FF9A2E"
-                      StrokeThickness="1.4" />
+                      StrokeThickness="1.4">
+                    <Path.RenderTransform>
+                        <TranslateTransform x:Name="CommunicationLeftTransform" />
+                    </Path.RenderTransform>
+                </Path>
             </Grid>
 
             <Rectangle x:Name="ScanLine"
