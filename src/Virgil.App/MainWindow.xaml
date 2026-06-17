@@ -129,7 +129,7 @@
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Applications" Click="ModulePlaceholder_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,2 H11 V11 H2 Z M5,5 H14 V14 H5 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="APPLICATIONS" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises a jour" Click="ModulePlaceholder_Click">
+                                <Button x:Name="UpdatesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises a jour" Click="Updates_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M8,1 L13,6 H10 V13 H6 V6 H3 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="MISES A JOUR" /></Grid>
                                 </Button>
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Demarrage" Click="ModulePlaceholder_Click">
@@ -236,6 +236,9 @@
                         <views:CleanupView x:Name="CleanupModuleView"
                                            Visibility="Collapsed"
                                            AutomationProperties.Name="Module nettoyage securise" />
+                        <views:UpdatesView x:Name="UpdatesModuleView"
+                                           Visibility="Collapsed"
+                                           AutomationProperties.Name="Module mises a jour securise" />
                     </Grid>
                 </Border>
 
