@@ -1,0 +1,282 @@
+<UserControl x:Class="Virgil.App.Views.UpdatesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Virgil.App.Controls"
+             MinWidth="0"
+             MinHeight="0"
+             KeyboardNavigation.TabNavigation="Continue"
+             FocusManager.IsFocusScope="True">
+    <Grid ClipToBounds="True">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False"
+                      ClipToBounds="True">
+            <StackPanel>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="UpdatesMiniCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                AutomationProperties.Name="Mini noyau Virgil mises a jour" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="MISES A JOUR V1"
+                                   Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="UpdatesStatusText"
+                                   Text="Diagnostic pret. Aucune action automatique."
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel KeyboardNavigation.TabNavigation="Continue">
+                    <Button x:Name="ScanUpdatesButton"
+                            Content="SCANNER LES MISES A JOUR"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="190"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Scanner les mises a jour"
+                            Click="ScanUpdates_Click" />
+                    <Button x:Name="RunSelectedButton"
+                            Content="EXECUTER LA SEQUENCE"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="170"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Executer la sequence guidee"
+                            Click="RunSelected_Click" />
+                    <Button x:Name="OpenWindowsUpdateButton"
+                            Content="OUVRIR WINDOWS UPDATE"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="175"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Ouvrir Windows Update"
+                            Click="OpenWindowsUpdate_Click" />
+                    <Button x:Name="InspectDriversButton"
+                            Content="EXAMINER LES PILOTES"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="165"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Examiner les pilotes"
+                            Click="InspectDrivers_Click" />
+                    <Button x:Name="InstallDriversButton"
+                            Content="INSTALLER LES PILOTES"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="165"
+                            Margin="0,0,8,8"
+                            Visibility="Collapsed"
+                            AutomationProperties.Name="Installer les pilotes"
+                            Click="InstallDrivers_Click" />
+                    <Button x:Name="ViewUpdatesReportButton"
+                            Content="VOIR LE RAPPORT"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="145"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Voir le rapport mises a jour"
+                            Click="ViewUpdatesReport_Click" />
+                    <Button x:Name="ReturnHomeButton"
+                            Content="RETOUR"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="100"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Retour accueil"
+                            Click="ReturnHome_Click" />
+                </WrapPanel>
+
+                <Rectangle Style="{StaticResource VirgilSeparator}" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource VirgilHudCard}"
+                            Margin="0,0,6,8">
+                        <StackPanel>
+                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="OverallStatusText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="WINGET" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="WingetStatusText"
+                                       Text="NON DETECTE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1"
+                            Style="{StaticResource VirgilHudCard}"
+                            Margin="6,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="WINDOWS UPDATE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="WindowsUpdateStatusText"
+                                       Text="OUVERTURE MANUELLE UNIQUEMENT"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="PILOTES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="DriversStatusText"
+                                       Text="NON INVENTORIE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="APPLICATIONS"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="UpdatesListPanel"
+                            KeyboardNavigation.TabNavigation="Continue">
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                        <TextBlock Text="Aucun scan lance."
+                                   Style="{StaticResource VirgilHudSecondaryText}" />
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="PILOTES"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="DriversListPanel">
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                        <TextBlock Text="Inventaire disponible apres analyse approfondie ou examen manuel."
+                                   Style="{StaticResource VirgilHudSecondaryText}" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="UpdateValidationOverlay"
+              Panel.ZIndex="20"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="760"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="ValidationCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau validation mise a jour" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ValidationTitleText"
+                                   Text="VALIDATION REQUISE"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationDetailsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="COMMANDE PREPAREE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationCommandText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationSafetyText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                KeyboardNavigation.TabNavigation="Continue">
+                        <Button x:Name="ExecuteUpdateButton"
+                                Content="INSTALLER"
+                                Style="{StaticResource VirgilPrimaryButton}"
+                                AutomationProperties.Name="Valider cette mise a jour"
+                                Click="ExecuteUpdate_Click" />
+                        <Button x:Name="SkipUpdateButton"
+                                Content="PASSER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Passer cette mise a jour"
+                                Click="SkipUpdate_Click" />
+                        <Button x:Name="CancelSequenceButton"
+                                Content="TOUT ANNULER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Annuler la sequence"
+                                Click="CancelSequence_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="UpdatesReportOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="880"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="RAPPORT MISES A JOUR"
+                               Style="{StaticResource VirgilHudSectionTitle}" />
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,16,0,16"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <TextBlock x:Name="UpdatesReportText"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </ScrollViewer>
+                    <Button x:Name="CloseUpdatesReportButton"
+                            Grid.Row="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer le rapport mises a jour"
+                            Click="CloseUpdatesReport_Click" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

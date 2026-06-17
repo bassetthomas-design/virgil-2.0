@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Monitoring;
+using Virgil.Core.Updates;
 using Virgil.Domain;
 
 namespace Virgil.Core.Scanning;
@@ -8,15 +9,22 @@ namespace Virgil.Core.Scanning;
 public sealed class SystemScanService : ISystemScanService
 {
     private readonly ICleanupService _cleanupService;
+    private readonly IUpdateScanService _updateScanService;
 
     public SystemScanService()
-        : this(new CleanupPreviewService())
+        : this(new CleanupPreviewService(), new WingetUpdateScanService())
     {
     }
 
     public SystemScanService(ICleanupService cleanupService)
+        : this(cleanupService, new WingetUpdateScanService())
+    {
+    }
+
+    public SystemScanService(ICleanupService cleanupService, IUpdateScanService updateScanService)
     {
         _cleanupService = cleanupService;
+        _updateScanService = updateScanService;
     }
 
     public async Task<SystemScanReport> RunAsync(
@@ -43,6 +51,7 @@ public sealed class SystemScanService : ISystemScanService
         var cleanup = mode == ScanMode.Deep
             ? ReadCleanup(progress, errors, findings)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
+        var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
 
         foreach (var error in errors.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -58,7 +67,10 @@ public sealed class SystemScanService : ISystemScanService
 
         Report(progress, "Synthese", "Synthese du rapport.", "Systeme", 92);
 
-        var recommendations = ScanRules.BuildRecommendations(findings);
+        var recommendations = ScanRules.BuildRecommendations(findings)
+            .Concat(updates.Recommendations.Take(3))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var overallStatus = ScanRules.OverallStatus(findings.Select(finding => finding.Severity));
 
         stopwatch.Stop();
@@ -78,7 +90,10 @@ public sealed class SystemScanService : ISystemScanService
             cleanup,
             findings,
             recommendations,
-            errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+            errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+        {
+            Updates = updates
+        };
     }
 
     private static WindowsScanInfo ReadWindows(
@@ -310,6 +325,87 @@ public sealed class SystemScanService : ISystemScanService
             var cleanupErrors = new[] { "Analyse nettoyage indisponible." };
             AddErrors(errors, cleanupErrors);
             return new CleanupScanInfo(true, 0, 0, Array.Empty<string>(), cleanupErrors);
+        }
+    }
+
+    private async Task<UpdateScanSummary> ReadUpdatesAsync(
+        ScanMode mode,
+        IProgress<ScanProgress>? progress,
+        ICollection<string> errors,
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
+    {
+        var request = mode == ScanMode.Deep
+            ? UpdateScanRequest.DeepPreview
+            : UpdateScanRequest.QuickAvailability;
+
+        Report(
+            progress,
+            "Mises a jour",
+            mode == ScanMode.Deep
+                ? "Previsualisation lecture seule des mises a jour."
+                : "Detection lecture seule de WinGet.",
+            "Mises a jour",
+            88);
+
+        try
+        {
+            var report = await _updateScanService
+                .ScanAsync(request, null, cancellationToken)
+                .ConfigureAwait(false);
+
+            AddErrors(errors, report.Errors);
+
+            if (mode == ScanMode.Deep && report.Items.Count > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "updates-preview",
+                    "Mises a jour",
+                    "Mises a jour applicatives disponibles",
+                    "Des mises a jour applicatives sont detectees en previsualisation lecture seule.",
+                    report.Items.Count.ToString(),
+                    report.SensitiveCount > 0 ? ScanSeverity.Attention : ScanSeverity.Information,
+                    "Valider chaque application individuellement dans le module Mises a jour."));
+            }
+
+            if (report.SensitiveCount > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "updates-sensitive-preview",
+                    "Mises a jour",
+                    "Composants sensibles a verifier",
+                    "Certaines mises a jour touchent a des composants sensibles.",
+                    report.SensitiveCount.ToString(),
+                    ScanSeverity.Attention,
+                    "Consulter le detail avant toute installation."));
+            }
+
+            return new UpdateScanSummary
+            {
+                WasAnalyzed = true,
+                WingetAvailable = report.Winget.IsAvailable,
+                ApplicationUpdates = report.Items.Count,
+                SensitiveUpdates = report.SensitiveCount,
+                DriverCount = report.Drivers.Drivers.Count,
+                Status = report.OverallStatus,
+                Recommendations = report.Recommendations,
+                Errors = report.Errors
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            var updateErrors = new[] { "Analyse mises a jour indisponible." };
+            AddErrors(errors, updateErrors);
+            return new UpdateScanSummary
+            {
+                WasAnalyzed = true,
+                Status = "Indisponible",
+                Errors = updateErrors
+            };
         }
     }
 

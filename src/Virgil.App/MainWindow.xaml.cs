@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         SessionTimeText.Text = $"SESSION {DateTime.Now:HH:mm}";
         LastReportButton.IsEnabled = false;
         WireCleanupModule();
+        WireUpdatesModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
@@ -69,6 +70,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (UpdatesModuleView.Visibility == Visibility.Visible && UpdatesModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
         {
             CloseScanProtocol();
@@ -80,6 +87,7 @@ public partial class MainWindow : Window
     {
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
+        UpdatesModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
@@ -100,12 +108,25 @@ public partial class MainWindow : Window
         ShowCleanup();
     }
 
+    private void Updates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nMises a jour indisponibles.");
+            return;
+        }
+
+        ShowUpdates();
+    }
+
     private void ShowHome()
     {
         HomeContentGrid.Visibility = Visibility.Visible;
         CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = "Active";
         CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Accueil actif.");
@@ -115,12 +136,28 @@ public partial class MainWindow : Window
     {
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Visible;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = "Active";
+        UpdatesNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
         AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
         CleanupModuleView.FocusAnalyzeButton();
+    }
+
+    private void ShowUpdates()
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = "Active";
+        StatusText.Text = "MISES A JOUR";
+        SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
+        AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
+        UpdatesModuleView.FocusScanButton();
     }
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
@@ -134,6 +171,13 @@ public partial class MainWindow : Window
         CleanupModuleView.VirgilMessageRequested += AppendVirgilMessage;
         CleanupModuleView.VirgilStateRequested += SetVirgilState;
         CleanupModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+    }
+
+    private void WireUpdatesModule()
+    {
+        UpdatesModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        UpdatesModuleView.VirgilStateRequested += SetVirgilState;
+        UpdatesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
     }
 
     private void LastReport_Click(object sender, RoutedEventArgs e)
@@ -155,7 +199,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (CleanupModuleView.Visibility == Visibility.Visible)
+        if (CleanupModuleView.Visibility == Visibility.Visible || UpdatesModuleView.Visibility == Visibility.Visible)
         {
             ShowHome();
         }
@@ -370,7 +414,8 @@ public partial class MainWindow : Window
             $"Memoire : {FormatBytes(report.Memory.UsedPhysicalBytes)} / {FormatBytes(report.Memory.TotalPhysicalBytes)} ({report.Memory.UsedPercent:0.0} %)",
             $"Disque systeme : {FormatDisk(systemDisk)}",
             $"Reseau : {FormatNetwork(report.Network)}",
-            $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}"
+            $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
+            $"Mises a jour : {FormatUpdates(report.Updates)}"
         });
         ReportPopupRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
@@ -657,6 +702,23 @@ public partial class MainWindow : Window
         return cleanup.WasAnalyzed
             ? $"{FormatBytes(cleanup.PotentialBytes)}, {cleanup.FileCount} fichiers, zones : {FormatZones(cleanup.Zones)}"
             : "Non analyse";
+    }
+
+    private static string FormatUpdates(UpdateScanSummary updates)
+    {
+        if (!updates.WasAnalyzed)
+        {
+            return "Non analyse";
+        }
+
+        return string.Join(", ", new[]
+        {
+            updates.Status,
+            updates.WingetAvailable ? "WinGet disponible" : "WinGet non detecte",
+            $"{updates.ApplicationUpdates} applicatives",
+            $"{updates.SensitiveUpdates} sensibles",
+            $"{updates.DriverCount} pilotes inventories"
+        });
     }
 
     private static string FormatZones(IReadOnlyList<string> zones)
