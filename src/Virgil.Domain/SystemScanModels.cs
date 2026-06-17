@@ -47,7 +47,10 @@ public sealed record SystemScanReport(
     CleanupScanInfo Cleanup,
     IReadOnlyList<ScanFinding> Findings,
     IReadOnlyList<string> Recommendations,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors)
+{
+    public UpdateScanSummary Updates { get; init; } = UpdateScanSummary.NotAnalyzed;
+}
 
 public sealed record WindowsScanInfo(
     string Edition,
