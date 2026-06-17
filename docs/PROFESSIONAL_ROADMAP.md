@@ -1,6 +1,6 @@
 # Feuille de route professionnelle Virgil 2.0
 
-Date: 2026-06-16  
+Date: 2026-06-17
 Principe: chaque action sensible doit etre precedee d'une lecture, d'une previsualisation, d'une validation explicite et d'un rapport local.
 
 ## 1. Module mises a jour
@@ -25,6 +25,18 @@ Livrable recommande:
 ## 2. Interventions ciblees
 
 Objectif: proposer des reparations explicites, limitees et reversibles quand c'est possible.
+
+Etat PR #19: V1 livre pour les interventions ciblees de base.
+
+- Diagnostic lecture seule raccorde au scan approfondi.
+- Module UI dedie avec parcours guide et validation par action.
+- Helper eleve produit pour les commandes administrateur.
+- Elevation demandee uniquement apres confirmation explicite.
+- Actions reseau V1: flush DNS, renouvellement DHCP, reset Winsock, reset TCP/IP.
+- Actions Windows V1: SFC, DISM ScanHealth, DISM RestoreHealth, CHKDSK `/scan`.
+- Action interface V1: relance douce d'Explorer.
+- Rapport de session local en memoire.
+- Take Ownership non implemente.
 
 - Reparations reseau: diagnostic, DNS, Winsock, renouvellement IP.
 - Verifications systeme: SFC, DISM, verification disque.
