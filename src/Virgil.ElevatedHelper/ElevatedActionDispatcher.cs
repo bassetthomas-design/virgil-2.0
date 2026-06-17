@@ -56,7 +56,7 @@ public sealed class ElevatedActionDispatcher
         {
             var result = await ExecuteValidatedAsync(validated.Request).ConfigureAwait(false);
             await WriteResultAsync(validated.Request.ResultPath, result).ConfigureAwait(false);
-            return result.Status == InterventionStatus.Failed ? 20 : 0;
+            return result.Status is InterventionStatus.Failed or InterventionStatus.PartialFailure ? 20 : 0;
         }
         finally
         {

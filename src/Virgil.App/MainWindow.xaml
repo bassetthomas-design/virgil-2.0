@@ -138,7 +138,7 @@
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Reseau" Click="ModulePlaceholder_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,8 H6 M10,8 H14 M7,5 H9 V11 H7 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RESEAU" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Reparation" Click="ModulePlaceholder_Click">
+                                <Button x:Name="InterventionsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Interventions ciblees" Click="Interventions_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M3,12 L12,3 M10,2 L13,5 M2,10 L5,13" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="REPARATION" /></Grid>
                                 </Button>
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Rapports" Click="ModulePlaceholder_Click">
@@ -239,6 +239,9 @@
                         <views:UpdatesView x:Name="UpdatesModuleView"
                                            Visibility="Collapsed"
                                            AutomationProperties.Name="Module mises a jour securise" />
+                        <views:InterventionsView x:Name="InterventionsModuleView"
+                                                 Visibility="Collapsed"
+                                                 AutomationProperties.Name="Module interventions ciblees" />
                     </Grid>
                 </Border>
 

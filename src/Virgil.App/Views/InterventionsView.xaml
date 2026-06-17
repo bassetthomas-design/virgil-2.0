@@ -1,0 +1,254 @@
+<UserControl x:Class="Virgil.App.Views.InterventionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Virgil.App.Controls"
+             MinWidth="0"
+             MinHeight="0"
+             KeyboardNavigation.TabNavigation="Continue"
+             FocusManager.IsFocusScope="True">
+    <Grid ClipToBounds="True">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False"
+                      ClipToBounds="True">
+            <StackPanel>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="InterventionsMiniCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                AutomationProperties.Name="Mini noyau Virgil interventions" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="INTERVENTIONS CIBLEES"
+                                   Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="InterventionsStatusText"
+                                   Text="DIAGNOSTIC, VALIDATION ET EXECUTION"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel KeyboardNavigation.TabNavigation="Continue">
+                    <Button x:Name="AnalyzeInterventionsButton"
+                            Content="ANALYSER LES INTERVENTIONS"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="210"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Analyser les interventions"
+                            Click="AnalyzeInterventions_Click" />
+                    <Button x:Name="RunGuidedButton"
+                            Content="LANCER LE PARCOURS GUIDE"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="205"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Lancer le parcours guide"
+                            Click="RunGuided_Click" />
+                    <Button x:Name="ViewInterventionsReportButton"
+                            Content="VOIR LE DERNIER RAPPORT"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="190"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Voir le dernier rapport interventions"
+                            Click="ViewInterventionsReport_Click" />
+                    <Button x:Name="ReturnHomeButton"
+                            Content="RETOUR ACCUEIL"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="130"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Retour accueil"
+                            Click="ReturnHome_Click" />
+                </WrapPanel>
+
+                <Rectangle Style="{StaticResource VirgilSeparator}" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,6,8">
+                        <StackPanel>
+                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="InterventionsOverallText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="ACTIONS RECOMMANDEES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="RecommendedCountText"
+                                       Text="0"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource VirgilHudCard}" Margin="6,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Validation separee par action. Aucune commande libre. Aucun redemarrage automatique."
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="HELPER ELEVE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Lancement uniquement apres confirmation d'une action admin."
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="SYSTEME"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="SystemActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+
+                <TextBlock Text="RESEAU"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="NetworkActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+
+                <TextBlock Text="STOCKAGE"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="StorageActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+
+                <TextBlock Text="INTERFACE WINDOWS"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="InterfaceActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="InterventionValidationOverlay"
+              Panel.ZIndex="20"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="820"
+                    MaxHeight="780"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="ValidationCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau validation intervention" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ValidationTitleText"
+                                   Text="VALIDATION REQUISE"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock Text="EXPLICATION" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationDetailsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="COMMANDE AUTORISEE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationCommandText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationSafetyText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                KeyboardNavigation.TabNavigation="Continue">
+                        <Button x:Name="ExecuteInterventionButton"
+                                Content="EXECUTER"
+                                Style="{StaticResource VirgilPrimaryButton}"
+                                AutomationProperties.Name="Executer cette intervention"
+                                Click="ExecuteIntervention_Click" />
+                        <Button x:Name="SkipInterventionButton"
+                                Content="PASSER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Passer cette intervention"
+                                Click="SkipIntervention_Click" />
+                        <Button x:Name="CancelAllInterventionsButton"
+                                Content="ANNULER TOUT"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Annuler le parcours"
+                                Click="CancelAllInterventions_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="InterventionsReportOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="880"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="RAPPORT INTERVENTIONS"
+                               Style="{StaticResource VirgilHudSectionTitle}" />
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,16,0,16"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <TextBlock x:Name="InterventionsReportText"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </ScrollViewer>
+                    <Button x:Name="CloseInterventionsReportButton"
+                            Grid.Row="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer le rapport interventions"
+                            Click="CloseInterventionsReport_Click" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -33,6 +33,7 @@ public partial class MainWindow : Window
         LastReportButton.IsEnabled = false;
         WireCleanupModule();
         WireUpdatesModule();
+        WireInterventionsModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
@@ -76,6 +77,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (InterventionsModuleView.Visibility == Visibility.Visible && InterventionsModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
         {
             CloseScanProtocol();
@@ -88,6 +95,7 @@ public partial class MainWindow : Window
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
         UpdatesModuleView.CancelActiveOperation();
+        InterventionsModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
@@ -119,14 +127,27 @@ public partial class MainWindow : Window
         ShowUpdates();
     }
 
+    private void Interventions_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nInterventions indisponibles.");
+            return;
+        }
+
+        ShowInterventions();
+    }
+
     private void ShowHome()
     {
         HomeContentGrid.Visibility = Visibility.Visible;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = "Active";
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Accueil actif.");
@@ -137,9 +158,11 @@ public partial class MainWindow : Window
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Visible;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = "Active";
         UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
         AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
@@ -151,13 +174,31 @@ public partial class MainWindow : Window
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Visible;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = "Active";
+        InterventionsNavButton.Tag = null;
         StatusText.Text = "MISES A JOUR";
         SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
         AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
         UpdatesModuleView.FocusScanButton();
+    }
+
+    private void ShowInterventions()
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = "Active";
+        StatusText.Text = "INTERVENTIONS";
+        SetVirgilState(VirgilCoreState.Idle, "INTERVENTIONS");
+        AppendVirgilMessage("Interventions ciblees pretes.\nDiagnostic requis avant action.");
+        InterventionsModuleView.FocusAnalyzeButton();
     }
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
@@ -180,6 +221,13 @@ public partial class MainWindow : Window
         UpdatesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
     }
 
+    private void WireInterventionsModule()
+    {
+        InterventionsModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        InterventionsModuleView.VirgilStateRequested += SetVirgilState;
+        InterventionsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+    }
+
     private void LastReport_Click(object sender, RoutedEventArgs e)
     {
         if (_lastReport is null)
@@ -199,7 +247,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (CleanupModuleView.Visibility == Visibility.Visible || UpdatesModuleView.Visibility == Visibility.Visible)
+        if (CleanupModuleView.Visibility == Visibility.Visible ||
+            UpdatesModuleView.Visibility == Visibility.Visible ||
+            InterventionsModuleView.Visibility == Visibility.Visible)
         {
             ShowHome();
         }
@@ -415,7 +465,8 @@ public partial class MainWindow : Window
             $"Disque systeme : {FormatDisk(systemDisk)}",
             $"Reseau : {FormatNetwork(report.Network)}",
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
-            $"Mises a jour : {FormatUpdates(report.Updates)}"
+            $"Mises a jour : {FormatUpdates(report.Updates)}",
+            $"Interventions ciblees : {FormatInterventions(report.Interventions)}"
         });
         ReportPopupRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
@@ -718,6 +769,24 @@ public partial class MainWindow : Window
             $"{updates.ApplicationUpdates} applicatives",
             $"{updates.SensitiveUpdates} sensibles",
             $"{updates.DriverCount} pilotes inventories"
+        });
+    }
+
+    private static string FormatInterventions(InterventionScanSummary interventions)
+    {
+        if (!interventions.WasAnalyzed)
+        {
+            return "Non analyse";
+        }
+
+        return string.Join(", ", new[]
+        {
+            $"{interventions.AvailableActions} disponibles",
+            $"{interventions.RecommendedActions} recommandees",
+            interventions.RebootPotentiallyRequired
+                ? "redemarrage manuel possible"
+                : "pas de redemarrage attendu",
+            "aucune execution depuis le scan"
         });
     }
 

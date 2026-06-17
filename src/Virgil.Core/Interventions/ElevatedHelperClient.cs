@@ -39,7 +39,16 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
             return Failure(definition, "Assistant eleve introuvable.");
         }
 
-        var requestFile = await _requestStore.CreateAsync(definition.Id, cancellationToken).ConfigureAwait(false);
+        ElevatedInterventionRequestFile requestFile;
+        try
+        {
+            requestFile = await _requestStore.CreateAsync(definition.Id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return Failure(definition, "Dossier temporaire Virgil inaccessible.");
+        }
+
         try
         {
             var helperExitCode = await _processLauncher
@@ -48,6 +57,14 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
             var result = await _requestStore.ReadResultAsync(requestFile, cancellationToken).ConfigureAwait(false);
 
             return result ?? Failure(definition, $"Assistant eleve termine sans resultat ({helperExitCode}).");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return Failure(definition, "Assistant eleve indisponible ou refuse.");
         }
         finally
         {
