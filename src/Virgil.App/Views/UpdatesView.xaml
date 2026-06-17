@@ -157,10 +157,10 @@
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
             <Border Style="{StaticResource VirgilOverlayCard}"
-                    Width="620"
                     MaxWidth="760"
                     MaxHeight="760"
-                    HorizontalAlignment="Center"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
                     VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -246,10 +246,10 @@
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
             <Border Style="{StaticResource VirgilOverlayCard}"
-                    Width="720"
                     MaxWidth="880"
                     MaxHeight="760"
-                    HorizontalAlignment="Center"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
                     VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
