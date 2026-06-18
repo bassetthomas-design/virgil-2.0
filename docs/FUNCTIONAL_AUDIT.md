@@ -1,14 +1,14 @@
 # Audit fonctionnel Virgil 2.0
 
-Date: 2026-06-16  
+Date: 2026-06-17
 Base: code present dans `src` et `tests`, sans extrapolation produit.
 
 ## Synthese
 
-- Modules operationnels: 9
-- Modules partiels: 5
-- Placeholders ou modules absents: 17
-- Aucune elevation administrateur n'est demandee par l'application actuelle.
+- Modules operationnels: 10
+- Modules partiels: 6
+- Placeholders ou modules absents: 15
+- L'elevation administrateur existe uniquement pour le helper d'interventions ciblees et seulement apres validation explicite d'une action.
 - Les scans systeme sont en lecture seule.
 - Le nettoyage guide existe deja, mais uniquement par zones autorisees et apres validation explicite.
 
@@ -18,7 +18,7 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Accueil | `ACCUEIL`, grand noyau, `SCAN COMPLET` | `MainWindow` | Operationnel | Tableau d'accueil, lancement scan, dernier rapport, metriques apres scan | Aucune | Non | Navigation bloquee pendant scan, chat sans saisie utilisateur | Couvert indirectement par build WPF | Metriques non temps reel avant scan | Raccorder l'accueil a l'historique local |
 | Scan rapide | Overlay protocole, `SCAN RAPIDE` | `SystemScanService.RunAsync(ScanMode.Quick)` | Operationnel | Windows, CPU instantane, RAM, disque systeme, reseau primaire | Lecture systeme uniquement | Non | `_scanInProgress`, boutons desactives, erreurs partielles lisibles | `SystemScanServiceTests.QuickScan_does_not_preview_cleanup` | Pas de processus, pas de preview nettoyage | Ajouter export et trace d'historique |
-| Analyse approfondie | Overlay protocole, `ANALYSE APPROFONDIE` | `SystemScanService.RunAsync(ScanMode.Deep)` | Operationnel | Scan complet lecture seule, disques fixes, processus memoire, preview nettoyage | Enumeration fichiers et processus, aucune suppression | Non | Annulation, erreurs distinctes, preview nettoyage sans execution | `SystemScanServiceTests.DeepScan_previews_cleanup_without_execution` | Pas de diagnostic pilote ni mises a jour | Ajouter categories detaillees au rapport |
+| Analyse approfondie | Overlay protocole, `ANALYSE APPROFONDIE` | `SystemScanService.RunAsync(ScanMode.Deep)` | Operationnel | Scan complet lecture seule, disques fixes, processus memoire, preview nettoyage, preview mises a jour, preview interventions ciblees | Enumeration fichiers et processus, aucune suppression, aucune intervention executee | Non | Annulation, erreurs distinctes, previews sans execution | `SystemScanServiceTests.DeepScan_previews_cleanup_without_execution`, `InterventionsModuleTests.Deep_scan_adds_intervention_preview_without_execution` | Pas de diagnostic pilote avance | Ajouter categories detaillees au rapport |
 | Rapport de scan | `VOIR LE DERNIER RAPPORT` | `MainWindow.ShowLastReport` | Operationnel | Etat global, RAM, disque, nettoyage potentiel, recommandations, erreurs | Aucune | Non | Bouton desactive sans rapport, overlay focusable | Couvert indirectement par tests scan | Rapport conserve uniquement en memoire | Export JSON ou texte date |
 | Monitoring CPU | Rapport scan, metrique issue du scan | `ProcessorReader`, `MonitoringService` | Partiel | Mesure instantanee CPU via `GetSystemTimes`, nom processeur | Lecture compteur systeme et registre CPU | Non | Catch des echecs, statut N/A | `ScanRulesTests`, tests scan indirects | Pas de graphe temps reel, pas de top CPU | Module Ressources temps reel |
 | Monitoring RAM | Rapport scan, carte memoire | `MemoryReader`, `MonitoringService` | Partiel | Snapshot RAM physique via `GlobalMemoryStatusEx`, seuils de severite | Lecture memoire uniquement | Non | Total 0 gere comme N/A | `ScanRulesTests.CalculateMemory*` | Pas de courbe temps reel ni detail processus | Module Ressources temps reel |
@@ -35,9 +35,9 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 | Mises a jour des applications | `APPLICATIONS` placeholder | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas d'inventaire apps, Store non gere | Inventaire applications installees |
 | Pilotes | Aucun bouton dedie | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas de detection pilotes | Diagnostic lecture seule via sources fiables |
 | Ressources | `RESSOURCES` placeholder | `MonitoringService` existe mais non raccorde a cette vue | Placeholder | Bouton seulement dans l'UI | Aucune | Non | Message placeholder | Aucun test UI du module | Service snapshot non expose en module | Creer vue ressources temps reel |
-| Interventions ciblees | Aucun module actif | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas de reparations guidees | Construire catalogue d'interventions avec preview |
+| Interventions ciblees | `REPARATION`, module `InterventionsView` | `InterventionDiagnosticService`, `InterventionExecutionService`, `Virgil.ElevatedHelper` | Operationnel V1 | Diagnostic lecture seule, catalogue de 9 actions, validation separee, helper eleve allowliste, rapport de session | Relance douce d'Explorer ou commandes Windows allowlistees uniquement apres confirmation | Oui, uniquement a la demande | Aucune commande libre, nonce, requete sous racine Virgil, boutons desactives pendant action, erreurs lisibles | `InterventionsModuleTests` | Pas de rollback automatique, pas de rapport persistant, pas de Take Ownership | Ajouter historique local et actions avancees seulement apres nouvelle validation |
 | Reseau avance | `RESEAU` placeholder | Aucun service avance | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas de DNS, Winsock, renouvellement IP | Ajouter diagnostics et reparations validees |
-| Reparations Windows | `REPARATION` placeholder | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas de SFC, DISM, CHKDSK | Concevoir workflow avec confirmations et rapports |
+| Reparations Windows | `REPARATION`, module Interventions ciblees | `InterventionCatalog`, `ElevatedActionAllowlist` | Partiel | SFC `/scannow`, DISM `/ScanHealth`, DISM `/RestoreHealth`, CHKDSK `/scan` | Commandes Windows ciblees apres confirmation | Oui, uniquement a la demande | Liste blanche stricte, pas de `/ResetBase`, CHKDSK limite a `/scan`, aucun redemarrage automatique | `InterventionsModuleTests.Elevated_allowlist_uses_fixed_safe_commands_only` | Pas de rollback, pas de planification CHKDSK repair, pas de Take Ownership | Ajouter persistance de rapport et etats post-action |
 | Desinstallation | `APPLICATIONS` placeholder | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas d'inventaire uninstall | Ajouter module applications avec garde-fous |
 | Gestion des programmes au demarrage | `DEMARRAGE` placeholder | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas de lecture ni modification startup | Ajouter lecture seule avant toute action |
 | Historique des actions | Aucun | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Aucun journal persistant | Journal local sans telemetrie |
@@ -46,5 +46,5 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 | Installateur | Aucun dans solution | Aucun projet d'installateur | Absent | Aucune | Aucune | Non | Aucun | Build/publish seulement | Pas de MSIX/MSI/installer | Choisir strategie d'installation |
 | Mise a jour de Virgil | Aucun | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas d'auto-update | Versioning et canal de mise a jour |
 | Restauration ou rollback | Aucun | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas de rollback cleanup ni configuration | Definir points de restauration par action |
-| Take Ownership | Aucun | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Non implemente volontairement | Concevoir seulement en interventions ciblees avancees |
+| Take Ownership | Aucun | Aucun service | Absent | Aucune | Aucune | Non | Explicitement refuse dans la liste blanche | `InterventionsModuleTests.Catalog_exposes_only_targeted_interventions_without_take_ownership` | Non implemente volontairement | Concevoir seulement en interventions ciblees avancees |
 

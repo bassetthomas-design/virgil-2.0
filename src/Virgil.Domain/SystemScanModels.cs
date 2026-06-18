@@ -50,6 +50,8 @@ public sealed record SystemScanReport(
     IReadOnlyList<string> Errors)
 {
     public UpdateScanSummary Updates { get; init; } = UpdateScanSummary.NotAnalyzed;
+
+    public InterventionScanSummary Interventions { get; init; } = InterventionScanSummary.NotAnalyzed;
 }
 
 public sealed record WindowsScanInfo(

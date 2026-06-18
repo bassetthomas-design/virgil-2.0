@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Virgil.Core.Cleanup;
+using Virgil.Core.Interventions;
 using Virgil.Core.Monitoring;
 using Virgil.Core.Updates;
 using Virgil.Domain;
@@ -10,21 +11,31 @@ public sealed class SystemScanService : ISystemScanService
 {
     private readonly ICleanupService _cleanupService;
     private readonly IUpdateScanService _updateScanService;
+    private readonly IInterventionDiagnosticService _interventionDiagnosticService;
 
     public SystemScanService()
-        : this(new CleanupPreviewService(), new WingetUpdateScanService())
+        : this(new CleanupPreviewService(), new WingetUpdateScanService(), new InterventionDiagnosticService())
     {
     }
 
     public SystemScanService(ICleanupService cleanupService)
-        : this(cleanupService, new WingetUpdateScanService())
+        : this(cleanupService, new WingetUpdateScanService(), new InterventionDiagnosticService())
     {
     }
 
     public SystemScanService(ICleanupService cleanupService, IUpdateScanService updateScanService)
+        : this(cleanupService, updateScanService, new InterventionDiagnosticService())
+    {
+    }
+
+    public SystemScanService(
+        ICleanupService cleanupService,
+        IUpdateScanService updateScanService,
+        IInterventionDiagnosticService interventionDiagnosticService)
     {
         _cleanupService = cleanupService;
         _updateScanService = updateScanService;
+        _interventionDiagnosticService = interventionDiagnosticService;
     }
 
     public async Task<SystemScanReport> RunAsync(
@@ -52,6 +63,7 @@ public sealed class SystemScanService : ISystemScanService
             ? ReadCleanup(progress, errors, findings)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        var interventions = await ReadInterventionsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
 
         foreach (var error in errors.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -69,6 +81,7 @@ public sealed class SystemScanService : ISystemScanService
 
         var recommendations = ScanRules.BuildRecommendations(findings)
             .Concat(updates.Recommendations.Take(3))
+            .Concat(interventions.Diagnostics.Take(3))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var overallStatus = ScanRules.OverallStatus(findings.Select(finding => finding.Severity));
@@ -92,7 +105,8 @@ public sealed class SystemScanService : ISystemScanService
             recommendations,
             errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList())
         {
-            Updates = updates
+            Updates = updates,
+            Interventions = interventions
         };
     }
 
@@ -406,6 +420,88 @@ public sealed class SystemScanService : ISystemScanService
                 Status = "Indisponible",
                 Errors = updateErrors
             };
+        }
+    }
+
+    private async Task<InterventionScanSummary> ReadInterventionsAsync(
+        ScanMode mode,
+        IProgress<ScanProgress>? progress,
+        ICollection<string> errors,
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
+    {
+        if (mode != ScanMode.Deep)
+        {
+            return InterventionScanSummary.NotAnalyzed;
+        }
+
+        Report(
+            progress,
+            "Interventions ciblees",
+            "Diagnostics lecture seule des interventions disponibles.",
+            "Interventions",
+            90);
+
+        try
+        {
+            var diagnostics = await _interventionDiagnosticService
+                .DiagnoseAllAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var available = diagnostics.Count(diagnostic => diagnostic.IsAvailable);
+            var recommended = diagnostics.Count(diagnostic => diagnostic.Status == InterventionStatus.Recommended);
+            var diagnosticsMessages = BuildInterventionMessages(diagnostics).ToList();
+            var interventionErrors = diagnostics
+                .SelectMany(diagnostic => diagnostic.Errors)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            AddErrors(errors, interventionErrors);
+
+            if (recommended > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "interventions-recommended",
+                    "Interventions",
+                    "Interventions ciblees recommandees",
+                    "Des diagnostics lecture seule suggerent une ou plusieurs interventions.",
+                    recommended.ToString(),
+                    ScanSeverity.Attention,
+                    "Ouvrir le module Interventions ciblees. Aucune action n'est executee depuis le rapport de scan."));
+            }
+
+            return new InterventionScanSummary
+            {
+                WasAnalyzed = true,
+                AvailableActions = available,
+                RecommendedActions = recommended,
+                RebootPotentiallyRequired = diagnostics.Any(diagnostic =>
+                    diagnostic.IsAvailable && diagnostic.Definition.RebootPossible),
+                Diagnostics = diagnosticsMessages,
+                Errors = interventionErrors
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            var interventionErrors = new[] { "Diagnostic interventions indisponible." };
+            AddErrors(errors, interventionErrors);
+            return new InterventionScanSummary
+            {
+                WasAnalyzed = true,
+                Errors = interventionErrors
+            };
+        }
+    }
+
+    private static IEnumerable<string> BuildInterventionMessages(
+        IEnumerable<InterventionDiagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics.Where(diagnostic => diagnostic.Status == InterventionStatus.Recommended))
+        {
+            yield return $"{diagnostic.Definition.Title} : {diagnostic.Recommendation}";
         }
     }
 

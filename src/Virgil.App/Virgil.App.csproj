@@ -10,5 +10,11 @@
   <ItemGroup>
     <ProjectReference Include="../Virgil.Core/Virgil.Core.csproj" />
     <ProjectReference Include="../Virgil.Domain/Virgil.Domain.csproj" />
+    <ProjectReference Include="../Virgil.ElevatedHelper/Virgil.ElevatedHelper.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
+  <Target Name="PublishElevatedHelper" AfterTargets="Publish">
+    <MSBuild Projects="../Virgil.ElevatedHelper/Virgil.ElevatedHelper.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$(PublishDir)" />
+  </Target>
 </Project>
