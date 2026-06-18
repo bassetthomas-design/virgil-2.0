@@ -44,7 +44,7 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         {
             requestFile = await _requestStore.CreateAsync(definition.Id, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
         {
             return Failure(definition, "Dossier temporaire Virgil inaccessible.");
         }

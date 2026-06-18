@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Virgil.Core.Interventions;
 using Virgil.Domain;
 
 namespace Virgil.ElevatedHelper;
@@ -10,6 +10,7 @@ public sealed class ElevatedActionDispatcher
     private readonly IElevatedCommandRunner _commandRunner;
     private readonly IElevatedSecurityContext _securityContext;
     private readonly Func<string> _systemDirectoryProvider;
+    private readonly ElevatedAtomicResultWriter _resultWriter;
 
     public ElevatedActionDispatcher()
         : this(
@@ -27,12 +28,30 @@ public sealed class ElevatedActionDispatcher
         IElevatedCommandRunner commandRunner,
         IElevatedSecurityContext securityContext,
         Func<string> systemDirectoryProvider)
+        : this(
+            validator,
+            allowlist,
+            commandRunner,
+            securityContext,
+            systemDirectoryProvider,
+            new ElevatedAtomicResultWriter(validator.PathGuard, validator.ProtocolRoot))
+    {
+    }
+
+    public ElevatedActionDispatcher(
+        ElevatedRequestValidator validator,
+        ElevatedActionAllowlist allowlist,
+        IElevatedCommandRunner commandRunner,
+        IElevatedSecurityContext securityContext,
+        Func<string> systemDirectoryProvider,
+        ElevatedAtomicResultWriter resultWriter)
     {
         _validator = validator;
         _allowlist = allowlist;
         _commandRunner = commandRunner;
         _securityContext = securityContext;
         _systemDirectoryProvider = systemDirectoryProvider;
+        _resultWriter = resultWriter;
     }
 
     public async Task<int> RunAsync(string[] args)
@@ -55,12 +74,16 @@ public sealed class ElevatedActionDispatcher
         try
         {
             var result = await ExecuteValidatedAsync(validated.Request).ConfigureAwait(false);
-            await WriteResultAsync(validated.Request.ResultPath, result).ConfigureAwait(false);
+            await _resultWriter.WriteAsync(validated, result).ConfigureAwait(false);
             return result.Status is InterventionStatus.Failed or InterventionStatus.PartialFailure ? 20 : 0;
+        }
+        catch
+        {
+            return 30;
         }
         finally
         {
-            TryDelete(validated.RequestPath);
+            TryDelete(validated.LocalAppDataDirectory, validated.ProcessingPath);
         }
     }
 
@@ -130,12 +153,6 @@ public sealed class ElevatedActionDispatcher
         };
     }
 
-    private static async Task WriteResultAsync(string path, ElevatedInterventionResult result)
-    {
-        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(path, json).ConfigureAwait(false);
-    }
-
     private static string Summarize(ElevatedCommandResult result)
     {
         var lines = string.Join("\n", result.StandardOutput, result.StandardError)
@@ -149,18 +166,22 @@ public sealed class ElevatedActionDispatcher
             : $"Code sortie : {result.ExitCode}.\n{text}";
     }
 
-    private static void TryDelete(string path)
+    private void TryDelete(string localAppData, string path)
     {
         try
         {
-            if (File.Exists(path))
+            var validatedPath = _validator.PathGuard.ValidateFilePath(
+                localAppData,
+                path,
+                ElevatedPathExistence.Optional);
+            if (File.Exists(validatedPath))
             {
-                File.Delete(path);
+                File.Delete(validatedPath);
             }
         }
         catch
         {
-            // Best effort invalidation.
+            // Best effort invalidation never follows a reparse point.
         }
     }
 }

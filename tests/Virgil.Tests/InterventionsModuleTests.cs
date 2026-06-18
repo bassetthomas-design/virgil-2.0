@@ -309,6 +309,7 @@ public sealed class InterventionsModuleTests
         DateTimeOffset? createdAt = null,
         string? resultPath = null)
     {
+        EnsureSecureRoot(root);
         var request = new ElevatedInterventionRequest
         {
             ActionId = InterventionId.FlushDns,
@@ -316,20 +317,25 @@ public sealed class InterventionsModuleTests
             CreatedAt = createdAt ?? FixedUtcNow,
             ResultPath = resultPath ?? Path.Combine(root, $"intervention-{nonce}.result.json")
         };
-        Directory.CreateDirectory(root);
-        var path = Path.Combine(root, $"intervention-{Guid.NewGuid():N}.request.json");
+        var path = Path.Combine(root, $"intervention-{nonce}.request.json");
         File.WriteAllText(path, JsonSerializer.Serialize(request));
         return path;
     }
 
     private static string WriteRequest(string root, string jsonTemplate)
     {
-        Directory.CreateDirectory(root);
+        EnsureSecureRoot(root);
         var resultPath = Path.Combine(root, "intervention-ABCDEF0123456789ABCDEF0123456789.result.json")
             .Replace(@"\", @"\\");
-        var path = Path.Combine(root, $"intervention-{Guid.NewGuid():N}.request.json");
+        var path = Path.Combine(root, "intervention-ABCDEF0123456789ABCDEF0123456789.request.json");
         File.WriteAllText(path, jsonTemplate.Replace("__RESULT__", resultPath));
         return path;
+    }
+
+    private static void EnsureSecureRoot(string root)
+    {
+        var localAppData = Directory.GetParent(Directory.GetParent(root)!.FullName)!.FullName;
+        new ElevatedProtocolRoot().EnsureCreated(localAppData);
     }
 
     private sealed class RecordingElevatedCommandRunner : IElevatedCommandRunner
