@@ -48,7 +48,7 @@ internal static class ProcessorReader
             .GetResult();
     }
 
-    private static async Task<double> MeasureUsageAsync(TimeSpan sampleDelay, CancellationToken cancellationToken)
+    internal static async Task<double> MeasureUsageAsync(TimeSpan sampleDelay, CancellationToken cancellationToken)
     {
         var first = ReadSystemTimes();
         await Task.Delay(sampleDelay, cancellationToken).ConfigureAwait(false);

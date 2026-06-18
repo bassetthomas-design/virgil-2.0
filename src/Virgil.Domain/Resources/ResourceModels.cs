@@ -112,6 +112,14 @@ public sealed record ProcessResourceInfo
     public DateTimeOffset? StartedAt { get; init; }
 }
 
+public sealed record ProcessInspectionResult
+{
+    public IReadOnlyList<ProcessResourceInfo> Processes { get; init; } =
+        Array.Empty<ProcessResourceInfo>();
+
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+}
+
 public sealed record ResourceAnalysisReport
 {
     public DateTimeOffset CapturedAt { get; init; } = DateTimeOffset.Now;

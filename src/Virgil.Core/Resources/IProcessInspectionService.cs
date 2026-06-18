@@ -4,7 +4,7 @@ namespace Virgil.Core.Resources;
 
 public interface IProcessInspectionService
 {
-    Task<IReadOnlyList<ProcessResourceInfo>> InspectAsync(
+    Task<ProcessInspectionResult> InspectAsync(
         TimeSpan observationDuration,
         int maximumProcesses,
         CancellationToken cancellationToken);
