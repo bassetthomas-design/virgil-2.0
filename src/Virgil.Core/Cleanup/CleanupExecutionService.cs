@@ -86,6 +86,21 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         var errorFiles = 0;
         var status = CleanupStepStatus.Completed;
 
+        if (!preview.Definition.IsExecutable ||
+            preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
+        {
+            stopwatch.Stop();
+            return new CleanupStepResult(
+                preview.Definition,
+                CleanupStepStatus.Skipped,
+                0,
+                0,
+                preview.EligibleFileCount,
+                0,
+                stopwatch.Elapsed,
+                new[] { "Zone en information seulement : aucune suppression executee." });
+        }
+
         if (_now() - preview.GeneratedAt > PreviewValidity)
         {
             return CreateExpiredResult(preview, stopwatch.Elapsed);

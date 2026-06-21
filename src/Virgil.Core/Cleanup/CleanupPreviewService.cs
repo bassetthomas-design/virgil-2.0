@@ -12,6 +12,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
 {
     private readonly IReadOnlyList<CleanupZoneDefinition> _zones;
     private readonly Func<DateTimeOffset> _now;
+    private readonly CleanupSafetyClassifier _safetyClassifier;
 
     public CleanupPreviewService()
         : this(CleanupZoneCatalog.CreateDefault(), () => DateTimeOffset.Now)
@@ -20,10 +21,12 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
 
     public CleanupPreviewService(
         IReadOnlyList<CleanupZoneDefinition> zones,
-        Func<DateTimeOffset>? now = null)
+        Func<DateTimeOffset>? now = null,
+        CleanupSafetyClassifier? safetyClassifier = null)
     {
         _zones = zones.OrderBy(zone => zone.DisplayOrder).ToList();
         _now = now ?? (() => DateTimeOffset.Now);
+        _safetyClassifier = safetyClassifier ?? new CleanupSafetyClassifier();
     }
 
     public IReadOnlyList<CleanupZoneDefinition> GetZones()
@@ -110,6 +113,11 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
         if (!CleanupPathGuard.TryValidateContainedFile(filePath, zone.RootPath, out var fullPath, out var reason))
         {
             return CreateExcludedCandidate(zone, filePath, reason);
+        }
+
+        if (!_safetyClassifier.CanDeleteCandidate(zone, fullPath, out reason))
+        {
+            return CreateExcludedCandidate(zone, fullPath, reason);
         }
 
         try
