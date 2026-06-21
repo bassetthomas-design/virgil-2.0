@@ -72,6 +72,15 @@ Chemin cible : `%APPDATA%\Virgil\logs`.
 - uptime
 - température si disponible
 
+### Resources
+
+- `ResourceMonitoringService` agrège plusieurs échantillons CPU, la RAM, l'uptime et une inspection des processus ;
+- `ProcessInspectionService` compare deux instantanés pour estimer le CPU par processus et fusionne les principaux consommateurs CPU/RAM ;
+- `ProcessProtectionPolicy` classe les processus Windows, sécurité, VPN, matériel, inaccessibles ou sans fenêtre avant d'exposer une action ;
+- `ProcessActionService` revérifie l'identité du PID juste avant l'action, sépare fermeture propre et forcée, et réutilise `ExplorerRestarter` ;
+- `ResourcesView` exige une validation explicite, et une confirmation renforcée pour la fermeture forcée ;
+- le scan approfondi appelle uniquement l'analyse en lecture seule et n'exécute aucune action processus.
+
 ### CleanupService
 
 - TEMP utilisateur

@@ -368,3 +368,24 @@ Virgil ne doit pas proposer :
 Le module Ressources système doit aider l'utilisateur à comprendre et corriger les ralentissements sans jamais promettre d'accélération magique.
 
 Virgil agit comme un agent tactique prudent, pas comme un booster PC marketing.
+
+## 15. État de l'implémentation V1
+
+Implémenté :
+
+- bouton `RESSOURCES` raccordé à `ResourcesView` ;
+- observation CPU multi-échantillons et moyenne courte, sans alerte critique sur un pic isolé ;
+- lecture RAM totale, utilisée, disponible et seuils validés ;
+- principaux consommateurs CPU/RAM avec statut normal, lourd, à vérifier ou protégé ;
+- fermeture propre après validation, sans escalade automatique ;
+- fermeture forcée séparée avec confirmation renforcée ;
+- revérification du nom, du chemin et de l'heure de démarrage du PID avant fermeture ;
+- protection conservative des processus Windows, sécurité, VPN, matériel, inaccessibles et du processus Virgil ;
+- relance d'Explorer via le service d'intervention existant ;
+- rapport de session avec analyses, propositions, actions, actions passées et erreurs ;
+- prévisualisation Ressources dans l'analyse approfondie, strictement en lecture seule.
+
+Limitation V1 assumée :
+
+- `Libérer mémoire inactive` affiche une information seulement. Aucune API suffisamment fiable et cohérente avec les garde-fous n'est exécutée ;
+- aucun redémarrage automatique, aucun mode jeu, aucun service Windows désactivé et aucun « boost RAM ».

@@ -52,6 +52,7 @@ Virgil 2.0 vise une ambiance originale :
 | Module | But |
 | --- | --- |
 | Monitoring | CPU, RAM, disque, réseau, température si disponible |
+| Ressources système | Observation CPU/RAM courte, processus lourds, actions processus confirmées, rapport |
 | Nettoyage | Prévisualisation avant action |
 | Démarrage | Analyse des applications lancées avec Windows |
 | Pilotes | Scan puis bouton d'installation si résultat |
@@ -66,6 +67,8 @@ Virgil fonctionne en trois niveaux :
 1. **Observation** : lire l'état du PC sans rien modifier.
 2. **Recommandation** : proposer une action claire.
 3. **Action validée** : agir uniquement après validation.
+
+Le module Ressources applique en plus une confirmation renforcée avant toute fermeture forcée. Les processus Windows, sécurité, VPN et matériel identifiés comme sensibles ne sont jamais proposés à la fermeture. La libération de mémoire inactive reste informative en V1 : aucun « boost RAM » n'est simulé.
 
 ## Documentation
 

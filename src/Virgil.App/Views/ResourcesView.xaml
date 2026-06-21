@@ -1,0 +1,261 @@
+<UserControl x:Class="Virgil.App.Views.ResourcesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Virgil.App.Controls"
+             MinWidth="0"
+             MinHeight="0"
+             KeyboardNavigation.TabNavigation="Continue"
+             FocusManager.IsFocusScope="True">
+    <Grid ClipToBounds="True">
+        <ScrollViewer x:Name="ResourcesScrollViewer"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False"
+                      ClipToBounds="True">
+            <StackPanel>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="ResourcesMiniCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                AutomationProperties.Name="Mini noyau Virgil ressources" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="RESSOURCES SYSTEME"
+                                   Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ResourcesStatusText"
+                                   Text="CPU, RAM ET PROCESSUS EN LECTURE SEULE"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel KeyboardNavigation.TabNavigation="Continue">
+                    <Button x:Name="AnalyzeResourcesButton"
+                            Content="ANALYSER RESSOURCES"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="190"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Analyser les ressources"
+                            Click="AnalyzeResources_Click" />
+                    <Button x:Name="HeavyProcessesButton"
+                            Content="PROCESSUS LOURDS"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="160"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Afficher les processus lourds"
+                            Click="HeavyProcesses_Click" />
+                    <Button x:Name="ReleaseInactiveMemoryButton"
+                            Content="LIBERER MEMOIRE INACTIVE"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="210"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Informations sur la liberation de memoire inactive"
+                            Click="ReleaseInactiveMemory_Click" />
+                    <Button x:Name="RestartExplorerButton"
+                            Content="RELANCER EXPLORER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="160"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Relancer Explorer Windows"
+                            Click="RestartExplorer_Click" />
+                    <Button x:Name="ViewResourcesReportButton"
+                            Content="VOIR LE RAPPORT"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="145"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Voir le rapport ressources"
+                            Click="ViewResourcesReport_Click" />
+                    <Button x:Name="ReturnHomeButton"
+                            Content="RETOUR ACCUEIL"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="130"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Retour accueil"
+                            Click="ReturnHome_Click" />
+                </WrapPanel>
+
+                <Rectangle Style="{StaticResource VirgilSeparator}" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,6,8">
+                        <StackPanel>
+                            <TextBlock Text="CPU - OBSERVATION COURTE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="CpuSummaryText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="RAM" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="MemorySummaryText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource VirgilHudCard}" Margin="6,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="SESSION WINDOWS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="SessionSummaryText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Aucune fermeture automatique. Processus critiques bloques. Aucun redemarrage force."
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="RECOMMANDATIONS"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                    <TextBlock x:Name="RecommendationsText"
+                               Text="Lancez une analyse. Aucune action ne sera executee."
+                               Style="{StaticResource VirgilHudSecondaryText}"
+                               TextWrapping="Wrap" />
+                </Border>
+
+                <TextBlock x:Name="ProcessListHeading"
+                           Text="PROCESSUS PRINCIPAUX"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <TextBlock x:Name="ProcessSummaryText"
+                           Text="Lancez une analyse pour identifier les principaux consommateurs CPU et RAM."
+                           Style="{StaticResource VirgilHudSecondaryText}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8" />
+                <StackPanel x:Name="ProcessesPanel" KeyboardNavigation.TabNavigation="Continue" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="ResourceValidationOverlay"
+              Panel.ZIndex="20"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="820"
+                    MaxHeight="720"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="ValidationCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau validation ressources" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ValidationTitleText"
+                                   Text="VALIDATION REQUISE"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock Text="ACTION" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationDetailsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ValidationSafetyText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                        <Button x:Name="ExecuteResourceActionButton"
+                                Content="EXECUTER"
+                                Style="{StaticResource VirgilPrimaryButton}"
+                                AutomationProperties.Name="Executer l action ressources"
+                                Click="ExecuteResourceAction_Click" />
+                        <Button Content="PASSER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Passer cette action"
+                                Click="SkipResourceAction_Click" />
+                        <Button Content="ANNULER TOUT"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Annuler l action ressources"
+                                Click="CancelResourceAction_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ResourcesReportOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="880"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="RAPPORT RESSOURCES"
+                               Style="{StaticResource VirgilHudSectionTitle}" />
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,16,0,16"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <TextBlock x:Name="ResourcesReportText"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" />
+                    </ScrollViewer>
+                    <Button x:Name="CloseResourcesReportButton"
+                            Grid.Row="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer le rapport ressources"
+                            Click="CloseResourcesReport_Click" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

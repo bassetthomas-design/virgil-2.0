@@ -1,4 +1,6 @@
 using Virgil.Core.Cleanup;
+using Virgil.Core.Interventions;
+using Virgil.Core.Resources;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
 using Virgil.Domain;
@@ -84,6 +86,68 @@ public sealed class SystemScanServiceTests
         Assert.NotNull(report.Network);
     }
 
+    [Fact]
+    public async Task QuickScan_does_not_run_resource_observation()
+    {
+        var resources = new CountingResourceMonitoringService();
+        var service = new SystemScanService(
+            new CountingCleanupService(),
+            new CountingUpdateScanService(),
+            new EmptyInterventionDiagnosticService(),
+            resources);
+
+        var report = await service.RunAsync(ScanMode.Quick, null, CancellationToken.None);
+
+        Assert.False(report.Resources.WasAnalyzed);
+        Assert.Equal(0, resources.Calls);
+    }
+
+    [Fact]
+    public async Task DeepScan_includes_read_only_resource_observation()
+    {
+        var process = new ProcessResourceInfo
+        {
+            ProcessId = 42,
+            Name = "HeavyApp",
+            WorkingSetBytes = 800L * 1024 * 1024,
+            CpuPercent = 30,
+            Status = ProcessResourceStatus.Heavy,
+            CanCloseGracefully = true,
+            CanForceClose = true
+        };
+        var resources = new CountingResourceMonitoringService(new ResourceAnalysisReport
+        {
+            AverageCpuPercent = 36,
+            AverageMemoryPercent = 88,
+            Samples = new[]
+            {
+                new ResourceSample
+                {
+                    Uptime = TimeSpan.FromDays(4),
+                    ProcessCount = 75
+                }
+            },
+            TopMemoryProcesses = new[] { process },
+            TopCpuProcesses = new[] { process },
+            Recommendations = new[] { "Examiner les applications lourdes." }
+        });
+        var service = new SystemScanService(
+            new CountingCleanupService(),
+            new CountingUpdateScanService(),
+            new EmptyInterventionDiagnosticService(),
+            resources);
+
+        var report = await service.RunAsync(ScanMode.Deep, null, CancellationToken.None);
+
+        Assert.True(report.Resources.WasAnalyzed);
+        Assert.Equal(1, resources.Calls);
+        Assert.Equal(36, report.Resources.AverageCpuPercent);
+        Assert.Equal(88, report.Resources.MemoryPercent);
+        Assert.Equal(1, report.Resources.HeavyProcessCount);
+        Assert.Contains("HeavyApp", report.Resources.TopMemoryProcesses[0]);
+        Assert.Contains(report.Findings, finding => finding.Id == "resources-heavy-processes");
+    }
+
     private sealed class CountingCleanupService : ICleanupService
     {
         public int PreviewCalls { get; private set; }
@@ -136,6 +200,45 @@ public sealed class SystemScanServiceTests
         {
             Requests.Add(request);
             return Task.FromResult(_report with { Scope = request.Scope });
+        }
+    }
+
+    private sealed class CountingResourceMonitoringService : IResourceMonitoringService
+    {
+        private readonly ResourceAnalysisReport _report;
+
+        public CountingResourceMonitoringService()
+            : this(new ResourceAnalysisReport())
+        {
+        }
+
+        public CountingResourceMonitoringService(ResourceAnalysisReport report)
+        {
+            _report = report;
+        }
+
+        public int Calls { get; private set; }
+
+        public Task<ResourceAnalysisReport> AnalyzeAsync(
+            ResourceAnalysisRequest request,
+            IProgress<ResourceProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(_report);
+        }
+    }
+
+    private sealed class EmptyInterventionDiagnosticService : IInterventionDiagnosticService
+    {
+        public Task<IReadOnlyList<InterventionDiagnostic>> DiagnoseAllAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<InterventionDiagnostic>>(Array.Empty<InterventionDiagnostic>());
+        }
+
+        public Task<InterventionDiagnostic> DiagnoseAsync(InterventionId id, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 }

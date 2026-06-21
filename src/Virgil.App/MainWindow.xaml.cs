@@ -34,6 +34,7 @@ public partial class MainWindow : Window
         WireCleanupModule();
         WireUpdatesModule();
         WireInterventionsModule();
+        WireResourcesModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
@@ -83,6 +84,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (ResourcesModuleView.Visibility == Visibility.Visible && ResourcesModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (ScanProtocolOverlay.Visibility == Visibility.Visible && !_scanInProgress)
         {
             CloseScanProtocol();
@@ -96,6 +103,7 @@ public partial class MainWindow : Window
         CleanupModuleView.CancelActiveOperation();
         UpdatesModuleView.CancelActiveOperation();
         InterventionsModuleView.CancelActiveOperation();
+        ResourcesModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
@@ -138,16 +146,29 @@ public partial class MainWindow : Window
         ShowInterventions();
     }
 
+    private void Resources_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nRessources indisponibles.");
+            return;
+        }
+
+        ShowResources();
+    }
+
     private void ShowHome()
     {
         HomeContentGrid.Visibility = Visibility.Visible;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = "Active";
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Accueil actif.");
@@ -159,10 +180,12 @@ public partial class MainWindow : Window
         CleanupModuleView.Visibility = Visibility.Visible;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = "Active";
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
         AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
@@ -175,10 +198,12 @@ public partial class MainWindow : Window
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Visible;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = "Active";
         InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = null;
         StatusText.Text = "MISES A JOUR";
         SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
         AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
@@ -191,14 +216,34 @@ public partial class MainWindow : Window
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Visible;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = "Active";
+        ResourcesNavButton.Tag = null;
         StatusText.Text = "INTERVENTIONS";
         SetVirgilState(VirgilCoreState.Idle, "INTERVENTIONS");
         AppendVirgilMessage("Interventions ciblees pretes.\nDiagnostic requis avant action.");
         InterventionsModuleView.FocusAnalyzeButton();
+    }
+
+    private void ShowResources()
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = "Active";
+        StatusText.Text = "RESSOURCES";
+        SetVirgilState(VirgilCoreState.Idle, "RESSOURCES");
+        AppendVirgilMessage("Module ressources pret.\nAnalyse CPU/RAM en lecture seule.\nAucune fermeture automatique.");
+        ResourcesModuleView.FocusAnalyzeButton();
     }
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
@@ -228,6 +273,13 @@ public partial class MainWindow : Window
         InterventionsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
     }
 
+    private void WireResourcesModule()
+    {
+        ResourcesModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        ResourcesModuleView.VirgilStateRequested += SetVirgilState;
+        ResourcesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+    }
+
     private void LastReport_Click(object sender, RoutedEventArgs e)
     {
         if (_lastReport is null)
@@ -249,7 +301,8 @@ public partial class MainWindow : Window
 
         if (CleanupModuleView.Visibility == Visibility.Visible ||
             UpdatesModuleView.Visibility == Visibility.Visible ||
-            InterventionsModuleView.Visibility == Visibility.Visible)
+            InterventionsModuleView.Visibility == Visibility.Visible ||
+            ResourcesModuleView.Visibility == Visibility.Visible)
         {
             ShowHome();
         }
@@ -359,7 +412,9 @@ public partial class MainWindow : Window
         var priorityCount = CountPriorities(report);
 
         GlobalStatusText.Text = report.OverallStatus.ToUpperInvariant();
-        ReportCpuText.Text = $"{report.Processor.UsagePercent:0.0} % - {report.Processor.Status}";
+        ReportCpuText.Text = report.Resources.WasAnalyzed
+            ? $"{report.Resources.AverageCpuPercent:0.0} % moyenne courte"
+            : $"{report.Processor.UsagePercent:0.0} % - {report.Processor.Status}";
         ReportRamText.Text = report.Memory.TotalPhysicalBytes == 0
             ? "N/A - lecture memoire indisponible"
             : $"{report.Memory.UsedPercent:0.0} % utilises";
@@ -438,7 +493,9 @@ public partial class MainWindow : Window
 
         if (report.Mode == ScanMode.Deep)
         {
-            AppendVirgilMessage($"Analyse approfondie terminee.\nNettoyage potentiel : {FormatBytes(report.Cleanup.PotentialBytes)}.\nRapport disponible.");
+            AppendVirgilMessage(
+                $"Analyse approfondie terminee.\nCPU moyen court : {report.Resources.AverageCpuPercent:0.0} %.\n" +
+                $"Processus lourds : {report.Resources.HeavyProcessCount}.\nAucune action executee.");
             return;
         }
 
@@ -465,6 +522,7 @@ public partial class MainWindow : Window
             $"Disque systeme : {FormatDisk(systemDisk)}",
             $"Reseau : {FormatNetwork(report.Network)}",
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
+            $"Ressources systeme : {FormatResources(report.Resources)}",
             $"Mises a jour : {FormatUpdates(report.Updates)}",
             $"Interventions ciblees : {FormatInterventions(report.Interventions)}"
         });
@@ -770,6 +828,21 @@ public partial class MainWindow : Window
             $"{updates.SensitiveUpdates} sensibles",
             $"{updates.DriverCount} pilotes inventories"
         });
+    }
+
+    private static string FormatResources(ResourceScanSummary resources)
+    {
+        if (!resources.WasAnalyzed)
+        {
+            return "Non analyse";
+        }
+
+        var topMemory = resources.TopMemoryProcesses.Count == 0
+            ? "aucun processus accessible"
+            : string.Join(", ", resources.TopMemoryProcesses);
+        return $"CPU moyen {resources.AverageCpuPercent:0.0} %, RAM {resources.MemoryPercent:0.0} %, " +
+            $"{resources.HeavyProcessCount} lourds, session {FormatDuration(resources.Uptime)}, " +
+            $"principaux RAM : {topMemory}, aucune action executee";
     }
 
     private static string FormatInterventions(InterventionScanSummary interventions)
