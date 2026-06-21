@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Interventions;
+using Virgil.Core.Reports;
 using Virgil.Domain;
 
 namespace Virgil.App.Views;
@@ -20,6 +21,7 @@ public partial class InterventionsView : UserControl
     private readonly InterventionReportBuilder _reportBuilder;
     private readonly List<InterventionDiagnostic> _diagnostics = new();
     private readonly Dictionary<InterventionId, CheckBox> _selectionById = new();
+    private IReportHistoryService? _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<InterventionDecision>? _activeDecision;
     private InterventionSessionReport? _lastReport;
@@ -48,6 +50,13 @@ public partial class InterventionsView : UserControl
     public event Action<VirgilCoreState, string>? VirgilStateRequested;
 
     public event EventHandler? ReturnHomeRequested;
+
+    public event EventHandler? ReportPersisted;
+
+    public void ConfigureReportHistory(IReportHistoryService reportHistoryService)
+    {
+        _reportHistoryService = reportHistoryService;
+    }
 
     public void FocusAnalyzeButton()
     {
@@ -234,9 +243,29 @@ public partial class InterventionsView : UserControl
         {
             _criticalActionStarted = false;
             _lastReport = _executionService.CreateReport(startedAt, candidates, results, errors);
+            await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
             EndOperation();
             CompleteSessionState(_lastReport);
             ShowReport();
+        }
+    }
+
+    private async Task PersistReportAsync(ReportEntry report)
+    {
+        if (_reportHistoryService is null)
+        {
+            return;
+        }
+
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
         }
     }
 

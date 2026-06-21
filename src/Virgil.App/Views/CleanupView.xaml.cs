@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Cleanup;
+using Virgil.Core.Reports;
 using Virgil.Domain;
 
 namespace Virgil.App.Views;
@@ -18,6 +19,7 @@ public partial class CleanupView : UserControl
     private readonly ICleanupPreviewService _previewService;
     private readonly ICleanupExecutionService _executionService;
     private readonly List<CleanupZonePreview> _lastPreview = new();
+    private IReportHistoryService? _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<CleanupZoneDecision>? _activeDecision;
     private CleanupSessionReport? _lastReport;
@@ -42,6 +44,13 @@ public partial class CleanupView : UserControl
     public event Action<VirgilCoreState, string>? VirgilStateRequested;
 
     public event EventHandler? ReturnHomeRequested;
+
+    public event EventHandler? ReportPersisted;
+
+    public void ConfigureReportHistory(IReportHistoryService reportHistoryService)
+    {
+        _reportHistoryService = reportHistoryService;
+    }
 
     public void FocusAnalyzeButton()
     {
@@ -223,12 +232,32 @@ public partial class CleanupView : UserControl
         finally
         {
             _lastReport = _executionService.CreateReport(startedAt, results, sessionErrors);
+            await PersistReportAsync(ReportMapper.FromCleanup(_lastReport, _lastPreview.Count));
             ViewCleanupReportButton.IsEnabled = true;
             RenderPreviews();
             EndOperation();
             CompleteSessionState(_lastReport);
             AnnounceSessionEnd(_lastReport);
             ShowReport();
+        }
+    }
+
+    private async Task PersistReportAsync(ReportEntry report)
+    {
+        if (_reportHistoryService is null)
+        {
+            return;
+        }
+
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
         }
     }
 

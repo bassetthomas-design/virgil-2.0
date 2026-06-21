@@ -141,7 +141,7 @@
                                 <Button x:Name="InterventionsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Interventions ciblees" Click="Interventions_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M3,12 L12,3 M10,2 L13,5 M2,10 L5,13" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="REPARATION" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Rapports" Click="ModulePlaceholder_Click">
+                                <Button x:Name="ReportsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Rapports" Click="Reports_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M3,2 H12 V14 H3 Z M5,5 H10 M5,8 H10 M5,11 H8" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RAPPORTS" /></Grid>
                                 </Button>
                             </StackPanel>
@@ -245,6 +245,9 @@
                         <views:ResourcesView x:Name="ResourcesModuleView"
                                              Visibility="Collapsed"
                                              AutomationProperties.Name="Module ressources systeme" />
+                        <views:ReportsHistoryView x:Name="ReportsModuleView"
+                                                  Visibility="Collapsed"
+                                                  AutomationProperties.Name="Module rapports et historique local" />
                     </Grid>
                 </Border>
 

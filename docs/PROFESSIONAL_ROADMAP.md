@@ -99,19 +99,24 @@ Livrable recommande:
 
 Objectif: rendre les resultats tracables localement, sans telemetrie.
 
-- Historique local des scans et nettoyages.
-- Export JSON ou texte.
-- Rapports dates.
-- Journal des actions.
-- Aucune telemetrie.
-- Rotation ou limite de taille des journaux.
+Etat branche `feat/reports-history-v1`: V1 implementee.
+
+- Historique local des scans rapides/approfondis, nettoyages, mises a jour, interventions et ressources.
+- Format interne JSON stable sous `%APPDATA%\Virgil\reports`.
+- Ecriture atomique et rotation stricte aux 30 derniers evenements.
+- Dernier rapport persistant avec repli vers le rapport memoire.
+- Export TXT uniquement manuel via la boite de dialogue Windows.
+- Vue simple par defaut et details techniques masques.
+- Sanitation des chemins de profil, tokens, mots de passe, secrets et cles.
+- Aucun envoi en ligne, aucune telemetrie, aucune synchronisation.
+- Comparaison de deux scans reportee en V2.
 
 Livrable recommande:
 
-1. Format de rapport stable.
-2. Stockage local utilisateur.
-3. Export manuel.
-4. Vue historique filtrable.
+1. Format de rapport stable : termine V1.
+2. Stockage local utilisateur : termine V1.
+3. Export manuel TXT : termine V1.
+4. Vue historique compacte : termine V1 ; filtres avances reportes.
 
 ## 5. Finition produit
 

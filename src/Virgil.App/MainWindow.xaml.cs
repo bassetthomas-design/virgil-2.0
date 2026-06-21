@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Virgil.App.Controls;
+using Virgil.Core.Reports;
 using Virgil.Core.Scanning;
 using Virgil.Domain;
 
@@ -19,11 +20,14 @@ namespace Virgil.App;
 public partial class MainWindow : Window
 {
     private readonly ISystemScanService _systemScanService = new SystemScanService();
+    private readonly IReportHistoryService _reportHistoryService = new ReportHistoryService();
+    private readonly IReportExportService _reportExportService = new ReportExportService();
     private readonly HashSet<string> _reportedProgressSteps = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _activeScanCancellation;
     private Storyboard? _startupStoryboard;
     private bool _scanInProgress;
     private bool _startupAnimationPlayed;
+    private bool _hasPersistentReport;
     private SystemScanReport? _lastReport;
 
     public MainWindow()
@@ -35,6 +39,7 @@ public partial class MainWindow : Window
         WireUpdatesModule();
         WireInterventionsModule();
         WireResourcesModule();
+        WireReportsModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
@@ -50,7 +55,11 @@ public partial class MainWindow : Window
 
     private void CloseReport_Click(object sender, RoutedEventArgs e) => CloseReport();
 
-    private void Window_ContentRendered(object? sender, EventArgs e) => PlayStartupAnimation();
+    private async void Window_ContentRendered(object? sender, EventArgs e)
+    {
+        PlayStartupAnimation();
+        await RefreshPersistentReportStateAsync();
+    }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
@@ -85,6 +94,12 @@ public partial class MainWindow : Window
         }
 
         if (ResourcesModuleView.Visibility == Visibility.Visible && ResourcesModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (ReportsModuleView.Visibility == Visibility.Visible && ReportsModuleView.TryCloseOverlay())
         {
             e.Handled = true;
             return;
@@ -157,6 +172,17 @@ public partial class MainWindow : Window
         ShowResources();
     }
 
+    private void Reports_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nRapports indisponibles.");
+            return;
+        }
+
+        ShowReports();
+    }
+
     private void ShowHome()
     {
         HomeContentGrid.Visibility = Visibility.Visible;
@@ -164,11 +190,13 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = "Active";
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ReportsNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Accueil actif.");
@@ -181,11 +209,13 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = "Active";
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ReportsNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
         AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
@@ -199,11 +229,13 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Visible;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = "Active";
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ReportsNavButton.Tag = null;
         StatusText.Text = "MISES A JOUR";
         SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
         AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
@@ -217,11 +249,13 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Visible;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = "Active";
         ResourcesNavButton.Tag = null;
+        ReportsNavButton.Tag = null;
         StatusText.Text = "INTERVENTIONS";
         SetVirgilState(VirgilCoreState.Idle, "INTERVENTIONS");
         AppendVirgilMessage("Interventions ciblees pretes.\nDiagnostic requis avant action.");
@@ -235,15 +269,41 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Visible;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = "Active";
+        ReportsNavButton.Tag = null;
         StatusText.Text = "RESSOURCES";
         SetVirgilState(VirgilCoreState.Idle, "RESSOURCES");
         AppendVirgilMessage("Module ressources pret.\nAnalyse CPU/RAM en lecture seule.\nAucune fermeture automatique.");
         ResourcesModuleView.FocusAnalyzeButton();
+    }
+
+    private void ShowReports(bool refresh = true)
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ReportsModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = null;
+        ReportsNavButton.Tag = "Active";
+        StatusText.Text = "RAPPORTS";
+        SetVirgilState(VirgilCoreState.Idle, "RAPPORTS");
+        AppendVirgilMessage("Historique local pret.\nAucun envoi en ligne.\nExport manuel uniquement.");
+        ReportsModuleView.FocusPrimaryButton();
+        if (refresh)
+        {
+            _ = ReportsModuleView.RefreshAsync();
+        }
     }
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
@@ -254,41 +314,73 @@ public partial class MainWindow : Window
 
     private void WireCleanupModule()
     {
+        CleanupModuleView.ConfigureReportHistory(_reportHistoryService);
         CleanupModuleView.VirgilMessageRequested += AppendVirgilMessage;
         CleanupModuleView.VirgilStateRequested += SetVirgilState;
         CleanupModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        CleanupModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireUpdatesModule()
     {
+        UpdatesModuleView.ConfigureReportHistory(_reportHistoryService);
         UpdatesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         UpdatesModuleView.VirgilStateRequested += SetVirgilState;
         UpdatesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        UpdatesModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireInterventionsModule()
     {
+        InterventionsModuleView.ConfigureReportHistory(_reportHistoryService);
         InterventionsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         InterventionsModuleView.VirgilStateRequested += SetVirgilState;
         InterventionsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        InterventionsModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireResourcesModule()
     {
+        ResourcesModuleView.ConfigureReportHistory(_reportHistoryService);
         ResourcesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ResourcesModuleView.VirgilStateRequested += SetVirgilState;
         ResourcesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        ResourcesModuleView.ReportPersisted += HandleReportPersisted;
     }
 
-    private void LastReport_Click(object sender, RoutedEventArgs e)
+    private void WireReportsModule()
     {
+        ReportsModuleView.Configure(_reportHistoryService, _reportExportService);
+        ReportsModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        ReportsModuleView.VirgilStateRequested += SetVirgilState;
+        ReportsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        ReportsModuleView.ReportPersisted += HandleReportPersisted;
+    }
+
+    private void HandleReportPersisted(object? sender, EventArgs e)
+    {
+        _hasPersistentReport = true;
+        LastReportButton.IsEnabled = !_scanInProgress;
+    }
+
+    private async void LastReport_Click(object sender, RoutedEventArgs e)
+    {
+        var persistent = await _reportHistoryService.GetLatestAsync(CancellationToken.None);
+        if (persistent is not null)
+        {
+            ShowReports(refresh: false);
+            await ReportsModuleView.OpenLatestAsync();
+            return;
+        }
+
         if (_lastReport is null)
         {
             AppendVirgilMessage("Aucun rapport disponible.\nLancez une analyse systeme.");
             return;
         }
 
-        ShowLastReport(_lastReport);
+        ShowReports(refresh: false);
+        ReportsModuleView.ShowTransientReport(ReportMapper.FromSystemScan(_lastReport));
     }
 
     private void OpenScanProtocol()
@@ -302,7 +394,8 @@ public partial class MainWindow : Window
         if (CleanupModuleView.Visibility == Visibility.Visible ||
             UpdatesModuleView.Visibility == Visibility.Visible ||
             InterventionsModuleView.Visibility == Visibility.Visible ||
-            ResourcesModuleView.Visibility == Visibility.Visible)
+            ResourcesModuleView.Visibility == Visibility.Visible ||
+            ReportsModuleView.Visibility == Visibility.Visible)
         {
             ShowHome();
         }
@@ -329,6 +422,7 @@ public partial class MainWindow : Window
             var progress = new Progress<ScanProgress>(HandleProgress);
             var report = await _systemScanService.RunAsync(mode, progress, _activeScanCancellation!.Token);
             _lastReport = report;
+            await PersistReportSafelyAsync(ReportMapper.FromSystemScan(report));
 
             ApplyReport(report);
             CompleteScan(report);
@@ -750,11 +844,37 @@ public partial class MainWindow : Window
         VirgilStateText.Text = $"ETAT VIRGIL : {label}";
     }
 
+    private async Task PersistReportSafelyAsync(ReportEntry report)
+    {
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None);
+        if (result.Success)
+        {
+            _hasPersistentReport = true;
+            LastReportButton.IsEnabled = !_scanInProgress;
+            AppendVirgilMessage("Rapport genere et conserve localement.\nAucun envoi en ligne.");
+            if (!string.IsNullOrWhiteSpace(result.ReadableError))
+            {
+                AppendVirgilMessage(result.ReadableError);
+            }
+
+            return;
+        }
+
+        AppendVirgilMessage(result.ReadableError ?? "Historique local indisponible.\nRapport conserve en memoire.");
+    }
+
+    private async Task RefreshPersistentReportStateAsync()
+    {
+        var latest = await _reportHistoryService.GetLatestAsync(CancellationToken.None);
+        _hasPersistentReport = latest is not null;
+        LastReportButton.IsEnabled = _hasPersistentReport || _lastReport is not null;
+    }
+
     private void SetInterfaceBusy(bool busy)
     {
         Cursor = busy ? Cursors.Wait : Cursors.Arrow;
         MainScanButton.IsEnabled = !busy;
-        LastReportButton.IsEnabled = !busy && _lastReport is not null;
+        LastReportButton.IsEnabled = !busy && (_hasPersistentReport || _lastReport is not null);
         NavigationPanel.IsEnabled = !busy;
         QuickScanButton.IsEnabled = !busy;
         DeepScanButton.IsEnabled = !busy;

@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
+using Virgil.Core.Reports;
 using Virgil.Core.Updates;
 using Virgil.Domain;
 
@@ -21,6 +22,7 @@ public partial class UpdatesView : UserControl
     private readonly WindowsUpdateStatusService _windowsUpdateStatusService;
     private readonly List<UpdateItem> _lastItems = new();
     private readonly Dictionary<string, CheckBox> _selectionById = new(StringComparer.OrdinalIgnoreCase);
+    private IReportHistoryService? _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<UpdateDecision>? _activeDecision;
     private UpdateScanReport? _lastScanReport;
@@ -48,6 +50,13 @@ public partial class UpdatesView : UserControl
     public event Action<VirgilCoreState, string>? VirgilStateRequested;
 
     public event EventHandler? ReturnHomeRequested;
+
+    public event EventHandler? ReportPersisted;
+
+    public void ConfigureReportHistory(IReportHistoryService reportHistoryService)
+    {
+        _reportHistoryService = reportHistoryService;
+    }
 
     public void FocusScanButton()
     {
@@ -158,6 +167,7 @@ public partial class UpdatesView : UserControl
             _lastScanReport = report;
             _lastItems.Clear();
             _lastItems.AddRange(report.Items);
+            await PersistReportAsync(ReportMapper.FromUpdateScan(report));
 
             RenderScanReport(report);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PRET");
@@ -203,6 +213,7 @@ public partial class UpdatesView : UserControl
                 .ConfigureAwait(true);
 
             _lastScanReport = MergeDriverReport(_lastScanReport, report);
+            await PersistReportAsync(ReportMapper.FromUpdateScan(_lastScanReport));
             RenderScanReport(_lastScanReport);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PILOTES");
             VirgilMessageRequested?.Invoke("Inventaire pilotes termine.\nLecture seule.");
@@ -292,10 +303,30 @@ public partial class UpdatesView : UserControl
         finally
         {
             _lastSessionReport = _executionService.CreateReport(startedAt, results, errors);
+            await PersistReportAsync(ReportMapper.FromUpdateSession(_lastSessionReport));
             RenderItems();
             EndOperation();
             CompleteSequenceState(_lastSessionReport);
             ShowReport();
+        }
+    }
+
+    private async Task PersistReportAsync(ReportEntry report)
+    {
+        if (_reportHistoryService is null)
+        {
+            return;
+        }
+
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
         }
     }
 
