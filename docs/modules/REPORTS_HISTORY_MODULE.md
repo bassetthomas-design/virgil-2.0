@@ -316,12 +316,13 @@ Virgil ne doit jamais :
 
 Les rapports et l'historique doivent rester locaux.
 
-Chemin cible à confirmer à l'implémentation :
+Chemin confirmé à l'implémentation :
 
 ```text
 %APPDATA%\Virgil\reports
-%APPDATA%\Virgil\logs
 ```
+
+Le chemin est construit par le Core depuis `Environment.SpecialFolder.ApplicationData`. La vue WPF ne choisit jamais la racine de l'historique.
 
 ## 13. Version 1
 
@@ -362,3 +363,58 @@ Chemin cible à confirmer à l'implémentation :
 Le module Rapports / historique est la mémoire locale de Virgil.
 
 Virgil doit être capable d'expliquer ce qu'il a fait, ce qu'il n'a pas fait, ce qui a été passé, ce qui a échoué et pourquoi.
+
+## 17. Implémentation V1
+
+### Socle commun
+
+- `ReportEntry` et `ReportAction` unifient les scans rapides/approfondis, nettoyages, mises à jour, interventions et ressources ;
+- la vue simple contient le résultat lisible, les actions et les erreurs ;
+- les détails techniques restent repliés par défaut ;
+- les overlays de rapport historiques de chaque module restent disponibles.
+
+### Stockage local
+
+- racine unique : `%APPDATA%\Virgil\reports` ;
+- JSON interne stable, un fichier par événement ;
+- écriture temporaire, flush disque puis déplacement atomique sans écrasement silencieux ;
+- 30 derniers événements valides ;
+- rotation limitée aux fichiers JSON dont le nom respecte le format Virgil ;
+- fichiers inattendus ignorés ;
+- fichiers corrompus ignorés individuellement sans effacer le reste ;
+- points de réanalyse refusés sur les dossiers et fichiers gérés ;
+- une panne d'historique ne fait pas échouer le scan ou l'action principale.
+
+### Confidentialité
+
+Le `ReportSanitizer` est appliqué avant stockage et avant export. Il masque :
+
+- le chemin complet du profil utilisateur ;
+- les arguments `password`, `token`, `secret`, `key`, clés API et clés de licence ;
+- les jetons Bearer ;
+- les détails excessifs au-delà de la limite interne.
+
+Ne sont pas stockés : cookies, contenu de fichiers personnels, mots de passe, jetons, clés de licence, télémétrie ou sortie brute illimitée.
+
+### Export TXT
+
+- déclenché uniquement par l'utilisateur ;
+- rapport choisi explicitement ;
+- destination choisie par `SaveFileDialog` ;
+- aucun export automatique ;
+- destinations réseau refusées ;
+- détails techniques inclus seulement lorsqu'ils sont affichés volontairement ;
+- aucun envoi en ligne.
+
+### Interface
+
+- entrée `RAPPORTS` active dans la navigation ;
+- actions `DERNIER RAPPORT`, `HISTORIQUE`, `EXPORTER RAPPORT`, `RETOUR ACCUEIL` ;
+- liste compacte limitée à 30 ;
+- bouton principal `VOIR LE DERNIER RAPPORT` raccordé à l'historique persistant ;
+- repli vers le rapport de scan en mémoire avec proposition d'enregistrement si l'écriture locale précédente a échoué ;
+- `Comparer deux scans` affiché comme prévu en V2, sans faux bouton actif.
+
+### Absence de réseau
+
+Le module n'instancie aucun client HTTP et ne contient aucun flux de synchronisation. Les rapports restent sur l'appareil ; GitHub Actions ne reçoit que le code et les artefacts de build, jamais l'historique utilisateur.
