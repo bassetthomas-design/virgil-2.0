@@ -16,6 +16,10 @@ public static class ReportMapper
             .AppendLine($"RAM : {report.Memory.UsedPercent:0.0} %")
             .AppendLine($"Disques analyses : {report.Disks.Count}")
             .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "non analyse")}")
+            .AppendLine($"Nettoyage sur : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
+            .AppendLine($"Nettoyage avance : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
+            .AppendLine($"Elements personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
+            .AppendLine("Protection personnelle : aucune suppression depuis l'analyse approfondie.")
             .AppendLine($"Mises a jour disponibles : {report.Updates.ApplicationUpdates}")
             .AppendLine($"Interventions recommandees : {report.Interventions.RecommendedActions}")
             .AppendLine($"Processus lourds : {report.Resources.HeavyProcessCount}")
@@ -92,14 +96,15 @@ public static class ReportMapper
             "Nettoyage",
             report.FinishedAt,
             report.Duration,
-            $"Zones analysees : {analyzedZones}\nZones executees : {executed.Count}\nZones passees : {skipped.Count}\nEspace libere : {ScanRules.FormatBytes(report.DeletedBytes)}\nFichiers ignores ou verrouilles : {report.ErrorFiles}",
-            $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}",
+            $"Zones analysees : {analyzedZones}\nZones executees : {executed.Count}\nZones passees : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nEspace libere : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements proteges : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
+            $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nReparations proposees : {string.Join(" | ", report.PermissionRepairsProposed)}\nReparations executees : {string.Join(" | ", report.PermissionRepairsExecuted)}",
             "CleanupExecutionService") with
         {
             ProposedActions = proposed,
             ExecutedActions = executed,
             SkippedActions = skipped,
-            Errors = report.Errors.Concat(report.Results.SelectMany(result => result.Errors)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            Errors = report.Errors.Concat(report.Results.SelectMany(result => result.Errors)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            RestartRequired = report.RestartRecommended
         };
     }
 

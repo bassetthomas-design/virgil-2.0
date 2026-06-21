@@ -516,7 +516,7 @@ public partial class MainWindow : Window
             ? "N/A - aucun disque fixe accessible"
             : $"{systemDisk.Name} : {systemDisk.UsedPercent:0.0} % utilises";
         ReportCleanupText.Text = report.Cleanup.WasAnalyzed
-            ? $"{FormatBytes(report.Cleanup.PotentialBytes)} potentiels. Aucune suppression."
+            ? $"Sur {FormatBytes(report.Cleanup.SafePotentialBytes)}, avance {FormatBytes(report.Cleanup.AdvancedPotentialBytes)}, {report.Cleanup.ReviewItemCount} a revoir. Aucune suppression."
             : "Non analyse pour scan rapide.";
         ReportRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
@@ -567,7 +567,7 @@ public partial class MainWindow : Window
         }
 
         CleanupValueText.Text = FormatBytes(cleanup.PotentialBytes);
-        CleanupDetailText.Text = $"{cleanup.FileCount} fichiers. Aucune suppression.";
+        CleanupDetailText.Text = $"Sur {FormatBytes(cleanup.SafePotentialBytes)}, avance {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} a revoir. Lecture seule.";
     }
 
     private void CompleteScan(SystemScanReport report)
@@ -929,7 +929,7 @@ public partial class MainWindow : Window
     private static string FormatCleanup(CleanupScanInfo cleanup)
     {
         return cleanup.WasAnalyzed
-            ? $"{FormatBytes(cleanup.PotentialBytes)}, {cleanup.FileCount} fichiers, zones : {FormatZones(cleanup.Zones)}"
+            ? $"sur {FormatBytes(cleanup.SafePotentialBytes)}, avance {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} a revoir ({FormatBytes(cleanup.ReviewItemBytes)}), protection personnelle active, aucune action, zones : {FormatZones(cleanup.Zones)}"
             : "Non analyse";
     }
 

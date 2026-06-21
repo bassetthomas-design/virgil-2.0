@@ -431,6 +431,27 @@ public sealed class SystemScanService : ISystemScanService
 
         try
         {
+            if (_cleanupService is ICleanupPreviewService detailedPreview)
+            {
+                var previews = detailedPreview.PreviewAsync(null, CancellationToken.None).GetAwaiter().GetResult();
+                var storage = new CleanupStorageAnalyzer().AnalyzeAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var safe = previews.Where(item => item.Definition.Classification == CleanupClassification.Cleanable).Sum(item => item.EligibleBytes);
+                var advanced = previews.Where(item => item.Definition.Classification == CleanupClassification.AdvancedCleanable).Sum(item => item.EligibleBytes);
+                var detailedZones = previews.Select(item => item.Definition.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var detailedErrors = previews.SelectMany(item => item.Errors).Concat(storage.Errors).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                AddErrors(errors, detailedErrors);
+                return new CleanupScanInfo(true, safe + advanced, previews.Sum(item => item.EligibleFileCount), detailedZones, detailedErrors)
+                {
+                    SafePotentialBytes = safe,
+                    AdvancedPotentialBytes = advanced,
+                    ReviewItemCount = storage.ReviewItemCount,
+                    ReviewItemBytes = storage.ReviewBytes,
+                    InformationOnlyZoneCount = previews.Count(item => !item.Definition.IsExecutable),
+                    PersonalDataProtected = true,
+                    ExecutedAnyAction = false
+                };
+            }
+
             var preview = _cleanupService.PreviewTemporaryFiles();
             var zones = preview.Targets
                 .Select(target => target.DisplayName)
@@ -438,7 +459,12 @@ public sealed class SystemScanService : ISystemScanService
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var cleanup = new CleanupScanInfo(true, preview.TotalBytes, preview.TotalFiles, zones, Array.Empty<string>());
+            var cleanup = new CleanupScanInfo(true, preview.TotalBytes, preview.TotalFiles, zones, Array.Empty<string>())
+            {
+                SafePotentialBytes = preview.TotalBytes,
+                PersonalDataProtected = true,
+                ExecutedAnyAction = false
+            };
 
             if (cleanup.PotentialBytes >= 5L * 1024 * 1024 * 1024)
             {

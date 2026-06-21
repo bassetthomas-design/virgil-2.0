@@ -14,6 +14,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     public static readonly TimeSpan PreviewValidity = TimeSpan.FromMinutes(10);
 
     private readonly Func<DateTimeOffset> _now;
+    private readonly IRecycleBinService _recycleBinService;
+    private readonly CleanupSafetyClassifier _safetyClassifier;
 
     public CleanupExecutionService()
         : this(() => DateTimeOffset.Now)
@@ -21,8 +23,23 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     }
 
     public CleanupExecutionService(Func<DateTimeOffset>? now)
+        : this(now, new WindowsRecycleBinService())
+    {
+    }
+
+    public CleanupExecutionService(Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
+        : this(now, recycleBinService, new CleanupSafetyClassifier())
+    {
+    }
+
+    public CleanupExecutionService(
+        Func<DateTimeOffset>? now,
+        IRecycleBinService recycleBinService,
+        CleanupSafetyClassifier safetyClassifier)
     {
         _now = now ?? (() => DateTimeOffset.Now);
+        _recycleBinService = recycleBinService;
+        _safetyClassifier = safetyClassifier;
     }
 
     public Task<CleanupStepResult> ExecuteZoneAsync(
@@ -85,6 +102,46 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         var skippedFiles = 0;
         var errorFiles = 0;
         var status = CleanupStepStatus.Completed;
+
+        if (preview.Definition.Id == CleanupZoneId.RecycleBin)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CancelZone(preview);
+            }
+
+            if (_now() - preview.GeneratedAt > PreviewValidity)
+            {
+                return CreateExpiredResult(preview, stopwatch.Elapsed);
+            }
+
+            var recycleResult = _recycleBinService.Empty();
+            stopwatch.Stop();
+            return new CleanupStepResult(
+                preview.Definition,
+                recycleResult.Success ? CleanupStepStatus.Completed : CleanupStepStatus.Failed,
+                (int)Math.Clamp(recycleResult.ItemCount, 0, int.MaxValue),
+                recycleResult.FreedBytes,
+                0,
+                recycleResult.Success ? 0 : 1,
+                stopwatch.Elapsed,
+                string.IsNullOrWhiteSpace(recycleResult.ReadableError) ? Array.Empty<string>() : new[] { recycleResult.ReadableError });
+        }
+
+        if (!preview.Definition.IsExecutable ||
+            preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
+        {
+            stopwatch.Stop();
+            return new CleanupStepResult(
+                preview.Definition,
+                CleanupStepStatus.Skipped,
+                0,
+                0,
+                preview.EligibleFileCount,
+                0,
+                stopwatch.Elapsed,
+                new[] { "Zone en information seulement : aucune suppression executee." });
+        }
 
         if (_now() - preview.GeneratedAt > PreviewValidity)
         {
@@ -166,6 +223,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         CleanupZoneDefinition zone,
         CleanupCandidate candidate)
     {
+        if (!_safetyClassifier.CanDeleteCandidate(zone, candidate.FullPath, out var safetyReason))
+        {
+            return CandidateDeleteResult.SkippedFile(safetyReason);
+        }
+
         if (!CleanupPathGuard.TryValidateContainedFile(candidate.FullPath, zone.RootPath, out var fullPath, out var reason))
         {
             return CandidateDeleteResult.SkippedFile(reason);
@@ -217,7 +279,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
     }
 
-    private static void DeleteEmptySubdirectories(
+    private void DeleteEmptySubdirectories(
         CleanupZoneDefinition zone,
         ICollection<string> errors)
     {
@@ -228,7 +290,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
                 continue;
             }
 
-            if (CleanupPathGuard.HasReparsePointAtPath(directoryPath))
+            if (!_safetyClassifier.CanDeleteEmptyDirectory(zone, directoryPath))
             {
                 continue;
             }

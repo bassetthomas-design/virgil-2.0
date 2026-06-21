@@ -11,11 +11,39 @@ public enum CleanupRiskLevel
     High
 }
 
+public enum CleanupClassification
+{
+    Cleanable,
+    AdvancedCleanable,
+    ReviewOnly,
+    Protected,
+    InformationOnly
+}
+
 public enum CleanupZoneId
 {
     UserTemporaryFiles,
     UserCrashDumps,
-    DirectXShaderCache
+    DirectXShaderCache,
+    WindowsTemporaryFiles,
+    WindowsThumbnailCache,
+    WindowsErrorReports,
+    TechnicalLogs,
+    BattleNetCache,
+    VisualStudioCache,
+    InternetCache,
+    BrowserEdgeCache,
+    BrowserChromeCache,
+    BrowserFirefoxCache,
+    BrowserBraveCache,
+    BrowserOperaCache,
+    RecycleBin,
+    WindowsUpdateCache,
+    DeliveryOptimizationCache,
+    MicrosoftStoreCache,
+    InstallerTemporaryFiles,
+    WindowsOld,
+    PrefetchInformation
 }
 
 public enum CleanupStepStatus
@@ -38,7 +66,59 @@ public sealed record CleanupZoneDefinition(
     string Warning,
     string Effect,
     string NotTouched,
-    int DisplayOrder);
+    int DisplayOrder)
+{
+    public CleanupClassification Classification { get; init; } = CleanupClassification.Cleanable;
+
+    public bool RequiresReinforcedConfirmation { get; init; }
+
+    public bool IsExecutable { get; init; } = true;
+
+    public bool RequiresElevation { get; init; }
+
+    public IReadOnlyList<string> AllowedExtensions { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<string> RequiredPathFragments { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<string> ExcludedPathFragments { get; init; } = Array.Empty<string>();
+}
+
+public sealed record CleanupStorageReviewItem(
+    string FullPath,
+    string Name,
+    string ItemType,
+    long SizeBytes,
+    DateTimeOffset LastWriteTimeUtc,
+    CleanupClassification Classification,
+    string Reason);
+
+public sealed record CleanupStorageAnalysis(
+    DateTimeOffset CapturedAt,
+    IReadOnlyList<CleanupStorageReviewItem> Items,
+    IReadOnlyList<string> SkippedRoots,
+    IReadOnlyList<string> Errors)
+{
+    public int ReviewItemCount => Items.Count(item => item.Classification == CleanupClassification.ReviewOnly);
+    public int ProtectedItemCount => Items.Count(item => item.Classification == CleanupClassification.Protected);
+    public long ReviewBytes => Items.Where(item => item.Classification == CleanupClassification.ReviewOnly).Sum(item => item.SizeBytes);
+}
+
+public sealed record CleanupAnalysisReport(
+    DateTimeOffset CapturedAt,
+    IReadOnlyList<CleanupZonePreview> Zones,
+    CleanupStorageAnalysis Storage,
+    IReadOnlyList<string> TechnicalBlocks,
+    IReadOnlyList<string> Errors)
+{
+    public long SafeBytes => Zones.Where(zone => zone.Definition.Classification == CleanupClassification.Cleanable).Sum(zone => zone.EligibleBytes);
+    public long AdvancedBytes => Zones.Where(zone => zone.Definition.Classification == CleanupClassification.AdvancedCleanable).Sum(zone => zone.EligibleBytes);
+}
+
+public sealed record CleanupPermissionRepairAssessment(
+    string ExactPath,
+    bool IsAllowed,
+    string Reason,
+    bool RequiresCriticalConfirmation = true);
 
 public sealed record CleanupCandidate(
     CleanupZoneId ZoneId,
@@ -96,4 +176,16 @@ public sealed record CleanupSessionReport(
     public int SkippedZones => Results.Count(result => result.Status == CleanupStepStatus.Skipped);
     public int CancelledZones => Results.Count(result => result.Status == CleanupStepStatus.Cancelled);
     public int ErrorFiles => Results.Sum(result => result.ErrorFiles);
+    public long EstimatedBytes { get; init; }
+    public int ReviewItems { get; init; }
+    public long ReviewBytes { get; init; }
+    public int ProtectedItems { get; init; }
+    public int AdvancedRefused { get; init; }
+    public int LockedFilesIgnored { get; init; }
+    public int ReparsePointsIgnored { get; init; }
+    public IReadOnlyList<string> RefusedPaths { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> PermissionRepairsProposed { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> PermissionRepairsExecuted { get; init; } = Array.Empty<string>();
+    public bool RestartRecommended { get; init; }
+    public bool PersonalFilesDeletedAutomatically => false;
 }
