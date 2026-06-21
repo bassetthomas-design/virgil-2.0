@@ -15,6 +15,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
     private readonly Func<DateTimeOffset> _now;
     private readonly IRecycleBinService _recycleBinService;
+    private readonly CleanupSafetyClassifier _safetyClassifier;
 
     public CleanupExecutionService()
         : this(() => DateTimeOffset.Now)
@@ -27,9 +28,18 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     }
 
     public CleanupExecutionService(Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
+        : this(now, recycleBinService, new CleanupSafetyClassifier())
+    {
+    }
+
+    public CleanupExecutionService(
+        Func<DateTimeOffset>? now,
+        IRecycleBinService recycleBinService,
+        CleanupSafetyClassifier safetyClassifier)
     {
         _now = now ?? (() => DateTimeOffset.Now);
         _recycleBinService = recycleBinService;
+        _safetyClassifier = safetyClassifier;
     }
 
     public Task<CleanupStepResult> ExecuteZoneAsync(
@@ -213,6 +223,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         CleanupZoneDefinition zone,
         CleanupCandidate candidate)
     {
+        if (!_safetyClassifier.CanDeleteCandidate(zone, candidate.FullPath, out var safetyReason))
+        {
+            return CandidateDeleteResult.SkippedFile(safetyReason);
+        }
+
         if (!CleanupPathGuard.TryValidateContainedFile(candidate.FullPath, zone.RootPath, out var fullPath, out var reason))
         {
             return CandidateDeleteResult.SkippedFile(reason);
@@ -264,7 +279,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
     }
 
-    private static void DeleteEmptySubdirectories(
+    private void DeleteEmptySubdirectories(
         CleanupZoneDefinition zone,
         ICollection<string> errors)
     {
@@ -275,7 +290,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
                 continue;
             }
 
-            if (CleanupPathGuard.HasReparsePointAtPath(directoryPath))
+            if (!_safetyClassifier.CanDeleteEmptyDirectory(zone, directoryPath))
             {
                 continue;
             }

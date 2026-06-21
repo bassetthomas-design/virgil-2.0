@@ -133,6 +133,19 @@ public sealed class CleanupSafetyClassifier
         return ProtectedExtensions.Contains(extension) || ReviewExtensions.Contains(extension);
     }
 
+    public bool CanDeleteEmptyDirectory(CleanupZoneDefinition zone, string directoryPath)
+    {
+        if (!zone.IsExecutable || !CleanupPathGuard.IsStrictlyUnderRoot(directoryPath, zone.RootPath) ||
+            CleanupPathGuard.HasReparsePointAtPath(directoryPath))
+        {
+            return false;
+        }
+
+        var relative = Normalize(Path.GetRelativePath(zone.RootPath, directoryPath));
+        return !ProtectedNameFragments.Any(fragment => ContainsPathSegment(relative, fragment)) &&
+            !zone.ExcludedPathFragments.Any(fragment => relative.Contains(fragment, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string Normalize(string path) => path.Replace('/', '\\').ToLowerInvariant();
 
     private static bool ContainsPathSegment(string path, string fragment)

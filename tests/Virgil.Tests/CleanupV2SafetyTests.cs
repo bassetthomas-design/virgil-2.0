@@ -196,6 +196,37 @@ public sealed class CleanupV2SafetyTests
         Assert.True(File.Exists(file));
     }
 
+    [Fact]
+    public async Task Executor_rechecks_personal_file_policy_at_execution_time()
+    {
+        using var sandbox = Sandbox.Create();
+        var file = sandbox.Write("family.jpg", DateTimeOffset.Now.AddDays(-3));
+        var zone = TestZone(sandbox.Root);
+        var forged = new CleanupCandidate(zone.Id, file, "family.jpg", 4, DateTimeOffset.Now.AddDays(-3), true, null);
+        var preview = new CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 4, 0, new[] { forged }, Array.Empty<string>());
+
+        var result = await new CleanupExecutionService().ExecuteZoneAsync(preview, null, CancellationToken.None);
+
+        Assert.True(File.Exists(file));
+        Assert.Equal(0, result.DeletedFiles);
+        Assert.Equal(1, result.SkippedFiles);
+    }
+
+    [Fact]
+    public async Task Executor_never_removes_personal_named_empty_folder()
+    {
+        using var sandbox = Sandbox.Create();
+        var personal = Directory.CreateDirectory(Path.Combine(sandbox.Root, "Photos famille")).FullName;
+        var technicalFile = sandbox.Write("old.tmp", DateTimeOffset.Now.AddDays(-3));
+        var zone = TestZone(sandbox.Root);
+        var candidate = new CleanupCandidate(zone.Id, technicalFile, "old.tmp", 4, DateTimeOffset.Now.AddDays(-3), true, null);
+        var preview = new CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 4, 0, new[] { candidate }, Array.Empty<string>());
+
+        await new CleanupExecutionService().ExecuteZoneAsync(preview, null, CancellationToken.None);
+
+        Assert.True(Directory.Exists(personal));
+    }
+
     [Theory]
     [InlineData("C:\\")]
     [InlineData("C:\\Users")]
