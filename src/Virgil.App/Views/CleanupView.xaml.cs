@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -18,7 +19,9 @@ public partial class CleanupView : UserControl
 {
     private readonly ICleanupPreviewService _previewService;
     private readonly ICleanupExecutionService _executionService;
+    private readonly CleanupStorageAnalyzer _storageAnalyzer;
     private readonly List<CleanupZonePreview> _lastPreview = new();
+    private CleanupStorageAnalysis? _lastStorageAnalysis;
     private IReportHistoryService? _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<CleanupZoneDecision>? _activeDecision;
@@ -32,11 +35,13 @@ public partial class CleanupView : UserControl
 
     public CleanupView(
         ICleanupPreviewService previewService,
-        ICleanupExecutionService executionService)
+        ICleanupExecutionService executionService,
+        CleanupStorageAnalyzer? storageAnalyzer = null)
     {
         InitializeComponent();
         _previewService = previewService;
         _executionService = executionService;
+        _storageAnalyzer = storageAnalyzer ?? new CleanupStorageAnalyzer();
     }
 
     public event Action<string>? VirgilMessageRequested;
@@ -94,7 +99,20 @@ public partial class CleanupView : UserControl
 
     private async void LaunchCleanup_Click(object sender, RoutedEventArgs e)
     {
-        await LaunchCleanupAsync();
+        await LaunchCleanupAsync(CleanupClassification.Cleanable);
+    }
+
+    private async void AdvancedCleanup_Click(object sender, RoutedEventArgs e)
+    {
+        await LaunchCleanupAsync(CleanupClassification.AdvancedCleanable);
+    }
+
+    private void ReviewManual_Click(object sender, RoutedEventArgs e)
+    {
+        var count = _lastStorageAnalysis?.Items.Count ?? 0;
+        VirgilMessageRequested?.Invoke(count == 0
+            ? "Aucun element personnel volumineux detecte dans les emplacements analyses."
+            : $"Elements volumineux detectes : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
     }
 
     private void ViewCleanupReport_Click(object sender, RoutedEventArgs e)
@@ -145,6 +163,10 @@ public partial class CleanupView : UserControl
                 .PreviewAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
+            _lastStorageAnalysis = await _storageAnalyzer
+                .AnalyzeAsync(_operationCancellation.Token)
+                .ConfigureAwait(true);
+
             _lastPreview.AddRange(previews);
             RenderPreviews();
             UpdateCommandState();
@@ -170,9 +192,14 @@ public partial class CleanupView : UserControl
         }
     }
 
-    private async Task LaunchCleanupAsync()
+    private async Task LaunchCleanupAsync(CleanupClassification classification)
     {
-        if (_lastPreview.All(preview => !preview.HasEligibleCandidates))
+        var selected = _lastPreview
+            .Where(preview => preview.Definition.Classification == classification)
+            .Where(preview => preview.Definition.IsExecutable && preview.HasEligibleCandidates)
+            .ToList();
+
+        if (selected.Count == 0)
         {
             VirgilMessageRequested?.Invoke("Aucune zone eligible.\nRelancez une analyse.");
             return;
@@ -191,7 +218,7 @@ public partial class CleanupView : UserControl
         {
             RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
 
-            foreach (var preview in _lastPreview.Where(preview => preview.HasEligibleCandidates))
+            foreach (var preview in selected)
             {
                 _operationCancellation!.Token.ThrowIfCancellationRequested();
                 var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
@@ -231,7 +258,18 @@ public partial class CleanupView : UserControl
         }
         finally
         {
-            _lastReport = _executionService.CreateReport(startedAt, results, sessionErrors);
+            var storage = _lastStorageAnalysis;
+            _lastReport = _executionService.CreateReport(startedAt, results, sessionErrors) with
+            {
+                EstimatedBytes = selected.Sum(preview => preview.EligibleBytes),
+                ReviewItems = storage?.ReviewItemCount ?? 0,
+                ReviewBytes = storage?.ReviewBytes ?? 0,
+                ProtectedItems = storage?.ProtectedItemCount ?? 0,
+                AdvancedRefused = results.Count(result => result.Zone.Classification == CleanupClassification.AdvancedCleanable && result.Status == CleanupStepStatus.Skipped),
+                LockedFilesIgnored = results.Sum(result => result.ErrorFiles),
+                ReparsePointsIgnored = _lastPreview.SelectMany(preview => preview.Errors).Count(error => error.Contains("reanalyse", StringComparison.OrdinalIgnoreCase)),
+                RefusedPaths = _lastPreview.SelectMany(preview => preview.Errors).Where(error => error.Contains("refus", StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            };
             await PersistReportAsync(ReportMapper.FromCleanup(_lastReport, _lastPreview.Count));
             ViewCleanupReportButton.IsEnabled = true;
             RenderPreviews();
@@ -290,14 +328,18 @@ public partial class CleanupView : UserControl
     private void SetButtonsEnabled(bool enabled)
     {
         AnalyzeZonesButton.IsEnabled = enabled;
-        LaunchCleanupButton.IsEnabled = enabled && _lastPreview.Any(preview => preview.HasEligibleCandidates);
+        LaunchCleanupButton.IsEnabled = enabled && HasExecutable(CleanupClassification.Cleanable);
+        AdvancedCleanupButton.IsEnabled = enabled && HasExecutable(CleanupClassification.AdvancedCleanable);
+        ReviewManualButton.IsEnabled = enabled && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
         ViewCleanupReportButton.IsEnabled = enabled && _lastReport is not null;
         ReturnHomeButton.IsEnabled = enabled;
     }
 
     private void UpdateCommandState()
     {
-        LaunchCleanupButton.IsEnabled = !_operationInProgress && _lastPreview.Any(preview => preview.HasEligibleCandidates);
+        LaunchCleanupButton.IsEnabled = !_operationInProgress && HasExecutable(CleanupClassification.Cleanable);
+        AdvancedCleanupButton.IsEnabled = !_operationInProgress && HasExecutable(CleanupClassification.AdvancedCleanable);
+        ReviewManualButton.IsEnabled = !_operationInProgress && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
         ViewCleanupReportButton.IsEnabled = !_operationInProgress && _lastReport is not null;
     }
 
@@ -333,7 +375,9 @@ public partial class CleanupView : UserControl
 
     private void ShowValidation(CleanupZonePreview preview)
     {
-        ValidationZoneTitleText.Text = "VALIDATION REQUISE";
+        ValidationZoneTitleText.Text = preview.Definition.RequiresReinforcedConfirmation
+            ? "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE"
+            : "NETTOYAGE SUR - VALIDATION REQUISE";
         ValidationReasonText.Text = $"Zone : {preview.Definition.DisplayName}\n{preview.Definition.Description}";
         ValidationRootText.Text = LogicalRootLabel(preview.Definition.Id);
         ValidationMetricsText.Text = string.Join("\n", new[]
@@ -370,14 +414,44 @@ public partial class CleanupView : UserControl
     {
         ZonesPanel.Children.Clear();
 
-        foreach (var preview in _lastPreview.OrderBy(preview => preview.Definition.DisplayOrder))
+        AddCategorySection("NETTOYAGE SUR", CleanupClassification.Cleanable);
+        AddCategorySection("NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
+
+        ZonesPanel.Children.Add(CreateTextCard("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+
+        ZonesPanel.Children.Add(CreateTextCard("A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
+        if (_lastStorageAnalysis is not null)
         {
-            ZonesPanel.Children.Add(CreateZoneCard(preview));
+            foreach (var item in _lastStorageAnalysis.Items.Take(20))
+            {
+                ZonesPanel.Children.Add(CreateReviewCard(item));
+            }
         }
+
+        ZonesPanel.Children.Add(CreateTextCard("PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
 
         if (ZonesPanel.Children.Count == 0)
         {
             ZonesPanel.Children.Add(CreateTextCard("Aucune zone analysee."));
+        }
+    }
+
+    private void AddCategorySection(string title, CleanupClassification classification)
+    {
+        ZonesPanel.Children.Add(CreateTitle(title));
+        foreach (var preview in _lastPreview
+            .Where(preview => preview.Definition.Classification == classification)
+            .OrderBy(preview => preview.Definition.DisplayOrder))
+        {
+            ZonesPanel.Children.Add(CreateZoneCard(preview));
+        }
+
+        foreach (var preview in _lastPreview
+            .Where(preview => preview.Definition.Classification == CleanupClassification.InformationOnly)
+            .Where(preview => classification == CleanupClassification.AdvancedCleanable)
+            .OrderBy(preview => preview.Definition.DisplayOrder))
+        {
+            ZonesPanel.Children.Add(CreateZoneCard(preview));
         }
     }
 
@@ -394,6 +468,8 @@ public partial class CleanupView : UserControl
         stack.Children.Add(CreateText(preview.Definition.Description));
         stack.Children.Add(CreateText($"Racine : {LogicalRootLabel(preview.Definition.Id)}"));
         stack.Children.Add(CreateText($"Risque : {RiskLabel(preview.Definition.RiskLevel)}"));
+        stack.Children.Add(CreateText($"Categorie : {ClassificationLabel(preview.Definition.Classification)}"));
+        stack.Children.Add(CreateText($"Action : {(preview.Definition.IsExecutable ? "guidee apres validation" : "information seulement")}"));
         stack.Children.Add(CreateText($"Examines : {preview.ExaminedFileCount} fichiers"));
         stack.Children.Add(CreateText($"Eligibles : {preview.EligibleFileCount} fichiers, {FormatBytes(preview.EligibleBytes)}"));
         stack.Children.Add(CreateText($"Exclus : {preview.ExcludedFileCount} fichiers"));
@@ -444,7 +520,8 @@ public partial class CleanupView : UserControl
 
     private void AnnouncePreviewResult()
     {
-        var totalBytes = _lastPreview.Sum(preview => preview.EligibleBytes);
+        var totalBytes = _lastPreview.Where(preview => preview.Definition.IsExecutable).Sum(preview => preview.EligibleBytes);
+        var reviewCount = _lastStorageAnalysis?.Items.Count ?? 0;
 
         if (totalBytes == 0)
         {
@@ -452,7 +529,7 @@ public partial class CleanupView : UserControl
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Previsualisation terminee.\n{_lastPreview.Count} zones analysees.\n{FormatBytes(totalBytes)} potentiellement recuperables.");
+        VirgilMessageRequested?.Invoke($"Previsualisation terminee.\n{_lastPreview.Count} zones analysees.\n{FormatBytes(totalBytes)} potentiellement recuperables.\n{reviewCount} elements personnels ou ambigus a revoir, aucune suppression proposee.");
     }
 
     private void AnnounceSessionEnd(CleanupSessionReport report)
@@ -544,6 +621,13 @@ public partial class CleanupView : UserControl
         builder.AppendLine($"Annulation : {(IsCancellationReport(report) ? "oui" : "non")}");
         builder.AppendLine($"Fichiers supprimes : {report.DeletedFiles}");
         builder.AppendLine($"Volume libere : {FormatBytes(report.DeletedBytes)}");
+        builder.AppendLine($"Volume estime : {FormatBytes(report.EstimatedBytes)}");
+        builder.AppendLine($"Elements a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
+        builder.AppendLine($"Elements proteges : {report.ProtectedItems}");
+        builder.AppendLine($"Zones avancees refusees : {report.AdvancedRefused}");
+        builder.AppendLine($"Points de reanalyse ignores : {report.ReparsePointsIgnored}");
+        builder.AppendLine($"Redemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}");
+        builder.AppendLine("Aucun fichier personnel supprime automatiquement.");
         builder.AppendLine($"Fichiers verrouilles : {report.ErrorFiles}");
         builder.AppendLine($"Fichiers ignores : {ignoredFiles}");
         builder.AppendLine($"Erreurs partielles : {partialErrors}");
@@ -623,6 +707,63 @@ public partial class CleanupView : UserControl
             CleanupZoneId.UserCrashDumps => "%LOCALAPPDATA%\\CrashDumps",
             CleanupZoneId.DirectXShaderCache => "%LOCALAPPDATA%\\D3DSCache",
             _ => "Zone autorisee"
+        };
+    }
+
+    private UIElement CreateReviewCard(CleanupStorageReviewItem item)
+    {
+        var card = new Border
+        {
+            Style = TryFindResource("VirgilHudCard") as Style,
+            Margin = new Thickness(0, 6, 0, 6)
+        };
+        var stack = new StackPanel();
+        stack.Children.Add(CreateTitle(item.Name.ToUpperInvariant()));
+        stack.Children.Add(CreateText($"{item.ItemType} - {FormatBytes(item.SizeBytes)} - {item.LastWriteTimeUtc:yyyy-MM-dd}"));
+        stack.Children.Add(CreateText($"{ClassificationLabel(item.Classification)} - {item.Reason}"));
+        stack.Children.Add(CreateText($"Emplacement : {item.FullPath}"));
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+        var open = new Button { Content = "OUVRIR L'EMPLACEMENT", Style = TryFindResource("VirgilSecondaryButton") as Style };
+        open.Click += (_, _) => OpenReviewLocation(item.FullPath);
+        var ignore = new Button { Content = "IGNORER", Style = TryFindResource("VirgilSecondaryButton") as Style, Margin = new Thickness(8, 0, 0, 0) };
+        ignore.Click += (_, _) => card.Visibility = Visibility.Collapsed;
+        var mark = new Button { Content = "MARQUER A REVOIR", Style = TryFindResource("VirgilSecondaryButton") as Style, Margin = new Thickness(8, 0, 0, 0) };
+        mark.Click += (_, _) => VirgilMessageRequested?.Invoke($"Element marque a revoir : {item.Name}.\nAucune suppression effectuee.");
+        buttons.Children.Add(open);
+        buttons.Children.Add(ignore);
+        buttons.Children.Add(mark);
+        stack.Children.Add(buttons);
+        card.Child = stack;
+        return card;
+    }
+
+    private void OpenReviewLocation(string fullPath)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{fullPath}\"") { UseShellExecute = true });
+        }
+        catch
+        {
+            VirgilMessageRequested?.Invoke("Emplacement indisponible. Aucune modification effectuee.");
+        }
+    }
+
+    private bool HasExecutable(CleanupClassification classification)
+    {
+        return _lastPreview.Any(preview => preview.Definition.Classification == classification && preview.Definition.IsExecutable && preview.HasEligibleCandidates);
+    }
+
+    private static string ClassificationLabel(CleanupClassification classification)
+    {
+        return classification switch
+        {
+            CleanupClassification.Cleanable => "nettoyable sur",
+            CleanupClassification.AdvancedCleanable => "nettoyable avance",
+            CleanupClassification.ReviewOnly => "a revoir manuellement",
+            CleanupClassification.Protected => "protege",
+            _ => "information seulement"
         };
     }
 

@@ -113,4 +113,13 @@ public sealed record CleanupScanInfo(
     long PotentialBytes,
     int FileCount,
     IReadOnlyList<string> Zones,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors)
+{
+    public long SafePotentialBytes { get; init; }
+    public long AdvancedPotentialBytes { get; init; }
+    public int ReviewItemCount { get; init; }
+    public long ReviewItemBytes { get; init; }
+    public int InformationOnlyZoneCount { get; init; }
+    public bool PersonalDataProtected { get; init; } = true;
+    public bool ExecutedAnyAction { get; init; }
+}
