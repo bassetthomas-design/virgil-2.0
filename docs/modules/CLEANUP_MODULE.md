@@ -1,5 +1,28 @@
 # Module Nettoyage - Virgil 2.0
 
+## État livré : Nettoyage complet guidé V2
+
+Le module sépare strictement quatre catégories : `Cleanable`, `AdvancedCleanable`, `ReviewOnly` et `Protected`. `InformationOnly` est utilisé pour les zones techniques détectables dont l'exécution fiable n'est pas encore exposée.
+
+- Nettoyage sûr : TEMP utilisateur, contenu ancien de TEMP Windows, miniatures, cache DirectX, crash dumps, rapports WER, logs techniques et caches applicatifs connus.
+- Nettoyage avancé : corbeille et caches Edge, Chrome, Firefox, Brave et Opera après confirmation renforcée.
+- Information seulement : cache Windows Update, Delivery Optimization, Microsoft Store et Windows.old. Aucun faux bouton destructif n'est affiché.
+- Prefetch : information uniquement, jamais nettoyé.
+- À revoir manuellement : gros fichiers et dossiers du Bureau/Téléchargements, photos, vidéos, documents, archives, ISO, projets et sauvegardes. Les actions disponibles sont ouvrir l'emplacement, ignorer et marquer à revoir; aucune suppression.
+- Protégé : données personnelles, profils, applications, jeux, Program Files, cloud, réseau et lecteurs externes par défaut.
+
+Chaque zone exécutable demande une validation distincte. La corbeille utilise l'API Windows dédiée et ne peut être vidée qu'après confirmation renforcée. Une estimation indisponible reste une erreur lisible et ne provoque ni crash ni exécution.
+
+Les caches navigateurs sont limités à des racines de cache connues. Mots de passe, favoris, historique, cookies, sessions, formulaires, profils et extensions sont exclus explicitement.
+
+La réparation de droits est seulement évaluée par un garde strict : chemin exact, sous-dossier d'une racine technique allowlistée, hors données personnelles et hors points de réanalyse. L'exécution `takeown` reste désactivée tant que le protocole du helper élevé n'accepte pas une cible exacte sans ouvrir de commande libre. Aucun `takeown` global n'existe.
+
+Le rapport local V1 reçoit les estimations, zones exécutées/passées/refusées, éléments à revoir/protégés, erreurs, fichiers verrouillés, chemins refusés, points de réanalyse et la garantie « Aucun fichier personnel supprimé automatiquement ».
+
+L'analyse approfondie utilise uniquement les previews et l'analyse stockage en lecture seule. Elle expose les estimations sûre/avancée et les éléments à revoir, sans appeler l'exécuteur.
+
+Le script batch utilisateur a servi uniquement à identifier des zones techniques. Aucune suppression globale de logs, suppression de racine TEMP, commande libre ou récursion `takeown` n'a été reprise.
+
 ## Décision validée
 
 Le module Nettoyage doit être complet, mais contrôlé étape par étape.
@@ -47,7 +70,7 @@ Actions visibles :
 [Nettoyage sûr]
 [Nettoyage avancé]
 [Analyse stockage]
-[Options avancées]
+[Voir le rapport]
 ```
 
 ## 1. Analyser le nettoyage
@@ -212,7 +235,7 @@ Ne jamais supprimer automatiquement :
 - cookies ;
 - historique.
 
-Cookies et historique pourront être proposés plus tard avec choix séparé.
+Cookies et historique restent hors périmètre du nettoyage V2.
 
 ### Popup
 
@@ -278,7 +301,7 @@ Action recommandée : examiner les fichiers volumineux.
 
 ### Statut
 
-Prévu pour version avancée.
+V2 limitée aux caches connus Battle.net, Visual Studio et INetCache. Les dossiers d'applications et de jeux restent protégés.
 
 ### Actions possibles
 

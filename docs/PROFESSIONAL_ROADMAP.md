@@ -77,6 +77,27 @@ Garde-fous obligatoires:
 - Refus des chemins critiques par defaut.
 - Journalisation locale.
 
+## Nettoyage complet guidé V2
+
+État branche `feat/cleanup-guided-v2` : V2 implémentée avec garde-fous stricts.
+
+- Nettoyage sûr et avancé séparés, validation par zone et aucune action globale.
+- Corbeille via API Windows avec estimation tolérante aux erreurs et confirmation renforcée.
+- Caches navigateurs uniquement; identifiants, cookies, historique, sessions, profils et extensions protégés.
+- Cache Windows Update, Delivery Optimization, Store et Windows.old en information seulement jusqu'à une orchestration fiable.
+- Prefetch jamais nettoyé.
+- Analyse du Bureau et des Téléchargements en lecture seule; ouvrir/ignorer/marquer à revoir uniquement.
+- Photos, vidéos, documents, archives, ISO, projets, sauvegardes, jeux et applications protégés.
+- Garde de réparation de droits ciblée disponible; aucune exécution `takeown` tant que le helper ne peut pas recevoir une cible exacte de manière strictement allowlistée.
+- Rapports V1 et analyse approfondie enrichis sans exécution.
+- Le script utilisateur reste une inspiration de zones, jamais une logique ou une commande copiée.
+
+Étapes ultérieures conditionnelles :
+
+1. Ajouter au helper un protocole de cible exacte sans chaîne de commande libre, puis auditer séparément la réparation de droits.
+2. Orchestrer Windows Update/Delivery Optimization uniquement avec gestion fiable des services et vérification post-action.
+3. Ajouter une restauration seulement lorsqu'une API Windows fiable la permet.
+
 ## 3. Ressources et monitoring
 
 Objectif: passer des snapshots actuels a une vue temps reel fiable.
