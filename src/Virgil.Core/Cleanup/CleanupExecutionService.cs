@@ -14,6 +14,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     public static readonly TimeSpan PreviewValidity = TimeSpan.FromMinutes(10);
 
     private readonly Func<DateTimeOffset> _now;
+    private readonly IRecycleBinService _recycleBinService;
 
     public CleanupExecutionService()
         : this(() => DateTimeOffset.Now)
@@ -21,8 +22,14 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     }
 
     public CleanupExecutionService(Func<DateTimeOffset>? now)
+        : this(now, new WindowsRecycleBinService())
+    {
+    }
+
+    public CleanupExecutionService(Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
     {
         _now = now ?? (() => DateTimeOffset.Now);
+        _recycleBinService = recycleBinService;
     }
 
     public Task<CleanupStepResult> ExecuteZoneAsync(
@@ -85,6 +92,31 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         var skippedFiles = 0;
         var errorFiles = 0;
         var status = CleanupStepStatus.Completed;
+
+        if (preview.Definition.Id == CleanupZoneId.RecycleBin)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CancelZone(preview);
+            }
+
+            if (_now() - preview.GeneratedAt > PreviewValidity)
+            {
+                return CreateExpiredResult(preview, stopwatch.Elapsed);
+            }
+
+            var recycleResult = _recycleBinService.Empty();
+            stopwatch.Stop();
+            return new CleanupStepResult(
+                preview.Definition,
+                recycleResult.Success ? CleanupStepStatus.Completed : CleanupStepStatus.Failed,
+                (int)Math.Clamp(recycleResult.ItemCount, 0, int.MaxValue),
+                recycleResult.FreedBytes,
+                0,
+                recycleResult.Success ? 0 : 1,
+                stopwatch.Elapsed,
+                string.IsNullOrWhiteSpace(recycleResult.ReadableError) ? Array.Empty<string>() : new[] { recycleResult.ReadableError });
+        }
 
         if (!preview.Definition.IsExecutable ||
             preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))

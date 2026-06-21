@@ -24,7 +24,7 @@ public static class CleanupZoneCatalog
             Zone(CleanupZoneId.VisualStudioCache, "Cache Visual Studio", "Cache de composants et telemetrie recreable.", Path.Combine(local, "Microsoft", "VisualStudio", "ComponentModelCache"), 168, CleanupRiskLevel.Low, 90),
             Zone(CleanupZoneId.InternetCache, "Cache Internet Windows", "Cache INetCache du profil utilisateur.", Path.Combine(local, "Microsoft", "Windows", "INetCache"), 168, CleanupRiskLevel.Low, 100),
 
-            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers places volontairement dans la corbeille.", "::{RecycleBin}", 0, 200, executable: false),
+            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers places volontairement dans la corbeille. Ils ne seront plus recuperables depuis Windows.", "::{RecycleBin}", 0, 200, executable: true),
             Advanced(CleanupZoneId.WindowsUpdateCache, "Cache Windows Update", "Detection de la zone SoftwareDistribution. Action non exposee sans orchestration fiable des services.", Path.Combine(windows, "SoftwareDistribution", "Download"), 168, 210, executable: false, elevation: true),
             Advanced(CleanupZoneId.DeliveryOptimizationCache, "Cache Delivery Optimization", "Detection du cache Microsoft Delivery Optimization.", Path.Combine(programData, "Microsoft", "Windows", "DeliveryOptimization", "Cache"), 168, 220, executable: false, elevation: true),
             Advanced(CleanupZoneId.MicrosoftStoreCache, "Cache Microsoft Store", "Detection uniquement : aucune suppression destructive sans API fiable.", Path.Combine(local, "Packages"), 168, 230, executable: false),

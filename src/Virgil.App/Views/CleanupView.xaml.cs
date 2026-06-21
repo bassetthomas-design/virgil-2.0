@@ -376,7 +376,9 @@ public partial class CleanupView : UserControl
     private void ShowValidation(CleanupZonePreview preview)
     {
         ValidationZoneTitleText.Text = preview.Definition.RequiresReinforcedConfirmation
-            ? "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE"
+            ? preview.Definition.Id == CleanupZoneId.RecycleBin
+                ? "VIDER LA CORBEILLE - CONFIRMATION RENFORCEE"
+                : "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE"
             : "NETTOYAGE SUR - VALIDATION REQUISE";
         ValidationReasonText.Text = $"Zone : {preview.Definition.DisplayName}\n{preview.Definition.Description}";
         ValidationRootText.Text = LogicalRootLabel(preview.Definition.Id);
@@ -390,6 +392,7 @@ public partial class CleanupView : UserControl
         ValidationEffectText.Text = $"{preview.Definition.Effect}\nSuppression definitive apres confirmation de cette zone uniquement.";
         ValidationNotTouchedText.Text = preview.Definition.NotTouched;
         ValidationWarningText.Text = preview.Definition.Warning;
+        ExecuteZoneButton.Content = preview.Definition.Id == CleanupZoneId.RecycleBin ? "VIDER LA CORBEILLE" : "NETTOYER";
         ZoneValidationOverlay.Visibility = Visibility.Visible;
         RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
         ValidationCore.SetState(VirgilCoreState.SensitiveAction);

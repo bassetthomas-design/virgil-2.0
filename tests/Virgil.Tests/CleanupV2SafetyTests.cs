@@ -133,13 +133,52 @@ public sealed class CleanupV2SafetyTests
     [InlineData(CleanupZoneId.DeliveryOptimizationCache)]
     [InlineData(CleanupZoneId.MicrosoftStoreCache)]
     [InlineData(CleanupZoneId.WindowsOld)]
-    [InlineData(CleanupZoneId.RecycleBin)]
     public void Sensitive_advanced_zones_are_information_only_until_reliable(CleanupZoneId id)
     {
         var zone = Assert.Single(CleanupZoneCatalog.CreateDefault(), zone => zone.Id == id);
         Assert.Equal(CleanupClassification.AdvancedCleanable, zone.Classification);
         Assert.True(zone.RequiresReinforcedConfirmation);
         Assert.False(zone.IsExecutable);
+    }
+
+    [Fact]
+    public void Recycle_bin_is_advanced_executable_and_reinforced()
+    {
+        var zone = Assert.Single(CleanupZoneCatalog.CreateDefault(), zone => zone.Id == CleanupZoneId.RecycleBin);
+        Assert.Equal(CleanupClassification.AdvancedCleanable, zone.Classification);
+        Assert.True(zone.IsExecutable);
+        Assert.True(zone.RequiresReinforcedConfirmation);
+    }
+
+    [Fact]
+    public async Task Recycle_bin_preview_and_execution_use_injected_service_only()
+    {
+        var fake = new FakeRecycleBinService(new RecycleBinState(true, 3, 1024));
+        var zone = Assert.Single(CleanupZoneCatalog.CreateDefault(), zone => zone.Id == CleanupZoneId.RecycleBin);
+        var previewService = new CleanupPreviewService(new[] { zone }, recycleBinService: fake);
+        var preview = Assert.Single(await previewService.PreviewAsync(null, CancellationToken.None));
+
+        var result = await new CleanupExecutionService(() => DateTimeOffset.Now, fake)
+            .ExecuteZoneAsync(preview, null, CancellationToken.None);
+
+        Assert.Equal(3, preview.EligibleFileCount);
+        Assert.Equal(1024, preview.EligibleBytes);
+        Assert.Equal(CleanupStepStatus.Completed, result.Status);
+        Assert.Equal(1, fake.EmptyCalls);
+    }
+
+    [Fact]
+    public async Task Recycle_bin_estimation_failure_does_not_throw_or_execute()
+    {
+        var fake = new FakeRecycleBinService(new RecycleBinState(false, 0, 0, "indisponible"));
+        var zone = Assert.Single(CleanupZoneCatalog.CreateDefault(), zone => zone.Id == CleanupZoneId.RecycleBin);
+        var service = new CleanupPreviewService(new[] { zone }, recycleBinService: fake);
+
+        var preview = Assert.Single(await service.PreviewAsync(null, CancellationToken.None));
+
+        Assert.False(preview.HasEligibleCandidates);
+        Assert.Contains("indisponible", preview.Errors);
+        Assert.Equal(0, fake.EmptyCalls);
     }
 
     [Fact]
@@ -271,6 +310,45 @@ public sealed class CleanupV2SafetyTests
         Assert.Equal(0, preview.EligibleFileCount);
     }
 
+    [Fact]
+    public void Safe_zones_use_simple_confirmation_and_advanced_zones_reinforced_confirmation()
+    {
+        var zones = CleanupZoneCatalog.CreateDefault();
+        Assert.All(zones.Where(zone => zone.Classification == CleanupClassification.Cleanable), zone => Assert.False(zone.RequiresReinforcedConfirmation));
+        Assert.All(zones.Where(zone => zone.Classification == CleanupClassification.AdvancedCleanable), zone => Assert.True(zone.RequiresReinforcedConfirmation));
+    }
+
+    [Fact]
+    public void Cleanup_view_has_no_global_clean_everything_button()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "CleanupView.xaml"));
+
+        Assert.DoesNotContain("TOUT NETTOYER", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NETTOYAGE SUR", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NETTOYAGE AVANCE", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("A REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Dangerous_user_script_commands_are_not_reproduced_in_cleanup_core()
+    {
+        var root = Path.Combine(FindRepositoryRoot(), "src", "Virgil.Core", "Cleanup");
+        var source = string.Join("\n", Directory.EnumerateFiles(root, "*.cs").Select(File.ReadAllText));
+
+        Assert.DoesNotContain("del *.log /a /s /q /f", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("takeown /f C:\\ /r", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("icacls", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("RD /S /Q", source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Virgil.sln"))) current = current.Parent;
+        return current?.FullName ?? throw new DirectoryNotFoundException("Racine de test introuvable.");
+    }
+
     private static CleanupZoneDefinition TestZone(string root)
     {
         return new CleanupZoneDefinition(
@@ -307,6 +385,19 @@ public sealed class CleanupV2SafetyTests
         {
             try { Directory.Delete(Root, true); }
             catch { }
+        }
+    }
+
+    private sealed class FakeRecycleBinService : IRecycleBinService
+    {
+        private readonly RecycleBinState _state;
+        public FakeRecycleBinService(RecycleBinState state) => _state = state;
+        public int EmptyCalls { get; private set; }
+        public RecycleBinState Query() => _state;
+        public RecycleBinActionResult Empty()
+        {
+            EmptyCalls++;
+            return new RecycleBinActionResult(true, _state.ItemCount, _state.SizeBytes);
         }
     }
 }

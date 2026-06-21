@@ -13,6 +13,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
     private readonly IReadOnlyList<CleanupZoneDefinition> _zones;
     private readonly Func<DateTimeOffset> _now;
     private readonly CleanupSafetyClassifier _safetyClassifier;
+    private readonly IRecycleBinService _recycleBinService;
 
     public CleanupPreviewService()
         : this(CleanupZoneCatalog.CreateDefault(), () => DateTimeOffset.Now)
@@ -22,11 +23,13 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
     public CleanupPreviewService(
         IReadOnlyList<CleanupZoneDefinition> zones,
         Func<DateTimeOffset>? now = null,
-        CleanupSafetyClassifier? safetyClassifier = null)
+        CleanupSafetyClassifier? safetyClassifier = null,
+        IRecycleBinService? recycleBinService = null)
     {
         _zones = zones.OrderBy(zone => zone.DisplayOrder).ToList();
         _now = now ?? (() => DateTimeOffset.Now);
         _safetyClassifier = safetyClassifier ?? new CleanupSafetyClassifier();
+        _recycleBinService = recycleBinService ?? new WindowsRecycleBinService();
     }
 
     public IReadOnlyList<CleanupZoneDefinition> GetZones()
@@ -78,6 +81,14 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
         var generatedAt = _now();
         var errors = new List<string>();
         var candidates = new List<CleanupCandidate>();
+
+        if (zone.Id == CleanupZoneId.RecycleBin)
+        {
+            var state = _recycleBinService.Query();
+            if (!state.EstimateAvailable && !string.IsNullOrWhiteSpace(state.ReadableError)) errors.Add(state.ReadableError);
+            var itemCount = (int)Math.Clamp(state.ItemCount, 0, int.MaxValue);
+            return new CleanupZonePreview(zone, generatedAt, itemCount, itemCount, state.SizeBytes, 0, candidates, errors);
+        }
 
         if (string.IsNullOrWhiteSpace(zone.RootPath))
         {
