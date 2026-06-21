@@ -6,7 +6,7 @@ public sealed class CleanupPermissionRepairService
 {
     private static readonly string[] ForbiddenFragments =
     {
-        "\\users\\", "\\documents", "\\pictures", "\\images", "\\videos", "\\desktop",
+        "\\documents", "\\pictures", "\\images", "\\videos", "\\desktop",
         "\\downloads", "\\onedrive", "\\icloud", "\\dropbox", "\\google drive",
         "\\program files", "\\steam", "\\epic", "\\ubisoft", "\\games", "\\jeux"
     };
@@ -44,6 +44,16 @@ public sealed class CleanupPermissionRepairService
             return Refuse(fullPath, "Une racine de lecteur ne peut jamais etre reparee.");
         }
 
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var usersRoot = string.IsNullOrWhiteSpace(profile) ? string.Empty : Directory.GetParent(profile)?.FullName ?? string.Empty;
+        if (IsExact(fullPath, profile) || IsExact(fullPath, usersRoot) ||
+            IsExact(fullPath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)) ||
+            IsExact(fullPath, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) ||
+            IsExact(fullPath, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)))
+        {
+            return Refuse(fullPath, "Profil ou dossier personnel complet refuse.");
+        }
+
         var normalized = fullPath.Replace('/', '\\');
         if (ForbiddenFragments.Any(fragment => normalized.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
         {
@@ -70,4 +80,9 @@ public sealed class CleanupPermissionRepairService
     private static CleanupPermissionRepairAssessment Refuse(string path, string reason) => new(path, false, reason);
 
     private static string Trim(string value) => value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+    private static bool IsExact(string left, string right)
+    {
+        return !string.IsNullOrWhiteSpace(right) && string.Equals(Trim(left), Trim(Path.GetFullPath(right)), StringComparison.OrdinalIgnoreCase);
+    }
 }

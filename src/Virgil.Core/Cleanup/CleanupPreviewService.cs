@@ -85,6 +85,13 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             return CreatePreview(zone, generatedAt, candidates, errors);
         }
 
+        if (!zone.IsExecutable)
+        {
+            // Detection-only zones are intentionally not enumerated. Some of them are broad or
+            // require Windows service coordination; showing information must never become a deep scan.
+            return CreatePreview(zone, generatedAt, candidates, errors);
+        }
+
         if (!DirectoryExists(zone.RootPath, errors))
         {
             return CreatePreview(zone, generatedAt, candidates, errors);
