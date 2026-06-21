@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Resources;
+using Virgil.Core.Reports;
 using Virgil.Core.Scanning;
 using Virgil.Domain;
 
@@ -23,6 +24,7 @@ public partial class ResourcesView : UserControl
     private readonly List<string> _skippedActions = new();
     private readonly List<string> _errors = new();
     private readonly HashSet<int> _completedProcessIds = new();
+    private IReportHistoryService? _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<ResourceDecision>? _activeDecision;
     private ProcessActionKind? _pendingAction;
@@ -55,6 +57,11 @@ public partial class ResourcesView : UserControl
     public event Action<VirgilCoreState, string>? VirgilStateRequested;
 
     public event EventHandler? ReturnHomeRequested;
+
+    public void ConfigureReportHistory(IReportHistoryService reportHistoryService)
+    {
+        _reportHistoryService = reportHistoryService;
+    }
 
     public void FocusAnalyzeButton()
     {
@@ -122,6 +129,7 @@ public partial class ResourcesView : UserControl
                 reinforcedConfirmation: false,
                 _operationCancellation!.Token);
             RecordResult(result);
+            await PersistCurrentReportAsync();
             ResourcesStatusText.Text = "Information seulement. Aucune action memoire executee.";
             RequestVirgilState(VirgilCoreState.Idle, "INFORMATION");
             VirgilMessageRequested?.Invoke(
@@ -202,6 +210,7 @@ public partial class ResourcesView : UserControl
                     : VirgilCoreState.Success,
                 "ANALYSE TERMINEE");
             VirgilMessageRequested?.Invoke(BuildAnalysisMessage(report));
+            await PersistCurrentReportAsync();
             if (scrollToProcesses)
             {
                 ProcessListHeading.BringIntoView();
@@ -247,6 +256,7 @@ public partial class ResourcesView : UserControl
                 ? "Action annulee."
                 : "Action passee.";
             VirgilMessageRequested?.Invoke("Action non executee.");
+            await PersistCurrentReportAsync();
             return;
         }
 
@@ -288,6 +298,7 @@ public partial class ResourcesView : UserControl
                     : VirgilCoreState.Warning,
                 result.Status == ProcessActionStatus.Completed ? "TERMINE" : "ATTENTION");
             VirgilMessageRequested?.Invoke(ResultMessage(result));
+            await PersistCurrentReportAsync();
         }
         catch (OperationCanceledException)
         {
@@ -468,14 +479,14 @@ public partial class ResourcesView : UserControl
                 async () => await RequestConfirmedActionAsync(ProcessActionKind.KillProcess, process)));
         }
 
-        actions.Children.Add(CreateButton("IGNORER", () =>
+        actions.Children.Add(CreateButton("IGNORER", async () =>
         {
             _skippedActions.Add($"Processus ignore - {process.Name} (PID {process.ProcessId})");
             _completedProcessIds.Add(process.ProcessId);
             RenderProcesses(_lastAnalysis);
             ViewResourcesReportButton.IsEnabled = true;
             VirgilMessageRequested?.Invoke("Processus ignore.\nAucune action executee.");
-            return Task.CompletedTask;
+            await PersistCurrentReportAsync();
         }));
         stack.Children.Add(actions);
         card.Child = stack;
@@ -613,6 +624,22 @@ public partial class ResourcesView : UserControl
             Errors = _errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             RestartRecommended = _analyses.Any(analysis => analysis.RestartRecommended)
         };
+    }
+
+    private async Task PersistCurrentReportAsync()
+    {
+        if (_reportHistoryService is null || !HasReportData())
+        {
+            return;
+        }
+
+        var result = await _reportHistoryService
+            .SaveAsync(ReportMapper.FromResources(BuildSessionReport()), CancellationToken.None)
+            .ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
     }
 
     private bool HasReportData()
