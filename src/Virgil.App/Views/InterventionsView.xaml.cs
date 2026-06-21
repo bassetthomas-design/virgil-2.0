@@ -51,6 +51,8 @@ public partial class InterventionsView : UserControl
 
     public event EventHandler? ReturnHomeRequested;
 
+    public event EventHandler? ReportPersisted;
+
     public void ConfigureReportHistory(IReportHistoryService reportHistoryService)
     {
         _reportHistoryService = reportHistoryService;
@@ -259,6 +261,11 @@ public partial class InterventionsView : UserControl
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
             VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
         }
     }
 

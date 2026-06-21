@@ -216,7 +216,8 @@ public sealed partial class ReportHistoryService : IReportHistoryService
         }
 
         foreach (var candidate in candidates
-            .OrderByDescending(item => item.Date)
+            .OrderByDescending(item => string.Equals(item.Path, currentReportPath, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(item => item.Date)
             .ThenByDescending(item => item.Path, StringComparer.OrdinalIgnoreCase)
             .Skip(HistoryLimit))
         {

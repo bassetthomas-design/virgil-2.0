@@ -318,6 +318,7 @@ public partial class MainWindow : Window
         CleanupModuleView.VirgilMessageRequested += AppendVirgilMessage;
         CleanupModuleView.VirgilStateRequested += SetVirgilState;
         CleanupModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        CleanupModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireUpdatesModule()
@@ -326,6 +327,7 @@ public partial class MainWindow : Window
         UpdatesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         UpdatesModuleView.VirgilStateRequested += SetVirgilState;
         UpdatesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        UpdatesModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireInterventionsModule()
@@ -334,6 +336,7 @@ public partial class MainWindow : Window
         InterventionsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         InterventionsModuleView.VirgilStateRequested += SetVirgilState;
         InterventionsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        InterventionsModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireResourcesModule()
@@ -342,6 +345,7 @@ public partial class MainWindow : Window
         ResourcesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ResourcesModuleView.VirgilStateRequested += SetVirgilState;
         ResourcesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        ResourcesModuleView.ReportPersisted += HandleReportPersisted;
     }
 
     private void WireReportsModule()
@@ -350,6 +354,13 @@ public partial class MainWindow : Window
         ReportsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ReportsModuleView.VirgilStateRequested += SetVirgilState;
         ReportsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        ReportsModuleView.ReportPersisted += HandleReportPersisted;
+    }
+
+    private void HandleReportPersisted(object? sender, EventArgs e)
+    {
+        _hasPersistentReport = true;
+        LastReportButton.IsEnabled = !_scanInProgress;
     }
 
     private async void LastReport_Click(object sender, RoutedEventArgs e)

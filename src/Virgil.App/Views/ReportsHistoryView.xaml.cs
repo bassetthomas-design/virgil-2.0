@@ -35,6 +35,8 @@ public partial class ReportsHistoryView : UserControl
 
     public event EventHandler? ReturnHomeRequested;
 
+    public event EventHandler? ReportPersisted;
+
     public void Configure(IReportHistoryService historyService, IReportExportService exportService)
     {
         _historyService = historyService;
@@ -137,6 +139,7 @@ public partial class ReportsHistoryView : UserControl
 
         _selectedReport = result.Report ?? _selectedReport;
         _selectedReportIsPersistent = true;
+        ReportPersisted?.Invoke(this, EventArgs.Empty);
         SaveTransientReportButton.Visibility = Visibility.Collapsed;
         VirgilMessageRequested?.Invoke("Rapport enregistre localement.\nAucun envoi en ligne.");
         await RefreshAsync().ConfigureAwait(true);
@@ -224,9 +227,7 @@ public partial class ReportsHistoryView : UserControl
         ExecutedActionsText.Text = FormatActions(report.ExecutedActions);
         SkippedActionsText.Text = FormatActions(report.SkippedActions);
         ErrorsText.Text = report.Errors.Count == 0 ? "Aucune" : string.Join("\n", report.Errors.Select(error => "- " + error));
-        TechnicalDetailsText.Text = string.IsNullOrWhiteSpace(report.TechnicalDetails)
-            ? "Aucun detail technique supplementaire."
-            : report.TechnicalDetails;
+        TechnicalDetailsText.Text = BuildTechnicalDetails(report);
         TechnicalDetailsPanel.Visibility = Visibility.Collapsed;
         ToggleTechnicalDetailsButton.Content = "VOIR DETAILS TECHNIQUES";
         SaveTransientReportButton.Visibility = isPersistent ? Visibility.Collapsed : Visibility.Visible;
@@ -334,6 +335,24 @@ public partial class ReportsHistoryView : UserControl
             : string.Join("\n", actions.Select(action =>
                 $"- {action.Name} [{action.Status}] : {action.Result}" +
                 (string.IsNullOrWhiteSpace(action.ReadableError) ? string.Empty : $" - {action.ReadableError}")));
+    }
+
+    private static string BuildTechnicalDetails(ReportEntry report)
+    {
+        var values = new List<string>();
+        if (!string.IsNullOrWhiteSpace(report.TechnicalDetails))
+        {
+            values.Add(report.TechnicalDetails);
+        }
+
+        values.AddRange(report.ProposedActions
+            .Concat(report.ExecutedActions)
+            .Concat(report.SkippedActions)
+            .Where(action => !string.IsNullOrWhiteSpace(action.TechnicalDetails))
+            .Select(action => $"{action.Name} : {action.TechnicalDetails}"));
+        return values.Count == 0
+            ? "Aucun detail technique supplementaire."
+            : string.Join("\n", values);
     }
 
     private static string KindLabel(ReportKind kind)

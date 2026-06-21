@@ -39,8 +39,8 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine(string.IsNullOrWhiteSpace(sanitized.SimpleView) ? sanitized.Summary : sanitized.SimpleView);
         builder.AppendLine();
         builder.AppendLine("Details techniques :");
-        builder.AppendLine(includeTechnicalDetails && !string.IsNullOrWhiteSpace(sanitized.TechnicalDetails)
-            ? sanitized.TechnicalDetails
+        builder.AppendLine(includeTechnicalDetails
+            ? BuildTechnicalDetails(sanitized)
             : "Masques dans cet export.");
         return builder.ToString();
     }
@@ -142,6 +142,25 @@ public sealed class ReportExportService : IReportExportService
         }
 
         builder.AppendLine();
+    }
+
+    private static string BuildTechnicalDetails(ReportEntry report)
+    {
+        var builder = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(report.TechnicalDetails))
+        {
+            builder.AppendLine(report.TechnicalDetails);
+        }
+
+        foreach (var action in report.ProposedActions
+            .Concat(report.ExecutedActions)
+            .Concat(report.SkippedActions)
+            .Where(action => !string.IsNullOrWhiteSpace(action.TechnicalDetails)))
+        {
+            builder.AppendLine($"{action.Name} : {action.TechnicalDetails}");
+        }
+
+        return builder.Length == 0 ? "Aucun detail technique supplementaire." : builder.ToString().TrimEnd();
     }
 
     private static string ValidateDestination(string path)
