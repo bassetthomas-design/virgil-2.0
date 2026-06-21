@@ -25,7 +25,16 @@ public sealed class ProcessProtectionPolicy
         "dwm",
         "fontdrvhost",
         "registry",
-        "memory compression"
+        "memory compression",
+        "audiodg",
+        "conhost",
+        "ctfmon",
+        "logonui",
+        "sihost",
+        "taskhostw",
+        "userinit",
+        "securityhealthservice",
+        "secure system"
     };
 
     private static readonly string[] ProtectedKeywords =
@@ -37,6 +46,7 @@ public sealed class ProcessProtectionPolicy
     };
 
     private readonly string _system32Directory;
+    private readonly string _windowsDirectory;
     private readonly int _currentProcessId;
 
     public ProcessProtectionPolicy()
@@ -47,6 +57,8 @@ public sealed class ProcessProtectionPolicy
     public ProcessProtectionPolicy(string system32Directory, int currentProcessId)
     {
         _system32Directory = NormalizeDirectory(system32Directory);
+        _windowsDirectory = NormalizeDirectory(
+            Directory.GetParent(_system32Directory)?.FullName ?? _system32Directory);
         _currentProcessId = currentProcessId;
     }
 
@@ -63,12 +75,12 @@ public sealed class ProcessProtectionPolicy
             return Protected(ProcessResourceStatus.Protected, "Processus securite, VPN ou materiel protege.");
         }
 
-        if (IsUnderSystem32(process.Path))
+        if (IsUnderWindows(process.Path))
         {
-            return Protected(ProcessResourceStatus.System, "Processus Windows sous System32 protege.");
+            return Protected(ProcessResourceStatus.System, "Processus installe dans Windows protege.");
         }
 
-        if (process.AccessDenied || string.IsNullOrWhiteSpace(process.Path))
+        if (process.AccessDenied || string.IsNullOrWhiteSpace(process.Path) || process.StartedAt is null)
         {
             return Protected(ProcessResourceStatus.Protected, "Identite insuffisante : fermeture non proposee.");
         }
@@ -87,7 +99,7 @@ public sealed class ProcessProtectionPolicy
             isHeavy ? "Application lourde. Examiner avant toute action." : "Application utilisateur.");
     }
 
-    private bool IsUnderSystem32(string? path)
+    private bool IsUnderWindows(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -97,9 +109,10 @@ public sealed class ProcessProtectionPolicy
         try
         {
             var fullPath = Path.GetFullPath(path);
-            return fullPath.StartsWith(
-                _system32Directory + Path.DirectorySeparatorChar,
-                StringComparison.OrdinalIgnoreCase);
+            return string.Equals(fullPath, _system32Directory, StringComparison.OrdinalIgnoreCase) ||
+                fullPath.StartsWith(
+                    _windowsDirectory + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase);
         }
         catch
         {

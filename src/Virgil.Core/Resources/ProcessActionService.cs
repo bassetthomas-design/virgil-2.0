@@ -74,6 +74,11 @@ public sealed class ProcessActionService : IProcessActionService
             return Failure(action, "N/A", "Processus cible absent.");
         }
 
+        if (action == ProcessActionKind.OpenLocation)
+        {
+            return OpenLocation(target);
+        }
+
         var identity = ValidateIdentity(target);
         if (identity.Error is not null)
         {
@@ -86,7 +91,6 @@ public sealed class ProcessActionService : IProcessActionService
                 await CloseGracefullyAsync(target, identity.Value!, cancellationToken).ConfigureAwait(false),
             ProcessActionKind.KillProcess =>
                 await KillAsync(target, reinforcedConfirmation, cancellationToken).ConfigureAwait(false),
-            ProcessActionKind.OpenLocation => OpenLocation(target),
             _ => Failure(action, TargetName(target), "Action non prise en charge.")
         };
     }

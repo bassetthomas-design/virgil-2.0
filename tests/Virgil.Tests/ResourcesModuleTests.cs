@@ -75,6 +75,20 @@ public sealed class ResourcesModuleTests
     }
 
     [Theory]
+    [InlineData("audiodg")]
+    [InlineData("sihost")]
+    [InlineData("taskhostw")]
+    [InlineData("conhost")]
+    public void Additional_windows_processes_are_protected(string name)
+    {
+        var decision = Policy().Evaluate(Observation(name, path: $@"C:\Windows\SysWOW64\{name}.exe"), 10);
+
+        Assert.True(decision.IsCritical);
+        Assert.False(decision.CanCloseGracefully);
+        Assert.False(decision.CanForceClose);
+    }
+
+    [Theory]
     [InlineData("MsMpEng", @"C:\Program Files\Windows Defender\MsMpEng.exe")]
     [InlineData("openvpn", @"C:\Program Files\OpenVPN\openvpn.exe")]
     [InlineData("WireGuard", @"C:\Program Files\WireGuard\wireguard.exe")]
@@ -132,6 +146,72 @@ public sealed class ResourcesModuleTests
     }
 
     [Fact]
+    public async Task Forced_close_executes_only_after_reinforced_confirmation()
+    {
+        var runtime = new FakeProcessRuntime();
+        var service = CreateActionService(runtime);
+
+        var result = await service.ExecuteAsync(
+            ProcessActionKind.KillProcess,
+            Target(),
+            confirmed: true,
+            reinforcedConfirmation: true,
+            CancellationToken.None);
+
+        Assert.Equal(ProcessActionStatus.Completed, result.Status);
+        Assert.Equal(1, runtime.KillCalls);
+    }
+
+    [Fact]
+    public async Task Graceful_close_requires_explicit_confirmation()
+    {
+        var runtime = new FakeProcessRuntime();
+        var service = CreateActionService(runtime);
+
+        var result = await service.ExecuteAsync(
+            ProcessActionKind.CloseMainWindow,
+            Target(),
+            confirmed: false,
+            reinforcedConfirmation: false,
+            CancellationToken.None);
+
+        Assert.Equal(ProcessActionStatus.Failed, result.Status);
+        Assert.Equal(0, runtime.CloseCalls);
+        Assert.Equal(0, runtime.KillCalls);
+    }
+
+    [Fact]
+    public async Task Critical_process_is_refused_even_with_reinforced_confirmation()
+    {
+        var runtime = new FakeProcessRuntime
+        {
+            Identity = Identity() with
+            {
+                Name = "winlogon",
+                Path = @"C:\Windows\System32\winlogon.exe"
+            }
+        };
+        var service = CreateActionService(runtime);
+        var target = Target() with
+        {
+            Name = "winlogon",
+            Path = @"C:\Windows\System32\winlogon.exe",
+            IsCriticalSystemProcess = false
+        };
+
+        var result = await service.ExecuteAsync(
+            ProcessActionKind.KillProcess,
+            target,
+            confirmed: true,
+            reinforcedConfirmation: true,
+            CancellationToken.None);
+
+        Assert.Equal(ProcessActionStatus.Failed, result.Status);
+        Assert.Equal(0, runtime.KillCalls);
+        Assert.Contains("protege", result.ReadableError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Changed_process_identity_is_refused()
     {
         var runtime = new FakeProcessRuntime
@@ -163,6 +243,17 @@ public sealed class ResourcesModuleTests
     }
 
     [Fact]
+    public void Process_without_start_time_is_protected_against_pid_reuse()
+    {
+        var observation = Observation("UnknownApp", @"C:\Apps\UnknownApp.exe") with { StartedAt = null };
+        var decision = Policy().Evaluate(observation, 2);
+
+        Assert.Equal(ProcessResourceStatus.Protected, decision.Status);
+        Assert.False(decision.CanCloseGracefully);
+        Assert.False(decision.CanForceClose);
+    }
+
+    [Fact]
     public async Task Open_location_is_refused_without_accessible_path()
     {
         var runtime = new FakeProcessRuntime();
@@ -178,6 +269,33 @@ public sealed class ResourcesModuleTests
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
         Assert.Equal(0, runtime.OpenLocationCalls);
+    }
+
+    [Fact]
+    public async Task Protected_process_location_can_be_opened_without_closing_it()
+    {
+        var runtime = new FakeProcessRuntime();
+        var service = CreateActionService(runtime);
+        var target = Target() with
+        {
+            Name = "winlogon",
+            Path = @"C:\Windows\System32\winlogon.exe",
+            IsCriticalSystemProcess = true,
+            CanCloseGracefully = false,
+            CanForceClose = false
+        };
+
+        var result = await service.ExecuteAsync(
+            ProcessActionKind.OpenLocation,
+            target,
+            confirmed: true,
+            reinforcedConfirmation: false,
+            CancellationToken.None);
+
+        Assert.Equal(ProcessActionStatus.Completed, result.Status);
+        Assert.Equal(1, runtime.OpenLocationCalls);
+        Assert.Equal(0, runtime.CloseCalls);
+        Assert.Equal(0, runtime.KillCalls);
     }
 
     [Fact]
@@ -236,8 +354,36 @@ public sealed class ResourcesModuleTests
         Assert.Equal(40, report.AverageCpuPercent);
         Assert.Equal(60, report.MaximumCpuPercent);
         Assert.Equal(75, report.AverageMemoryPercent);
+        Assert.Equal(ResourceHealthLevel.Stable, report.CpuHealth);
+        Assert.Equal(ResourceHealthLevel.Watch, report.MemoryHealth);
         Assert.Equal(3, report.Samples.Count);
         Assert.Equal(42, report.ProcessCount);
+    }
+
+    [Fact]
+    public async Task Process_inspection_combines_cpu_delta_and_memory_threshold()
+    {
+        var first = Observation("ExampleApp", @"C:\Apps\Example\ExampleApp.exe") with
+        {
+            TotalProcessorTime = TimeSpan.FromSeconds(1),
+            WorkingSetBytes = 600L * 1024 * 1024
+        };
+        var second = first with { TotalProcessorTime = TimeSpan.FromSeconds(1.005) };
+        var snapshots = new FakeProcessSnapshotProvider(
+            new ProcessObservationBatch(new[] { first }, Array.Empty<string>()),
+            new ProcessObservationBatch(new[] { second }, Array.Empty<string>()));
+        var service = new ProcessInspectionService(snapshots, Policy(), logicalProcessorCount: 1);
+
+        var result = await service.InspectAsync(
+            TimeSpan.FromMilliseconds(10),
+            maximumProcesses: 5,
+            CancellationToken.None);
+
+        var process = Assert.Single(result.Processes);
+        Assert.Equal(50, process.CpuPercent);
+        Assert.Equal(ProcessResourceStatus.Heavy, process.Status);
+        Assert.True(process.CanCloseGracefully);
+        Assert.True(process.CanForceClose);
     }
 
     [Fact]
@@ -259,6 +405,7 @@ public sealed class ResourcesModuleTests
         {
             Analyses = new[] { analysis },
             ProposedActions = new[] { "Examiner ExampleApp" },
+            SkippedActions = new[] { "Ignorer ExampleApp" },
             ExecutedActions = new[]
             {
                 new ProcessActionResult
@@ -277,6 +424,8 @@ public sealed class ResourcesModuleTests
         Assert.Contains("CPU moyen : 35", text);
         Assert.Contains("RAM moyenne : 72", text);
         Assert.Contains("ExampleApp", text);
+        Assert.Contains("Actions proposees", text);
+        Assert.Contains("Ignorer ExampleApp", text);
         Assert.Contains("Redemarrage conseille : oui", text);
     }
 
@@ -411,5 +560,19 @@ public sealed class ResourcesModuleTests
                 Processes = new[] { Target() }
             });
         }
+    }
+
+    private sealed class FakeProcessSnapshotProvider : IProcessSnapshotProvider
+    {
+        private readonly Queue<ProcessObservationBatch> _batches;
+
+        public FakeProcessSnapshotProvider(params ProcessObservationBatch[] batches)
+        {
+            _batches = new Queue<ProcessObservationBatch>(batches);
+        }
+
+        public ProcessObservationBatch Capture() => _batches.Dequeue();
+
+        public string? TryGetPublisher(string? executablePath) => "Example Publisher";
     }
 }

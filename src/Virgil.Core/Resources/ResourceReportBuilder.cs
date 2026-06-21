@@ -20,6 +20,9 @@ public sealed class ResourceReportBuilder
             builder.AppendLine($"CPU max : {analysis.MaximumCpuPercent:0.0} %");
             builder.AppendLine($"RAM moyenne : {analysis.AverageMemoryPercent:0.0} %");
             builder.AppendLine($"RAM max : {analysis.MaximumMemoryPercent:0.0} %");
+            builder.AppendLine($"Etat CPU : {analysis.CpuHealth}");
+            builder.AppendLine($"Etat RAM : {analysis.MemoryHealth}");
+            builder.AppendLine($"Etat global : {analysis.OverallHealth}");
             builder.AppendLine($"Uptime : {FormatUptime(analysis.Uptime)}");
             AppendProcesses(builder, "Processus RAM principaux", analysis.TopMemoryProcesses, includeTechnicalDetails);
             AppendProcesses(builder, "Processus CPU principaux", analysis.TopCpuProcesses, includeTechnicalDetails);
@@ -29,6 +32,9 @@ public sealed class ResourceReportBuilder
         builder.AppendLine($"Actions executees : {report.ExecutedActions.Count}");
         builder.AppendLine($"Actions passees : {report.SkippedActions.Count}");
         builder.AppendLine($"Redemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}");
+
+        AppendList(builder, "Actions proposees", report.ProposedActions);
+        AppendList(builder, "Actions passees", report.SkippedActions);
 
         foreach (var result in report.ExecutedActions)
         {

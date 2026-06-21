@@ -147,6 +147,8 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             MaximumCpuPercent = cpuValuesFinal.Count == 0 ? 0 : cpuValuesFinal.Max(),
             AverageMemoryPercent = memoryValues.Count == 0 ? 0 : memoryValues.Average(),
             MaximumMemoryPercent = memoryValues.Count == 0 ? 0 : memoryValues.Max(),
+            CpuHealth = cpuHealthFinal,
+            MemoryHealth = memoryHealthFinal,
             OverallHealth = overallHealth,
             TopMemoryProcesses = processes.OrderByDescending(process => process.WorkingSetBytes).Take(request.MaximumProcesses).ToList(),
             TopCpuProcesses = processes.OrderByDescending(process => process.CpuPercent).Take(request.MaximumProcesses).ToList(),

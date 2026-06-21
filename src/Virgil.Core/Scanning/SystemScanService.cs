@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Monitoring;
+using Virgil.Core.Resources;
 using Virgil.Core.Updates;
 using Virgil.Domain;
 
@@ -12,19 +13,32 @@ public sealed class SystemScanService : ISystemScanService
     private readonly ICleanupService _cleanupService;
     private readonly IUpdateScanService _updateScanService;
     private readonly IInterventionDiagnosticService _interventionDiagnosticService;
+    private readonly IResourceMonitoringService _resourceMonitoringService;
 
     public SystemScanService()
-        : this(new CleanupPreviewService(), new WingetUpdateScanService(), new InterventionDiagnosticService())
+        : this(
+            new CleanupPreviewService(),
+            new WingetUpdateScanService(),
+            new InterventionDiagnosticService(),
+            new ResourceMonitoringService())
     {
     }
 
     public SystemScanService(ICleanupService cleanupService)
-        : this(cleanupService, new WingetUpdateScanService(), new InterventionDiagnosticService())
+        : this(
+            cleanupService,
+            new WingetUpdateScanService(),
+            new InterventionDiagnosticService(),
+            new ResourceMonitoringService())
     {
     }
 
     public SystemScanService(ICleanupService cleanupService, IUpdateScanService updateScanService)
-        : this(cleanupService, updateScanService, new InterventionDiagnosticService())
+        : this(
+            cleanupService,
+            updateScanService,
+            new InterventionDiagnosticService(),
+            new ResourceMonitoringService())
     {
     }
 
@@ -32,10 +46,24 @@ public sealed class SystemScanService : ISystemScanService
         ICleanupService cleanupService,
         IUpdateScanService updateScanService,
         IInterventionDiagnosticService interventionDiagnosticService)
+        : this(
+            cleanupService,
+            updateScanService,
+            interventionDiagnosticService,
+            new ResourceMonitoringService())
+    {
+    }
+
+    public SystemScanService(
+        ICleanupService cleanupService,
+        IUpdateScanService updateScanService,
+        IInterventionDiagnosticService interventionDiagnosticService,
+        IResourceMonitoringService resourceMonitoringService)
     {
         _cleanupService = cleanupService;
         _updateScanService = updateScanService;
         _interventionDiagnosticService = interventionDiagnosticService;
+        _resourceMonitoringService = resourceMonitoringService;
     }
 
     public async Task<SystemScanReport> RunAsync(
@@ -62,6 +90,7 @@ public sealed class SystemScanService : ISystemScanService
         var cleanup = mode == ScanMode.Deep
             ? ReadCleanup(progress, errors, findings)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
+        var resources = await ReadResourcesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var interventions = await ReadInterventionsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
 
@@ -81,6 +110,7 @@ public sealed class SystemScanService : ISystemScanService
 
         var recommendations = ScanRules.BuildRecommendations(findings)
             .Concat(updates.Recommendations.Take(3))
+            .Concat(resources.Recommendations.Take(3))
             .Concat(interventions.Diagnostics.Take(3))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -106,8 +136,109 @@ public sealed class SystemScanService : ISystemScanService
             errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList())
         {
             Updates = updates,
-            Interventions = interventions
+            Interventions = interventions,
+            Resources = resources
         };
+    }
+
+    private async Task<ResourceScanSummary> ReadResourcesAsync(
+        ScanMode mode,
+        IProgress<ScanProgress>? progress,
+        ICollection<string> errors,
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
+    {
+        if (mode != ScanMode.Deep)
+        {
+            return ResourceScanSummary.NotAnalyzed;
+        }
+
+        Report(
+            progress,
+            "Ressources systeme",
+            "Observation courte CPU/RAM et processus en lecture seule.",
+            "Ressources",
+            86);
+
+        try
+        {
+            var report = await _resourceMonitoringService
+                .AnalyzeAsync(ResourceAnalysisRequest.DeepScanPreview, null, cancellationToken)
+                .ConfigureAwait(false);
+            AddErrors(errors, report.Errors);
+
+            var mainProcesses = report.TopMemoryProcesses
+                .Concat(report.TopCpuProcesses)
+                .GroupBy(process => process.ProcessId)
+                .Select(group => group.First())
+                .ToList();
+            var heavyCount = mainProcesses.Count(process => process.Status == ProcessResourceStatus.Heavy);
+
+            if (report.AverageCpuPercent >= 85)
+            {
+                findings.Add(new ScanFinding(
+                    "resources-cpu-sustained",
+                    "Ressources",
+                    "Charge CPU elevee sur observation courte",
+                    "La moyenne CPU est restee elevee pendant plusieurs echantillons.",
+                    $"{report.AverageCpuPercent:0.0} %",
+                    report.AverageCpuPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
+                    "Examiner les principaux processus CPU dans le module Ressources. Aucune fermeture n'a ete executee."));
+            }
+
+            if (report.AverageMemoryPercent >= 85)
+            {
+                findings.Add(new ScanFinding(
+                    "resources-memory-high",
+                    "Ressources",
+                    "Utilisation RAM elevee",
+                    "La RAM utilisee depasse le seuil d'intervention conseillee.",
+                    $"{report.AverageMemoryPercent:0.0} %",
+                    report.AverageMemoryPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
+                    "Examiner les applications lourdes avant toute fermeture."));
+            }
+
+            if (heavyCount > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "resources-heavy-processes",
+                    "Ressources",
+                    "Processus lourds detectes",
+                    "Des processus depassent les seuils CPU ou RAM du module Ressources.",
+                    heavyCount.ToString(),
+                    ScanSeverity.Attention,
+                    "Ouvrir le module Ressources pour verifier chaque processus. Aucune action n'est executee depuis le scan."));
+            }
+
+            return new ResourceScanSummary
+            {
+                WasAnalyzed = true,
+                AverageCpuPercent = report.AverageCpuPercent,
+                MemoryPercent = report.AverageMemoryPercent,
+                Uptime = report.Uptime,
+                HeavyProcessCount = heavyCount,
+                TopMemoryProcesses = report.TopMemoryProcesses
+                    .Take(5)
+                    .Select(process => $"{process.Name} - {ScanRules.FormatBytes(process.WorkingSetBytes)}")
+                    .ToList(),
+                Recommendations = report.Recommendations,
+                Errors = report.Errors
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            var resourceErrors = new[] { "Analyse ressources indisponible." };
+            AddErrors(errors, resourceErrors);
+            return new ResourceScanSummary
+            {
+                WasAnalyzed = true,
+                Errors = resourceErrors
+            };
+        }
     }
 
     private static WindowsScanInfo ReadWindows(

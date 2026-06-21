@@ -52,6 +52,8 @@ public sealed record SystemScanReport(
     public UpdateScanSummary Updates { get; init; } = UpdateScanSummary.NotAnalyzed;
 
     public InterventionScanSummary Interventions { get; init; } = InterventionScanSummary.NotAnalyzed;
+
+    public ResourceScanSummary Resources { get; init; } = ResourceScanSummary.NotAnalyzed;
 }
 
 public sealed record WindowsScanInfo(

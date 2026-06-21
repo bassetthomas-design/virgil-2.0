@@ -123,7 +123,7 @@
                                 <Button x:Name="CleanupNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Nettoyage" Click="Cleanup_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,8 L8,2 L12,8 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="NETTOYAGE" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Ressources" Click="ModulePlaceholder_Click">
+                                <Button x:Name="ResourcesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Ressources" Click="Resources_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Rectangle Width="10" Height="6" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RESSOURCES" /></Grid>
                                 </Button>
                                 <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Applications" Click="ModulePlaceholder_Click">
@@ -242,6 +242,9 @@
                         <views:InterventionsView x:Name="InterventionsModuleView"
                                                  Visibility="Collapsed"
                                                  AutomationProperties.Name="Module interventions ciblees" />
+                        <views:ResourcesView x:Name="ResourcesModuleView"
+                                             Visibility="Collapsed"
+                                             AutomationProperties.Name="Module ressources systeme" />
                     </Grid>
                 </Border>
 

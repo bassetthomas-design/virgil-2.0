@@ -136,6 +136,10 @@ public sealed record ResourceAnalysisReport
 
     public double MaximumMemoryPercent { get; init; }
 
+    public ResourceHealthLevel CpuHealth { get; init; } = ResourceHealthLevel.Unknown;
+
+    public ResourceHealthLevel MemoryHealth { get; init; } = ResourceHealthLevel.Unknown;
+
     public ResourceHealthLevel OverallHealth { get; init; } = ResourceHealthLevel.Unknown;
 
     public IReadOnlyList<ProcessResourceInfo> TopMemoryProcesses { get; init; } =
