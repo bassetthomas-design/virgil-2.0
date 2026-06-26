@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Virgil.Domain.Applications;
 
 namespace Virgil.Domain;
 
@@ -54,6 +55,8 @@ public sealed record SystemScanReport(
     public InterventionScanSummary Interventions { get; init; } = InterventionScanSummary.NotAnalyzed;
 
     public ResourceScanSummary Resources { get; init; } = ResourceScanSummary.NotAnalyzed;
+
+    public ApplicationScanSummary Applications { get; init; } = ApplicationScanSummary.NotAnalyzed;
 }
 
 public sealed record WindowsScanInfo(

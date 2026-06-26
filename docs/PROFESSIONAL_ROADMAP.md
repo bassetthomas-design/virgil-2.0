@@ -116,6 +116,26 @@ Livrable recommande:
 3. Tests des seuils et fallbacks.
 4. Controle de performance sur machines modestes.
 
+## 3 bis. Applications et desinstallateur
+
+Etat branche `feat/applications-uninstaller-v1` : V1 implementee avec garde-fous stricts.
+
+- Inventaire registre, WinGet et Store en lecture seule.
+- Classification des applications en desinstallable, attention, protege, inconnu et Store.
+- Desinstallation individuelle uniquement via MSI, desinstalleur officiel ou WinGet exact.
+- Applications Store limitees a l'ouverture des parametres Windows.
+- Blocage des pilotes, securite, runtimes, frameworks et composants systeme.
+- Commandes dangereuses, suppression par dossier, commandes chainees et profils utilisateur refuses.
+- Scan des restes en lecture seule apres lancement du desinstalleur officiel.
+- Aucune suppression automatique de donnees personnelles et aucun "delete all remnants".
+- Rapports locaux `ApplicationManagement` pour inventaire et desinstallation.
+
+Etapes ulterieures conditionnelles :
+
+1. Ajouter une comparaison d'inventaires avant/apres sans supposer le succes d'un assistant externe.
+2. Ajouter un export dedie des restes pour revue manuelle.
+3. Envisager une suppression technique ciblee seulement avec confirmations separees, allowlist stricte et exclusion explicite des donnees personnelles.
+
 ## 4. Historique et rapports
 
 Objectif: rendre les resultats tracables localement, sans telemetrie.

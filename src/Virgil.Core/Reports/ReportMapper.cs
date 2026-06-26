@@ -23,6 +23,10 @@ public static class ReportMapper
             .AppendLine($"Mises a jour disponibles : {report.Updates.ApplicationUpdates}")
             .AppendLine($"Interventions recommandees : {report.Interventions.RecommendedActions}")
             .AppendLine($"Processus lourds : {report.Resources.HeavyProcessCount}")
+            .AppendLine($"Applications detectees : {report.Applications.DetectedCount}")
+            .AppendLine($"Applications desinstallables : {report.Applications.UninstallableCount}")
+            .AppendLine($"Applications protegees : {report.Applications.ProtectedCount}")
+            .AppendLine("Applications : inventaire lecture seule depuis le scan.")
             .AppendLine("Aucune action executee depuis le scan.")
             .ToString();
         var technical = new StringBuilder()
@@ -32,6 +36,7 @@ public static class ReportMapper
             .AppendLine($"Reseau : {report.Network.Name} - {report.Network.Type} - {report.Network.Status}")
             .AppendLine($"Duree : {report.Duration}")
             .AppendLine($"Source mises a jour : {(report.Updates.WingetAvailable ? "WinGet disponible" : "WinGet indisponible")}")
+            .AppendLine($"Inventaire applications : {(report.Applications.WasAnalyzed ? $"{report.Applications.DetectedCount} detectees, {report.Applications.UnknownCount} inconnues" : "non analyse")}")
             .ToString();
         return Base(
             kind,

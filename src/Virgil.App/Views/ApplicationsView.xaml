@@ -1,0 +1,284 @@
+<UserControl x:Class="Virgil.App.Views.ApplicationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Virgil.App.Controls"
+             MinWidth="0"
+             MinHeight="0"
+             KeyboardNavigation.TabNavigation="Continue"
+             FocusManager.IsFocusScope="True">
+    <Grid ClipToBounds="True">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False"
+                      ClipToBounds="True">
+            <StackPanel>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="86" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="ApplicationsMiniCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                AutomationProperties.Name="Mini noyau Virgil applications" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="APPLICATIONS V1"
+                                   Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="ApplicationsStatusText"
+                                   Text="Inventaire pret. Desinstallation individuelle uniquement."
+                                   Style="{StaticResource VirgilHudSecondaryText}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel KeyboardNavigation.TabNavigation="Continue">
+                    <Button x:Name="AnalyzeApplicationsButton"
+                            Content="ANALYSER LES APPLICATIONS"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            MinWidth="210"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Analyser les applications"
+                            Click="AnalyzeApplications_Click" />
+                    <Button x:Name="ViewApplicationsReportButton"
+                            Content="VOIR LE RAPPORT"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="145"
+                            Margin="0,0,8,8"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Voir le rapport applications"
+                            Click="ViewApplicationsReport_Click" />
+                    <Button x:Name="ReturnHomeButton"
+                            Content="RETOUR ACCUEIL"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            MinWidth="130"
+                            Margin="0,0,8,8"
+                            AutomationProperties.Name="Retour accueil"
+                            Click="ReturnHome_Click" />
+                </WrapPanel>
+
+                <ProgressBar x:Name="ApplicationsProgressBar"
+                             Height="4"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Margin="0,0,0,12" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,6,8">
+                        <StackPanel>
+                            <TextBlock Text="INVENTAIRE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="InventorySummaryText"
+                                       Text="NON ANALYSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Aucune suppression automatique. Aucun dossier d'application supprime directement."
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource VirgilHudCard}" Margin="6,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="RISQUE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="RiskSummaryText"
+                                       Text="NON CLASSE"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Margin="0,4,0,10" />
+                            <TextBlock Text="STORE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Applications Store en lecture seule. Parametres Windows uniquement."
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid Margin="0,8,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="ApplicationSearchBox"
+                             MinHeight="32"
+                             Margin="0,0,8,0"
+                             VerticalContentAlignment="Center"
+                             TextChanged="SearchApplications_Changed"
+                             AutomationProperties.Name="Rechercher une application" />
+                    <ComboBox x:Name="ApplicationFilterBox"
+                              Grid.Column="1"
+                              MinHeight="32"
+                              SelectedIndex="0"
+                              SelectionChanged="FilterApplications_Changed"
+                              AutomationProperties.Name="Filtrer les applications">
+                        <ComboBoxItem Content="TOUT" />
+                        <ComboBoxItem Content="DESINSTALLABLE" />
+                        <ComboBoxItem Content="ATTENTION" />
+                        <ComboBoxItem Content="PROTEGE" />
+                        <ComboBoxItem Content="INCONNU" />
+                    </ComboBox>
+                </Grid>
+
+                <TextBlock Text="APPLICATIONS"
+                           Style="{StaticResource VirgilHudSectionTitle}"
+                           Margin="0,8,0,6" />
+                <StackPanel x:Name="ApplicationsListPanel"
+                            KeyboardNavigation.TabNavigation="Continue">
+                    <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                        <TextBlock Text="Lancez un inventaire. Aucune action ne sera executee."
+                                   Style="{StaticResource VirgilHudSecondaryText}" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Grid x:Name="ApplicationDetailsOverlay"
+              Panel.ZIndex="20"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="860"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:VirgilCoreControl x:Name="DetailsCore"
+                                                Width="72"
+                                                Height="72"
+                                                AnimationDetailLevel="Compact"
+                                                IsHitTestVisible="False"
+                                                AutomationProperties.Name="Mini noyau details applications" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
+                        <TextBlock x:Name="DetailsTitleText"
+                                   Text="DETAIL APPLICATION"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource App.TextPrimaryBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Grid.ColumnSpan="2"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="DetailsBodyText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="COMMANDE OFFICIELLE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="DetailsCommandText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="DetailsSafetyText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="RESTES APRES DESINSTALLATION" Style="{StaticResource VirgilMicroLabel}" />
+                            <StackPanel x:Name="DetailsRemnantsPanel" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2"
+                                Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                KeyboardNavigation.TabNavigation="Continue">
+                        <Button x:Name="LaunchUninstallButton"
+                                Content="LANCER DESINSTALLATEUR"
+                                Style="{StaticResource VirgilPrimaryButton}"
+                                AutomationProperties.Name="Lancer le desinstallateur officiel"
+                                Click="LaunchUninstall_Click" />
+                        <Button x:Name="OpenApplicationLocationButton"
+                                Content="OUVRIR EMPLACEMENT"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Ouvrir emplacement application"
+                                Click="OpenApplicationLocation_Click" />
+                        <Button x:Name="CloseDetailsButton"
+                                Content="FERMER"
+                                Style="{StaticResource VirgilSecondaryButton}"
+                                Margin="10,0,0,0"
+                                AutomationProperties.Name="Fermer details application"
+                                Click="CloseDetails_Click" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ApplicationsReportOverlay"
+              Panel.ZIndex="30"
+              Visibility="Collapsed"
+              Background="#CC06090D"
+              FocusManager.IsFocusScope="True"
+              KeyboardNavigation.TabNavigation="Cycle">
+            <Border Style="{StaticResource VirgilOverlayCard}"
+                    MaxWidth="860"
+                    MaxHeight="760"
+                    Margin="12"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="RAPPORT APPLICATIONS"
+                               Style="{StaticResource VirgilHudSectionTitle}" />
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,18,0,18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel>
+                            <TextBlock x:Name="ApplicationsReportSummaryText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap" />
+                            <Rectangle Style="{StaticResource VirgilSeparator}" Margin="0,12,0,12" />
+                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ApplicationsReportDetailsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,12" />
+                            <TextBlock Text="ERREURS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock x:Name="ApplicationsReportErrorsText"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Button Grid.Row="2"
+                            Content="FERMER"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Fermer rapport applications"
+                            Click="CloseApplicationsReport_Click" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

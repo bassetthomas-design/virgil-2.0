@@ -126,7 +126,7 @@
                                 <Button x:Name="ResourcesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Ressources" Click="Resources_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Rectangle Width="10" Height="6" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RESSOURCES" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Applications" Click="ModulePlaceholder_Click">
+                                <Button x:Name="ApplicationsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Applications" Click="Applications_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,2 H11 V11 H2 Z M5,5 H14 V14 H5 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="APPLICATIONS" /></Grid>
                                 </Button>
                                 <Button x:Name="UpdatesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises a jour" Click="Updates_Click">
@@ -245,6 +245,9 @@
                         <views:ResourcesView x:Name="ResourcesModuleView"
                                              Visibility="Collapsed"
                                              AutomationProperties.Name="Module ressources systeme" />
+                        <views:ApplicationsView x:Name="ApplicationsModuleView"
+                                                Visibility="Collapsed"
+                                                AutomationProperties.Name="Module applications et desinstallateur" />
                         <views:ReportsHistoryView x:Name="ReportsModuleView"
                                                   Visibility="Collapsed"
                                                   AutomationProperties.Name="Module rapports et historique local" />

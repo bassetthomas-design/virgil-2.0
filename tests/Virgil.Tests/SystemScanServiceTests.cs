@@ -1,9 +1,11 @@
+using Virgil.Core.Applications;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Resources;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
 using Virgil.Domain;
+using Virgil.Domain.Applications;
 using Xunit;
 
 namespace Virgil.Tests;
@@ -15,7 +17,7 @@ public sealed class SystemScanServiceTests
     {
         var cleanup = new CountingCleanupService();
         var updates = new CountingUpdateScanService();
-        var service = new SystemScanService(cleanup, updates);
+        var service = CreateService(cleanup, updates);
 
         var report = await service.RunAsync(ScanMode.Quick, null, CancellationToken.None);
 
@@ -54,7 +56,7 @@ public sealed class SystemScanServiceTests
                 }
             }
         });
-        var service = new SystemScanService(cleanup, updates);
+        var service = CreateService(cleanup, updates);
 
         var report = await service.RunAsync(ScanMode.Deep, null, CancellationToken.None);
 
@@ -67,12 +69,14 @@ public sealed class SystemScanServiceTests
         Assert.True(updates.Requests[0].IncludeApplicationUpdates);
         Assert.True(report.Updates.WasAnalyzed);
         Assert.Equal(1, report.Updates.ApplicationUpdates);
+        Assert.True(report.Applications.WasAnalyzed);
+        Assert.Equal(1, report.Applications.DetectedCount);
     }
 
     [Fact]
     public async Task RunAsync_KeepsReportWhenCleanupReaderFails()
     {
-        var service = new SystemScanService(new ThrowingCleanupService(), new CountingUpdateScanService());
+        var service = CreateService(new ThrowingCleanupService(), new CountingUpdateScanService());
 
         var report = await service.RunAsync(ScanMode.Deep, null, CancellationToken.None);
 
@@ -90,7 +94,7 @@ public sealed class SystemScanServiceTests
     public async Task QuickScan_does_not_run_resource_observation()
     {
         var resources = new CountingResourceMonitoringService();
-        var service = new SystemScanService(
+        var service = CreateService(
             new CountingCleanupService(),
             new CountingUpdateScanService(),
             new EmptyInterventionDiagnosticService(),
@@ -131,7 +135,7 @@ public sealed class SystemScanServiceTests
             TopCpuProcesses = new[] { process },
             Recommendations = new[] { "Examiner les applications lourdes." }
         });
-        var service = new SystemScanService(
+        var service = CreateService(
             new CountingCleanupService(),
             new CountingUpdateScanService(),
             new EmptyInterventionDiagnosticService(),
@@ -146,6 +150,21 @@ public sealed class SystemScanServiceTests
         Assert.Equal(1, report.Resources.HeavyProcessCount);
         Assert.Contains("HeavyApp", report.Resources.TopMemoryProcesses[0]);
         Assert.Contains(report.Findings, finding => finding.Id == "resources-heavy-processes");
+    }
+
+    private static SystemScanService CreateService(
+        ICleanupService cleanupService,
+        IUpdateScanService updateScanService,
+        IInterventionDiagnosticService? interventionDiagnosticService = null,
+        IResourceMonitoringService? resourceMonitoringService = null,
+        IApplicationInventoryService? applicationInventoryService = null)
+    {
+        return new SystemScanService(
+            cleanupService,
+            updateScanService,
+            interventionDiagnosticService ?? new EmptyInterventionDiagnosticService(),
+            resourceMonitoringService ?? new CountingResourceMonitoringService(),
+            applicationInventoryService ?? new CountingApplicationInventoryService());
     }
 
     private sealed class CountingCleanupService : ICleanupService
@@ -239,6 +258,33 @@ public sealed class SystemScanServiceTests
         public Task<InterventionDiagnostic> DiagnoseAsync(InterventionId id, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class CountingApplicationInventoryService : IApplicationInventoryService
+    {
+        public int Calls { get; private set; }
+
+        public Task<ApplicationInventoryReport> InventoryAsync(
+            IProgress<ApplicationInventoryProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(new ApplicationInventoryReport
+            {
+                Applications =
+                [
+                    new InstalledApplication
+                    {
+                        Id = "vlc",
+                        DisplayName = "VLC media player",
+                        Publisher = "VideoLAN",
+                        RiskLevel = ApplicationRiskLevel.SafeToUninstall,
+                        CanUninstall = true,
+                        EstimatedSizeBytes = 200L * 1024 * 1024
+                    }
+                ]
+            });
         }
     }
 }

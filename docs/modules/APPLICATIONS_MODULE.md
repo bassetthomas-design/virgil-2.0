@@ -1,421 +1,76 @@
-# Module Applications - Virgil 2.0
+# Module Applications - Desinstallateur Pro V1
 
-## Décision validée
+## Etat livre
 
-Le module Applications permet d'analyser les applications installées, de les classer, de lancer une désinstallation propre lorsque c'est possible, puis de scanner les restes après désinstallation.
+Le module Applications V1 inventorie les applications installees, les classe par risque, lance uniquement un desinstalleur officiel valide pour une application choisie, puis analyse les restes en lecture seule.
 
-Aucune application et aucun reste ne doivent être supprimés sans validation explicite de l'utilisateur.
+Le module ne contient pas de desinstallation par lot, pas de suppression directe de dossier d'application et pas de bouton global de nettoyage des restes.
 
-Virgil peut désinstaller une application uniquement si une méthode officielle est détectée.
+## Objectifs
 
-## Objectif
+- Voir les applications installees avec nom, editeur, version, source, taille estimee et emplacement quand disponible.
+- Identifier les applications avec desinstalleur officiel exploitable.
+- Bloquer les composants systeme, pilotes, securite, runtimes et frameworks.
+- Traiter les applications Microsoft Store en lecture seule, avec ouverture des parametres Windows uniquement.
+- Produire un rapport local pour l'inventaire et pour chaque lancement de desinstalleur.
 
-Répondre aux questions :
+## Sources d'inventaire
 
-```text
-Quelles applications sont installées ?
-Lesquelles prennent de la place ?
-Lesquelles peuvent être désinstallées proprement ?
-Reste-t-il des fichiers après désinstallation ?
-```
+- Registre Windows 64 bits et 32 bits.
+- Registre utilisateur courant.
+- WinGet en lecture seule quand disponible.
+- Packages Store en lecture seule via PowerShell.
 
-Virgil ne doit pas décider seul qu'une application est inutile. Il peut signaler, classer et proposer. L'utilisateur choisit.
+Les entrees sont fusionnees par nom et editeur, avec enrichissement par les sources disponibles. Aucune source n'est consideree comme suffisante pour supprimer un dossier.
 
-## Actions visibles du module
+## Classification
 
-L'interface doit rester simple.
+| Classe | Effet UI | Regle principale |
+| --- | --- | --- |
+| Desinstallable | Bouton individuel disponible | Desinstalleur officiel, MSI ou ID WinGet exact |
+| Attention | Confirmation individuelle renforcée | Applications pouvant contenir projets, profils, presets ou bibliotheques |
+| Protege | Desinstallation bloquee | Pilotes, securite, runtimes, frameworks, composants Windows |
+| Inconnu | Lecture seule | Informations incompletes ou commande non fiable |
+| Store | Parametres uniquement | Pas de suppression Store par Virgil V1 |
 
-Actions principales visibles :
+## Garde-fous de desinstallation
 
-```text
-[Analyser applications]
-[Désinstaller proprement]
-[Scanner les restes]
-[Applications volumineuses]
-```
+- Une seule application a la fois.
+- Validation de commande avant lancement.
+- MSI autorise seulement avec code produit et action de desinstallation.
+- WinGet autorise seulement avec `--id` exact et `--exact`.
+- Commandes chainees, `del`, `rmdir`, `Remove-Item`, `takeown`, `icacls`, pipes et zones utilisateur sont bloquees.
+- Les executables locaux doivent ressembler a un desinstalleur officiel.
+- Les applications protegees restent bloquees meme si une commande est presente.
 
-Les actions détaillées apparaissent après analyse ou après sélection d'une application.
+## Restes apres desinstallation
 
-## 1. Analyser applications
+Le scan des restes est strictement en lecture seule. Il peut afficher ou reporter :
 
-### Type
+- restes techniques probables ;
+- restes inconnus a revoir ;
+- donnees personnelles ou projets proteges ;
+- dossiers AppData ambigus.
 
-Lecture seule.
+Virgil V1 ne supprime pas automatiquement les restes. Les actions exposees sont l'ouverture d'emplacement, l'export dans le rapport, l'ignorance ou la revue manuelle.
 
-### Données à récupérer
+## Rapport
 
-- Nom de l'application
-- Éditeur
-- Version
-- Taille si disponible
-- Date d'installation si disponible
-- Source : classique / Store / système / inconnue
-- Désinstalleur disponible ou non
-- Applications volumineuses
-- Applications avec éditeur inconnu ou à vérifier
+Les rapports Applications utilisent `ReportKind.ApplicationManagement`.
 
-### Message type
+Ils indiquent :
 
-```text
-[VIRGIL]
-Analyse applications terminée.
+- inventaire total, desinstallables, proteges, inconnus et attention ;
+- methode de desinstallation prevue ou lancee ;
+- statut externe possiblement inconnu lorsque l'assistant officiel gere la suite ;
+- restes detectes en lecture seule ;
+- garantie qu'aucune donnee personnelle n'a ete supprimee automatiquement.
 
-Applications détectées : 86
-Applications volumineuses : 7
-Applications sans éditeur clair : 3
-Applications Store : 12
+## Limites V1
 
-Actions disponibles :
-- Voir applications volumineuses
-- Désinstaller proprement
-- Scanner les restes
-```
-
-## 2. Désinstaller proprement
-
-### Principe
-
-Virgil doit utiliser une méthode officielle de désinstallation quand elle existe.
-
-Virgil ne doit jamais désinstaller une application en supprimant simplement son dossier.
-
-### Méthodes acceptées
-
-| Type d'application | Méthode |
-| --- | --- |
-| Application classique EXE / MSI | Désinstalleur officiel Windows ou commande UninstallString fiable |
-| Application installée via winget | Commande ou source compatible si disponible |
-| Application Microsoft Store | Méthode Store / Windows si fiable |
-| Application système Windows | Lecture seule ou avertissement, désinstallation non recommandée |
-| Application portable | Pas de désinstallation automatique, analyse uniquement |
-
-### Flux
-
-```text
-Choisir une application
-   ↓
-Afficher les détails
-   ↓
-Popup de validation
-   ↓
-Lancer le désinstalleur officiel
-   ↓
-Scanner les restes après désinstallation
-   ↓
-Afficher les restes trouvés
-   ↓
-Validation utilisateur
-   ↓
-Suppression des restes ou passage
-   ↓
-Rapport final
-```
-
-### Popup avant désinstallation
-
-```text
-[VIRGIL]
-Désinstallation demandée.
-
-Application : ExempleApp
-Éditeur : Exemple Software
-Version : 1.2.3
-Source : application classique
-Désinstalleur officiel : détecté
-
-Virgil va lancer la procédure officielle de désinstallation.
-Aucun reste ne sera supprimé sans validation séparée.
-
-[CONFIRMER] [PASSER] [ANNULER TOUT]
-```
-
-## 3. Cas où Virgil ne doit pas désinstaller automatiquement
-
-Virgil doit bloquer ou encadrer fortement :
-
-- composants Windows critiques ;
-- pilotes ;
-- antivirus ;
-- VPN ;
-- logiciels de sécurité ;
-- services système ;
-- applications sans désinstalleur fiable ;
-- applications portables ;
-- outils constructeur sensibles.
-
-### Message type
-
-```text
-[VIRGIL]
-Désinstallation automatique non fiable.
-
-Cette application ne fournit pas de méthode officielle claire.
-Action recommandée : utiliser les paramètres Windows ou le désinstalleur officiel de l'éditeur.
-```
-
-## 4. Scanner les restes
-
-### Quand scanner
-
-- Après une désinstallation lancée par Virgil
-- Manuellement pour une application déjà supprimée
-
-### Zones à scanner
-
-- Program Files
-- Program Files (x86)
-- ProgramData
-- AppData Local
-- AppData Roaming
-- Bureau
-- Menu Démarrer
-- Raccourcis
-- Tâches planifiées si accessible, lecture seule en V1
-- Services liés si accessible, lecture seule en V1
-- Registre plus tard, lecture seule et très encadré
-
-### Message type
-
-```text
-[VIRGIL]
-Scan des restes terminé.
-
-Restes détectés :
-- Dossier AppData : 320 Mo
-- Raccourci Menu Démarrer : 1 élément
-- Dossier ProgramData : 42 Mo
-
-Risque : moyen
-Validation requise avant suppression.
-```
-
-## 5. Supprimer les restes
-
-### Principe
-
-La suppression des restes est toujours étape par étape.
-
-Aucun reste ne doit être supprimé automatiquement.
-
-### Popup étape par étape
-
-```text
-[VIRGIL]
-Restes détectés - étape 1/3
-
-Zone : AppData Local
-Chemin : C:\Users\...\AppData\Local\ExempleApp
-Taille : 320 Mo
-Risque : moyen
-
-Cette suppression peut effacer des paramètres locaux restants.
-
-[SUPPRIMER] [PASSER] [ANNULER TOUT]
-```
-
-## 6. Applications volumineuses
-
-### Type
-
-Lecture seule.
-
-### Données affichées
-
-- Nom
-- Éditeur
-- Taille
-- Version
-- Source
-- Date d'installation si disponible
-
-### Message type
-
-```text
-[VIRGIL]
-Applications volumineuses détectées :
-
-1. Microsoft Flight Simulator - 140 Go
-2. Adobe Premiere Pro - 8,4 Go
-3. Steam - 3,2 Go
-
-Action disponible : examiner ou désinstaller proprement.
-```
-
-### Règle
-
-Virgil ne dit jamais qu'une application est inutile.
-
-Libellé autorisé :
-
-```text
-Application volumineuse détectée.
-Désinstallation possible si elle n'est plus utilisée.
-```
-
-## 7. Applications rarement utilisées
-
-### Statut
-
-Prévu pour plus tard.
-
-### Règle
-
-Windows ne donne pas toujours une information fiable sur la dernière utilisation. Virgil ne doit donc pas affirmer qu'une application est inutilisée sans source fiable.
-
-Libellé autorisé :
-
-```text
-Usage rarement détecté
-```
-
-Libellé interdit :
-
-```text
-Application inutile
-```
-
-## 8. Applications Store
-
-### Actions possibles
-
-- Lister les applications Store
-- Afficher la source Store
-- Ouvrir les paramètres Windows si nécessaire
-- Désinstaller uniquement si une méthode fiable est disponible
-
-## 9. Applications système
-
-### Règle
-
-Les applications système ou composants Windows doivent être marqués comme sensibles.
-
-Message type :
-
-```text
-[VIRGIL]
-Application système ou composant Windows.
-Désinstallation non recommandée.
-```
-
-## 10. Registre
-
-### Décision
-
-Le registre est exclu en V1.
-
-### Position
-
-```text
-V1 : pas de suppression registre
-V2 : scan registre en lecture seule éventuellement
-Plus tard : suppression uniquement avec popup critique
-```
-
-### Message type si intégré plus tard
-
-```text
-[VIRGIL]
-Entrées registre potentiellement liées détectées.
-
-Action critique.
-Suppression non recommandée sans certitude.
-```
-
-## 11. Raccourcis cassés
-
-### Actions possibles
-
-- Scanner Bureau
-- Scanner Menu Démarrer
-- Détecter les raccourcis dont la cible n'existe plus
-- Afficher la liste
-- Supprimer après validation
-
-### Popup simple
-
-```text
-[VIRGIL]
-Raccourci cassé détecté.
-
-Nom : ExempleApp
-Cible : introuvable
-Risque : faible
-
-[SUPPRIMER] [PASSER] [ANNULER TOUT]
-```
-
-## 12. Rapport final
-
-Après désinstallation ou nettoyage des restes, Virgil doit produire un rapport.
-
-### Rapport type
-
-```text
-[VIRGIL]
-Intervention applications terminée.
-
-Application traitée : ExempleApp
-Désinstalleur officiel : terminé
-Restes détectés : 3
-Restes supprimés : 2
-Restes passés : 1
-Espace libéré : 1,2 Go
-Erreurs : 0
-```
-
-### Le rapport doit contenir
-
-- Date
-- Application concernée
-- Désinstalleur utilisé ou non
-- Restes détectés
-- Restes supprimés
-- Restes passés
-- Espace libéré
-- Erreurs
-- Besoin redémarrage éventuel
-
-## 13. Actions interdites
-
-Virgil ne doit jamais :
-
-- désinstaller sans validation ;
-- supprimer des restes sans validation ;
-- supprimer une application en supprimant simplement son dossier ;
-- supprimer automatiquement des entrées registre ;
-- désinstaller des composants Windows critiques ;
-- qualifier une application de virus ;
-- supprimer des dossiers AppData sans explication ;
-- supprimer des données personnelles liées à une application sans avertissement.
-
-## 14. Version 1
-
-À inclure en V1 :
-
-- analyser applications ;
-- lister applications installées ;
-- afficher applications volumineuses ;
-- désinstaller via désinstalleur officiel ;
-- scanner restes simples après désinstallation ;
-- supprimer restes fichiers / dossiers après validation ;
-- scanner raccourcis cassés ;
-- générer rapport.
-
-## 15. Plus tard
-
-À prévoir plus tard :
-
-- meilleure gestion des applications Store ;
-- détection d'usage rarement utilisé ;
-- tâches planifiées liées ;
-- services liés en lecture seule ;
-- scan des restes plus intelligent ;
-- registre en lecture seule ;
-- suppression registre avec popup critique ;
-- analyse des profils applicatifs détaillés.
-
-## 16. Règle produit
-
-Le module Applications doit permettre une désinstallation propre, mais jamais agressive.
-
-Virgil utilise les méthodes officielles, explique les risques, puis demande validation à chaque étape.
+- Pas de suppression automatique des restes.
+- Pas de desinstallation par lot.
+- Pas d'analyse registre de restes.
+- Pas de reparation ou modification d'application.
+- Pas de gestion avancee Store au-dela des parametres Windows.
+- Pas de garantie de statut final quand un assistant externe prend la main.

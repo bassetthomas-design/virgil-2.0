@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using Virgil.Core.Applications;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Monitoring;
 using Virgil.Core.Resources;
 using Virgil.Core.Updates;
 using Virgil.Domain;
+using Virgil.Domain.Applications;
 
 namespace Virgil.Core.Scanning;
 
@@ -14,6 +16,7 @@ public sealed class SystemScanService : ISystemScanService
     private readonly IUpdateScanService _updateScanService;
     private readonly IInterventionDiagnosticService _interventionDiagnosticService;
     private readonly IResourceMonitoringService _resourceMonitoringService;
+    private readonly IApplicationInventoryService _applicationInventoryService;
 
     public SystemScanService()
         : this(
@@ -59,11 +62,27 @@ public sealed class SystemScanService : ISystemScanService
         IUpdateScanService updateScanService,
         IInterventionDiagnosticService interventionDiagnosticService,
         IResourceMonitoringService resourceMonitoringService)
+        : this(
+            cleanupService,
+            updateScanService,
+            interventionDiagnosticService,
+            resourceMonitoringService,
+            new ApplicationInventoryService())
+    {
+    }
+
+    public SystemScanService(
+        ICleanupService cleanupService,
+        IUpdateScanService updateScanService,
+        IInterventionDiagnosticService interventionDiagnosticService,
+        IResourceMonitoringService resourceMonitoringService,
+        IApplicationInventoryService applicationInventoryService)
     {
         _cleanupService = cleanupService;
         _updateScanService = updateScanService;
         _interventionDiagnosticService = interventionDiagnosticService;
         _resourceMonitoringService = resourceMonitoringService;
+        _applicationInventoryService = applicationInventoryService;
     }
 
     public async Task<SystemScanReport> RunAsync(
@@ -93,6 +112,7 @@ public sealed class SystemScanService : ISystemScanService
         var resources = await ReadResourcesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var interventions = await ReadInterventionsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        var applications = await ReadApplicationsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
 
         foreach (var error in errors.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -112,6 +132,7 @@ public sealed class SystemScanService : ISystemScanService
             .Concat(updates.Recommendations.Take(3))
             .Concat(resources.Recommendations.Take(3))
             .Concat(interventions.Diagnostics.Take(3))
+            .Concat(applications.Recommendations.Take(3))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var overallStatus = ScanRules.OverallStatus(findings.Select(finding => finding.Severity));
@@ -137,8 +158,116 @@ public sealed class SystemScanService : ISystemScanService
         {
             Updates = updates,
             Interventions = interventions,
-            Resources = resources
+            Resources = resources,
+            Applications = applications
         };
+    }
+
+    private async Task<ApplicationScanSummary> ReadApplicationsAsync(
+        ScanMode mode,
+        IProgress<ScanProgress>? progress,
+        ICollection<string> errors,
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
+    {
+        if (mode != ScanMode.Deep)
+        {
+            return ApplicationScanSummary.NotAnalyzed;
+        }
+
+        Report(
+            progress,
+            "Applications",
+            "Inventaire lecture seule des applications installees.",
+            "Applications",
+            91);
+
+        try
+        {
+            var report = await _applicationInventoryService
+                .InventoryAsync(null, cancellationToken)
+                .ConfigureAwait(false);
+            AddErrors(errors, report.Errors);
+
+            var largeCount = report.Applications.Count(app => app.EstimatedSizeBytes >= 1L * 1024 * 1024 * 1024);
+            if (report.ProtectedCount > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "applications-protected",
+                    "Applications",
+                    "Applications protegees detectees",
+                    "Des composants pilotes, securite, runtime ou systeme sont exclus de la desinstallation Virgil V1.",
+                    report.ProtectedCount.ToString(),
+                    ScanSeverity.Information,
+                    "Conserver ces composants. Virgil bloque leur desinstallation depuis le module Applications."));
+            }
+
+            if (report.UnknownCount > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "applications-unknown",
+                    "Applications",
+                    "Applications a classification incertaine",
+                    "Certaines applications ne disposent pas d'une source ou d'une commande de desinstallation suffisamment fiable.",
+                    report.UnknownCount.ToString(),
+                    ScanSeverity.Attention,
+                    "Verifier manuellement chaque application inconnue avant toute action."));
+            }
+
+            if (largeCount > 0)
+            {
+                findings.Add(new ScanFinding(
+                    "applications-large",
+                    "Applications",
+                    "Applications volumineuses",
+                    "Des applications representent un volume disque significatif.",
+                    largeCount.ToString(),
+                    ScanSeverity.Information,
+                    "Utiliser le module Applications pour analyser individuellement. Aucune desinstallation n'est executee depuis le scan."));
+            }
+
+            var recommendations = new List<string>();
+            if (report.UninstallableCount > 0)
+            {
+                recommendations.Add("Ouvrir le module Applications pour examiner les programmes desinstallables individuellement.");
+            }
+
+            if (report.CautionCount > 0)
+            {
+                recommendations.Add("Valider explicitement les applications marquees attention avant de lancer leur desinstalleur officiel.");
+            }
+
+            if (report.UnknownCount > 0)
+            {
+                recommendations.Add("Ne pas supprimer manuellement les dossiers d'applications inconnues.");
+            }
+
+            return new ApplicationScanSummary
+            {
+                WasAnalyzed = true,
+                DetectedCount = report.Applications.Count,
+                UninstallableCount = report.UninstallableCount,
+                ProtectedCount = report.ProtectedCount,
+                UnknownCount = report.UnknownCount,
+                LargeApplicationCount = largeCount,
+                Recommendations = recommendations,
+                Errors = report.Errors
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            var applicationErrors = new[] { "Inventaire applications indisponible." };
+            AddErrors(errors, applicationErrors);
+            return new ApplicationScanSummary
+            {
+                WasAnalyzed = true,
+                Errors = applicationErrors
+            };
+        }
     }
 
     private async Task<ResourceScanSummary> ReadResourcesAsync(
