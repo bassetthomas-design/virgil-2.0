@@ -14,6 +14,7 @@ using Virgil.App.Controls;
 using Virgil.Core.Reports;
 using Virgil.Core.Scanning;
 using Virgil.Domain;
+using Virgil.Domain.Applications;
 
 namespace Virgil.App;
 
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
         WireUpdatesModule();
         WireInterventionsModule();
         WireResourcesModule();
+        WireApplicationsModule();
         WireReportsModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
@@ -99,6 +101,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (ApplicationsModuleView.Visibility == Visibility.Visible && ApplicationsModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (ReportsModuleView.Visibility == Visibility.Visible && ReportsModuleView.TryCloseOverlay())
         {
             e.Handled = true;
@@ -119,6 +127,7 @@ public partial class MainWindow : Window
         UpdatesModuleView.CancelActiveOperation();
         InterventionsModuleView.CancelActiveOperation();
         ResourcesModuleView.CancelActiveOperation();
+        ApplicationsModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
     }
@@ -172,6 +181,17 @@ public partial class MainWindow : Window
         ShowResources();
     }
 
+    private void Applications_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress)
+        {
+            AppendVirgilMessage("Analyse en cours.\nApplications indisponibles.");
+            return;
+        }
+
+        ShowApplications();
+    }
+
     private void Reports_Click(object sender, RoutedEventArgs e)
     {
         if (_scanInProgress)
@@ -190,12 +210,14 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = "Active";
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
         StatusText.Text = "ACCUEIL";
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
@@ -209,12 +231,14 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = "Active";
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
@@ -229,12 +253,14 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Visible;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = "Active";
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
         StatusText.Text = "MISES A JOUR";
         SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
@@ -249,12 +275,14 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Visible;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = "Active";
         ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
         StatusText.Text = "INTERVENTIONS";
         SetVirgilState(VirgilCoreState.Idle, "INTERVENTIONS");
@@ -269,17 +297,41 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Visible;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Collapsed;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = "Active";
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
         StatusText.Text = "RESSOURCES";
         SetVirgilState(VirgilCoreState.Idle, "RESSOURCES");
         AppendVirgilMessage("Module ressources pret.\nAnalyse CPU/RAM en lecture seule.\nAucune fermeture automatique.");
         ResourcesModuleView.FocusAnalyzeButton();
+    }
+
+    private void ShowApplications()
+    {
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Visible;
+        ReportsModuleView.Visibility = Visibility.Collapsed;
+        HomeNavButton.Tag = null;
+        CleanupNavButton.Tag = null;
+        UpdatesNavButton.Tag = null;
+        InterventionsNavButton.Tag = null;
+        ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = "Active";
+        ReportsNavButton.Tag = null;
+        StatusText.Text = "APPLICATIONS";
+        SetVirgilState(VirgilCoreState.Idle, "APPLICATIONS");
+        AppendVirgilMessage("Module applications pret.\nDesinstallation individuelle uniquement.\nAucune suppression de donnees personnelles.");
+        ApplicationsModuleView.FocusAnalyzeButton();
     }
 
     private void ShowReports(bool refresh = true)
@@ -289,12 +341,14 @@ public partial class MainWindow : Window
         UpdatesModuleView.Visibility = Visibility.Collapsed;
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         ResourcesModuleView.Visibility = Visibility.Collapsed;
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
         ReportsModuleView.Visibility = Visibility.Visible;
         HomeNavButton.Tag = null;
         CleanupNavButton.Tag = null;
         UpdatesNavButton.Tag = null;
         InterventionsNavButton.Tag = null;
         ResourcesNavButton.Tag = null;
+        ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = "Active";
         StatusText.Text = "RAPPORTS";
         SetVirgilState(VirgilCoreState.Idle, "RAPPORTS");
@@ -348,6 +402,15 @@ public partial class MainWindow : Window
         ResourcesModuleView.ReportPersisted += HandleReportPersisted;
     }
 
+    private void WireApplicationsModule()
+    {
+        ApplicationsModuleView.ConfigureReportHistory(_reportHistoryService);
+        ApplicationsModuleView.VirgilMessageRequested += AppendVirgilMessage;
+        ApplicationsModuleView.VirgilStateRequested += SetVirgilState;
+        ApplicationsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
+        ApplicationsModuleView.ReportPersisted += HandleReportPersisted;
+    }
+
     private void WireReportsModule()
     {
         ReportsModuleView.Configure(_reportHistoryService, _reportExportService);
@@ -395,6 +458,7 @@ public partial class MainWindow : Window
             UpdatesModuleView.Visibility == Visibility.Visible ||
             InterventionsModuleView.Visibility == Visibility.Visible ||
             ResourcesModuleView.Visibility == Visibility.Visible ||
+            ApplicationsModuleView.Visibility == Visibility.Visible ||
             ReportsModuleView.Visibility == Visibility.Visible)
         {
             ShowHome();
@@ -618,7 +682,8 @@ public partial class MainWindow : Window
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
             $"Ressources systeme : {FormatResources(report.Resources)}",
             $"Mises a jour : {FormatUpdates(report.Updates)}",
-            $"Interventions ciblees : {FormatInterventions(report.Interventions)}"
+            $"Interventions ciblees : {FormatInterventions(report.Interventions)}",
+            $"Applications : {FormatApplications(report.Applications)}"
         });
         ReportPopupRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
@@ -980,6 +1045,23 @@ public partial class MainWindow : Window
                 ? "redemarrage manuel possible"
                 : "pas de redemarrage attendu",
             "aucune execution depuis le scan"
+        });
+    }
+
+    private static string FormatApplications(ApplicationScanSummary applications)
+    {
+        if (!applications.WasAnalyzed)
+        {
+            return "Non analyse";
+        }
+
+        return string.Join(", ", new[]
+        {
+            $"{applications.DetectedCount} detectees",
+            $"{applications.UninstallableCount} desinstallables",
+            $"{applications.ProtectedCount} protegees",
+            $"{applications.UnknownCount} inconnues",
+            $"{applications.LargeApplicationCount} volumineuses"
         });
     }
 

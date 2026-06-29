@@ -365,6 +365,7 @@ public partial class ReportsHistoryView : UserControl
             ReportKind.Updates => "MISES A JOUR",
             ReportKind.Interventions => "INTERVENTIONS",
             ReportKind.Resources => "RESSOURCES",
+            ReportKind.ApplicationManagement => "APPLICATIONS",
             _ => kind.ToString().ToUpperInvariant()
         };
     }

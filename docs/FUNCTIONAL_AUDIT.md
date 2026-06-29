@@ -5,9 +5,9 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 
 ## Synthese
 
-- Modules operationnels: 10
+- Modules operationnels: 11
 - Modules partiels: 6
-- Placeholders ou modules absents: 15
+- Placeholders ou modules absents: 14
 - L'elevation administrateur existe uniquement pour le helper d'interventions ciblees et seulement apres validation explicite d'une action.
 - Les scans systeme sont en lecture seule.
 - Le nettoyage guide existe deja, mais uniquement par zones autorisees et apres validation explicite.
@@ -29,16 +29,16 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 | Rapport de nettoyage | `VOIR LE DERNIER RAPPORT` nettoyage, `RAPPORTS` | `CleanupView.FormatReport`, `ReportMapper`, `ReportHistoryService` | Operationnel V1 | Rapport existant conserve, copie commune locale avec zones executees/passees, espace libere et erreurs | Ecriture JSON locale apres session | Non | Echec historique non bloquant, sanitation avant stockage | `CleanupServicesTests`, `ReportsHistoryTests.Mapper_creates_cleanup_report` | Pas de restauration des fichiers supprimes | Ajouter restauration seulement si fiable |
 | Chatbox Virgil | Panneau `COMMUNICATION VIRGIL` | `MainWindow.AppendVirgilMessage` | Operationnel | Messages courts systeme, prefixe unique, scroll automatique | Aucune | Non | Normalisation `[VIRGIL]`, aucune saisie utilisateur | Couvert par revue code et build | Pas d'historique persistant | Journal local optionnel |
 | Animation Virgil | `VirgilCoreControl` | `VirgilCoreAnimationController`, `VirgilMotionProfiles` | Operationnel | Noyau vectoriel, etats Idle/Scanning/Warning/Sensitive/Executing/Success/Error, communication | Aucune | Non | Respect animations Windows, stop storyboards, fallback statique | `VirgilCoreAnimationControllerTests` | Validation visuelle utilisateur encore requise | Test visuel manuel de la PR draft |
-| Navigation | Colonne navigation | `MainWindow` | Partiel | Accueil, nettoyage, ressources, mises a jour, interventions et rapports actifs | Aucune | Non | Boutons clavier WPF, navigation bloquee pendant scan | Build WPF | Applications, demarrage et reseau restent placeholders | Remplacer progressivement les placeholders restants |
+| Navigation | Colonne navigation | `MainWindow` | Partiel | Accueil, nettoyage, ressources, applications, mises a jour, interventions et rapports actifs | Aucune | Non | Boutons clavier WPF, navigation bloquee pendant scan | Build WPF | Demarrage et reseau restent placeholders | Remplacer progressivement les placeholders restants |
 | Mises a jour Windows | `MISES A JOUR` | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Aucune detection ni lancement Windows Update | Module mises a jour lecture et lancement controle |
 | Mises a jour Winget | Aucun bouton dedie | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas d'appel winget | Inventaire winget lecture seule puis validation |
-| Mises a jour des applications | `APPLICATIONS` placeholder | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas d'inventaire apps, Store non gere | Inventaire applications installees |
+| Applications et desinstallateur | `APPLICATIONS` | `ApplicationsView`, `ApplicationInventoryService`, `ApplicationUninstallService`, `ApplicationUninstallCommandValidator`, `ApplicationRemnantScanner` | Operationnel V1 | Inventaire registre/WinGet/Store, recherche, filtres, classification risque, details, lancement individuel du desinstalleur officiel, scan lecture seule des restes, rapport local | Lancement d'un desinstalleur officiel ou ouverture des parametres Windows uniquement apres action utilisateur | Non | Aucune desinstallation par lot, aucune suppression par dossier, commandes dangereuses bloquees, pilotes/securite/systeme proteges, Store en lecture seule, aucune donnee personnelle supprimee automatiquement | `ApplicationsInventoryTests`, `ApplicationsUninstallSafetyTests`, `ApplicationsRemnantSafetyTests` | Statut final externe parfois inconnu; pas de suppression automatique des restes ni nettoyage registre | V2: revue manuelle/export enrichi des restes et comparaison d'inventaires |
 | Pilotes | Aucun bouton dedie | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas de detection pilotes | Diagnostic lecture seule via sources fiables |
 | Ressources | `RESSOURCES` placeholder | `MonitoringService` existe mais non raccorde a cette vue | Placeholder | Bouton seulement dans l'UI | Aucune | Non | Message placeholder | Aucun test UI du module | Service snapshot non expose en module | Creer vue ressources temps reel |
 | Interventions ciblees | `REPARATION`, module `InterventionsView` | `InterventionDiagnosticService`, `InterventionExecutionService`, `Virgil.ElevatedHelper` | Operationnel V1 | Diagnostic lecture seule, catalogue de 9 actions, validation separee, helper eleve allowliste, rapport de session | Relance douce d'Explorer ou commandes Windows allowlistees uniquement apres confirmation | Oui, uniquement a la demande | Aucune commande libre, nonce, requete sous racine Virgil, boutons desactives pendant action, erreurs lisibles | `InterventionsModuleTests` | Pas de rollback automatique, pas de rapport persistant, pas de Take Ownership | Ajouter historique local et actions avancees seulement apres nouvelle validation |
 | Reseau avance | `RESEAU` placeholder | Aucun service avance | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas de DNS, Winsock, renouvellement IP | Ajouter diagnostics et reparations validees |
 | Reparations Windows | `REPARATION`, module Interventions ciblees | `InterventionCatalog`, `ElevatedActionAllowlist` | Partiel | SFC `/scannow`, DISM `/ScanHealth`, DISM `/RestoreHealth`, CHKDSK `/scan` | Commandes Windows ciblees apres confirmation | Oui, uniquement a la demande | Liste blanche stricte, pas de `/ResetBase`, CHKDSK limite a `/scan`, aucun redemarrage automatique | `InterventionsModuleTests.Elevated_allowlist_uses_fixed_safe_commands_only` | Pas de rollback, pas de planification CHKDSK repair, pas de Take Ownership | Ajouter persistance de rapport et etats post-action |
-| Desinstallation | `APPLICATIONS` placeholder | Aucun service | Absent | Aucune | Aucune | Non | Aucun | Aucun | Pas d'inventaire uninstall | Ajouter module applications avec garde-fous |
+| Desinstallation | `APPLICATIONS` | `ApplicationUninstallService` | Operationnel V1 | Plan individuel, validation commande officielle, lancement du desinstalleur, rapport et scan restes lecture seule | Lancement officiel seulement apres validation utilisateur | Non | Pas de batch, pas de suppression de dossier, WinGet exact, MSI produit, Store bloque vers parametres | `ApplicationsUninstallSafetyTests` | Pas de statut final garanti si assistant externe; pas de suppression restes | Ajouter verification post-desinstallation non destructive |
 | Gestion des programmes au demarrage | `DEMARRAGE` placeholder | Aucun service | Placeholder | Bouton seulement | Aucune | Non | Message placeholder | Aucun | Pas de lecture ni modification startup | Ajouter lecture seule avant toute action |
 | Historique des actions | `RAPPORTS`, `HISTORIQUE` | `ReportHistoryService`, `ReportsHistoryView` | Operationnel V1 | 30 derniers scans/actions locaux, dernier rapport, erreurs corrompues ignorees | JSON atomique sous `%APPDATA%\Virgil\reports` | Non | Noms stricts, reparse points refuses, rotation bornee a la racine, aucune telemetrie | `ReportsHistoryTests` | Pas de filtre avance ni comparaison | Comparaison de scans en V2 |
 | Export de rapports | `EXPORTER RAPPORT` | `ReportExportService`, `SaveFileDialog` | Operationnel V1 | Export TXT lisible du rapport choisi | Ecriture uniquement apres choix utilisateur | Non | Aucun export automatique, destinations reseau refusees, sanitation reappliquee | `ReportsHistoryTests.Export_text*`, `Txt_export*` | TXT uniquement | MD/JSON eventuels en V2 |
@@ -56,3 +56,11 @@ Base: code present dans `src` et `tests`, sans extrapolation produit.
 - Aucun nettoyage cloud, réseau ou disque externe par défaut.
 - Aucun désinstalleur, nettoyage registre, suppression de doublons ou bouton « Tout nettoyer ».
 
+## Limites Applications V1
+
+- Aucun batch uninstall.
+- Aucun "delete all remnants".
+- Les restes sont detectes en lecture seule et conserves pour revue/export.
+- Les applications Store restent en lecture seule avec ouverture des parametres Windows.
+- Les composants pilotes, securite, runtimes, frameworks et systeme sont proteges.
+- Le statut final peut rester inconnu lorsque l'assistant officiel est externe.
