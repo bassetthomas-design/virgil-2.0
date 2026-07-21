@@ -201,6 +201,21 @@ public partial class ApplicationsView : UserControl
             return;
         }
 
+        var plan = _uninstallService.BuildPlan(application);
+        if (!plan.CanLaunch)
+        {
+            VirgilMessageRequested?.Invoke($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            return;
+        }
+
+        var confirmation = RequestUninstallConfirmation(application, plan);
+        var confirmationDecision = new ApplicationUninstallConfirmationPolicy().Validate(plan, confirmation);
+        if (!confirmationDecision.CanProceed)
+        {
+            VirgilMessageRequested?.Invoke($"Desinstallation annulee.\n{confirmationDecision.Reason}");
+            return;
+        }
+
         if (!BeginOperation("Desinstallateur officiel en cours de lancement."))
         {
             return;
@@ -216,7 +231,7 @@ public partial class ApplicationsView : UserControl
             });
 
             var result = await _uninstallService
-                .LaunchOfficialUninstallAsync(application, userConfirmed: true, progress, _operationCancellation!.Token)
+                .LaunchOfficialUninstallAsync(application, confirmation, progress, _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
             _lastUninstallResult = result;
@@ -243,6 +258,77 @@ public partial class ApplicationsView : UserControl
         {
             EndOperation();
         }
+    }
+
+    private ApplicationUninstallConfirmation RequestUninstallConfirmation(
+        InstalledApplication application,
+        ApplicationUninstallPlan plan)
+    {
+        var explicitMessage = string.Join("\n", new[]
+        {
+            "Confirmation explicite obligatoire.",
+            string.Empty,
+            $"Application : {application.DisplayName}",
+            $"Editeur : {Empty(application.Publisher)}",
+            $"Risque : {RiskLabel(application.RiskLevel)} - {application.RiskReason}",
+            $"Methode : {UninstallMethodLabel(plan.Method)}",
+            string.Empty,
+            "Virgil va uniquement lancer le desinstallateur officiel valide.",
+            "Aucun dossier d'application ne sera supprime directement.",
+            "Aucune donnee personnelle ne sera supprimee automatiquement.",
+            string.Empty,
+            "Continuer ?"
+        });
+
+        var explicitResponse = ShowUninstallConfirmationMessage(
+            "Confirmation desinstallation",
+            explicitMessage,
+            MessageBoxImage.Warning);
+        if (explicitResponse != MessageBoxResult.Yes)
+        {
+            return ApplicationUninstallConfirmation.None;
+        }
+
+        var reinforcedConfirmed = false;
+        if (plan.RequiresReinforcedConfirmation)
+        {
+            var reinforcedMessage = string.Join("\n", new[]
+            {
+                "Confirmation renforcee requise.",
+                string.Empty,
+                $"Application : {application.DisplayName}",
+                "Cette application est classee ATTENTION.",
+                "Elle peut contenir des profils, projets, presets, bibliotheques ou sauvegardes.",
+                string.Empty,
+                "Virgil ne supprime rien lui-meme, mais l'assistant officiel peut modifier ou retirer l'application.",
+                "Ne continuez que si vous avez sauvegarde ce qui doit l'etre.",
+                string.Empty,
+                "Confirmer malgre ce risque ?"
+            });
+
+            reinforcedConfirmed = ShowUninstallConfirmationMessage(
+                "Confirmation renforcee applications",
+                reinforcedMessage,
+                MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        }
+
+        return new ApplicationUninstallConfirmation
+        {
+            ExplicitlyConfirmed = true,
+            ReinforcedConfirmed = reinforcedConfirmed,
+            Source = "ApplicationsDetails"
+        };
+    }
+
+    private MessageBoxResult ShowUninstallConfirmationMessage(
+        string title,
+        string message,
+        MessageBoxImage image)
+    {
+        var owner = Window.GetWindow(this);
+        return owner is not null
+            ? MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No)
+            : MessageBox.Show(message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No);
     }
 
     private void RenderInventory(ApplicationInventoryReport report)
@@ -325,11 +411,6 @@ public partial class ApplicationsView : UserControl
             return Task.CompletedTask;
         }, primary: true));
 
-        if (application.CanUninstall)
-        {
-            actions.Children.Add(CreateButton("DESINSTALLER", () => LaunchUninstallAsync(application)));
-        }
-
         if (application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings)
         {
             actions.Children.Add(CreateButton(
@@ -365,15 +446,19 @@ public partial class ApplicationsView : UserControl
         };
         DetailsSafetyText.Text = string.Join("\n", new[]
         {
-            "Desinstallation individuelle uniquement.",
+            "Desinstallation individuelle uniquement depuis cet ecran de details.",
+            "Confirmation explicite obligatoire avant tout lancement.",
             "Desinstalleur officiel ou WinGet exact uniquement.",
             "Suppression par dossier interdite.",
             "Aucune suppression automatique de donnees personnelles.",
             "Pilotes, securite, runtimes et composants systeme bloques.",
             application.RiskLevel == ApplicationRiskLevel.Caution
-                ? "Attention : cette application peut contenir profils, projets, presets ou sauvegardes."
+                ? "Attention : confirmation renforcee obligatoire, profils, projets, presets ou sauvegardes possibles."
                 : "Validation stricte appliquee avant lancement."
         });
+        LaunchUninstallButton.Content = application.RiskLevel == ApplicationRiskLevel.Caution
+            ? "LANCER AVEC VALIDATION RENFORCEE"
+            : "LANCER DESINSTALLATEUR";
         LaunchUninstallButton.IsEnabled = application.CanUninstall && !_operationInProgress;
         OpenApplicationLocationButton.IsEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
         OpenApplicationLocationButton.Content = application.UninstallKind == ApplicationUninstallKind.StoreSettings
@@ -415,6 +500,8 @@ public partial class ApplicationsView : UserControl
         {
             $"Methode : {result.Method}",
             $"Lance : {(result.WasLaunched ? "oui" : "non")}",
+            $"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}",
+            $"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}",
             $"Statut inconnu : {(result.StatusUnknown ? "oui" : "non")}",
             $"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}",
             $"Restes : {result.Remnants.Remnants.Count}",
@@ -636,6 +723,19 @@ public partial class ApplicationsView : UserControl
             ApplicationRemnantKind.UserData => "donnee personnelle",
             ApplicationRemnantKind.ProtectedRemnant => "protege",
             _ => "inconnu"
+        };
+    }
+
+    private static string UninstallMethodLabel(ApplicationUninstallKind kind)
+    {
+        return kind switch
+        {
+            ApplicationUninstallKind.Msi => "MSI officiel",
+            ApplicationUninstallKind.RegistryUninstallString => "desinstalleur officiel",
+            ApplicationUninstallKind.RegistryQuietUninstallString => "desinstalleur officiel silencieux",
+            ApplicationUninstallKind.Winget => "WinGet exact",
+            ApplicationUninstallKind.StoreSettings => "parametres Windows",
+            _ => "inconnue"
         };
     }
 
