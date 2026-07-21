@@ -95,7 +95,10 @@ public sealed class ApplicationUninstallService
                 Application = application,
                 Method = application.UninstallKind,
                 WasCancelled = confirmationDecision.WasCancelled,
-                Result = confirmationDecision.Reason
+                WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
+                WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
+                Result = confirmationDecision.Reason,
+                Errors = [confirmationDecision.Reason]
             };
         }
 
@@ -108,6 +111,8 @@ public sealed class ApplicationUninstallService
             {
                 Application = application,
                 Method = application.UninstallKind,
+                WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
+                WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
                 Result = "Executable officiel absent apres validation.",
                 Errors = ["Executable officiel absent apres validation."]
             };

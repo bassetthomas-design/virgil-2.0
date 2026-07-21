@@ -54,13 +54,6 @@ public sealed partial class ApplicationUninstallCommandValidator
             return Blocked("Commande touchant un profil utilisateur bloquee.");
         }
 
-        if (lower.Contains("program files") &&
-            !LooksLikeOfficialUninstaller(lower) &&
-            !lower.Contains("msiexec"))
-        {
-            return Blocked("Chemin Program Files sans desinstalleur officiel identifiable.");
-        }
-
         if (LooksLikeMsiexec(normalized))
         {
             var args = Tokenize(normalized).Skip(1).ToList();
@@ -76,17 +69,19 @@ public sealed partial class ApplicationUninstallCommandValidator
         if (lower.StartsWith("rundll32", StringComparison.OrdinalIgnoreCase))
         {
             return lower.Contains("setupapi.dll", StringComparison.OrdinalIgnoreCase)
-                ? AllowedOrCaution(risk, "Commande rundll32 reconnue comme desinstalleur Windows.")
+                ? WithExecutable(
+                    risk,
+                    "Commande rundll32 reconnue comme desinstalleur Windows.",
+                    "rundll32.exe",
+                    Tokenize(normalized).Skip(1).ToList())
                 : Blocked("Commande rundll32 non reconnue.");
         }
 
-        var tokens = Tokenize(normalized);
-        if (tokens.Count == 0)
+        if (!TrySplitExecutableAndArguments(normalized, out var executable, out var arguments))
         {
             return Blocked("Commande illisible.");
         }
 
-        var executable = tokens[0].Trim('"');
         if (!Path.IsPathRooted(executable) && !File.Exists(executable))
         {
             return Blocked("Executable relatif ou introuvable.");
@@ -103,7 +98,7 @@ public sealed partial class ApplicationUninstallCommandValidator
             Status = risk == ApplicationRiskLevel.Caution ? ApplicationCommandValidationStatus.NeedsCaution : ApplicationCommandValidationStatus.Allowed,
             Reason = "Desinstalleur officiel local valide.",
             Executable = executable,
-            Arguments = tokens.Skip(1).ToList()
+            Arguments = arguments
         };
     }
 
@@ -123,14 +118,20 @@ public sealed partial class ApplicationUninstallCommandValidator
         };
     }
 
-    private static ApplicationCommandValidationResult AllowedOrCaution(ApplicationRiskLevel risk, string reason)
+    private static ApplicationCommandValidationResult WithExecutable(
+        ApplicationRiskLevel risk,
+        string reason,
+        string executable,
+        IReadOnlyList<string> arguments)
     {
         return new ApplicationCommandValidationResult
         {
             Status = risk == ApplicationRiskLevel.Caution
                 ? ApplicationCommandValidationStatus.NeedsCaution
                 : ApplicationCommandValidationStatus.Allowed,
-            Reason = reason
+            Reason = reason,
+            Executable = executable,
+            Arguments = arguments
         };
     }
 
@@ -195,10 +196,48 @@ public sealed partial class ApplicationUninstallCommandValidator
             .ToList();
     }
 
+    private static bool TrySplitExecutableAndArguments(
+        string command,
+        out string executable,
+        out IReadOnlyList<string> arguments)
+    {
+        var tokens = Tokenize(command);
+        if (tokens.Count == 0)
+        {
+            executable = string.Empty;
+            arguments = Array.Empty<string>();
+            return false;
+        }
+
+        if (command.StartsWith('"'))
+        {
+            executable = tokens[0].Trim('"');
+            arguments = tokens.Skip(1).ToList();
+            return true;
+        }
+
+        var executableMatch = UnquotedExecutableRegex().Match(command);
+        if (executableMatch.Success)
+        {
+            executable = executableMatch.Groups["executable"].Value.Trim();
+            var rawArguments = executableMatch.Groups["arguments"].Value.Trim();
+            arguments = string.IsNullOrWhiteSpace(rawArguments)
+                ? Array.Empty<string>()
+                : Tokenize(rawArguments);
+            return true;
+        }
+
+        executable = tokens[0].Trim('"');
+        arguments = tokens.Skip(1).ToList();
+        return true;
+    }
+
     [GeneratedRegex(@"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}")]
     private static partial Regex ProductCodeRegex();
+
+    [GeneratedRegex(@"^(?<executable>[A-Za-z]:\\.+?\.exe)(?<arguments>\s+.*)?$", RegexOptions.IgnoreCase)]
+    private static partial Regex UnquotedExecutableRegex();
 
     [GeneratedRegex("\"[^\"]+\"|\\S+")]
     private static partial Regex CommandTokenRegex();
 }
-
