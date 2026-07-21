@@ -22,6 +22,36 @@ public sealed class ApplicationsUninstallSafetyTests
     }
 
     [Fact]
+    public void ValidateCommand_AllowsRegistryUninstallStringWithUnquotedPathAndSpaces()
+    {
+        var validator = new ApplicationUninstallCommandValidator();
+
+        var result = validator.ValidateCommand(
+            @"C:\Program Files\Example App\unins000.exe /VERYSILENT",
+            ApplicationUninstallKind.RegistryUninstallString,
+            ApplicationRiskLevel.SafeToUninstall);
+
+        Assert.Equal(ApplicationCommandValidationStatus.Allowed, result.Status);
+        Assert.Equal(@"C:\Program Files\Example App\unins000.exe", result.Executable);
+        Assert.Equal(["/VERYSILENT"], result.Arguments);
+    }
+
+    [Fact]
+    public void ValidateCommand_AllowsRundll32SetupApiWithExecutable()
+    {
+        var validator = new ApplicationUninstallCommandValidator();
+
+        var result = validator.ValidateCommand(
+            @"rundll32.exe setupapi.dll,InstallHinfSection DefaultUninstall 132 C:\Windows\INF\example.inf",
+            ApplicationUninstallKind.RegistryUninstallString,
+            ApplicationRiskLevel.SafeToUninstall);
+
+        Assert.Equal(ApplicationCommandValidationStatus.Allowed, result.Status);
+        Assert.Equal("rundll32.exe", result.Executable);
+        Assert.Contains("setupapi.dll,InstallHinfSection", result.Arguments);
+    }
+
+    [Fact]
     public void ValidateCommand_BlocksFolderDeletionAndChainedCommands()
     {
         var validator = new ApplicationUninstallCommandValidator();
@@ -89,6 +119,8 @@ public sealed class ApplicationsUninstallSafetyTests
         Assert.True(result.WasCancelled);
         Assert.False(result.WasLaunched);
         Assert.Equal(0, launcher.Calls);
+        Assert.Contains("Confirmation explicite absente", result.Result);
+        Assert.Contains(result.Errors, error => error.Contains("Confirmation explicite", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -178,29 +210,165 @@ public sealed class ApplicationsUninstallSafetyTests
     }
 
     [Fact]
-    public async Task LaunchOfficialUninstallAsync_LaunchesOnlyValidatedOfficialCommand()
+    public async Task LaunchOfficialUninstallAsync_LaunchesSafeWingetWithExplicitConfirmation()
     {
         var launcher = new RecordingLauncher();
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
             new ApplicationRemnantScanner());
-        var application = new InstalledApplication
-        {
-            Id = "vlc",
-            DisplayName = "VLC media player",
-            RiskLevel = ApplicationRiskLevel.SafeToUninstall,
-            CanUninstall = true,
-            UninstallKind = ApplicationUninstallKind.Winget,
-            WingetId = "VideoLAN.VLC"
-        };
 
-        var result = await service.LaunchOfficialUninstallAsync(application, true, null, CancellationToken.None);
+        var result = await service.LaunchOfficialUninstallAsync(
+            SafeWingetApplication(),
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = true,
+                Source = "test"
+            },
+            null,
+            CancellationToken.None);
 
         Assert.True(result.WasLaunched);
+        Assert.True(result.WasExplicitlyConfirmed);
         Assert.Equal(1, launcher.Calls);
         Assert.Equal("winget", launcher.Executable);
         Assert.Equal(["uninstall", "--id", "VideoLAN.VLC", "--exact"], launcher.Arguments);
+    }
+
+    [Fact]
+    public async Task LaunchOfficialUninstallAsync_LaunchesMsiWithExplicitConfirmation()
+    {
+        var launcher = new RecordingLauncher();
+        var service = new ApplicationUninstallService(
+            new ApplicationUninstallCommandValidator(),
+            launcher,
+            new ApplicationRemnantScanner());
+
+        var result = await service.LaunchOfficialUninstallAsync(
+            new InstalledApplication
+            {
+                Id = "msi-app",
+                DisplayName = "MSI App",
+                RiskLevel = ApplicationRiskLevel.SafeToUninstall,
+                CanUninstall = true,
+                UninstallKind = ApplicationUninstallKind.Msi,
+                UninstallCommand = @"MsiExec.exe /X {11111111-2222-3333-4444-555555555555}"
+            },
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = true,
+                Source = "test"
+            },
+            null,
+            CancellationToken.None);
+
+        Assert.True(result.WasLaunched);
+        Assert.Equal("msiexec.exe", launcher.Executable);
+        Assert.Contains("/X", launcher.Arguments);
+    }
+
+    [Fact]
+    public async Task LaunchOfficialUninstallAsync_LaunchesRegistryUninstallStringWithExplicitConfirmation()
+    {
+        var launcher = new RecordingLauncher();
+        var service = new ApplicationUninstallService(
+            new ApplicationUninstallCommandValidator(),
+            launcher,
+            new ApplicationRemnantScanner());
+
+        var result = await service.LaunchOfficialUninstallAsync(
+            new InstalledApplication
+            {
+                Id = "registry-app",
+                DisplayName = "Registry App",
+                RiskLevel = ApplicationRiskLevel.SafeToUninstall,
+                CanUninstall = true,
+                UninstallKind = ApplicationUninstallKind.RegistryUninstallString,
+                UninstallCommand = @"C:\Program Files\Registry App\uninstall.exe /remove"
+            },
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = true,
+                Source = "test"
+            },
+            null,
+            CancellationToken.None);
+
+        Assert.True(result.WasLaunched);
+        Assert.Equal(@"C:\Program Files\Registry App\uninstall.exe", launcher.Executable);
+        Assert.Equal(["/remove"], launcher.Arguments);
+    }
+
+    [Fact]
+    public async Task LaunchOfficialUninstallAsync_DoesNotLaunchStoreOrProtectedApplications()
+    {
+        var launcher = new RecordingLauncher();
+        var service = new ApplicationUninstallService(
+            new ApplicationUninstallCommandValidator(),
+            launcher,
+            new ApplicationRemnantScanner());
+
+        var store = await service.LaunchOfficialUninstallAsync(
+            new InstalledApplication
+            {
+                Id = "store-app",
+                DisplayName = "Store App",
+                RiskLevel = ApplicationRiskLevel.Unknown,
+                CanUninstall = false,
+                UninstallKind = ApplicationUninstallKind.StoreSettings,
+                StorePackageFullName = "Example.Store_1.0.0.0_x64__example"
+            },
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = true,
+                ReinforcedConfirmed = true,
+                Source = "test"
+            },
+            null,
+            CancellationToken.None);
+
+        var protectedApp = await service.LaunchOfficialUninstallAsync(
+            new InstalledApplication
+            {
+                Id = "driver",
+                DisplayName = "Security Driver",
+                RiskLevel = ApplicationRiskLevel.Protected,
+                CanUninstall = false,
+                UninstallKind = ApplicationUninstallKind.RegistryUninstallString,
+                UninstallCommand = @"C:\Program Files\Security\uninstall.exe"
+            },
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = true,
+                ReinforcedConfirmed = true,
+                Source = "test"
+            },
+            null,
+            CancellationToken.None);
+
+        Assert.False(store.WasLaunched);
+        Assert.False(protectedApp.WasLaunched);
+        Assert.Equal(0, launcher.Calls);
+        Assert.Contains("Store", store.Result);
+        Assert.Contains("protegee", protectedApp.Result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ApplicationsView_LaunchButtonIsWiredToDetailsConfirmationFlow()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml"));
+        var source = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml.cs"));
+
+        Assert.Contains("x:Name=\"LaunchUninstallButton\"", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Click=\"LaunchUninstall_Click\"", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("private async void LaunchUninstall_Click", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RequestUninstallConfirmation(application, plan)", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("LaunchOfficialUninstallAsync(application, confirmation", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ResolveDialogOwner()", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("owner.Activate();", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ReportUninstallCancelled($\"Desinstallation annulee", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ReportUninstallBlocked(\"Aucune application selectionnee", source, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -210,6 +378,7 @@ public sealed class ApplicationsUninstallSafetyTests
         var source = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml.cs"));
 
         Assert.DoesNotContain("CreateButton(\"DESINSTALLER\"", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("application.CanUninstall && !_operationInProgress", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ShowDetails(application)", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("LaunchUninstallButton", source, StringComparison.OrdinalIgnoreCase);
     }
