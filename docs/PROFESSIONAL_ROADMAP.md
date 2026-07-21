@@ -122,7 +122,10 @@ Etat branche `feat/applications-uninstaller-v1` : V1 implementee avec garde-fous
 
 - Inventaire registre, WinGet et Store en lecture seule.
 - Classification des applications en desinstallable, attention, protege, inconnu et Store.
-- Desinstallation individuelle uniquement via MSI, desinstalleur officiel ou WinGet exact.
+- Desinstallation individuelle uniquement via MSI, desinstalleur officiel ou WinGet exact, lancee depuis les details de l'application.
+- Aucun bouton `DESINSTALLER` direct dans les cartes de liste.
+- Confirmation explicite obligatoire pour toute desinstallation.
+- Confirmation renforcee obligatoire pour `ApplicationRiskLevel.Caution`.
 - Applications Store limitees a l'ouverture des parametres Windows.
 - Blocage des pilotes, securite, runtimes, frameworks et composants systeme.
 - Commandes dangereuses, suppression par dossier, commandes chainees et profils utilisateur refuses.

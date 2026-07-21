@@ -8,6 +8,7 @@ public sealed class ApplicationUninstallService
     private readonly ApplicationUninstallCommandValidator _validator;
     private readonly IApplicationProcessLauncher _launcher;
     private readonly ApplicationRemnantScanner _remnantScanner;
+    private readonly ApplicationUninstallConfirmationPolicy _confirmationPolicy;
 
     public ApplicationUninstallService()
         : this(
@@ -21,10 +22,20 @@ public sealed class ApplicationUninstallService
         ApplicationUninstallCommandValidator validator,
         IApplicationProcessLauncher launcher,
         ApplicationRemnantScanner remnantScanner)
+        : this(validator, launcher, remnantScanner, new ApplicationUninstallConfirmationPolicy())
+    {
+    }
+
+    public ApplicationUninstallService(
+        ApplicationUninstallCommandValidator validator,
+        IApplicationProcessLauncher launcher,
+        ApplicationRemnantScanner remnantScanner,
+        ApplicationUninstallConfirmationPolicy confirmationPolicy)
     {
         _validator = validator;
         _launcher = launcher;
         _remnantScanner = remnantScanner;
+        _confirmationPolicy = confirmationPolicy;
     }
 
     public ApplicationUninstallPlan BuildPlan(InstalledApplication application)
@@ -45,6 +56,24 @@ public sealed class ApplicationUninstallService
         IProgress<ApplicationUninstallProgress>? progress,
         CancellationToken cancellationToken)
     {
+        return await LaunchOfficialUninstallAsync(
+            application,
+            new ApplicationUninstallConfirmation
+            {
+                ExplicitlyConfirmed = userConfirmed,
+                ReinforcedConfirmed = false,
+                Source = "legacy-bool"
+            },
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ApplicationUninstallResult> LaunchOfficialUninstallAsync(
+        InstalledApplication application,
+        ApplicationUninstallConfirmation confirmation,
+        IProgress<ApplicationUninstallProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         Report(progress, 1, 5, 10, "validation", "Validation stricte de la commande.");
         var plan = BuildPlan(application);
         if (!plan.CanLaunch)
@@ -58,14 +87,15 @@ public sealed class ApplicationUninstallService
             };
         }
 
-        if (!userConfirmed)
+        var confirmationDecision = _confirmationPolicy.Validate(plan, confirmation);
+        if (!confirmationDecision.CanProceed)
         {
             return new ApplicationUninstallResult
             {
                 Application = application,
                 Method = application.UninstallKind,
-                WasCancelled = true,
-                Result = "Action annulee par absence de confirmation."
+                WasCancelled = confirmationDecision.WasCancelled,
+                Result = confirmationDecision.Reason
             };
         }
 
@@ -99,6 +129,8 @@ public sealed class ApplicationUninstallService
             WasLaunched = launch.Started,
             StatusUnknown = launch.Started && launch.ExitCode is null,
             ExitCode = launch.ExitCode,
+            WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
+            WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
             Result = launch.Started
                 ? "Desinstalleur officiel lance. Statut final potentiellement gere par l'assistant externe."
                 : launch.ReadableError ?? "Desinstalleur officiel non lance.",

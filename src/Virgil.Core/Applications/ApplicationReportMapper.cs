@@ -44,6 +44,8 @@ public static class ApplicationReportMapper
             .AppendLine($"Application : {result.Application.DisplayName}")
             .AppendLine($"Methode : {result.Method}")
             .AppendLine($"Resultat : {result.Result}")
+            .AppendLine($"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}")
+            .AppendLine($"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}")
             .AppendLine($"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}")
             .AppendLine($"Restes detectes : {remnants.Remnants.Count}")
             .AppendLine($"Restes techniques : {remnants.TechnicalCount}")

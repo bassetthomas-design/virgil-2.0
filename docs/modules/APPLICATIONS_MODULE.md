@@ -2,7 +2,7 @@
 
 ## Etat livre
 
-Le module Applications V1 inventorie les applications installees, les classe par risque, lance uniquement un desinstalleur officiel valide pour une application choisie, puis analyse les restes en lecture seule.
+Le module Applications V1 inventorie les applications installees, les classe par risque, lance uniquement un desinstalleur officiel valide depuis l'ecran de details d'une application choisie, puis analyse les restes en lecture seule.
 
 Le module ne contient pas de desinstallation par lot, pas de suppression directe de dossier d'application et pas de bouton global de nettoyage des restes.
 
@@ -27,8 +27,8 @@ Les entrees sont fusionnees par nom et editeur, avec enrichissement par les sour
 
 | Classe | Effet UI | Regle principale |
 | --- | --- | --- |
-| Desinstallable | Bouton individuel disponible | Desinstalleur officiel, MSI ou ID WinGet exact |
-| Attention | Confirmation individuelle renforcée | Applications pouvant contenir projets, profils, presets ou bibliotheques |
+| Desinstallable | Details puis confirmation explicite | Desinstalleur officiel, MSI ou ID WinGet exact |
+| Attention | Details puis confirmation explicite et renforcee | Applications pouvant contenir projets, profils, presets ou bibliotheques |
 | Protege | Desinstallation bloquee | Pilotes, securite, runtimes, frameworks, composants Windows |
 | Inconnu | Lecture seule | Informations incompletes ou commande non fiable |
 | Store | Parametres uniquement | Pas de suppression Store par Virgil V1 |
@@ -36,6 +36,10 @@ Les entrees sont fusionnees par nom et editeur, avec enrichissement par les sour
 ## Garde-fous de desinstallation
 
 - Une seule application a la fois.
+- Aucun bouton `DESINSTALLER` direct dans les cartes de liste.
+- Le lancement est disponible uniquement depuis les details de l'application.
+- Confirmation explicite obligatoire avant tout lancement.
+- Confirmation renforcee obligatoire pour `ApplicationRiskLevel.Caution`.
 - Validation de commande avant lancement.
 - MSI autorise seulement avec code produit et action de desinstallation.
 - WinGet autorise seulement avec `--id` exact et `--exact`.

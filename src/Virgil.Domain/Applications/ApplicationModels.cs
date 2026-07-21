@@ -54,6 +54,13 @@ public enum ApplicationCommandValidationStatus
     Blocked
 }
 
+public enum ApplicationUninstallConfirmationLevel
+{
+    None,
+    Explicit,
+    Reinforced
+}
+
 public enum ApplicationRemnantKind
 {
     TechnicalRemnant,
@@ -213,6 +220,38 @@ public sealed record ApplicationUninstallPlan
     public bool RequiresCautionConfirmation { get; init; }
 
     public bool CanLaunch => Validation.Status is ApplicationCommandValidationStatus.Allowed or ApplicationCommandValidationStatus.NeedsCaution;
+
+    public bool RequiresExplicitConfirmation => CanLaunch;
+
+    public bool RequiresReinforcedConfirmation => CanLaunch && RequiresCautionConfirmation;
+
+    public ApplicationUninstallConfirmationLevel RequiredConfirmationLevel => !CanLaunch
+        ? ApplicationUninstallConfirmationLevel.None
+        : RequiresReinforcedConfirmation
+            ? ApplicationUninstallConfirmationLevel.Reinforced
+            : ApplicationUninstallConfirmationLevel.Explicit;
+}
+
+public sealed record ApplicationUninstallConfirmation
+{
+    public static ApplicationUninstallConfirmation None { get; } = new();
+
+    public bool ExplicitlyConfirmed { get; init; }
+
+    public bool ReinforcedConfirmed { get; init; }
+
+    public string Source { get; init; } = string.Empty;
+}
+
+public sealed record ApplicationUninstallConfirmationDecision
+{
+    public bool CanProceed { get; init; }
+
+    public bool WasCancelled { get; init; }
+
+    public ApplicationUninstallConfirmationLevel RequiredLevel { get; init; }
+
+    public string Reason { get; init; } = string.Empty;
 }
 
 public sealed record ApplicationUninstallProgress
@@ -243,6 +282,10 @@ public sealed record ApplicationUninstallResult
     public bool StatusUnknown { get; init; }
 
     public int? ExitCode { get; init; }
+
+    public bool WasExplicitlyConfirmed { get; init; }
+
+    public bool WasReinforcedConfirmed { get; init; }
 
     public string Result { get; init; } = string.Empty;
 
