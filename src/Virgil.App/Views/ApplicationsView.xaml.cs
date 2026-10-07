@@ -117,9 +117,19 @@ public partial class ApplicationsView : UserControl
 
     private async void LaunchUninstall_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedApplication is not null)
+        try
         {
+            if (_selectedApplication is null)
+            {
+                ReportUninstallBlocked("Aucune application selectionnee.\nOuvrez les details d'une application avant de lancer une action.");
+                return;
+            }
+
             await LaunchUninstallAsync(_selectedApplication).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            ReportUninstallException(exception);
         }
     }
 
@@ -195,24 +205,28 @@ public partial class ApplicationsView : UserControl
 
     private async Task LaunchUninstallAsync(InstalledApplication application)
     {
+        var plan = _uninstallService.BuildPlan(application);
         if (!application.CanUninstall)
         {
-            VirgilMessageRequested?.Invoke("Desinstallation bloquee.\nApplication protegee, inconnue ou Store.");
+            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
             return;
         }
 
-        var plan = _uninstallService.BuildPlan(application);
         if (!plan.CanLaunch)
         {
-            VirgilMessageRequested?.Invoke($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
             return;
         }
+
+        ApplicationsStatusText.Text = "Confirmation utilisateur requise.";
+        VirgilStateRequested?.Invoke(VirgilCoreState.SensitiveAction, "VALIDATION");
+        VirgilMessageRequested?.Invoke("Confirmation de desinstallation demandee.\nUne fenetre de validation doit s'ouvrir au premier plan.");
 
         var confirmation = RequestUninstallConfirmation(application, plan);
         var confirmationDecision = new ApplicationUninstallConfirmationPolicy().Validate(plan, confirmation);
         if (!confirmationDecision.CanProceed)
         {
-            VirgilMessageRequested?.Invoke($"Desinstallation annulee.\n{confirmationDecision.Reason}");
+            ReportUninstallCancelled($"Desinstallation annulee.\n{confirmationDecision.Reason}");
             return;
         }
 
@@ -242,17 +256,17 @@ public partial class ApplicationsView : UserControl
             VirgilStateRequested?.Invoke(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
             VirgilMessageRequested?.Invoke(result.WasLaunched
                 ? "Desinstalleur officiel lance.\nLe statut final peut dependre de l'assistant externe.\nRestes analyses en lecture seule."
-                : "Desinstalleur non lance.\nRapport disponible.");
+                : $"Desinstalleur non lance.\n{result.Result}\nRapport disponible.");
         }
         catch (OperationCanceledException)
         {
             ApplicationsStatusText.Text = "Desinstallation annulee.";
             VirgilStateRequested?.Invoke(VirgilCoreState.Idle, "REPOS");
+            VirgilMessageRequested?.Invoke("Desinstallation annulee.\nAucun desinstallateur lance.");
         }
-        catch
+        catch (Exception exception)
         {
-            ApplicationsStatusText.Text = "Desinstallateur officiel indisponible.";
-            VirgilStateRequested?.Invoke(VirgilCoreState.Error, "ERREUR");
+            ReportUninstallException(exception);
         }
         finally
         {
@@ -325,10 +339,52 @@ public partial class ApplicationsView : UserControl
         string message,
         MessageBoxImage image)
     {
-        var owner = Window.GetWindow(this);
+        var owner = ResolveDialogOwner();
         return owner is not null
-            ? MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No)
-            : MessageBox.Show(message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No);
+            ? MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No, MessageBoxOptions.None)
+            : MessageBox.Show(message, title, MessageBoxButton.YesNo, image, MessageBoxResult.No, MessageBoxOptions.None);
+    }
+
+    private Window? ResolveDialogOwner()
+    {
+        var owner = Window.GetWindow(this)
+            ?? Application.Current?.Windows.OfType<Window>().FirstOrDefault(window => window.IsActive)
+            ?? Application.Current?.MainWindow;
+
+        if (owner is null)
+        {
+            return null;
+        }
+
+        if (owner.WindowState == WindowState.Minimized)
+        {
+            owner.WindowState = WindowState.Normal;
+        }
+
+        owner.Activate();
+        owner.Focus();
+        return owner;
+    }
+
+    private void ReportUninstallBlocked(string message)
+    {
+        ApplicationsStatusText.Text = "Desinstallation bloquee.";
+        VirgilStateRequested?.Invoke(VirgilCoreState.Warning, "APPLICATIONS");
+        VirgilMessageRequested?.Invoke(message);
+    }
+
+    private void ReportUninstallCancelled(string message)
+    {
+        ApplicationsStatusText.Text = "Desinstallation annulee.";
+        VirgilStateRequested?.Invoke(VirgilCoreState.Idle, "REPOS");
+        VirgilMessageRequested?.Invoke(message);
+    }
+
+    private void ReportUninstallException(Exception exception)
+    {
+        ApplicationsStatusText.Text = "Desinstallateur officiel indisponible.";
+        VirgilStateRequested?.Invoke(VirgilCoreState.Error, "ERREUR");
+        VirgilMessageRequested?.Invoke($"Desinstallateur officiel indisponible.\nErreur : {exception.Message}");
     }
 
     private void RenderInventory(ApplicationInventoryReport report)
@@ -456,10 +512,12 @@ public partial class ApplicationsView : UserControl
                 ? "Attention : confirmation renforcee obligatoire, profils, projets, presets ou sauvegardes possibles."
                 : "Validation stricte appliquee avant lancement."
         });
-        LaunchUninstallButton.Content = application.RiskLevel == ApplicationRiskLevel.Caution
-            ? "LANCER AVEC VALIDATION RENFORCEE"
-            : "LANCER DESINSTALLATEUR";
-        LaunchUninstallButton.IsEnabled = application.CanUninstall && !_operationInProgress;
+        LaunchUninstallButton.Content = !application.CanUninstall
+            ? "DESINSTALLATION BLOQUEE"
+            : application.RiskLevel == ApplicationRiskLevel.Caution
+                ? "LANCER AVEC VALIDATION RENFORCEE"
+                : "LANCER DESINSTALLATEUR";
+        LaunchUninstallButton.IsEnabled = !_operationInProgress;
         OpenApplicationLocationButton.IsEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
         OpenApplicationLocationButton.Content = application.UninstallKind == ApplicationUninstallKind.StoreSettings
             ? "PARAMETRES WINDOWS"
@@ -665,7 +723,7 @@ public partial class ApplicationsView : UserControl
         ReturnHomeButton.IsEnabled = enabled;
         ApplicationSearchBox.IsEnabled = enabled;
         ApplicationFilterBox.IsEnabled = enabled;
-        LaunchUninstallButton.IsEnabled = enabled && _selectedApplication?.CanUninstall == true;
+        LaunchUninstallButton.IsEnabled = enabled && _selectedApplication is not null;
         OpenApplicationLocationButton.IsEnabled = enabled && (_selectedApplication?.CanOpenLocation == true ||
             _selectedApplication?.UninstallKind == ApplicationUninstallKind.StoreSettings);
     }

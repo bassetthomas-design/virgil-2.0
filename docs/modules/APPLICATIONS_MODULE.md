@@ -38,6 +38,7 @@ Les entrees sont fusionnees par nom et editeur, avec enrichissement par les sour
 - Une seule application a la fois.
 - Aucun bouton `DESINSTALLER` direct dans les cartes de liste.
 - Le lancement est disponible uniquement depuis les details de l'application.
+- Le bouton des details ne doit jamais echouer silencieusement : il affiche une confirmation, une annulation, un blocage ou une erreur de lancement.
 - Confirmation explicite obligatoire avant tout lancement.
 - Confirmation renforcee obligatoire pour `ApplicationRiskLevel.Caution`.
 - Validation de commande avant lancement.
