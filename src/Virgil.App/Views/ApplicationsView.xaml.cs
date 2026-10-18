@@ -1,7 +1,6 @@
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -12,6 +11,7 @@ using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Applications;
 using Virgil.Core.Reports;
+using Virgil.Core.Processes;
 using Virgil.Core.Scanning;
 using Virgil.Contracts;
 using Virgil.Contracts.Applications;
@@ -590,13 +590,16 @@ public partial class ApplicationsView : UserControl
 
         try
         {
+            // TODO 0d : injecter IProcessRunner
+            var runner = ProcessRunnerDefaults.Current;
+            ProcessLaunchResult result;
             if (Directory.Exists(path))
             {
-                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+                result = await runner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"\"{path}\""), CancellationToken.None);
             }
             else if (File.Exists(path))
             {
-                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+                result = await runner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"/select,\"{path}\""), CancellationToken.None);
             }
             else
             {
@@ -604,7 +607,9 @@ public partial class ApplicationsView : UserControl
                 return;
             }
 
-            VirgilMessageRequested?.Invoke("Emplacement ouvert.\nAucune suppression executee.");
+            VirgilMessageRequested?.Invoke(result.LaunchError is not null
+                ? "Ouverture emplacement impossible."
+                : "Emplacement ouvert.\nAucune suppression executee.");
         }
         catch
         {
@@ -612,22 +617,19 @@ public partial class ApplicationsView : UserControl
         }
     }
 
-    private static Task OpenWindowsSettingsAsync()
+    private static async Task OpenWindowsSettingsAsync()
     {
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "ms-settings:appsfeatures",
-                UseShellExecute = true
-            });
+            // TODO 0d : injecter IProcessRunner
+            var runner = ProcessRunnerDefaults.Current;
+            await runner.LaunchAsync(new ProcessLaunchRequest(
+                "ms-settings:appsfeatures", Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
         }
         catch
         {
             // Non blocking. The report and inventory remain available.
         }
-
-        return Task.CompletedTask;
     }
 
     private void ShowReport()

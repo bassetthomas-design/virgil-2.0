@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Virgil.Core.Processes;
 
 namespace Virgil.Core.Resources;
 
@@ -27,6 +28,18 @@ public interface IProcessRuntime
 
 public sealed class ProcessRuntime : IProcessRuntime
 {
+    private readonly IProcessRunner _runner;
+
+    public ProcessRuntime()
+        : this(ProcessRunnerDefaults.Current)
+    {
+    }
+
+    public ProcessRuntime(IProcessRunner runner)
+    {
+        _runner = runner;
+    }
+
     public ProcessRuntimeIdentity? ReadIdentity(int processId)
     {
         try
@@ -121,15 +134,10 @@ public sealed class ProcessRuntime : IProcessRuntime
             var explorerPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                 "explorer.exe");
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = explorerPath,
-                UseShellExecute = false
-            };
-            startInfo.ArgumentList.Add("/select,");
-            startInfo.ArgumentList.Add(path);
-            Process.Start(startInfo)?.Dispose();
-            return true;
+            var request = new ProcessLaunchRequest(explorerPath, new[] { "/select,", path }, UseShellExecute: false);
+            // Termine en synchrone car WaitForExit=false ; sync conserve jusqu'a 0d.
+            var result = _runner.LaunchAsync(request, CancellationToken.None).GetAwaiter().GetResult();
+            return result.LaunchError is null;
         }
         catch
         {
