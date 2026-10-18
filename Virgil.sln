@@ -14,12 +14,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0FE6C7EA-ADB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Virgil.ElevatedHelper", "src\Virgil.ElevatedHelper\Virgil.ElevatedHelper.csproj", "{325D8791-31AB-4C70-A509-B0B4E1BA632F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Virgil.Infrastructure", "src\Virgil.Infrastructure\Virgil.Infrastructure.csproj", "{1B3A0BC1-B64C-4F2B-902C-2398757D0223}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1B3A0BC1-B64C-4F2B-902C-2398757D0223}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B3A0BC1-B64C-4F2B-902C-2398757D0223}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B3A0BC1-B64C-4F2B-902C-2398757D0223}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B3A0BC1-B64C-4F2B-902C-2398757D0223}.Release|Any CPU.Build.0 = Release|Any CPU
 		{242754F1-8C4E-46E5-A08F-3C1F8C9BFEB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{242754F1-8C4E-46E5-A08F-3C1F8C9BFEB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{242754F1-8C4E-46E5-A08F-3C1F8C9BFEB7}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -4,23 +4,24 @@ Ce document est la source de vérité pour l’architecture. Il distingue l’ex
 
 ## État actuel vérifié
 
-La solution `Virgil.sln` contient cinq projets :
+La solution `Virgil.sln` contient six projets :
 
 | Projet | Réalité du dépôt |
 | --- | --- |
 | `src/Virgil.App` | Application WPF .NET 8 Windows x64, fenêtre principale, vues Nettoyage, Mises à jour, Applications, Interventions, Ressources et Historique des rapports, contrôle animé Virgil. Logique dans le code-behind ; plusieurs vues et la fenêtre construisent directement leurs services. |
+| `src/Virgil.Infrastructure` | .NET 8 Windows (`net8.0-windows`), référence Core et Contracts, contient l’unique `ProcessRunner` de l’application. |
 | `src/Virgil.Core` | Services de diagnostic, monitoring, ressources/processus, nettoyage, mises à jour winget/Windows, inventaire/désinstallation d’applications, interventions et rapports. Contient aussi les accès Windows, fichiers, registre, processus et le client du helper : la séparation métier/OS reste à faire. Référence Contracts. |
 | `src/Virgil.Contracts` | .NET 8 (`net8.0`), sans référence de projet ni de package : modèles partagés de scan, santé système, nettoyage, mises à jour, applications, ressources, interventions, rapports et DTO du protocole élevé. Plusieurs enums de risque encore propres aux modules ; `ScanRules` encore présent. |
 | `src/Virgil.ElevatedHelper` | Exécutable Windows séparé, requêtes/résultats via fichiers, validation du contexte et des chemins, allowlist de commandes, écriture atomique des résultats. Référence actuellement Core et Contracts. |
-| `tests/Virgil.Tests` | Tests xUnit : scan/règles, nettoyage et sécurité, mises à jour, applications/inventaire/désinstallation/résidus, ressources, interventions, rapports, protocole élevé et animation. Référence Core, Contracts, ElevatedHelper et App. |
+| `tests/Virgil.Tests` | Tests xUnit : scan/règles, nettoyage et sécurité, mises à jour, applications/inventaire/désinstallation/résidus, ressources, interventions, rapports, protocole élevé et animation. Référence Core, Contracts, Infrastructure, ElevatedHelper et App. |
 
 Les modèles d’animation sont dans `Virgil.App/Animation` (namespace `Virgil.App.Animation`).
 
-App référence Core et Contracts ; sa référence au helper sert à sa construction/publication (`ReferenceOutputAssembly=false`). Le helper est publié avec App.
+App référence Core, Contracts et Infrastructure ; sa référence au helper sert à sa construction/publication (`ReferenceOutputAssembly=false`). Le helper est publié avec App.
 
-Les gardes existants incluent `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et `ElevatedActionAllowlist`. Les confirmations sont encore spécifiques aux modules ; une surcharge de désinstallation prend notamment `bool userConfirmed`. Le nettoyage vérifie ses aperçus mais utilise encore `File.Delete` pour toutes les zones sauf la corbeille, traitée via l’API Windows : la quarantaine généralisée n’est pas livrée. `ProcessActionService` prend aussi `bool reinforcedConfirmation`. Il existe quatre lanceurs de processus distincts : `Updates/ProcessRunner`, `ElevatedCommandRunner`, `ShellApplicationProcessLauncher` et `ElevatedProcessLauncher`. L’historique stocke déjà des rapports JSON locaux.
+Les gardes existants incluent `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et `ElevatedActionAllowlist`. Les confirmations sont encore spécifiques aux modules ; une surcharge de désinstallation prend notamment `bool userConfirmed`. Le nettoyage vérifie ses aperçus mais utilise encore `File.Delete` pour toutes les zones sauf la corbeille, traitée via l’API Windows : la quarantaine généralisée n’est pas livrée. `ProcessActionService` prend aussi `bool reinforcedConfirmation`. Le port unique `IProcessRunner` (`Core/Processes`) est implémenté dans Infrastructure ; `ShellApplicationProcessLauncher` et `ElevatedProcessLauncher` sont devenus des adaptateurs. `ProcessRunnerDefaults` est temporaire jusqu’à 0d. Les lancements directs restants (`ProcessRuntime.OpenLocation`, `ExplorerRestarter`, `ApplicationsView`, `UpdatesView`, `CleanupView`) sont prévus en 0c-2. `ElevatedCommandRunner` est conservé dans le helper par conception. L’historique stocke déjà des rapports JSON locaux.
 
-`Virgil.Infrastructure`, `Virgil.Tray` et `installer/` n’existent pas encore. Il n’existe pas de contrat commun `IMaintenanceModule`/`IMaintenanceAction`, de `ConfirmedPlan` commun, de `ConfirmationService` central, ni de composition via Hosting/CommunityToolkit.Mvvm ou de journalisation Serilog configurée. Il n’existe pas encore de logs applicatifs ni de service de settings ; les rapports JSON existants ne constituent pas un service de logs. Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
+`Virgil.Tray` et `installer/` n’existent pas encore. Il n’existe pas de contrat commun `IMaintenanceModule`/`IMaintenanceAction`, de `ConfirmedPlan` commun, de `ConfirmationService` central, ni de composition via Hosting/CommunityToolkit.Mvvm ou de journalisation Serilog configurée. Il n’existe pas encore de logs applicatifs ni de service de settings ; les rapports JSON existants ne constituent pas un service de logs. Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
 
 La CI de référence est `.github/workflows/build.yml`, sur `windows-latest` : restore, build Release, tests, publication self-contained win-x64 et artefact. Elle ne produit pas encore d’installateur.
 

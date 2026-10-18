@@ -1,3 +1,4 @@
+using Virgil.Core.Processes;
 using System.Diagnostics;
 using Virgil.Contracts;
 
@@ -230,6 +231,6 @@ public sealed class WingetUpdateScanService : IUpdateScanService
 
     private static IProcessRunner CreateDefaultProcessRunner()
     {
-        return new ProcessRunner();
+        return ProcessRunnerDefaults.Current;
     }
 }

@@ -1,4 +1,4 @@
-using Virgil.Core.Updates;
+using Virgil.Core.Processes;
 using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
@@ -8,7 +8,7 @@ public sealed class ApplicationStoreReader : IApplicationInventorySourceReader
     private readonly IProcessRunner _processRunner;
 
     public ApplicationStoreReader()
-        : this(new ProcessRunner())
+        : this(ProcessRunnerDefaults.Current)
     {
     }
 

@@ -1,3 +1,4 @@
+using Virgil.Core.Processes;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
@@ -286,6 +287,15 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
         }
 
         public List<ProcessRunRequest> Requests { get; } = new();
+        public List<ProcessLaunchRequest> LaunchRequests { get; } = new();
+        public ProcessLaunchResult LaunchResult { get; set; } = new(true, null);
+
+        public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LaunchRequests.Add(request);
+            return Task.FromResult(LaunchResult);
+        }
 
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
         {

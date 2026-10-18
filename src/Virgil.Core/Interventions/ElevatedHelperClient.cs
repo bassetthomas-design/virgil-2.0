@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Virgil.Core.Processes;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
@@ -89,29 +89,32 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
 
 public sealed class ElevatedProcessLauncher : IElevatedProcessLauncher
 {
+    private readonly IProcessRunner _runner;
+
+    public ElevatedProcessLauncher() : this(ProcessRunnerDefaults.Current)
+    {
+    }
+
+    public ElevatedProcessLauncher(IProcessRunner runner)
+    {
+        _runner = runner;
+    }
+
     public async Task<int> RunElevatedAsync(
         string helperPath,
         string requestPath,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        using var process = Process.Start(new ProcessStartInfo
+        var result = await _runner.LaunchAsync(new ProcessLaunchRequest(
+            helperPath, Array.Empty<string>(), UseShellExecute: true, Verb: "runas",
+            WindowMode: ProcessWindowMode.Hidden, RawArguments: Quote(requestPath), WaitForExit: true),
+            cancellationToken).ConfigureAwait(false);
+        if (result.LaunchError is not null)
         {
-            FileName = helperPath,
-            UseShellExecute = true,
-            Verb = "runas",
-            Arguments = Quote(requestPath),
-            WindowStyle = ProcessWindowStyle.Hidden
-        });
-
-        if (process is null)
-        {
-            return -1;
+            throw new InvalidOperationException(result.LaunchError);
         }
-
-        await process.WaitForExitAsync().ConfigureAwait(false);
-        return process.ExitCode;
+        return result.Started ? result.ExitCode ?? -1 : -1;
     }
 
     private static string Quote(string value)

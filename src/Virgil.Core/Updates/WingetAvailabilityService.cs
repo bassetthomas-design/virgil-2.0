@@ -1,3 +1,4 @@
+using Virgil.Core.Processes;
 using System.Text.RegularExpressions;
 using Virgil.Contracts;
 

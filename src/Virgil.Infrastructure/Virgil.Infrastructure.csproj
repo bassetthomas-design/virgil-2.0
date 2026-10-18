@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Virgil.Core/Virgil.Core.csproj" />
+    <ProjectReference Include="../Virgil.Contracts/Virgil.Contracts.csproj" />
+  </ItemGroup>
+</Project>

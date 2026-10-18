@@ -11,7 +11,7 @@ Refactor sans nouvelle fonctionnalité. Sous-lots obligatoirement ordonnés, une
 | 0a | Documentation initiale et suppression des workflows/scripts obsolètes (PR #27 fusionnée). |
 | 0a.1 | Corrections documentaires, sans changement C#, csproj ou workflow. |
 | 0b | Introduire Contracts et déplacer les types partagés de Domain vers Contracts ; les modèles d’animation vont dans App. |
-| 0c | Extraire Infrastructure et centraliser les lancements de l’application derrière un seul `IProcessRunner`. |
+| 0c | Extraire Infrastructure et centraliser les lancements de l’application derrière un seul `IProcessRunner`, en deux PR : 0c-1 (Infrastructure, IProcessRunner, lanceurs Updates/applications/helper) puis 0c-2 (ouverture d’emplacements, Explorer, vues, test de garde). |
 | 0d | Hosting/DI, vues minces et ViewModels MVVM injectés, Serilog, settings JSON, gestionnaire global d’exceptions, instance unique, manifeste `asInvoker` et `TreatWarningsAsErrors`. |
 | 0e | Unifier `RiskLevel`, `ActionResult`, `ConfirmedPlan` et `ConfirmationService`, avec tests de sécurité. |
 | 0f | Faire en sorte que le helper ne référence que Contracts parmi les projets Virgil ; préserver son allowlist et ses validations. |
