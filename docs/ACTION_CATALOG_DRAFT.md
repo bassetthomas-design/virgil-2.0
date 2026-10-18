@@ -1,3 +1,5 @@
+> Specifications validees : voir [ACTIONS.md](ACTIONS.md)
+
 # Virgil 2.0 - Catalogue des actions ciblées
 
 ## Principe général
