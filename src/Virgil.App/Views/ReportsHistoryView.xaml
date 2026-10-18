@@ -6,6 +6,9 @@
              MinHeight="0"
              KeyboardNavigation.TabNavigation="Continue"
              FocusManager.IsFocusScope="True">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
+    </UserControl.Resources>
     <Grid ClipToBounds="True">
         <ScrollViewer x:Name="HistoryScrollViewer"
                       VerticalScrollBarVisibility="Auto"
@@ -25,8 +28,7 @@
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="RAPPORTS / HISTORIQUE"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
-                        <TextBlock x:Name="ReportsStatusText"
-                                   Text="SCANS, ACTIONS ET EXPORTS LOCAUX"
+                        <TextBlock x:Name="ReportsStatusText" Text="{Binding StatusText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    Margin="0,4,0,0" />
                     </StackPanel>
@@ -34,33 +36,34 @@
 
                 <WrapPanel KeyboardNavigation.TabNavigation="Continue">
                     <Button x:Name="LastPersistentReportButton"
+                            IsEnabled="{Binding HasReports}"
                             Content="DERNIER RAPPORT"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="160"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Ouvrir le dernier rapport local"
-                            Click="LastReport_Click" />
+                            Command="{Binding OpenLatestCommand}" />
                     <Button x:Name="RefreshHistoryButton"
                             Content="HISTORIQUE"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="135"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Actualiser l historique local"
-                            Click="RefreshHistory_Click" />
+                            Command="{Binding RefreshCommand}" />
                     <Button x:Name="ExportSelectedReportButton"
                             Content="EXPORTER RAPPORT"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="165"
                             Margin="0,0,8,8"
-                            IsEnabled="False"
+                            IsEnabled="{Binding IsExportEnabled}"
                             AutomationProperties.Name="Exporter manuellement le rapport selectionne"
-                            Click="ExportSelectedReport_Click" />
+                            Command="{Binding ExportSelectedCommand}" />
                     <Button Content="RETOUR ACCUEIL"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="130"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Retour accueil"
-                            Click="ReturnHome_Click" />
+                            Command="{Binding ReturnHomeCommand}" />
                 </WrapPanel>
 
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,2,0,8">
@@ -81,8 +84,7 @@
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
-                    <TextBlock x:Name="LatestReportSummaryText"
-                               Text="Aucun rapport local disponible."
+                    <TextBlock x:Name="LatestReportSummaryText" Text="{Binding LatestSummaryText}"
                                Style="{StaticResource VirgilHudSecondaryText}"
                                TextWrapping="Wrap" />
                 </Border>
@@ -91,17 +93,49 @@
                            Text="HISTORIQUE LOCAL - 30 EVENEMENTS MAXIMUM"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
-                <TextBlock x:Name="HistoryCountText"
-                           Text="0 rapport"
+                <TextBlock x:Name="HistoryCountText" Text="{Binding HistoryCountText}"
                            Style="{StaticResource VirgilHudSecondaryText}"
                            Margin="0,0,0,8" />
-                <StackPanel x:Name="HistoryPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <ItemsControl x:Name="HistoryPanel" ItemsSource="{Binding Items}" KeyboardNavigation.TabNavigation="Continue">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Header}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" FontWeight="SemiBold" Foreground="{DynamicResource App.TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Title}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <TextBlock Text="{Binding StatusLine}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Content="OUVRIR" Command="{Binding OpenCommand}" Style="{StaticResource VirgilPrimaryButton}" MinWidth="100" Margin="0,0,8,0" />
+                                        <Button Content="EXPORTER" Command="{Binding ExportCommand}" Style="{StaticResource VirgilSecondaryButton}" MinWidth="100" Margin="0,0,8,0" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border Margin="0,0,0,8">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HistoryNotice}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding HistoryNotice}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                </Border>
             </StackPanel>
         </ScrollViewer>
 
         <Grid x:Name="ReportDetailsOverlay"
               Panel.ZIndex="30"
-              Visibility="Collapsed"
+              Visibility="{Binding IsDetailsOpen, Converter={StaticResource BooleanToVisibility}}"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
@@ -117,8 +151,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock x:Name="DetailsTitleText"
-                               Text="RAPPORT"
+                    <TextBlock x:Name="DetailsTitleText" Text="{Binding DetailsTitle}"
                                Style="{StaticResource VirgilHudSectionTitle}" />
                     <ScrollViewer Grid.Row="1"
                                   Margin="0,16,0,16"
@@ -127,33 +160,33 @@
                                   Focusable="False">
                         <StackPanel>
                             <TextBlock Text="VUE SIMPLE" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock x:Name="SimpleDetailsText"
+                            <TextBlock x:Name="SimpleDetailsText" Text="{Binding SimpleDetails}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,14" />
                             <TextBlock Text="ACTIONS PROPOSEES" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock x:Name="ProposedActionsText"
+                            <TextBlock x:Name="ProposedActionsText" Text="{Binding ProposedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="ACTIONS EXECUTEES" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock x:Name="ExecutedActionsText"
+                            <TextBlock x:Name="ExecutedActionsText" Text="{Binding ExecutedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="ACTIONS PASSEES" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock x:Name="SkippedActionsText"
+                            <TextBlock x:Name="SkippedActionsText" Text="{Binding SkippedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="ERREURS" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock x:Name="ErrorsText"
+                            <TextBlock x:Name="ErrorsText" Text="{Binding Errors}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <StackPanel x:Name="TechnicalDetailsPanel" Visibility="Collapsed">
+                            <StackPanel x:Name="TechnicalDetailsPanel" Visibility="{Binding IsTechnicalDetailsVisible, Converter={StaticResource BooleanToVisibility}}">
                                 <TextBlock Text="DETAILS TECHNIQUES" Style="{StaticResource VirgilMicroLabel}" />
-                                <TextBlock x:Name="TechnicalDetailsText"
+                                <TextBlock x:Name="TechnicalDetailsText" Text="{Binding TechnicalDetails}"
                                            Style="{StaticResource VirgilHudSecondaryText}"
                                            TextWrapping="Wrap"
                                            Margin="0,4,0,0" />
@@ -162,28 +195,28 @@
                     </ScrollViewer>
                     <WrapPanel Grid.Row="2" HorizontalAlignment="Right">
                         <Button x:Name="ToggleTechnicalDetailsButton"
-                                Content="VOIR DETAILS TECHNIQUES"
+                                Content="{Binding ToggleTechnicalDetailsLabel}"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="0,0,8,0"
                                 AutomationProperties.Name="Afficher ou masquer les details techniques"
-                                Click="ToggleTechnicalDetails_Click" />
+                                Command="{Binding ToggleTechnicalDetailsCommand}" />
                         <Button x:Name="SaveTransientReportButton"
                                 Content="ENREGISTRER DANS L HISTORIQUE"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="0,0,8,0"
-                                Visibility="Collapsed"
+                                Visibility="{Binding CanSaveTransient, Converter={StaticResource BooleanToVisibility}}"
                                 AutomationProperties.Name="Enregistrer le rapport memoire dans l historique local"
-                                Click="SaveTransientReport_Click" />
+                                Command="{Binding SaveTransientCommand}" />
                         <Button Content="EXPORTER"
                                 Style="{StaticResource VirgilPrimaryButton}"
                                 Margin="0,0,8,0"
                                 AutomationProperties.Name="Exporter manuellement ce rapport"
-                                Click="ExportCurrentReport_Click" />
+                                Command="{Binding ExportCurrentCommand}" />
                         <Button x:Name="CloseReportDetailsButton"
                                 Content="FERMER"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 AutomationProperties.Name="Fermer le rapport"
-                                Click="CloseReportDetails_Click" />
+                                Command="{Binding CloseDetailsCommand}" />
                     </WrapPanel>
                 </Grid>
             </Border>

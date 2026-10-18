@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Net.NetworkInformation;
 using Microsoft.Extensions.DependencyInjection;
 using Virgil.App.Views;
+using Virgil.App.Services;
+using Virgil.App.ViewModels;
 using Virgil.Core.Applications;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
@@ -119,7 +121,11 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IProcessActionService>(), sp.GetRequiredService<ResourceReportBuilder>()));
         services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<IApplicationInventoryService>(),
             sp.GetRequiredService<ApplicationUninstallService>(), sp.GetRequiredService<IProcessRunner>()));
-        services.AddSingleton<ReportsHistoryView>(sp => new ReportsHistoryView(sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>()));
+        services.AddSingleton<IFileSaveDialog>(_ => new SaveFileDialogService());
+        services.AddSingleton<ReportsHistoryViewModel>(sp => new ReportsHistoryViewModel(
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
+            sp.GetRequiredService<IFileSaveDialog>()));
+        services.AddSingleton<ReportsHistoryView>(sp => new ReportsHistoryView(sp.GetRequiredService<ReportsHistoryViewModel>()));
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),

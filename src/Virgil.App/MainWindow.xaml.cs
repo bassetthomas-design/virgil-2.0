@@ -456,7 +456,6 @@ public partial class MainWindow : Window
 
     private void WireReportsModule()
     {
-        ReportsModuleView.Configure(_reportHistoryService, _reportExportService);
         ReportsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ReportsModuleView.VirgilStateRequested += SetVirgilState;
         ReportsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
