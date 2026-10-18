@@ -1,5 +1,5 @@
+using Virgil.Core.Processes;
 using System.Text.RegularExpressions;
-using Virgil.Core.Updates;
 using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
@@ -10,7 +10,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
     private readonly IProcessRunner _processRunner;
 
     public ApplicationWingetReader()
-        : this(new ProcessRunner())
+        : this(ProcessRunnerDefaults.Current)
     {
     }
 

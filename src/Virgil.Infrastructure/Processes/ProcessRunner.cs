@@ -1,6 +1,7 @@
 using System.Diagnostics;
+using Virgil.Core.Processes;
 
-namespace Virgil.Core.Updates;
+namespace Virgil.Infrastructure.Processes;
 
 public sealed class ProcessRunner : IProcessRunner
 {
@@ -54,6 +55,59 @@ public sealed class ProcessRunner : IProcessRunner
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             return new ProcessRunResult(-1, string.Empty, string.Empty, LaunchError: ex.Message);
+        }
+    }
+
+    public async Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = request.FileName,
+                UseShellExecute = request.UseShellExecute
+            };
+            if (request.Verb is not null)
+            {
+                startInfo.Verb = request.Verb;
+            }
+            if (request.WindowMode == ProcessWindowMode.Hidden)
+            {
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            }
+            if (request.RawArguments is not null)
+            {
+                startInfo.Arguments = request.RawArguments;
+            }
+            else
+            {
+                foreach (var argument in request.Arguments)
+                {
+                    startInfo.ArgumentList.Add(argument);
+                }
+            }
+
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return new ProcessLaunchResult(false, null);
+            }
+            if (request.WaitForExit)
+            {
+                await process.WaitForExitAsync().ConfigureAwait(false);
+                return new ProcessLaunchResult(true, process.ExitCode);
+            }
+            return new ProcessLaunchResult(true, process.HasExited ? process.ExitCode : null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new ProcessLaunchResult(false, null, ex.Message);
         }
     }
 

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using Virgil.Core.Processes;
 using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
@@ -165,7 +165,18 @@ public sealed class ApplicationUninstallService
 
 public sealed class ShellApplicationProcessLauncher : IApplicationProcessLauncher
 {
-    public Task<ApplicationLaunchResult> LaunchAsync(
+    private readonly IProcessRunner _runner;
+
+    public ShellApplicationProcessLauncher() : this(ProcessRunnerDefaults.Current)
+    {
+    }
+
+    public ShellApplicationProcessLauncher(IProcessRunner runner)
+    {
+        _runner = runner;
+    }
+
+    public async Task<ApplicationLaunchResult> LaunchAsync(
         string executable,
         IReadOnlyList<string> arguments,
         bool useShellExecute,
@@ -174,19 +185,12 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = executable,
-                UseShellExecute = useShellExecute
-            };
-
-            foreach (var argument in arguments)
-            {
-                startInfo.ArgumentList.Add(argument);
-            }
-
-            var process = Process.Start(startInfo);
-            return Task.FromResult(new ApplicationLaunchResult(process is not null, process?.HasExited == true ? process.ExitCode : null, null));
+            var result = await _runner.LaunchAsync(
+                new ProcessLaunchRequest(executable, arguments, useShellExecute), cancellationToken)
+                .ConfigureAwait(false);
+            return result.LaunchError is not null
+                ? new ApplicationLaunchResult(false, null, "Desinstalleur officiel impossible a lancer.")
+                : new ApplicationLaunchResult(result.Started, result.ExitCode, null);
         }
         catch (OperationCanceledException)
         {
@@ -194,7 +198,7 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         }
         catch
         {
-            return Task.FromResult(new ApplicationLaunchResult(false, null, "Desinstalleur officiel impossible a lancer."));
+            return new ApplicationLaunchResult(false, null, "Desinstalleur officiel impossible a lancer.");
         }
     }
 }
