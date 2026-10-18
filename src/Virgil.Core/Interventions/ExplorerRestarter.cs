@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
 

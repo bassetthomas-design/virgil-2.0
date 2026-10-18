@@ -1,6 +1,6 @@
 using Virgil.Core.Interventions;
 using Virgil.Core.Resources;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Xunit;
 
 namespace Virgil.Tests;

@@ -1,4 +1,4 @@
-using Virgil.Domain;
+using Virgil.Contracts;
 using Xunit;
 
 namespace Virgil.Tests;

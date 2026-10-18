@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Virgil.Core.Scanning;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Monitoring;
 

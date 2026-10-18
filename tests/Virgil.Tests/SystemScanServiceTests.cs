@@ -4,8 +4,8 @@ using Virgil.Core.Interventions;
 using Virgil.Core.Resources;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
-using Virgil.Domain;
-using Virgil.Domain.Applications;
+using Virgil.Contracts;
+using Virgil.Contracts.Applications;
 using Xunit;
 
 namespace Virgil.Tests;

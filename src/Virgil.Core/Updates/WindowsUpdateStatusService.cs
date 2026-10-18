@@ -1,5 +1,5 @@
 using Microsoft.Win32;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Updates;
 

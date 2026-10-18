@@ -1,5 +1,5 @@
 using System.IO;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Scanning;
 

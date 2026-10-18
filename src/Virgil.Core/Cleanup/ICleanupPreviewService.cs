@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Cleanup;
 

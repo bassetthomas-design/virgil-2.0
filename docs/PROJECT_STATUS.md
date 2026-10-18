@@ -2,7 +2,7 @@
 
 ## Situation au démarrage de la phase 0a
 
-La solution comporte App (WPF), Core, Domain, ElevatedHelper et Virgil.Tests (xUnit). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
+La solution comporte App (WPF, animation dans App/Animation), Core, Contracts, ElevatedHelper et Virgil.Tests (xUnit). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
 La CI `.github/workflows/build.yml` sur Windows restaure, compile, teste et publie un artefact self-contained win-x64. La réussite d’un build se constate uniquement dans GitHub Actions ; ce document ne constitue pas une attestation de CI verte. Aucun installateur Inno Setup n’est encore présent.
 
@@ -22,7 +22,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
-| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; lots 0b à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; lots 0c à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
 | 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |

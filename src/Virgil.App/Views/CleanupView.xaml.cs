@@ -1,3 +1,4 @@
+using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,7 +12,7 @@ using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Reports;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.App.Views;
 

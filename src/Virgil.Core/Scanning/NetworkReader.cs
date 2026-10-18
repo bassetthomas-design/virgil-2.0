@@ -1,6 +1,6 @@
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Scanning;
 

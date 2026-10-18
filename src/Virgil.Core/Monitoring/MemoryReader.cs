@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Monitoring;
 

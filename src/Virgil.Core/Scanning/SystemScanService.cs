@@ -5,8 +5,8 @@ using Virgil.Core.Interventions;
 using Virgil.Core.Monitoring;
 using Virgil.Core.Resources;
 using Virgil.Core.Updates;
-using Virgil.Domain;
-using Virgil.Domain.Applications;
+using Virgil.Contracts;
+using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Scanning;
 

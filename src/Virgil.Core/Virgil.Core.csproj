@@ -4,6 +4,6 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Virgil.Domain/Virgil.Domain.csproj" />
+    <ProjectReference Include="../Virgil.Contracts/Virgil.Contracts.csproj" />
   </ItemGroup>
 </Project>

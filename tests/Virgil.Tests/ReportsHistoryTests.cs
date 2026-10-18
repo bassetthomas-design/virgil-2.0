@@ -1,6 +1,6 @@
 using System.Reflection;
 using Virgil.Core.Reports;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Xunit;
 
 namespace Virgil.Tests;

@@ -1,5 +1,5 @@
 using System.Text;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Reports;
 

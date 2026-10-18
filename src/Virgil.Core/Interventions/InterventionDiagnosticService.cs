@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
 

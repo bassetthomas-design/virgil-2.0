@@ -1,6 +1,6 @@
 using System.Text;
-using Virgil.Domain;
-using Virgil.Domain.Applications;
+using Virgil.Contracts;
+using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
 

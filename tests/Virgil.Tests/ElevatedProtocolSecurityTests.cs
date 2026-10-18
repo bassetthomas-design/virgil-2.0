@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Virgil.Core.Interventions;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Virgil.ElevatedHelper;
 using Xunit;
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace Virgil.Domain;
+namespace Virgil.App.Animation;
 
 public enum VirgilCoreState
 {

@@ -1,3 +1,4 @@
+using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,8 +13,8 @@ using Virgil.App.Controls;
 using Virgil.Core.Applications;
 using Virgil.Core.Reports;
 using Virgil.Core.Scanning;
-using Virgil.Domain;
-using Virgil.Domain.Applications;
+using Virgil.Contracts;
+using Virgil.Contracts.Applications;
 
 namespace Virgil.App.Views;
 

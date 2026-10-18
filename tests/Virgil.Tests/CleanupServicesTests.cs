@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Virgil.Core.Cleanup;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Xunit;
 
 namespace Virgil.Tests;

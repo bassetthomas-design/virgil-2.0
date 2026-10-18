@@ -1,6 +1,6 @@
 using System.Text;
 using Virgil.Core.Scanning;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Resources;
 
