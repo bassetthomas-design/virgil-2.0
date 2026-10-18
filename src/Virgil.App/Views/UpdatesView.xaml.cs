@@ -30,16 +30,15 @@ public partial class UpdatesView : UserControl
     private UpdateSessionReport? _lastSessionReport;
     private bool _operationInProgress;
 
-    public UpdatesView()
-        : this(new WingetUpdateScanService(), new WingetUpdateExecutionService(), new WindowsUpdateStatusService())
-    {
-    }
+    private readonly IProcessRunner _processRunner;
 
     public UpdatesView(
         IUpdateScanService scanService,
         IUpdateExecutionService executionService,
-        WindowsUpdateStatusService windowsUpdateStatusService)
+        WindowsUpdateStatusService windowsUpdateStatusService,
+        IProcessRunner processRunner)
     {
+        _processRunner = processRunner;
         InitializeComponent();
         _scanService = scanService;
         _executionService = executionService;
@@ -349,9 +348,7 @@ public partial class UpdatesView : UserControl
 
         try
         {
-            // TODO 0d : injecter IProcessRunner
-            var runner = ProcessRunnerDefaults.Current;
-            var result = await runner.LaunchAsync(new ProcessLaunchRequest(
+            var result = await _processRunner.LaunchAsync(new ProcessLaunchRequest(
                 info.SettingsUri, Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
             VirgilMessageRequested?.Invoke(result.LaunchError is not null
                 ? "Ouverture Windows Update impossible."

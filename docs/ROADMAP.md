@@ -12,7 +12,7 @@ Refactor sans nouvelle fonctionnalité. Sous-lots obligatoirement ordonnés, une
 | 0a.1 | Corrections documentaires, sans changement C#, csproj ou workflow. |
 | 0b | Introduire Contracts et déplacer les types partagés de Domain vers Contracts ; les modèles d’animation vont dans App. |
 | 0c | Extraire Infrastructure et centraliser les lancements de l’application derrière un seul `IProcessRunner`, en deux PR : 0c-1 (Infrastructure, IProcessRunner, lanceurs Updates/applications/helper) puis 0c-2 (ouverture d’emplacements, Explorer, vues, test de garde). |
-| 0d | Hosting/DI, vues minces et ViewModels MVVM injectés, Serilog, settings JSON, gestionnaire global d’exceptions, instance unique, manifeste `asInvoker` et `TreatWarningsAsErrors`. |
+| 0d | 0d-1 : composition Hosting/DI ; 0d-2 : Serilog, settings JSON et gestionnaire global d’exceptions ; 0d-3 : instance unique, manifeste `asInvoker` et `TreatWarningsAsErrors` ; 0d-4+ : vues minces et ViewModels CommunityToolkit.Mvvm injectés. |
 | 0e | Unifier `RiskLevel`, `ActionResult`, `ConfirmedPlan` et `ConfirmationService`, avec tests de sécurité. |
 | 0f | Faire en sorte que le helper ne référence que Contracts parmi les projets Virgil ; préserver son allowlist et ses validations. |
 | 0g | Séparer les tests en `Virgil.Core.Tests` / `Virgil.App.Tests`, dont les tests d’animation dans App.Tests. |

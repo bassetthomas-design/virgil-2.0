@@ -33,11 +33,6 @@ public partial class ResourcesView : UserControl
     private ResourceAnalysisReport? _lastAnalysis;
     private bool _operationInProgress;
 
-    public ResourcesView()
-        : this(new ResourceMonitoringService(), new ProcessActionService(), new ResourceReportBuilder())
-    {
-    }
-
     public ResourcesView(
         IResourceMonitoringService monitoringService,
         IProcessActionService actionService,

@@ -14,16 +14,6 @@ public sealed class ProcessActionService : IProcessActionService
     private readonly IInterventionCatalog _interventionCatalog;
     private readonly Func<DateTimeOffset> _now;
 
-    public ProcessActionService()
-        : this(
-            new ProcessRuntime(),
-            new ProcessProtectionPolicy(),
-            new ExplorerRestarter(),
-            new InterventionCatalog(),
-            () => DateTimeOffset.Now)
-    {
-    }
-
     public ProcessActionService(
         IProcessRuntime runtime,
         ProcessProtectionPolicy protectionPolicy,

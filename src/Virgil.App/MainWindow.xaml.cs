@@ -1,3 +1,5 @@
+using System.Windows.Automation;
+using Virgil.App.Views;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
@@ -21,9 +23,9 @@ namespace Virgil.App;
 
 public partial class MainWindow : Window
 {
-    private readonly ISystemScanService _systemScanService = new SystemScanService();
-    private readonly IReportHistoryService _reportHistoryService = new ReportHistoryService();
-    private readonly IReportExportService _reportExportService = new ReportExportService();
+    private readonly ISystemScanService _systemScanService;
+    private readonly IReportHistoryService _reportHistoryService;
+    private readonly IReportExportService _reportExportService;
     private readonly HashSet<string> _reportedProgressSteps = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _activeScanCancellation;
     private Storyboard? _startupStoryboard;
@@ -32,9 +34,49 @@ public partial class MainWindow : Window
     private bool _hasPersistentReport;
     private SystemScanReport? _lastReport;
 
-    public MainWindow()
+    private readonly CleanupView CleanupModuleView;
+    private readonly UpdatesView UpdatesModuleView;
+    private readonly InterventionsView InterventionsModuleView;
+    private readonly ResourcesView ResourcesModuleView;
+    private readonly ApplicationsView ApplicationsModuleView;
+    private readonly ReportsHistoryView ReportsModuleView;
+
+    public MainWindow(
+        ISystemScanService systemScanService,
+        IReportHistoryService reportHistoryService,
+        IReportExportService reportExportService,
+        CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
+        ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView)
     {
+        _systemScanService = systemScanService;
+        _reportHistoryService = reportHistoryService;
+        _reportExportService = reportExportService;
+        CleanupModuleView = cleanupView;
+        UpdatesModuleView = updatesView;
+        InterventionsModuleView = interventionsView;
+        ResourcesModuleView = resourcesView;
+        ApplicationsModuleView = applicationsView;
+        ReportsModuleView = reportsHistoryView;
         InitializeComponent();
+        CleanupModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(CleanupModuleView, "Module nettoyage securise");
+        ModuleHostGrid.Children.Add(CleanupModuleView);
+        UpdatesModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(UpdatesModuleView, "Module mises a jour securise");
+        ModuleHostGrid.Children.Add(UpdatesModuleView);
+        InterventionsModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblees");
+        ModuleHostGrid.Children.Add(InterventionsModuleView);
+        ResourcesModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(ResourcesModuleView, "Module ressources systeme");
+        ModuleHostGrid.Children.Add(ResourcesModuleView);
+        ApplicationsModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(ApplicationsModuleView, "Module applications et desinstallateur");
+        ModuleHostGrid.Children.Add(ApplicationsModuleView);
+        ReportsModuleView.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(ReportsModuleView, "Module rapports et historique local");
+        ModuleHostGrid.Children.Add(ReportsModuleView);
+
         SessionTimeText.Text = $"SESSION {DateTime.Now:HH:mm}";
         LastReportButton.IsEnabled = false;
         WireCleanupModule();

@@ -7,11 +7,6 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
     private readonly IInterventionElevatedHelperClient _helperClient;
     private readonly IExplorerRestarter _explorerRestarter;
 
-    public InterventionExecutionService()
-        : this(new ElevatedHelperClient(), new ExplorerRestarter())
-    {
-    }
-
     public InterventionExecutionService(
         IInterventionElevatedHelperClient helperClient,
         IExplorerRestarter explorerRestarter)

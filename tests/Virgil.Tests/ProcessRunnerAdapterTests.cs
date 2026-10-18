@@ -135,12 +135,6 @@ public sealed class ProcessRunnerAdapterTests
         }
     }
 
-    [Fact]
-    public void Defaults_RejectsNull()
-    {
-        Assert.Throws<ArgumentNullException>(() => ProcessRunnerDefaults.Configure(null!));
-    }
-
     private sealed class FakeProcessRunner : IProcessRunner
     {
         public List<ProcessLaunchRequest> Requests { get; } = new();
@@ -157,12 +151,4 @@ public sealed class ProcessRunnerAdapterTests
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
-}
-
-internal static class ProcessRunnerTestBootstrap
-{
-    // Existing tests construct default service graphs without starting the WPF App.
-    [System.Runtime.CompilerServices.ModuleInitializer]
-    internal static void Initialize() =>
-        ProcessRunnerDefaults.Configure(new Virgil.Infrastructure.Processes.ProcessRunner());
 }

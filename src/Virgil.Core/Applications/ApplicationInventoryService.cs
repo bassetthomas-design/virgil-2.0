@@ -9,18 +9,6 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
     private readonly ApplicationRiskClassifier _riskClassifier;
     private readonly ApplicationIconExtractor _iconExtractor;
 
-    public ApplicationInventoryService()
-        : this(
-            [
-                new ApplicationRegistryReader(),
-                new ApplicationWingetReader(),
-                new ApplicationStoreReader()
-            ],
-            new ApplicationRiskClassifier(),
-            new ApplicationIconExtractor())
-    {
-    }
-
     public ApplicationInventoryService(
         IReadOnlyList<IApplicationInventorySourceReader> readers,
         ApplicationRiskClassifier riskClassifier,

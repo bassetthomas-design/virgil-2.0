@@ -1,0 +1,134 @@
+using System.IO;
+using System.Diagnostics;
+using System.Net.NetworkInformation;
+using Microsoft.Extensions.DependencyInjection;
+using Virgil.App.Views;
+using Virgil.Core.Applications;
+using Virgil.Core.Cleanup;
+using Virgil.Core.Interventions;
+using Virgil.Core.Monitoring;
+using Virgil.Core.Processes;
+using Virgil.Core.Reports;
+using Virgil.Core.Resources;
+using Virgil.Core.Scanning;
+using Virgil.Core.Updates;
+
+namespace Virgil.App.Hosting;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddVirgilServices(this IServiceCollection services)
+    {
+        services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
+
+        services.AddTransient<IInterventionCatalog>(_ => new InterventionCatalog());
+        services.AddTransient<IExplorerRestarter>(sp => new ExplorerRestarter(
+            Process.GetProcessesByName, sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IElevatedProcessLauncher>(sp => new ElevatedProcessLauncher(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IInterventionElevatedHelperClient>(sp => new ElevatedHelperClient(
+            new ElevatedHelperRequestStore(), sp.GetRequiredService<IElevatedProcessLauncher>(),
+            () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));
+        services.AddTransient<IInterventionDiagnosticService>(sp => new InterventionDiagnosticService(
+            sp.GetRequiredService<IInterventionCatalog>(), File.Exists, () => Environment.SystemDirectory,
+            Process.GetProcessesByName, NetworkInterface.GetAllNetworkInterfaces));
+        services.AddTransient<IInterventionExecutionService>(sp => new InterventionExecutionService(
+            sp.GetRequiredService<IInterventionElevatedHelperClient>(), sp.GetRequiredService<IExplorerRestarter>()));
+        services.AddTransient<InterventionReportBuilder>(_ => new InterventionReportBuilder());
+
+        services.AddTransient<WingetAvailabilityService>(sp => new WingetAvailabilityService(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<UpdateRiskClassifier>(_ => new UpdateRiskClassifier());
+        services.AddTransient<WindowsUpdateStatusService>(_ => new WindowsUpdateStatusService());
+        services.AddTransient<DriverInformationService>(sp => new DriverInformationService(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IUpdateScanService>(sp => new WingetUpdateScanService(
+            sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
+            sp.GetRequiredService<UpdateRiskClassifier>(), sp.GetRequiredService<WindowsUpdateStatusService>(),
+            sp.GetRequiredService<DriverInformationService>()));
+        services.AddTransient<IUpdateExecutionService>(sp => new WingetUpdateExecutionService(
+            sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>()));
+
+        services.AddTransient<IApplicationInventoryService>(sp => new ApplicationInventoryService(
+            [new ApplicationRegistryReader(), new ApplicationWingetReader(sp.GetRequiredService<IProcessRunner>()),
+                new ApplicationStoreReader(sp.GetRequiredService<IProcessRunner>())],
+            new ApplicationRiskClassifier(), new ApplicationIconExtractor()));
+        services.AddTransient<IApplicationProcessLauncher>(sp => new ShellApplicationProcessLauncher(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<ApplicationUninstallService>(sp => new ApplicationUninstallService(
+            new ApplicationUninstallCommandValidator(), sp.GetRequiredService<IApplicationProcessLauncher>(),
+            new ApplicationRemnantScanner(), new ApplicationUninstallConfirmationPolicy()));
+
+        services.AddTransient<IProcessRuntime>(sp => new ProcessRuntime(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<ProcessProtectionPolicy>(_ => new ProcessProtectionPolicy(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32"), Environment.ProcessId));
+        services.AddTransient<IProcessInspectionService>(sp => new ProcessInspectionService(
+            new ProcessSnapshotProvider(), sp.GetRequiredService<ProcessProtectionPolicy>(), Environment.ProcessorCount));
+        services.AddTransient<ResourceRecommendationService>(_ => new ResourceRecommendationService());
+        services.AddTransient<IResourceMonitoringService>(sp => new ResourceMonitoringService(
+            sp.GetRequiredService<IProcessInspectionService>(), sp.GetRequiredService<ResourceRecommendationService>(),
+            ProcessorReader.MeasureUsageAsync, MemoryReader.Read,
+            () => TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64)), ReadProcessCount, () => DateTimeOffset.Now));
+        services.AddTransient<IProcessActionService>(sp => new ProcessActionService(
+            sp.GetRequiredService<IProcessRuntime>(), sp.GetRequiredService<ProcessProtectionPolicy>(),
+            sp.GetRequiredService<IExplorerRestarter>(), sp.GetRequiredService<IInterventionCatalog>(), () => DateTimeOffset.Now));
+        services.AddTransient<ResourceReportBuilder>(_ => new ResourceReportBuilder());
+        services.AddTransient<IMonitoringService>(_ => new MonitoringService());
+
+        services.AddTransient<CleanupSafetyClassifier>(_ => new CleanupSafetyClassifier());
+        services.AddTransient<IRecycleBinService>(_ => new WindowsRecycleBinService());
+        services.AddTransient<CleanupPreviewService>(sp => new CleanupPreviewService(
+            CleanupZoneCatalog.CreateDefault(), () => DateTimeOffset.Now,
+            sp.GetRequiredService<CleanupSafetyClassifier>(), sp.GetRequiredService<IRecycleBinService>()));
+        services.AddTransient<ICleanupService>(sp => sp.GetRequiredService<CleanupPreviewService>());
+        services.AddTransient<ICleanupPreviewService>(sp => sp.GetRequiredService<CleanupPreviewService>());
+        services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
+            () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
+        services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
+        services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
+            sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
+        services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
+
+        services.AddTransient<IReportSanitizer>(_ => new ReportSanitizer(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+        services.AddTransient<IReportHistoryService>(sp => new ReportHistoryService(
+            new ApplicationDataReportStorageRootProvider(), sp.GetRequiredService<IReportSanitizer>()));
+        services.AddTransient<IReportExportService>(sp => new ReportExportService(sp.GetRequiredService<IReportSanitizer>()));
+        services.AddTransient<ISystemScanService>(sp => new SystemScanService(
+            sp.GetRequiredService<ICleanupService>(), sp.GetRequiredService<IUpdateScanService>(),
+            sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IResourceMonitoringService>(),
+            sp.GetRequiredService<IApplicationInventoryService>()));
+        return services;
+    }
+
+    public static IServiceCollection AddVirgilViews(this IServiceCollection services)
+    {
+        services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<ICleanupPreviewService>(),
+            sp.GetRequiredService<ICleanupExecutionService>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
+        services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<IUpdateScanService>(),
+            sp.GetRequiredService<IUpdateExecutionService>(), sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<IInterventionDiagnosticService>(),
+            sp.GetRequiredService<IInterventionExecutionService>(), sp.GetRequiredService<InterventionReportBuilder>()));
+        services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<IResourceMonitoringService>(),
+            sp.GetRequiredService<IProcessActionService>(), sp.GetRequiredService<ResourceReportBuilder>()));
+        services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<IApplicationInventoryService>(),
+            sp.GetRequiredService<ApplicationUninstallService>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<ReportsHistoryView>(sp => new ReportsHistoryView(sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>()));
+        services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
+            sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>()));
+        return services;
+    }
+
+    private static int ReadProcessCount()
+    {
+        var processes = Process.GetProcesses();
+        try
+        {
+            return processes.Length;
+        }
+        finally
+        {
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
+    }
+}

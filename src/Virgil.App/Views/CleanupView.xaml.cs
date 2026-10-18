@@ -29,16 +29,15 @@ public partial class CleanupView : UserControl
     private CleanupSessionReport? _lastReport;
     private bool _operationInProgress;
 
-    public CleanupView()
-        : this(new CleanupPreviewService(), new CleanupExecutionService())
-    {
-    }
+    private readonly IProcessRunner _processRunner;
 
     public CleanupView(
         ICleanupPreviewService previewService,
         ICleanupExecutionService executionService,
+        IProcessRunner processRunner,
         CleanupStorageAnalyzer? storageAnalyzer = null)
     {
+        _processRunner = processRunner;
         InitializeComponent();
         _previewService = previewService;
         _executionService = executionService;
@@ -746,9 +745,7 @@ public partial class CleanupView : UserControl
     {
         try
         {
-            // TODO 0d : injecter IProcessRunner
-            var runner = ProcessRunnerDefaults.Current;
-            var result = await runner.LaunchAsync(new ProcessLaunchRequest(
+            var result = await _processRunner.LaunchAsync(new ProcessLaunchRequest(
                 "explorer.exe", Array.Empty<string>(), UseShellExecute: true,
                 RawArguments: $"/select,\"{fullPath}\""), CancellationToken.None);
             if (result.LaunchError is not null)

@@ -9,11 +9,6 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
     private static readonly Regex ColumnSplitter = new(@"\s{2,}|\t+", RegexOptions.Compiled);
     private readonly IProcessRunner _processRunner;
 
-    public ApplicationWingetReader()
-        : this(ProcessRunnerDefaults.Current)
-    {
-    }
-
     public ApplicationWingetReader(IProcessRunner processRunner)
     {
         _processRunner = processRunner;

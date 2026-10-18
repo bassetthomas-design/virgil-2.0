@@ -9,14 +9,6 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
     private readonly IElevatedProcessLauncher _processLauncher;
     private readonly Func<string> _helperPathProvider;
 
-    public ElevatedHelperClient()
-        : this(
-            new ElevatedHelperRequestStore(),
-            new ElevatedProcessLauncher(),
-            () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe"))
-    {
-    }
-
     public ElevatedHelperClient(
         ElevatedHelperRequestStore requestStore,
         IElevatedProcessLauncher processLauncher,
@@ -90,10 +82,6 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
 public sealed class ElevatedProcessLauncher : IElevatedProcessLauncher
 {
     private readonly IProcessRunner _runner;
-
-    public ElevatedProcessLauncher() : this(ProcessRunnerDefaults.Current)
-    {
-    }
 
     public ElevatedProcessLauncher(IProcessRunner runner)
     {

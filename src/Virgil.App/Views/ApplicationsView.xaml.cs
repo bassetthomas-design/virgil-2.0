@@ -30,15 +30,14 @@ public partial class ApplicationsView : UserControl
     private InstalledApplication? _selectedApplication;
     private bool _operationInProgress;
 
-    public ApplicationsView()
-        : this(new ApplicationInventoryService(), new ApplicationUninstallService())
-    {
-    }
+    private readonly IProcessRunner _processRunner;
 
     public ApplicationsView(
         IApplicationInventoryService inventoryService,
-        ApplicationUninstallService uninstallService)
+        ApplicationUninstallService uninstallService,
+        IProcessRunner processRunner)
     {
+        _processRunner = processRunner;
         InitializeComponent();
         _inventoryService = inventoryService;
         _uninstallService = uninstallService;
@@ -590,16 +589,14 @@ public partial class ApplicationsView : UserControl
 
         try
         {
-            // TODO 0d : injecter IProcessRunner
-            var runner = ProcessRunnerDefaults.Current;
             ProcessLaunchResult result;
             if (Directory.Exists(path))
             {
-                result = await runner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"\"{path}\""), CancellationToken.None);
+                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"\"{path}\""), CancellationToken.None);
             }
             else if (File.Exists(path))
             {
-                result = await runner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"/select,\"{path}\""), CancellationToken.None);
+                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"/select,\"{path}\""), CancellationToken.None);
             }
             else
             {
@@ -617,13 +614,11 @@ public partial class ApplicationsView : UserControl
         }
     }
 
-    private static async Task OpenWindowsSettingsAsync()
+    private async Task OpenWindowsSettingsAsync()
     {
         try
         {
-            // TODO 0d : injecter IProcessRunner
-            var runner = ProcessRunnerDefaults.Current;
-            await runner.LaunchAsync(new ProcessLaunchRequest(
+            await _processRunner.LaunchAsync(new ProcessLaunchRequest(
                 "ms-settings:appsfeatures", Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
         }
         catch

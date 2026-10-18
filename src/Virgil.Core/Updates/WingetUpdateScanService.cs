@@ -12,11 +12,6 @@ public sealed class WingetUpdateScanService : IUpdateScanService
     private readonly WindowsUpdateStatusService _windowsUpdateStatusService;
     private readonly DriverInformationService _driverInformationService;
 
-    public WingetUpdateScanService()
-        : this(CreateDefaultProcessRunner())
-    {
-    }
-
     public WingetUpdateScanService(IProcessRunner processRunner)
         : this(
             new WingetAvailabilityService(processRunner),
@@ -227,10 +222,5 @@ public sealed class WingetUpdateScanService : IUpdateScanService
         return items.Any(item => item.RiskLevel == UpdateRiskLevel.Sensitive)
             ? "Validation requise"
             : "Mises a jour disponibles";
-    }
-
-    private static IProcessRunner CreateDefaultProcessRunner()
-    {
-        return ProcessRunnerDefaults.Current;
     }
 }

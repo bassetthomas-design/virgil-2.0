@@ -52,6 +52,21 @@ public sealed class ProcessLaunchArchitectureTests
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
 
+    [Fact]
+    public void ViewsAndMainWindowMustReceiveServicesFromCompositionRoot()
+    {
+        var app = Path.Combine(FindRepositoryRoot(), "src", "Virgil.App");
+        var files = Directory.EnumerateFiles(Path.Combine(app, "Views"), "*.cs")
+            .Append(Path.Combine(app, "MainWindow.xaml.cs"));
+        var pattern = new Regex(@"new\s+\w+Service\s*\(|ProcessRunner" + "Defaults");
+        var violations = files.SelectMany(file => File.ReadAllLines(file)
+            .Select((line, index) => (line, index))
+            .Where(item => pattern.IsMatch(item.line))
+            .Select(item => $"{Path.GetRelativePath(app, file)}:{item.index + 1}: {item.line.Trim()}"));
+
+        Assert.Empty(violations);
+    }
+
     private static string FindRepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

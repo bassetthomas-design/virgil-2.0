@@ -18,59 +18,6 @@ public sealed class SystemScanService : ISystemScanService
     private readonly IResourceMonitoringService _resourceMonitoringService;
     private readonly IApplicationInventoryService _applicationInventoryService;
 
-    public SystemScanService()
-        : this(
-            new CleanupPreviewService(),
-            new WingetUpdateScanService(),
-            new InterventionDiagnosticService(),
-            new ResourceMonitoringService())
-    {
-    }
-
-    public SystemScanService(ICleanupService cleanupService)
-        : this(
-            cleanupService,
-            new WingetUpdateScanService(),
-            new InterventionDiagnosticService(),
-            new ResourceMonitoringService())
-    {
-    }
-
-    public SystemScanService(ICleanupService cleanupService, IUpdateScanService updateScanService)
-        : this(
-            cleanupService,
-            updateScanService,
-            new InterventionDiagnosticService(),
-            new ResourceMonitoringService())
-    {
-    }
-
-    public SystemScanService(
-        ICleanupService cleanupService,
-        IUpdateScanService updateScanService,
-        IInterventionDiagnosticService interventionDiagnosticService)
-        : this(
-            cleanupService,
-            updateScanService,
-            interventionDiagnosticService,
-            new ResourceMonitoringService())
-    {
-    }
-
-    public SystemScanService(
-        ICleanupService cleanupService,
-        IUpdateScanService updateScanService,
-        IInterventionDiagnosticService interventionDiagnosticService,
-        IResourceMonitoringService resourceMonitoringService)
-        : this(
-            cleanupService,
-            updateScanService,
-            interventionDiagnosticService,
-            resourceMonitoringService,
-            new ApplicationInventoryService())
-    {
-    }
-
     public SystemScanService(
         ICleanupService cleanupService,
         IUpdateScanService updateScanService,
