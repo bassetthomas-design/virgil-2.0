@@ -1,6 +1,6 @@
 # Virgil 2.0 — Roadmap
 
-Cette roadmap remplace les anciens jalons. L’[architecture](ARCHITECTURE.md) définit les responsabilités et la sécurité ; le [statut](PROJECT_STATUS.md) distingue l’existant des travaux validés. Chaque phase se termine par une validation GitHub Actions Windows et une revue de ses critères de sortie.
+Cette roadmap remplace les anciens jalons. L’[architecture](ARCHITECTURE.md) définit les responsabilités et la sécurité ; le [statut](PROJECT_STATUS.md) distingue l’existant des travaux validés. Les spécifications produit figurent dans [ACTIONS.md](ACTIONS.md). Chaque phase se termine par une validation GitHub Actions Windows et une revue de ses critères de sortie.
 
 ## Phase 0 — Fondations
 
@@ -28,6 +28,8 @@ Critères de sortie :
 - Aucune nouvelle fonctionnalité produit ; comportements existants et tests de sécurité préservés, CI Windows verte.
 
 ## Phase 1 — Diagnostic + Nettoyage
+
+Actions concernées : [Action 1 — Diagnostic](ACTIONS.md#action-1--diagnostic-validee-2026-10-18), [Action 2 — Nettoyage](ACTIONS.md#action-2--nettoyage-validee-2026-10-18), [Action 6 — Ressources fusionnée dans le Diagnostic](ACTIONS.md#action-6--ressources---fusionnee-dans-laction-1-2026-10-18) ; lien avec les restes après désinstallation de l’[Action 4 — Applications](ACTIONS.md#action-4--applications-validee-2026-10-18).
 
 Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan en lecture seule, constats, aperçu, confirmation et résultat.
 
@@ -57,6 +59,8 @@ Critères de sortie :
 
 ## Phase 3 — Mises à jour, Applications, Démarrage, Réparations
 
+Actions concernées : [Action 0 — Tout mettre à jour](ACTIONS.md#action-0--tout-mettre-a-jour-exigence), [Action 3 — Mises à jour](ACTIONS.md#action-3--mises-a-jour-pack-all-inclusive-validee-2026-10-18), [Action 4 — Applications](ACTIONS.md#action-4--applications-validee-2026-10-18), [Action 5 — Réparations](ACTIONS.md#action-5--reparations-validee-2026-10-18), [Action 7 — Démarrage](ACTIONS.md#action-7--demarrage-validee-2026-10-18).
+
 Migrer les capacités existantes et livrer les parcours manquants avec le même contrat et les mêmes garanties.
 
 Critères de sortie :
@@ -69,6 +73,8 @@ Critères de sortie :
 
 ## Phase 4 — Monitoring continu
 
+Actions concernées : [Action 1 — Diagnostic : vue en direct continue et historique](ACTIONS.md#action-1--diagnostic-validee-2026-10-18), [Action 8 — Historique (priorité basse)](ACTIONS.md#action-8--historique-validee-priorite-basse).
+
 Stabiliser le suivi CPU, RAM, disque, réseau et processus existant pour une observation continue maîtrisée.
 
 Critères de sortie :
@@ -79,6 +85,8 @@ Critères de sortie :
 
 ## Phase 5 — Agent barre des tâches
 
+Actions concernées : [Action 9 — Surveillance / Tray](ACTIONS.md#action-9--surveillance-en-arriere-plan--tray-validee-2026-10-18).
+
 Ajouter Virgil.Tray : présence discrète, notifications, ouverture du tableau de bord et démarrage optionnel avec Windows. L’agent n’agit jamais seul.
 
 Critères de sortie :
@@ -88,6 +96,8 @@ Critères de sortie :
 - Aucune maintenance déclenchée automatiquement : toute intention d’action ouvre le parcours de ConfirmationService dans App, avec tests de ce passage obligatoire ; CI Windows verte.
 
 ## Phase 6 — Personnalité
+
+Actions concernées : [Action 10 — Personnalité](ACTIONS.md#action-10--personnalite-validee-2026-10-18-bonus).
 
 Ajouter avatar, messages `[VIRGIL]` et chat, sans élargir les pouvoirs de l’assistant.
 

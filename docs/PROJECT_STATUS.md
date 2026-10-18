@@ -1,5 +1,7 @@
 # Virgil 2.0 — État du projet
 
+Les spécifications validées des actions et leur rattachement aux phases sont décrits dans [ACTIONS.md](ACTIONS.md) ; elles décrivent la cible produit.
+
 ## Situation au démarrage de la phase 0a
 
 La solution comporte App (WPF, animation dans App/Animation), Core, Contracts, ElevatedHelper et Virgil.Tests (xUnit). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
