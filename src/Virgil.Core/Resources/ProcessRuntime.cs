@@ -30,11 +30,6 @@ public sealed class ProcessRuntime : IProcessRuntime
 {
     private readonly IProcessRunner _runner;
 
-    public ProcessRuntime()
-        : this(ProcessRunnerDefaults.Current)
-    {
-    }
-
     public ProcessRuntime(IProcessRunner runner)
     {
         _runner = runner;

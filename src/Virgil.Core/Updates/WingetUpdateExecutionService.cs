@@ -9,11 +9,6 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
     private readonly WingetAvailabilityService _availabilityService;
     private readonly IProcessRunner _processRunner;
 
-    public WingetUpdateExecutionService()
-        : this(CreateDefaultProcessRunner())
-    {
-    }
-
     public WingetUpdateExecutionService(IProcessRunner processRunner)
         : this(new WingetAvailabilityService(processRunner), processRunner)
     {
@@ -190,10 +185,5 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         return string.IsNullOrWhiteSpace(output)
             ? $"WinGet exit code {result.ExitCode}."
             : $"WinGet exit code {result.ExitCode}.\n{output}";
-    }
-
-    private static IProcessRunner CreateDefaultProcessRunner()
-    {
-        return ProcessRunnerDefaults.Current;
     }
 }

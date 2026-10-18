@@ -29,11 +29,6 @@ public partial class InterventionsView : UserControl
     private bool _operationInProgress;
     private bool _criticalActionStarted;
 
-    public InterventionsView()
-        : this(new InterventionDiagnosticService(), new InterventionExecutionService(), new InterventionReportBuilder())
-    {
-    }
-
     public InterventionsView(
         IInterventionDiagnosticService diagnosticService,
         IInterventionExecutionService executionService,

@@ -10,14 +10,6 @@ public sealed class ApplicationUninstallService
     private readonly ApplicationRemnantScanner _remnantScanner;
     private readonly ApplicationUninstallConfirmationPolicy _confirmationPolicy;
 
-    public ApplicationUninstallService()
-        : this(
-            new ApplicationUninstallCommandValidator(),
-            new ShellApplicationProcessLauncher(),
-            new ApplicationRemnantScanner())
-    {
-    }
-
     public ApplicationUninstallService(
         ApplicationUninstallCommandValidator validator,
         IApplicationProcessLauncher launcher,
@@ -166,10 +158,6 @@ public sealed class ApplicationUninstallService
 public sealed class ShellApplicationProcessLauncher : IApplicationProcessLauncher
 {
     private readonly IProcessRunner _runner;
-
-    public ShellApplicationProcessLauncher() : this(ProcessRunnerDefaults.Current)
-    {
-    }
 
     public ShellApplicationProcessLauncher(IProcessRunner runner)
     {

@@ -22,11 +22,11 @@ public partial class ReportsHistoryView : UserControl
     private bool _selectedReportIsPersistent;
     private bool _technicalDetailsVisible;
 
-    public ReportsHistoryView()
+    public ReportsHistoryView(IReportHistoryService historyService, IReportExportService exportService)
     {
         InitializeComponent();
-        _historyService = new ReportHistoryService();
-        _exportService = new ReportExportService();
+        _historyService = historyService;
+        _exportService = exportService;
         RenderEmptyHistory();
     }
 

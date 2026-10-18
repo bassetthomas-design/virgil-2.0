@@ -195,7 +195,8 @@ public sealed class InterventionsModuleTests
     public async Task Quick_scan_does_not_run_intervention_diagnostics()
     {
         var interventions = new RecordingInterventionDiagnosticService();
-        var service = new SystemScanService(new EmptyCleanupService(), new EmptyUpdateScanService(), interventions);
+        var service = new SystemScanService(new EmptyCleanupService(), new EmptyUpdateScanService(), interventions,
+            new Virgil.Core.Resources.ResourceMonitoringService(), new EmptyApplicationInventoryService());
 
         var report = await service.RunAsync(ScanMode.Quick, null, CancellationToken.None);
 
@@ -212,7 +213,8 @@ public sealed class InterventionsModuleTests
                 Status = InterventionStatus.Recommended,
                 Recommendation = "DNS a verifier."
             });
-        var service = new SystemScanService(new EmptyCleanupService(), new EmptyUpdateScanService(), interventions);
+        var service = new SystemScanService(new EmptyCleanupService(), new EmptyUpdateScanService(), interventions,
+            new Virgil.Core.Resources.ResourceMonitoringService(), new EmptyApplicationInventoryService());
 
         var report = await service.RunAsync(ScanMode.Deep, null, CancellationToken.None);
 

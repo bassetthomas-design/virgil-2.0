@@ -254,7 +254,9 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
     public async Task Deep_scan_uses_preview_request_and_does_not_install()
     {
         var updateService = new RecordingUpdateScanService();
-        var systemScan = new SystemScanService(new EmptyCleanupService(), updateService);
+        var systemScan = new SystemScanService(new EmptyCleanupService(), updateService,
+            new Virgil.Core.Interventions.InterventionDiagnosticService(),
+            new Virgil.Core.Resources.ResourceMonitoringService(), new EmptyApplicationInventoryService());
 
         var report = await systemScan.RunAsync(ScanMode.Deep, null, CancellationToken.None);
 

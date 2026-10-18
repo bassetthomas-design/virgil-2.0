@@ -7,11 +7,6 @@ public sealed class ApplicationStoreReader : IApplicationInventorySourceReader
 {
     private readonly IProcessRunner _processRunner;
 
-    public ApplicationStoreReader()
-        : this(ProcessRunnerDefaults.Current)
-    {
-    }
-
     public ApplicationStoreReader(IProcessRunner processRunner)
     {
         _processRunner = processRunner;

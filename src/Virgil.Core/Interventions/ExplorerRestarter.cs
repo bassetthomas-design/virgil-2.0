@@ -9,11 +9,6 @@ public sealed class ExplorerRestarter : IExplorerRestarter
     private readonly Func<string, Process[]> _processProvider;
     private readonly IProcessRunner _runner;
 
-    public ExplorerRestarter()
-        : this(Process.GetProcessesByName, ProcessRunnerDefaults.Current)
-    {
-    }
-
     public ExplorerRestarter(
         Func<string, Process[]> processProvider,
         IProcessRunner runner)
