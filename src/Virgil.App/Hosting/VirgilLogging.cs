@@ -10,7 +10,11 @@ public static class VirgilLogging
 {
     public static Serilog.Core.Logger CreateLogger(VirgilPaths paths, VirgilSettings settings)
     {
-        paths.EnsureLogsDirectory();
+        try { paths.EnsureLogsDirectory(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return new LoggerConfiguration().CreateLogger();
+        }
         var level = Enum.TryParse<LogEventLevel>(settings.MinimumLogLevel, true, out var parsed) && Enum.IsDefined(parsed)
             ? parsed : LogEventLevel.Information;
         return new LoggerConfiguration()

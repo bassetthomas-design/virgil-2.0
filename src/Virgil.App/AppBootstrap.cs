@@ -6,6 +6,7 @@ using Serilog.Extensions.Logging;
 using System.Windows;
 using System.Windows.Threading;
 using Virgil.App.Hosting;
+using Virgil.Infrastructure.Windows;
 using Virgil.Infrastructure.Settings;
 using Virgil.Infrastructure.Storage;
 
@@ -13,6 +14,8 @@ namespace Virgil.App;
 
 public partial class App : System.Windows.Application
 {
+    private SingleInstanceGuard? _instance;
+    private bool _mainWindowClosed;
     private IHost? _host;
     private SerilogLoggerFactory? _bootstrapLogging;
     private ExceptionReporter? _reporter;
@@ -20,6 +23,15 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        _instance = new SingleInstanceGuard();
+        if (!_instance.TryAcquire())
+        {
+            if (!_instance.SignalExisting())
+                MessageBox.Show("Virgil est deja ouvert.", "Virgil");
+            Shutdown(0);
+            return;
+        }
+
         VirgilPaths? paths = null;
         var loggerCreated = false;
         try
@@ -54,7 +66,9 @@ public partial class App : System.Windows.Application
             _host.StartAsync().GetAwaiter().GetResult();
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
+            window.Closed += (_, _) => _mainWindowClosed = true;
             window.Show();
+            _instance.StartListening(() => Dispatcher.BeginInvoke((Action)ActivateMainWindow));
         }
         catch (Exception ex)
         {
@@ -73,6 +87,19 @@ public partial class App : System.Windows.Application
                 finally { Shutdown(1); }
             }
         }
+    }
+
+    private void ActivateMainWindow()
+    {
+        var window = MainWindow;
+        if (window is null || _mainWindowClosed) return;
+        Log.Information("Activation demandee par une seconde instance");
+        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+        window.Show();
+        window.Activate();
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
     }
 
     private void OnDispatcherException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -122,7 +149,11 @@ public partial class App : System.Windows.Application
                 finally
                 {
                     try { Log.CloseAndFlush(); }
-                    finally { base.OnExit(e); }
+                    finally
+                    {
+                        try { _instance?.Dispose(); }
+                        finally { base.OnExit(e); }
+                    }
                 }
             }
         }
