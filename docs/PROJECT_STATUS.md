@@ -22,7 +22,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
-| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #PR_NUMBER) ; 0d-4 à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
 | 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
