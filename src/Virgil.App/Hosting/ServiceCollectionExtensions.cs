@@ -61,10 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IProcessInspectionService>(sp => new ProcessInspectionService(
             new ProcessSnapshotProvider(), sp.GetRequiredService<ProcessProtectionPolicy>(), Environment.ProcessorCount));
         services.AddTransient<ResourceRecommendationService>(_ => new ResourceRecommendationService());
-        services.AddTransient<IResourceMonitoringService>(sp => new ResourceMonitoringService(
-            sp.GetRequiredService<IProcessInspectionService>(), sp.GetRequiredService<ResourceRecommendationService>(),
-            ProcessorReader.MeasureUsageAsync, MemoryReader.Read,
-            () => TimeSpan.FromMilliseconds(Math.Max(0, Environment.TickCount64)), ReadProcessCount, () => DateTimeOffset.Now));
+        services.AddTransient<IResourceMonitoringService>(_ => new ResourceMonitoringService());
         services.AddTransient<IProcessActionService>(sp => new ProcessActionService(
             sp.GetRequiredService<IProcessRuntime>(), sp.GetRequiredService<ProcessProtectionPolicy>(),
             sp.GetRequiredService<IExplorerRestarter>(), sp.GetRequiredService<IInterventionCatalog>(), () => DateTimeOffset.Now));
@@ -116,19 +113,4 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static int ReadProcessCount()
-    {
-        var processes = Process.GetProcesses();
-        try
-        {
-            return processes.Length;
-        }
-        finally
-        {
-            foreach (var process in processes)
-            {
-                process.Dispose();
-            }
-        }
-    }
 }
