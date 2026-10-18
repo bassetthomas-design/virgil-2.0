@@ -16,9 +16,9 @@ La solution `Virgil.sln` contient cinq projets :
 
 App référence Core et Domain ; sa référence au helper sert à sa construction/publication (`ReferenceOutputAssembly=false`). Le helper est publié avec App.
 
-Les gardes existants incluent `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et `ElevatedActionAllowlist`. Les confirmations sont encore spécifiques aux modules ; une surcharge de désinstallation prend notamment `bool userConfirmed`. Le nettoyage vérifie ses aperçus mais utilise encore `File.Delete` pour certains fichiers : la quarantaine généralisée n’est pas livrée. L’historique stocke déjà des rapports JSON locaux.
+Les gardes existants incluent `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et `ElevatedActionAllowlist`. Les confirmations sont encore spécifiques aux modules ; une surcharge de désinstallation prend notamment `bool userConfirmed`. Le nettoyage vérifie ses aperçus mais utilise encore `File.Delete` pour toutes les zones sauf la corbeille, traitée via l’API Windows : la quarantaine généralisée n’est pas livrée. `ProcessActionService` prend aussi `bool reinforcedConfirmation`. Il existe quatre lanceurs de processus distincts : `Updates/ProcessRunner`, `ElevatedCommandRunner`, `ShellApplicationProcessLauncher` et `ElevatedProcessLauncher`. L’historique stocke déjà des rapports JSON locaux.
 
-`Virgil.Contracts`, `Virgil.Infrastructure`, `Virgil.Tray` et `installer/` n’existent pas encore. Il n’existe pas de contrat commun `IMaintenanceModule`/`IMaintenanceAction`, de `ConfirmedPlan` commun, de `ConfirmationService` central, ni de composition via Hosting/CommunityToolkit.Mvvm ou de journalisation Serilog configurée. Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
+`Virgil.Contracts`, `Virgil.Infrastructure`, `Virgil.Tray` et `installer/` n’existent pas encore. Il n’existe pas de contrat commun `IMaintenanceModule`/`IMaintenanceAction`, de `ConfirmedPlan` commun, de `ConfirmationService` central, ni de composition via Hosting/CommunityToolkit.Mvvm ou de journalisation Serilog configurée. Il n’existe pas encore de logs applicatifs ni de service de settings ; les rapports JSON existants ne constituent pas un service de logs. Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
 
 La CI de référence est `.github/workflows/build.yml`, sur `windows-latest` : restore, build Release, tests, publication self-contained win-x64 et artefact. Elle ne produit pas encore d’installateur.
 
@@ -34,7 +34,7 @@ La CI de référence est `.github/workflows/build.yml`, sur `windows-latest` : r
 | `Virgil.Tray` (plus tard) | Agent de barre des tâches, notifications et ouverture de l’application. N’agit jamais seul et ne contourne pas ConfirmationService. |
 | `installer/` | Scripts Inno Setup pour distribuer App et le helper avec la publication self-contained. |
 
-Les types utiles de Domain seront migrés vers Contracts ; Domain est transitoire, pas une couche supplémentaire de la cible. Les politiques restent dans Core, les effets Windows passent par Infrastructure. Le helper est la frontière privilégiée séparée : son exécuteur interne reste limité à l’allowlist, sans ouvrir un lanceur arbitraire.
+Les types partagés utiles de Domain seront migrés vers Contracts ; les modèles d’animation vont dans App ; Domain est transitoire, pas une couche supplémentaire de la cible. Les politiques restent dans Core, les effets Windows passent par Infrastructure. Le helper est la frontière privilégiée séparée : son exécuteur interne reste limité à l’allowlist, sans ouvrir un lanceur arbitraire.
 
 ```mermaid
 flowchart TD
@@ -95,7 +95,7 @@ Ce mécanisme remplace les paramètres `bool userConfirmed`, sans supprimer pré
 ## Filets de sécurité obligatoires
 
 - Nettoyer vers une quarantaine ou la corbeille, avec traçabilité et procédure de restauration. Ne pas basculer silencieusement en suppression définitive si ce mécanisme échoue ; toute purge irréversible est une action distincte avec aperçu et confirmation adaptés.
-- Créer et vérifier un point de restauration avant les actions sensibles (`Sensitive` et `Critical`). En cas d’échec ou d’indisponibilité, bloquer l’action et expliquer le motif ; ne pas dégrader silencieusement la protection.
+- Créer et vérifier un point de restauration uniquement avant les changements système : pilotes, réparations Windows via le helper, modifications du démarrage, du registre ou des services. Il n’est pas requis pour le nettoyage, protégé par quarantaine/corbeille, ni pour les actions sur les processus. Si la restauration système est désactivée ou limitée, expliquer la situation et proposer de l’activer ; ne permettre de continuer sans cette protection que via une confirmation de niveau Critique indiquant explicitement « aucun point de restauration ». Ne jamais ignorer cette situation en silence. Hors de cette dérogation explicite, un échec de création ou de vérification bloque le changement système.
 - Sauvegarder l’état du démarrage avant toute modification et fournir une restauration testée ; bloquer la modification si la sauvegarde échoue.
 - Conserver ou renforcer `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et l’allowlist du helper. Aucun texte libre du chat ne devient une commande OS arbitraire.
 - Tester toute action destructive, y compris le refus d’un plan expiré/non conforme et l’absence d’effets après refus. Journaliser consentement, exécution, résultat et échec sans exposer de secrets.

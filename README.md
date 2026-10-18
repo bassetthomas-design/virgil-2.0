@@ -1,5 +1,7 @@
 # Virgil 2.0
 
+**Statut :** phase 0 en cours — documentation 0a fusionnée (PR #27), corrections 0a.1 ; refonte et installateur alpha à réaliser. Voir [PROJECT_STATUS](docs/PROJECT_STATUS.md).
+
 **Virgil 2.0** est un nouveau projet créé de zéro : un assistant PC Windows local orienté diagnostic, surveillance, maintenance encadrée et interface tactique sombre/orange.
 
 ## Décision de travail
@@ -72,13 +74,24 @@ Le module Ressources applique en plus une confirmation renforcée avant toute fe
 
 ## Documentation
 
-- `PROJECT_STATUS.md`
+- [PROJECT_STATUS — statut de référence](docs/PROJECT_STATUS.md)
+- [AGENTS.md — règles de contribution](AGENTS.md)
 - `docs/CLEAN_REWRITE_DECISION.md`
 - `docs/GITHUB_ONLY_WORKFLOW.md`
-- `docs/ARCHITECTURE.md`
-- `docs/ROADMAP.md`
+- [Architecture : existant et cible](docs/ARCHITECTURE.md)
+- [ROADMAP — phases et critères de sortie](docs/ROADMAP.md)
 - `docs/UI_DIRECTION.md`
 
 ## Statut
 
-Base neuve Virgil 2.0 en cours de création sur GitHub uniquement.
+La [ROADMAP](docs/ROADMAP.md) fixe l’ordre des travaux :
+
+- Phase 0 : fondations, lots 0a/0a.1 puis 0b à 0g, une PR chacun.
+- Phase 1 : Diagnostic + Nettoyage.
+- Phase 2 : installateur Inno Setup et release v2.0.0-alpha.
+- Phase 3 : Mises à jour, Applications, Démarrage, Réparations.
+- Phase 4 : monitoring continu.
+- Phase 5 : agent barre des tâches.
+- Phase 6 : personnalité.
+
+Le [statut détaillé](docs/PROJECT_STATUS.md) distingue les capacités existantes de la cible ; la documentation ne vaut pas validation de leur implémentation.

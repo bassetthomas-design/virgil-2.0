@@ -14,11 +14,15 @@ La CI `.github/workflows/build.yml` sur Windows restaure, compile, teste et publ
 - Roadmap remplacée par les phases 0 à 6 et leurs critères de sortie ; règles agents ajoutées à la racine.
 - Aucun code C#, projet ou comportement applicatif modifié par ce lot. La phase 0 complète reste à réaliser ; la cible n’est pas implémentée par la documentation.
 
+## Corrections documentaires 0a.1
+
+Périmètre des points de restauration précisé, critères de distribution alpha complétés, phase 0 découpée en sous-lots ordonnés, inventaire actuel et règles agents corrigés. Les deux anciens documents de décisions/roadmap sont marqués historiques et le README renvoie aux références actuelles. Aucun changement C#, csproj ou workflow ; ces corrections ne livrent pas la cible.
+
 ## Suivi des phases
 
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
-| 0 — Fondations | Lot 0a documentaire proposé ; refactor à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; lots 0b à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
 | 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
@@ -30,4 +34,4 @@ Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, 
 
 ## Prochain travail
 
-Après revue et fusion de 0a, poursuivre les fondations par tâches séparées et une PR par tâche, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.
+Après les corrections documentaires 0a.1, poursuivre dans l’ordre 0b Contracts, 0c Infrastructure, 0d Hosting/DI, 0e contrats de confirmation testés, 0f helper limité à Contracts, puis 0g séparation des tests. Une PR par sous-lot, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.
