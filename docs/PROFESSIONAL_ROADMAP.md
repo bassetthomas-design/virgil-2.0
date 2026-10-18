@@ -1,5 +1,7 @@
 # Feuille de route professionnelle Virgil 2.0
 
+> **Document historique** — Conservé pour référence. Les décisions et critères actuels sont définis dans [ROADMAP.md](ROADMAP.md) et [ARCHITECTURE.md](ARCHITECTURE.md), qui font autorité en cas de divergence.
+
 Date: 2026-06-17
 Principe: chaque action sensible doit etre precedee d'une lecture, d'une previsualisation, d'une validation explicite et d'un rapport local.
 

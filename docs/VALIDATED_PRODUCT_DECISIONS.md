@@ -1,5 +1,7 @@
 # Virgil 2.0 - Décisions produit validées
 
+> **Document historique** — Conservé pour référence. Les décisions et critères actuels sont définis dans [ROADMAP.md](ROADMAP.md) et [ARCHITECTURE.md](ARCHITECTURE.md), qui font autorité en cas de divergence.
+
 ## Statut
 
 Ce document regroupe les décisions validées pour Virgil 2.0 avant implémentation.
