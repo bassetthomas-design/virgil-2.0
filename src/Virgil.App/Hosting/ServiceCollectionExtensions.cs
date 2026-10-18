@@ -17,6 +17,20 @@ namespace Virgil.App.Hosting;
 
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddVirgilDiagnostics(this IServiceCollection services,
+        Virgil.Infrastructure.Storage.VirgilPaths paths, Virgil.Core.Settings.ISettingsService settings,
+        System.Windows.Threading.Dispatcher dispatcher, ExceptionReporter? reporter = null)
+    {
+        services.AddLogging();
+        services.AddSingleton(paths);
+        services.AddSingleton<Virgil.Core.Settings.ISettingsService>(settings);
+        services.AddSingleton<IUserNotifier>(sp => new MessageBoxUserNotifier(
+            sp.GetRequiredService<Virgil.Infrastructure.Storage.VirgilPaths>(), dispatcher));
+        if (reporter is null) services.AddSingleton<ExceptionReporter>();
+        else services.AddSingleton(reporter);
+        return services;
+    }
+
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
         services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
