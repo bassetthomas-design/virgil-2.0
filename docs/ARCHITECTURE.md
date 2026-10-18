@@ -4,6 +4,8 @@ Ce document est la source de vérité pour l’architecture. Il distingue l’ex
 
 ## État actuel vérifié
 
+L’instance unique utilise le mutex `Local\Virgil.SingleInstance.v2` et un événement AutoReset local pour activer la fenêtre existante. Le contrôle précède chemins, settings, logs et host ; une seconde instance signale puis quitte sans les créer. Le mutex reste acquis jusqu’à la fin de la sortie sur le thread UI. Le manifeste App déclare `asInvoker`, Windows 10/11 et `PerMonitorV2` (`true/PM`). Les warnings sont traités en erreurs, sans exclusion anticipée NuGet. Si le dossier de logs est inaccessible (IO, droits ou sécurité), le démarrage continue avec un logger sans sink.
+
 La solution `Virgil.sln` contient six projets :
 
 | Projet | Réalité du dépôt |
