@@ -10,6 +10,7 @@ using Xunit;
 
 namespace Virgil.Tests;
 
+[Trait("Category", "Windows")]
 public sealed class DiagnosticsCompositionRootTests
 {
     [Fact]

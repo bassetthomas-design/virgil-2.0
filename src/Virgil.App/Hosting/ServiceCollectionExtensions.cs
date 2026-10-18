@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         Virgil.Infrastructure.Storage.VirgilPaths paths, Virgil.Core.Settings.ISettingsService settings,
         System.Windows.Threading.Dispatcher dispatcher, ExceptionReporter? reporter = null)
     {
+        services.AddLogging();
         services.AddSingleton(paths);
         services.AddSingleton<Virgil.Core.Settings.ISettingsService>(settings);
         services.AddSingleton<IUserNotifier>(sp => new MessageBoxUserNotifier(
