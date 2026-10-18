@@ -438,7 +438,6 @@ public partial class MainWindow : Window
 
     private void WireResourcesModule()
     {
-        ResourcesModuleView.ConfigureReportHistory(_reportHistoryService);
         ResourcesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ResourcesModuleView.VirgilStateRequested += SetVirgilState;
         ResourcesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
