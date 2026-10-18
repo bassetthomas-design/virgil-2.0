@@ -1,0 +1,33 @@
+# Virgil 2.0 — État du projet
+
+## Situation au démarrage de la phase 0a
+
+La solution comporte App (WPF), Core, Domain, ElevatedHelper et Virgil.Tests (xUnit). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
+
+La CI `.github/workflows/build.yml` sur Windows restaure, compile, teste et publie un artefact self-contained win-x64. La réussite d’un build se constate uniquement dans GitHub Actions ; ce document ne constitue pas une attestation de CI verte. Aucun installateur Inno Setup n’est encore présent.
+
+## Livraison documentaire 0a
+
+- Suppression du workflow invalide de payload de confirmation Applications, dont le travail a été livré par les PR #24 à #26.
+- Suppression du workflow désactivé et du script d’initialisation devenus obsolètes selon la décision de reconstruction propre.
+- Architecture réécrite : inventaire réel, cible, contrats, confirmation liée au hash d’aperçu et filets de sécurité.
+- Roadmap remplacée par les phases 0 à 6 et leurs critères de sortie ; règles agents ajoutées à la racine.
+- Aucun code C#, projet ou comportement applicatif modifié par ce lot. La phase 0 complète reste à réaliser ; la cible n’est pas implémentée par la documentation.
+
+## Suivi des phases
+
+| Phase | État | Condition de clôture |
+| --- | --- | --- |
+| 0 — Fondations | Lot 0a documentaire proposé ; refactor à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
+| 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
+| 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
+| 4 — Monitoring continu | Services existants ; stabilisation à réaliser | Observation continue maîtrisée et budget de ressources validé. |
+| 5 — Agent barre des tâches | À réaliser | Tray opérationnel, n’agissant jamais seul. |
+| 6 — Personnalité | Contrôle animé existant ; parcours complet à réaliser | Avatar, messages `[VIRGIL]` et intentions du chat passant par ConfirmationService validés. |
+
+Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, figurent dans [ROADMAP.md](ROADMAP.md). Ne clôturer aucune phase sur la seule présence d’un fichier ou d’un écran.
+
+## Prochain travail
+
+Après revue et fusion de 0a, poursuivre les fondations par tâches séparées et une PR par tâche, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.

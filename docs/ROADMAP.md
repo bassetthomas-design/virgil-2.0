@@ -1,237 +1,79 @@
-# Virgil 2.0 - Roadmap complète
+# Virgil 2.0 — Roadmap
 
-Objectif final : produire un logiciel Windows installable, prêt à l'emploi, sans demander à l'utilisateur final d'installer .NET, winget, des scripts ou des dépendances externes à la main.
+Cette roadmap remplace les anciens jalons. L’[architecture](ARCHITECTURE.md) définit les responsabilités et la sécurité ; le [statut](PROJECT_STATUS.md) distingue l’existant des travaux validés. Chaque phase se termine par une validation GitHub Actions Windows et une revue de ses critères de sortie.
 
-## 1. Décision produit
+## Phase 0 — Fondations
 
-**Nom :** Virgil 2.0
+Refactor sans nouvelle fonctionnalité. Phase 0a : supprimer les workflows/scripts obsolètes, documenter l’existant et la cible, ajouter les règles agents. Les lots suivants introduisent Contracts, séparent Core/Infrastructure, centralisent IProcessRunner, installent DI/Hosting, MVVM et ConfirmationService, unifient RiskLevel et préparent le protocole élevé.
 
-**Positionnement :** assistant PC local pour Windows.
+Critères de sortie :
 
-**Promesse utilisateur :**
+- Documentation cohérente et fichiers obsolètes supprimés pour 0a, sans modification C#.
+- Dépendances conformes à la cible, helper ne référençant que Contracts parmi les projets Virgil ; aucun appel OS direct dans Core.
+- Vues minces, services et ViewModels injectés, aucun `new XxxService()` dans les vues/ViewModels ; logs Serilog, settings JSON et stockage des rapports dans Infrastructure.
+- Contrats et validation de ConfirmedPlan disponibles et testés : expiration, hash incorrect, provenance invalide et absence d’effet après refus. Les protections existantes restent actives pendant la transition.
+- Aucune nouvelle fonctionnalité produit ; comportements existants et tests de sécurité préservés, CI Windows verte.
 
-- installer Virgil
-- lancer l'application
-- voir l'état du PC
-- recevoir des recommandations compréhensibles
-- nettoyer, diagnostiquer ou mettre à jour après validation
-- ne pas devoir installer d'add-on ou bricoler Windows
+## Phase 1 — Diagnostic + Nettoyage
 
-## 2. Base technique
+Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan en lecture seule, constats, aperçu, confirmation et résultat.
 
-- .NET 8
-- WPF
-- Windows x64
-- Publication self-contained
-- Installateur Windows
-- Logs locaux
-- Pas de dépendance manuelle côté utilisateur final
+Critères de sortie :
 
-## 3. Structure cible
+- Les deux modules utilisent le contrat commun et l’unique RiskLevel ; aucune exécution destructive via un simple booléen de confirmation.
+- Plan absent, expiré ou différent de l’aperçu refusé ; tests prouvant qu’aucune écriture destructive ne suit le refus.
+- Nettoyage vers quarantaine/corbeille avec restauration vérifiée ; protections de chemins et classification conservées. Point de restauration vérifié avant action sensible, échec bloquant.
+- Résultats, erreurs, annulation et rapports compréhensibles en français ; CI Windows verte.
 
-```text
-Virgil 2.0
-│
-├── src
-│   ├── Virgil.App
-│   ├── Virgil.Core
-│   ├── Virgil.Agent
-│   └── Virgil.Domain
-│
-├── tests
-│   └── Virgil.Tests
-│
-├── build
-│   ├── publish-release.ps1
-│   └── installer.iss
-│
-├── scripts
-│   ├── Initialize-Virgil2FromVirgil.ps1
-│   └── Apply-TacticalHudTheme.ps1
-│
-└── docs
-```
+## Phase 2 — Installateur Inno Setup + release v2.0.0-alpha
 
-## 4. Plan de travail pas à pas
+Distribuer une première version installable centrée sur Diagnostic et Nettoyage.
 
-### Étape 1 - Importer Virgil v1
+Critères de sortie :
 
-But : récupérer la base existante sans repartir de zéro.
+- `installer/` contient la configuration Inno Setup ; la CI Windows produit l’installateur depuis une publication self-contained win-x64 avec le helper.
+- Installation, lancement, demande d’élévation, redémarrage de l’application et désinstallation vérifiés sur Windows sans SDK .NET installé.
+- Droits utilisateur standard testés ; données utilisateur, rapports et logs traités explicitement lors de la désinstallation.
+- Tag et release `v2.0.0-alpha`, installateur téléchargeable, notes de version et limites connues publiés ; CI Windows verte.
 
-- [ ] Cloner `bassetthomas-design/Virgil`
-- [ ] Importer dans `bassetthomas-design/virgil-2.0`
-- [ ] Créer une branche `virgil-2-tactical-hud`
-- [ ] Vérifier `dotnet restore`
-- [ ] Vérifier `dotnet build`
-- [ ] Corriger les erreurs de chemin ou de namespace
+## Phase 3 — Mises à jour, Applications, Démarrage, Réparations
 
-### Étape 2 - Nettoyer la base
+Migrer les capacités existantes et livrer les parcours manquants avec le même contrat et les mêmes garanties.
 
-But : supprimer ou isoler ce qui gêne la version 2.0.
+Critères de sortie :
 
-- [ ] Revoir les anciens fichiers obsolètes
-- [ ] Garder App / Core / Agent / Tests
-- [ ] Supprimer les essais inutiles
-- [ ] Uniformiser les noms de projets
-- [ ] Valider que le build reste stable
+- Mises à jour, Applications, Démarrage et Réparations exposent scan, aperçu, confirmation et résultat via le contrat commun.
+- Dépendances absentes (dont winget), échecs et droits insuffisants donnent des états explicites ; aucune commande libre transmise au helper.
+- Sauvegarde vérifiée avant toute modification du démarrage et restauration testée ; point de restauration avant actions sensibles.
+- Tests des refus, désinstallations, protections des processus et allowlist conservés ou renforcés ; CI Windows verte.
 
-### Étape 3 - Stabiliser le monitoring
+## Phase 4 — Monitoring continu
 
-But : afficher des informations fiables.
+Stabiliser le suivi CPU, RAM, disque, réseau et processus existant pour une observation continue maîtrisée.
 
-- [ ] Corriger le calcul RAM
-- [ ] Afficher RAM utilisée / totale / disponible
-- [ ] Vérifier CPU
-- [ ] Vérifier disque
-- [ ] Vérifier réseau
-- [ ] Préparer température matériel si disponible
-- [ ] Ajouter tests unitaires
+Critères de sortie :
 
-### Étape 4 - Refaire l'interface Virgil 2.0
+- Échantillonnage, annulation, erreurs de lecture, arrêt et reprise testés ; mesures cohérentes et informations indisponibles signalées.
+- Fréquence et rétention bornées, consommation mesurée selon un budget documenté et validé ; absence de fuite lors d’une session prolongée.
+- Le monitoring observe et recommande ; toute action passe par aperçu et ConfirmationService ; CI Windows verte.
 
-But : donner l'identité Tactical HUD orange/noir.
+## Phase 5 — Agent barre des tâches
 
-- [ ] Intégrer `TacticalHudTheme.xaml`
-- [ ] Revoir `App.xaml`
-- [ ] Supprimer les couleurs codées en dur
-- [ ] Créer cartes CPU / RAM / disque / réseau
-- [ ] Créer panneau assistant
-- [ ] Créer centre d'actions rapides
-- [ ] Ajouter animations légères
+Ajouter Virgil.Tray : présence discrète, notifications, ouverture du tableau de bord et démarrage optionnel avec Windows. L’agent n’agit jamais seul.
 
-### Étape 5 - Créer le système de notifications internes
+Critères de sortie :
 
-But : donner l'impression d'un agent système cohérent.
+- Cycle de vie, instance unique, fermeture et démarrage optionnel vérifiés ; arrêt effectif de l’observation à la demande.
+- Notifications contrôlables et limitées ; accès clair aux constats et à l’application.
+- Aucune maintenance déclenchée automatiquement : toute intention d’action ouvre le parcours de ConfirmationService dans App, avec tests de ce passage obligatoire ; CI Windows verte.
 
-- [ ] Créer `HudNotificationService`
-- [ ] Niveaux : info, success, warning, danger
-- [ ] Messages courts type `[VIRGIL]`
-- [ ] Historique visible
-- [ ] Notifications non bloquantes
+## Phase 6 — Personnalité
 
-### Étape 6 - Revoir le nettoyage
+Ajouter avatar, messages `[VIRGIL]` et chat, sans élargir les pouvoirs de l’assistant.
 
-But : nettoyer sans comportement dangereux.
+Critères de sortie :
 
-- [ ] Scan avant action
-- [ ] Estimation espace récupérable
-- [ ] Liste des emplacements concernés
-- [ ] Mode simulation
-- [ ] Validation utilisateur
-- [ ] Rapport après action
-
-### Étape 7 - Revoir les pilotes
-
-But : scan puis bouton d'installation uniquement si résultat.
-
-- [ ] Bouton `Scanner les pilotes`
-- [ ] Liste des pilotes détectés
-- [ ] Statut clair : aucun / disponibles / erreur
-- [ ] Bouton `Installer les pilotes` affiché seulement si utile
-- [ ] Confirmation avant installation
-- [ ] Log détaillé
-
-### Étape 8 - Revoir les mises à jour d'applications
-
-But : mettre à jour les logiciels simplement.
-
-- [ ] Vérifier disponibilité de winget
-- [ ] Si winget absent, expliquer clairement
-- [ ] Scan des applications
-- [ ] Mise à jour sélectionnée ou globale
-- [ ] Rapport final
-
-### Étape 9 - Créer le mode diagnostic express
-
-But : un bouton simple pour obtenir l'état général du PC.
-
-- [ ] Santé globale
-- [ ] CPU / RAM / disque / réseau
-- [ ] Démarrage
-- [ ] Mises à jour
-- [ ] Pilotes
-- [ ] Recommandations classées par priorité
-
-### Étape 10 - Créer l'agent en arrière-plan
-
-But : surveiller sans garder la fenêtre ouverte.
-
-- [ ] Icône tray
-- [ ] Démarrage optionnel avec Windows
-- [ ] Notifications système
-- [ ] Surveillance légère
-- [ ] Ouverture rapide du tableau de bord
-
-### Étape 11 - Créer l'installateur prêt à l'emploi
-
-But : double-clic, installation, terminé.
-
-- [ ] Publication self-contained win-x64
-- [ ] Inclure runtime .NET dans l'application publiée
-- [ ] Créer installateur Inno Setup ou MSIX
-- [ ] Raccourci bureau
-- [ ] Raccourci menu Démarrer
-- [ ] Désinstallation propre
-- [ ] Dossier logs propre
-
-### Étape 12 - Préparer CI/CD GitHub
-
-But : générer automatiquement un build installable.
-
-- [ ] Workflow GitHub Actions Windows
-- [ ] Restore
-- [ ] Build
-- [ ] Test
-- [ ] Publish self-contained
-- [ ] Génération installateur
-- [ ] Upload artefact `.exe`
-
-### Étape 13 - Tests utilisateur
-
-But : vérifier que le logiciel est exploitable par tous.
-
-- [ ] Tester sur PC principal
-- [ ] Tester sur PC sans environnement dev
-- [ ] Tester après redémarrage
-- [ ] Tester sans droits admin
-- [ ] Tester avec droits admin
-- [ ] Tester désinstallation
-- [ ] Tester logs
-
-### Étape 14 - Version 1.0 publique
-
-But : première version exploitable.
-
-- [ ] Créer tag `v2.0.0-alpha`
-- [ ] Publier release GitHub
-- [ ] Ajouter notes de version
-- [ ] Ajouter capture écran
-- [ ] Ajouter avertissements clairs
-- [ ] Préparer backlog beta
-
-## 5. Critères de réussite
-
-Virgil 2.0 est considéré prêt quand :
-
-- l'utilisateur installe un seul fichier
-- l'application démarre sans outils de dev
-- les métriques sont cohérentes
-- le nettoyage demande confirmation
-- les pilotes suivent le flux scan puis installation
-- les logs permettent de comprendre ce qui s'est passé
-- l'interface est lisible et stable
-- le build GitHub produit un artefact installable
-
-## 6. Priorité immédiate
-
-Ordre obligatoire :
-
-1. Importer Virgil v1
-2. Compiler
-3. Corriger erreurs
-4. Appliquer thème
-5. Corriger monitoring RAM
-6. Créer build self-contained
-7. Créer installateur
-
-Pas d'effet visuel avancé avant build stable. Faire l'inverse serait très humain, donc évidemment catastrophique.
+- États d’avatar et messages français cohérents avec les opérations réelles, sans annoncer une réussite avant le résultat.
+- Le chat transforme les intentions reconnues en propositions du catalogue : aperçu puis ConfirmationService avant toute action.
+- Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
+- Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
