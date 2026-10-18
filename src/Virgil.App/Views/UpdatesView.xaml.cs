@@ -1,7 +1,6 @@
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Reports;
+using Virgil.Core.Processes;
 using Virgil.Core.Updates;
 using Virgil.Contracts;
 
@@ -349,12 +349,13 @@ public partial class UpdatesView : UserControl
 
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = info.SettingsUri,
-                UseShellExecute = true
-            });
-            VirgilMessageRequested?.Invoke("Windows Update ouvert.\nVirgil ne lance aucune installation.");
+            // TODO 0d : injecter IProcessRunner
+            var runner = ProcessRunnerDefaults.Current;
+            var result = await runner.LaunchAsync(new ProcessLaunchRequest(
+                info.SettingsUri, Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
+            VirgilMessageRequested?.Invoke(result.LaunchError is not null
+                ? "Ouverture Windows Update impossible."
+                : "Windows Update ouvert.\nVirgil ne lance aucune installation.");
         }
         catch
         {

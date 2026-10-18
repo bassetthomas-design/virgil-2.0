@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Virgil.Core.Processes;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
@@ -6,19 +7,19 @@ namespace Virgil.Core.Interventions;
 public sealed class ExplorerRestarter : IExplorerRestarter
 {
     private readonly Func<string, Process[]> _processProvider;
-    private readonly Func<string, Process?> _startProcess;
+    private readonly IProcessRunner _runner;
 
     public ExplorerRestarter()
-        : this(Process.GetProcessesByName, fileName => Process.Start(fileName))
+        : this(Process.GetProcessesByName, ProcessRunnerDefaults.Current)
     {
     }
 
     public ExplorerRestarter(
         Func<string, Process[]> processProvider,
-        Func<string, Process?> startProcess)
+        IProcessRunner runner)
     {
         _processProvider = processProvider;
-        _startProcess = startProcess;
+        _runner = runner;
     }
 
     public async Task<InterventionExecutionResult> RestartAsync(
@@ -39,7 +40,13 @@ public sealed class ExplorerRestarter : IExplorerRestarter
             }
 
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
-            _startProcess("explorer.exe");
+            var result = await _runner.LaunchAsync(
+                new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: false),
+                cancellationToken).ConfigureAwait(false);
+            if (result.LaunchError is not null)
+            {
+                throw new InvalidOperationException(result.LaunchError);
+            }
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
 
             if (SafeCountExplorer() == 0)

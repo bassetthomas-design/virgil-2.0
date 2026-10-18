@@ -1,7 +1,6 @@
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -12,6 +11,7 @@ using System.Windows.Input;
 using Virgil.App.Controls;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Reports;
+using Virgil.Core.Processes;
 using Virgil.Contracts;
 
 namespace Virgil.App.Views;
@@ -729,7 +729,7 @@ public partial class CleanupView : UserControl
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
         var open = new Button { Content = "OUVRIR L'EMPLACEMENT", Style = TryFindResource("VirgilSecondaryButton") as Style };
-        open.Click += (_, _) => OpenReviewLocation(item.FullPath);
+        open.Click += async (_, _) => await OpenReviewLocationAsync(item.FullPath);
         var ignore = new Button { Content = "IGNORER", Style = TryFindResource("VirgilSecondaryButton") as Style, Margin = new Thickness(8, 0, 0, 0) };
         ignore.Click += (_, _) => card.Visibility = Visibility.Collapsed;
         var mark = new Button { Content = "MARQUER A REVOIR", Style = TryFindResource("VirgilSecondaryButton") as Style, Margin = new Thickness(8, 0, 0, 0) };
@@ -742,11 +742,19 @@ public partial class CleanupView : UserControl
         return card;
     }
 
-    private void OpenReviewLocation(string fullPath)
+    private async Task OpenReviewLocationAsync(string fullPath)
     {
         try
         {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{fullPath}\"") { UseShellExecute = true });
+            // TODO 0d : injecter IProcessRunner
+            var runner = ProcessRunnerDefaults.Current;
+            var result = await runner.LaunchAsync(new ProcessLaunchRequest(
+                "explorer.exe", Array.Empty<string>(), UseShellExecute: true,
+                RawArguments: $"/select,\"{fullPath}\""), CancellationToken.None);
+            if (result.LaunchError is not null)
+            {
+                VirgilMessageRequested?.Invoke("Emplacement indisponible. Aucune modification effectuee.");
+            }
         }
         catch
         {
