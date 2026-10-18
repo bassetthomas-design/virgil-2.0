@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Virgil.Core.Interventions;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.ElevatedHelper;
 

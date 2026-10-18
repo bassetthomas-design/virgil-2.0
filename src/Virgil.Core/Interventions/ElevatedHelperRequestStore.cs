@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
 

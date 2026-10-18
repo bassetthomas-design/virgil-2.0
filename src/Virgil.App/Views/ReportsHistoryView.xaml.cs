@@ -1,3 +1,4 @@
+using Virgil.App.Animation;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Virgil.App.Controls;
 using Virgil.Core.Reports;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.App.Views;
 

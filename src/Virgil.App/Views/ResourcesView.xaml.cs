@@ -1,3 +1,4 @@
+using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ using Virgil.App.Controls;
 using Virgil.Core.Resources;
 using Virgil.Core.Reports;
 using Virgil.Core.Scanning;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.App.Views;
 

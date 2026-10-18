@@ -3,7 +3,7 @@ using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Virgil.ElevatedHelper;
 using Xunit;
 

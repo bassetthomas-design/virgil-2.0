@@ -1,7 +1,7 @@
 using Virgil.Core.Cleanup;
 using Virgil.Core.Scanning;
 using Virgil.Core.Updates;
-using Virgil.Domain;
+using Virgil.Contracts;
 using Xunit;
 
 namespace Virgil.Tests;

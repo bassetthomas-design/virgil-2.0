@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using Virgil.Core.Updates;
-using Virgil.Domain.Applications;
+using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
 

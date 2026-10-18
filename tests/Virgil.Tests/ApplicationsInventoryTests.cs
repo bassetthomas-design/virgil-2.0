@@ -1,5 +1,5 @@
 using Virgil.Core.Applications;
-using Virgil.Domain.Applications;
+using Virgil.Contracts.Applications;
 using Xunit;
 
 namespace Virgil.Tests;

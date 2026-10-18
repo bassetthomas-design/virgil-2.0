@@ -1,4 +1,4 @@
-namespace Virgil.Domain.Applications;
+namespace Virgil.Contracts.Applications;
 
 public enum ApplicationInventorySource
 {

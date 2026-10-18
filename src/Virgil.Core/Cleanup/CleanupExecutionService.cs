@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.Core.Cleanup;
 

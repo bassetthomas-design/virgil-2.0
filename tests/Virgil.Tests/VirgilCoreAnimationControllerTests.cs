@@ -1,4 +1,4 @@
-using Virgil.Domain;
+using Virgil.App.Animation;
 using Xunit;
 
 namespace Virgil.Tests;

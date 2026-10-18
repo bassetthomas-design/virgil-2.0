@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Virgil.Domain;
+namespace Virgil.Contracts;
 
 public enum CleanupRiskLevel
 {

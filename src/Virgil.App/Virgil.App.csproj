@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Virgil.Core/Virgil.Core.csproj" />
-    <ProjectReference Include="../Virgil.Domain/Virgil.Domain.csproj" />
+    <ProjectReference Include="../Virgil.Contracts/Virgil.Contracts.csproj" />
     <ProjectReference Include="../Virgil.ElevatedHelper/Virgil.ElevatedHelper.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
   <Target Name="PublishElevatedHelper" AfterTargets="Publish">

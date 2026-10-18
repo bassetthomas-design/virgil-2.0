@@ -1,4 +1,4 @@
-namespace Virgil.Domain;
+namespace Virgil.Contracts;
 
 public sealed record MemoryStatus(
     ulong TotalBytes,

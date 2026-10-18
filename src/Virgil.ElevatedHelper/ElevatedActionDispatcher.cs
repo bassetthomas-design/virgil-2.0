@@ -1,5 +1,5 @@
 using Virgil.Core.Interventions;
-using Virgil.Domain;
+using Virgil.Contracts;
 
 namespace Virgil.ElevatedHelper;
 

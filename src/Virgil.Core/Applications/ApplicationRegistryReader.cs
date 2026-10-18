@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Win32;
-using Virgil.Domain.Applications;
+using Virgil.Contracts.Applications;
 
 namespace Virgil.Core.Applications;
 

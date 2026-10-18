@@ -1,9 +1,9 @@
+using Virgil.App.Animation;
 using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using Virgil.Domain;
 
 namespace Virgil.App.Controls;
 

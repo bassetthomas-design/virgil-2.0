@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Virgil.Domain.Applications;
+using Virgil.Contracts.Applications;
 
-namespace Virgil.Domain;
+namespace Virgil.Contracts;
 
 public enum ScanMode
 {
