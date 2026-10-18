@@ -22,7 +22,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
-| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 à 0g à réaliser | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
 | 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
@@ -34,4 +34,4 @@ Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, 
 
 ## Prochain travail
 
-Prochain lot : 0d-2 Serilog, settings JSON et gestionnaire global d’exceptions, puis 0d-3 instance unique/manifeste/avertissements et 0d-4+ ViewModels, puis 0e contrats de confirmation testés, 0f helper limité à Contracts, puis 0g séparation des tests. Une PR par sous-lot, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.
+Prochain lot : 0d-3 instance unique/manifeste/avertissements et 0d-4+ ViewModels, puis 0e contrats de confirmation testés, 0f helper limité à Contracts, puis 0g séparation des tests. Une PR par sous-lot, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.
