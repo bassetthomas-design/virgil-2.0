@@ -6,6 +6,9 @@
              MinHeight="0"
              KeyboardNavigation.TabNavigation="Continue"
              FocusManager.IsFocusScope="True">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
     <Grid ClipToBounds="True">
         <ScrollViewer x:Name="ResourcesScrollViewer"
                       VerticalScrollBarVisibility="Auto"
@@ -27,7 +30,7 @@
                         <TextBlock Text="RESSOURCES SYSTEME"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="ResourcesStatusText"
-                                   Text="CPU, RAM ET PROCESSUS EN LECTURE SEULE"
+                                   Text="{Binding StatusText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    Margin="0,4,0,0" />
                     </StackPanel>
@@ -35,48 +38,53 @@
 
                 <WrapPanel KeyboardNavigation.TabNavigation="Continue">
                     <Button x:Name="AnalyzeResourcesButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="ANALYSER RESSOURCES"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="190"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Analyser les ressources"
-                            Click="AnalyzeResources_Click" />
+                            Command="{Binding AnalyzeCommand}" />
                     <Button x:Name="HeavyProcessesButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="PROCESSUS LOURDS"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="160"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Afficher les processus lourds"
-                            Click="HeavyProcesses_Click" />
+                            Command="{Binding HeavyProcessesCommand}" />
                     <Button x:Name="ReleaseInactiveMemoryButton"
-                            Content="LIBERER MEMOIRE INACTIVE"
+                            IsEnabled="{Binding IsIdle}"
+                            Content="{Binding ReleaseInactiveMemoryLabel}"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="210"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Informations sur la liberation de memoire inactive"
-                            Click="ReleaseInactiveMemory_Click" />
+                            Command="{Binding ReleaseInactiveMemoryCommand}" />
                     <Button x:Name="RestartExplorerButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="RELANCER EXPLORER"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="160"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Relancer Explorer Windows"
-                            Click="RestartExplorer_Click" />
+                            Command="{Binding RestartExplorerCommand}" />
                     <Button x:Name="ViewResourcesReportButton"
                             Content="VOIR LE RAPPORT"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="145"
                             Margin="0,0,8,8"
-                            IsEnabled="False"
+                            IsEnabled="{Binding IsReportButtonEnabled}"
                             AutomationProperties.Name="Voir le rapport ressources"
-                            Click="ViewResourcesReport_Click" />
+                            Command="{Binding ViewReportCommand}" />
                     <Button x:Name="ReturnHomeButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="RETOUR ACCUEIL"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="130"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Retour accueil"
-                            Click="ReturnHome_Click" />
+                            Command="{Binding ReturnHomeCommand}" />
                 </WrapPanel>
 
                 <Rectangle Style="{StaticResource VirgilSeparator}" />
@@ -90,12 +98,12 @@
                         <StackPanel>
                             <TextBlock Text="CPU - OBSERVATION COURTE" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="CpuSummaryText"
-                                       Text="NON ANALYSE"
+                                       Text="{Binding CpuSummaryText}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="RAM" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="MemorySummaryText"
-                                       Text="NON ANALYSE"
+                                       Text="{Binding MemorySummaryText}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,0" />
                         </StackPanel>
@@ -104,7 +112,7 @@
                         <StackPanel>
                             <TextBlock Text="SESSION WINDOWS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="SessionSummaryText"
-                                       Text="NON ANALYSE"
+                                       Text="{Binding SessionSummaryText}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
@@ -121,7 +129,7 @@
                            Margin="0,8,0,6" />
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
                     <TextBlock x:Name="RecommendationsText"
-                               Text="Lancez une analyse. Aucune action ne sera executee."
+                               Text="{Binding RecommendationsText}"
                                Style="{StaticResource VirgilHudSecondaryText}"
                                TextWrapping="Wrap" />
                 </Border>
@@ -131,17 +139,67 @@
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
                 <TextBlock x:Name="ProcessSummaryText"
-                           Text="Lancez une analyse pour identifier les principaux consommateurs CPU et RAM."
+                           Text="{Binding ProcessSummaryText}"
                            Style="{StaticResource VirgilHudSecondaryText}"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
-                <StackPanel x:Name="ProcessesPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <Border Margin="0,0,0,8">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ProcessesNotice}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding ProcessesNotice}" Style="{StaticResource VirgilHudSecondaryText}"
+                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                </Border>
+                <ItemsControl x:Name="ProcessesPanel" ItemsSource="{Binding Items}" IsEnabled="{Binding IsIdle}"
+                              KeyboardNavigation.TabNavigation="Continue">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Header}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource App.TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding UsageLine}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <TextBlock Text="{Binding PublisherLine}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <TextBlock Text="{Binding UserMessage}" Style="{StaticResource VirgilHudSecondaryText}"
+                                               TextWrapping="Wrap" Margin="0,3,0,0" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <Button Content="OUVRIR EMPLACEMENT" Command="{Binding OpenLocationCommand}"
+                                                Style="{StaticResource VirgilSecondaryButton}"
+                                                MinWidth="125" Margin="0,0,8,6"
+                                                Visibility="{Binding CanOpenLocation, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button Content="FERMER PROPREMENT" Command="{Binding CloseGracefullyCommand}"
+                                                Style="{StaticResource VirgilPrimaryButton}"
+                                                MinWidth="125" Margin="0,0,8,6"
+                                                Visibility="{Binding CanCloseGracefully, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button Content="FORCER FERMETURE" Command="{Binding ForceCloseCommand}"
+                                                Style="{StaticResource VirgilSecondaryButton}"
+                                                MinWidth="125" Margin="0,0,8,6"
+                                                Visibility="{Binding CanForceClose, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button Content="IGNORER" Command="{Binding IgnoreCommand}"
+                                                Style="{StaticResource VirgilSecondaryButton}"
+                                                MinWidth="125" Margin="0,0,8,6" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
 
         <Grid x:Name="ResourceValidationOverlay"
               Panel.ZIndex="20"
-              Visibility="Collapsed"
+              Visibility="{Binding IsValidationOpen, Converter={StaticResource BoolToVisibility}}"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
@@ -170,7 +228,7 @@
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="ValidationTitleText"
-                                   Text="VALIDATION REQUISE"
+                                   Text="{Binding ValidationTitle}"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource App.TextPrimaryBrush}"
@@ -185,11 +243,13 @@
                         <StackPanel>
                             <TextBlock Text="ACTION" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationDetailsText"
+                                       Text="{Binding ValidationDetails}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationSafetyText"
+                                       Text="{Binding ValidationSafety}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap" />
                         </StackPanel>
@@ -199,20 +259,20 @@
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Right">
                         <Button x:Name="ExecuteResourceActionButton"
-                                Content="EXECUTER"
+                                Content="{Binding ExecuteActionLabel}"
                                 Style="{StaticResource VirgilPrimaryButton}"
                                 AutomationProperties.Name="Executer l action ressources"
-                                Click="ExecuteResourceAction_Click" />
+                                Command="{Binding ExecuteDecisionCommand}" />
                         <Button Content="PASSER"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
                                 AutomationProperties.Name="Passer cette action"
-                                Click="SkipResourceAction_Click" />
+                                Command="{Binding SkipDecisionCommand}" />
                         <Button Content="ANNULER TOUT"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
                                 AutomationProperties.Name="Annuler l action ressources"
-                                Click="CancelResourceAction_Click" />
+                                Command="{Binding CancelDecisionCommand}" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -220,7 +280,7 @@
 
         <Grid x:Name="ResourcesReportOverlay"
               Panel.ZIndex="30"
-              Visibility="Collapsed"
+              Visibility="{Binding IsReportOpen, Converter={StaticResource BoolToVisibility}}"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
@@ -244,6 +304,7 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False">
                         <TextBlock x:Name="ResourcesReportText"
+                                       Text="{Binding ReportText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    TextWrapping="Wrap" />
                     </ScrollViewer>
@@ -253,7 +314,7 @@
                             Style="{StaticResource VirgilSecondaryButton}"
                             HorizontalAlignment="Right"
                             AutomationProperties.Name="Fermer le rapport ressources"
-                            Click="CloseResourcesReport_Click" />
+                            Command="{Binding CloseReportCommand}" />
                 </Grid>
             </Border>
         </Grid>

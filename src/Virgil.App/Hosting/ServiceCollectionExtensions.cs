@@ -117,8 +117,10 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IUpdateExecutionService>(), sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>()));
         services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<IInterventionDiagnosticService>(),
             sp.GetRequiredService<IInterventionExecutionService>(), sp.GetRequiredService<InterventionReportBuilder>()));
-        services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<IResourceMonitoringService>(),
-            sp.GetRequiredService<IProcessActionService>(), sp.GetRequiredService<ResourceReportBuilder>()));
+        services.AddSingleton<ResourcesViewModel>(sp => new ResourcesViewModel(
+            sp.GetRequiredService<IResourceMonitoringService>(), sp.GetRequiredService<IProcessActionService>(),
+            sp.GetRequiredService<ResourceReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));
+        services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<ResourcesViewModel>()));
         services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<IApplicationInventoryService>(),
             sp.GetRequiredService<ApplicationUninstallService>(), sp.GetRequiredService<IProcessRunner>()));
         services.AddSingleton<IFileSaveDialog>(_ => new SaveFileDialogService());
