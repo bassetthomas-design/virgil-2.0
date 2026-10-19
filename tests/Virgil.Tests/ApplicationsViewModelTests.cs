@@ -1,3 +1,5 @@
+using Virgil.Contracts.Actions;
+using Virgil.Core.Actions;
 using System.Xml.Linq;
 using Virgil.App.Animation;
 using Virgil.App.Services;
@@ -37,11 +39,11 @@ public sealed class ApplicationsViewModelTests
     public void ConstructorRequiresEveryDependency()
     {
         var f = new Fixture();
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(null!, f.Uninstall, f.Runner, f.History, f.Dialog));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, null!, f.Runner, f.History, f.Dialog));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, null!, f.History, f.Dialog));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, null!, f.Dialog));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, f.History, null!));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(null!, f.Uninstall, f.Runner, f.History, f.Dialog, f.Confirmations));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, null!, f.Runner, f.History, f.Dialog, f.Confirmations));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, null!, f.History, f.Dialog, f.Confirmations));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, null!, f.Dialog, f.Confirmations));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, f.History, null!, f.Confirmations));
     }
 
     [Fact]
@@ -491,6 +493,47 @@ public sealed class ApplicationsViewModelTests
         Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(view, "DispatcherPriority.Input").Count);
     }
 
+    [Fact]
+    [Trait("Category", "Windows")]
+    public async Task IssueFollowsBothDialogsAndPolicyAndRefusalUsesCancellationPath()
+    {
+        var authority = new RefusingConfirmationService();
+        var f = new Fixture(authority);
+        f.Inventory.Report = new() { Applications = [Safe() with { RiskLevel = ApplicationRiskLevel.Caution }] };
+        await f.Analyze();
+        f.OpenDetails();
+        f.Dialog.Answers.Enqueue(true);
+        f.Dialog.Answers.Enqueue(false);
+        await f.Launch();
+        Assert.Equal(0, authority.Calls);
+        f.Dialog.Answers.Enqueue(true);
+        f.Dialog.Answers.Enqueue(true);
+        authority.OnIssue = consent =>
+        {
+            Assert.Equal(4, f.Dialog.Calls.Count);
+            Assert.Empty(f.Runner.Requests);
+            Assert.Equal(ConfirmationLevel.Reinforced, consent.Level);
+        };
+        await f.Launch();
+        Assert.Equal(1, authority.Calls);
+        Assert.Empty(f.Runner.Requests);
+        Assert.Equal("Desinstallation annulee.", f.Vm.StatusText);
+        Assert.Equal("Desinstallation annulee.\nConsentement insuffisant pour cette action.", f.Messages.Last());
+        Idle(f.Vm);
+    }
+
+    private sealed class RefusingConfirmationService : IConfirmationService
+    {
+        public int Calls { get; private set; }
+        public Action<ConfirmationConsent>? OnIssue { get; set; }
+        public ConfirmedPlan Issue(ActionPreview preview, ConfirmationConsent consent)
+        {
+            Calls++;
+            OnIssue?.Invoke(consent);
+            throw new ConfirmationRefusedException();
+        }
+    }
+
     private static void AssertRequest(ProcessLaunchRequest request, string target, string? raw)
     {
         Assert.Equal(target, request.FileName);
@@ -513,6 +556,7 @@ public sealed class ApplicationsViewModelTests
 
     internal sealed class Fixture
     {
+        public ConfirmationService Confirmations { get; } = new(TimeProvider.System);
         public FakeInventory Inventory { get; } = new();
         public FakeRunner Runner { get; } = new();
         public FakeHistory History { get; } = new();
@@ -523,10 +567,10 @@ public sealed class ApplicationsViewModelTests
         public List<(VirgilCoreState State, string Label)> States { get; } = new();
         public int Persisted { get; private set; }
         public IEnumerable<ApplicationItemViewModel> Cards => Vm.Entries.OfType<ApplicationItemViewModel>();
-        public Fixture()
+        public Fixture(IConfirmationService? confirmations = null)
         {
-            Uninstall = new(new ApplicationUninstallCommandValidator(), new ShellApplicationProcessLauncher(Runner), new ApplicationRemnantScanner());
-            Vm = new(Inventory, Uninstall, Runner, History, Dialog);
+            Uninstall = new(new ApplicationUninstallCommandValidator(), new ShellApplicationProcessLauncher(Runner), new ApplicationRemnantScanner(), Confirmations);
+            Vm = new(Inventory, Uninstall, Runner, History, Dialog, confirmations ?? Confirmations);
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.VirgilStateRequested += (s, l) => States.Add((s, l));
             Vm.ReportPersisted += (_, _) => Persisted++;

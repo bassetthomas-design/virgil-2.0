@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Virgil.Core.Processes;
 using Virgil.Contracts.Applications;
 
@@ -9,12 +10,14 @@ public sealed class ApplicationUninstallService
     private readonly IApplicationProcessLauncher _launcher;
     private readonly ApplicationRemnantScanner _remnantScanner;
     private readonly ApplicationUninstallConfirmationPolicy _confirmationPolicy;
+    private readonly IConfirmedPlanGate _gate;
 
     public ApplicationUninstallService(
         ApplicationUninstallCommandValidator validator,
         IApplicationProcessLauncher launcher,
-        ApplicationRemnantScanner remnantScanner)
-        : this(validator, launcher, remnantScanner, new ApplicationUninstallConfirmationPolicy())
+        ApplicationRemnantScanner remnantScanner,
+        IConfirmedPlanGate gate)
+        : this(validator, launcher, remnantScanner, new ApplicationUninstallConfirmationPolicy(), gate)
     {
     }
 
@@ -22,12 +25,14 @@ public sealed class ApplicationUninstallService
         ApplicationUninstallCommandValidator validator,
         IApplicationProcessLauncher launcher,
         ApplicationRemnantScanner remnantScanner,
-        ApplicationUninstallConfirmationPolicy confirmationPolicy)
+        ApplicationUninstallConfirmationPolicy confirmationPolicy,
+        IConfirmedPlanGate gate)
     {
         _validator = validator;
         _launcher = launcher;
         _remnantScanner = remnantScanner;
         _confirmationPolicy = confirmationPolicy;
+        _gate = gate ?? throw new ArgumentNullException(nameof(gate));
     }
 
     public ApplicationUninstallPlan BuildPlan(InstalledApplication application)
@@ -42,29 +47,22 @@ public sealed class ApplicationUninstallService
         };
     }
 
-    public async Task<ApplicationUninstallResult> LaunchOfficialUninstallAsync(
+    public Task<ApplicationUninstallResult> LaunchOfficialUninstallAsync(
         InstalledApplication application,
-        bool userConfirmed,
-        IProgress<ApplicationUninstallProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        return await LaunchOfficialUninstallAsync(
-            application,
-            new ApplicationUninstallConfirmation
-            {
-                ExplicitlyConfirmed = userConfirmed,
-                ReinforcedConfirmed = false,
-                Source = "legacy-bool"
-            },
-            progress,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<ApplicationUninstallResult> LaunchOfficialUninstallAsync(
-        InstalledApplication application,
+        ConfirmedPlan? confirmedPlan,
         ApplicationUninstallConfirmation confirmation,
         IProgress<ApplicationUninstallProgress>? progress,
         CancellationToken cancellationToken)
+    {
+        return LaunchOfficialUninstallAsync(application, confirmation, progress, cancellationToken, confirmedPlan);
+    }
+
+    private async Task<ApplicationUninstallResult> LaunchOfficialUninstallAsync(
+        InstalledApplication application,
+        ApplicationUninstallConfirmation confirmation,
+        IProgress<ApplicationUninstallProgress>? progress,
+        CancellationToken cancellationToken,
+        ConfirmedPlan? confirmedPlan)
     {
         Report(progress, 1, 5, 10, "validation", "Validation stricte de la commande.");
         var plan = BuildPlan(application);
@@ -107,6 +105,22 @@ public sealed class ApplicationUninstallService
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
                 Result = "Executable officiel absent apres validation.",
                 Errors = ["Executable officiel absent apres validation."]
+            };
+        }
+
+        var gateDecision = _gate.TryConsume(confirmedPlan, ApplicationActionPreviewFactory.Create(plan));
+        if (!gateDecision.IsAccepted)
+        {
+            var message = "Desinstallation annulee.\n" + gateDecision.Message;
+            return new ApplicationUninstallResult
+            {
+                Application = application,
+                Method = application.UninstallKind,
+                WasCancelled = true,
+                WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
+                WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
+                Result = message,
+                Errors = [message]
             };
         }
 

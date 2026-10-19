@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Applications;
 using Virgil.Contracts.Applications;
 using Xunit;
@@ -6,6 +8,7 @@ namespace Virgil.Tests;
 
 public sealed class ApplicationsUninstallSafetyTests
 {
+    private readonly ConfirmationService _confirmations = new(TimeProvider.System);
     [Fact]
     public void ValidateCommand_AllowsMsiUninstallWithProductCode()
     {
@@ -103,7 +106,7 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
         var application = new InstalledApplication
         {
             Id = "vlc",
@@ -114,7 +117,7 @@ public sealed class ApplicationsUninstallSafetyTests
             WingetId = "VideoLAN.VLC"
         };
 
-        var result = await service.LaunchOfficialUninstallAsync(application, false, null, CancellationToken.None);
+        var result = await LaunchWithPlanAsync(service, application, ApplicationUninstallConfirmation.None, null, CancellationToken.None);
 
         Assert.True(result.WasCancelled);
         Assert.False(result.WasLaunched);
@@ -129,7 +132,7 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             new RecordingLauncher(),
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
         var plan = service.BuildPlan(SafeWingetApplication());
 
@@ -145,7 +148,7 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             new RecordingLauncher(),
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
         var plan = service.BuildPlan(CautionWingetApplication());
 
@@ -162,9 +165,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await service.LaunchOfficialUninstallAsync(
+        var result = await LaunchWithPlanAsync(service,
             CautionWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -188,9 +191,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await service.LaunchOfficialUninstallAsync(
+        var result = await LaunchWithPlanAsync(service,
             CautionWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -216,9 +219,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await service.LaunchOfficialUninstallAsync(
+        var result = await LaunchWithPlanAsync(service,
             SafeWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -242,9 +245,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await service.LaunchOfficialUninstallAsync(
+        var result = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "msi-app",
@@ -274,9 +277,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await service.LaunchOfficialUninstallAsync(
+        var result = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "registry-app",
@@ -306,9 +309,9 @@ public sealed class ApplicationsUninstallSafetyTests
         var service = new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(),
             launcher,
-            new ApplicationRemnantScanner());
+            new ApplicationRemnantScanner(), _confirmations);
 
-        var store = await service.LaunchOfficialUninstallAsync(
+        var store = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "store-app",
@@ -327,7 +330,7 @@ public sealed class ApplicationsUninstallSafetyTests
             null,
             CancellationToken.None);
 
-        var protectedApp = await service.LaunchOfficialUninstallAsync(
+        var protectedApp = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "driver",
@@ -397,6 +400,20 @@ public sealed class ApplicationsUninstallSafetyTests
         Assert.Equal(new[] { "{Binding DetailsCommand}", "{Binding OpenLocationCommand}" }, template.Descendants(p + "Button").Select(e => (string?)e.Attribute("Command")).ToArray());
         Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Content"))?.Contains("DESINSTALL", StringComparison.OrdinalIgnoreCase) == true);
         Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Command"))?.Contains("Uninstall", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private Task<ApplicationUninstallResult> LaunchWithPlanAsync(
+        ApplicationUninstallService service, InstalledApplication application,
+        ApplicationUninstallConfirmation confirmation, IProgress<ApplicationUninstallProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var previewPlan = service.BuildPlan(application);
+        ConfirmedPlan? plan = null;
+        if (new ApplicationUninstallConfirmationPolicy().Validate(previewPlan, confirmation).CanProceed)
+            plan = _confirmations.Issue(ApplicationActionPreviewFactory.Create(previewPlan),
+                new ConfirmationConsent(confirmation.ReinforcedConfirmed
+                    ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+        return service.LaunchOfficialUninstallAsync(application, plan, confirmation, progress, cancellationToken);
     }
 
     private static InstalledApplication SafeWingetApplication()

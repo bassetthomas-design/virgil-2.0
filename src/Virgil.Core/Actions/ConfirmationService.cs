@@ -9,11 +9,12 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan _lifetime;
     private readonly object _sync = new();
-    // Object identity, not public values, establishes provenance. Retain used entries
-    // to distinguish AlreadyUsed from UnknownProvenance until this authority is released.
+    // Object identity establishes provenance. Retain refusal reasons for a bounded window.
     private readonly Dictionary<ConfirmedPlan, IssuedPlan> _issued = new(ReferenceEqualityComparer.Instance);
 
     private readonly record struct IssuedPlan(long Timestamp, bool Used);
+    private readonly Queue<ConfirmedPlan> _issuanceOrder = new();
+    private const int MaximumEntries = 1024;
 
     public ConfirmationService(TimeProvider timeProvider, TimeSpan? lifetime = null)
     {
@@ -34,6 +35,7 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
     {
         ArgumentNullException.ThrowIfNull(preview);
         ArgumentNullException.ThrowIfNull(consent);
+        lock (_sync) PurgeLocked();
         var required = RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel);
         if (!Enum.IsDefined(consent.Level) || consent.Level < required ||
             (consent.Level == ConfirmationLevel.Critical &&
@@ -43,10 +45,13 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
         var hash = ActionPreviewHasher.Hash(preview);
         lock (_sync)
         {
+            PurgeLocked();
             var timestamp = _timeProvider.GetTimestamp();
             var now = _timeProvider.GetUtcNow();
             var plan = new ConfirmedPlan(Guid.NewGuid(), preview.ActionId, hash, consent.Level, now, now + _lifetime);
             _issued.Add(plan, new(timestamp, false));
+            _issuanceOrder.Enqueue(plan);
+            while (_issued.Count > MaximumEntries) _issued.Remove(_issuanceOrder.Dequeue());
             return plan;
         }
     }
@@ -54,7 +59,11 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
     public PlanValidationResult Validate(ConfirmedPlan? plan, ActionPreview currentPreview)
     {
         ArgumentNullException.ThrowIfNull(currentPreview);
-        lock (_sync) return ValidateLocked(plan, currentPreview);
+        lock (_sync)
+        {
+            PurgeLocked();
+            return ValidateLocked(plan, currentPreview);
+        }
     }
 
     public PlanValidationResult TryConsume(ConfirmedPlan? plan, ActionPreview currentPreview)
@@ -62,9 +71,20 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
         ArgumentNullException.ThrowIfNull(currentPreview);
         lock (_sync)
         {
+            PurgeLocked();
             var result = ValidateLocked(plan, currentPreview);
             if (result.IsAccepted) _issued[plan!] = _issued[plan!] with { Used = true };
             return result;
+        }
+    }
+
+    private void PurgeLocked()
+    {
+        while (_issuanceOrder.TryPeek(out var oldest) &&
+               _timeProvider.GetElapsedTime(_issued[oldest].Timestamp) > _lifetime + MaximumLifetime)
+        {
+            _issuanceOrder.Dequeue();
+            _issued.Remove(oldest);
         }
     }
 

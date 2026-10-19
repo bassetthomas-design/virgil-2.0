@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using System.IO;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
@@ -70,7 +71,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IApplicationProcessLauncher>(sp => new ShellApplicationProcessLauncher(sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<ApplicationUninstallService>(sp => new ApplicationUninstallService(
             new ApplicationUninstallCommandValidator(), sp.GetRequiredService<IApplicationProcessLauncher>(),
-            new ApplicationRemnantScanner(), new ApplicationUninstallConfirmationPolicy()));
+            new ApplicationRemnantScanner(), new ApplicationUninstallConfirmationPolicy(),
+            sp.GetRequiredService<IConfirmedPlanGate>()));
 
         services.AddTransient<IProcessRuntime>(sp => new ProcessRuntime(sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<ProcessProtectionPolicy>(_ => new ProcessProtectionPolicy(
@@ -134,7 +136,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ApplicationsViewModel>(sp => new ApplicationsViewModel(
             sp.GetRequiredService<IApplicationInventoryService>(), sp.GetRequiredService<ApplicationUninstallService>(),
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<IReportHistoryService>(),
-            sp.GetRequiredService<IApplicationUninstallConfirmationDialog>()));
+            sp.GetRequiredService<IApplicationUninstallConfirmationDialog>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<ApplicationsViewModel>()));
         services.AddSingleton<IFileSaveDialog>(_ => new SaveFileDialogService());
         services.AddSingleton<ReportsHistoryViewModel>(sp => new ReportsHistoryViewModel(
