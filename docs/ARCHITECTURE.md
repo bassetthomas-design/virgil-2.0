@@ -4,6 +4,8 @@ Ce document est la source de vérité pour l’architecture. Il distingue l’ex
 
 ## État actuel vérifié
 
+Le lot 0d-6 extrait `InterventionsViewModel` et `InterventionItemViewModel` sur le modèle `ResourcesViewModel` : diagnostic, sélection, parcours guidé, confirmation par état observable et persistance des rapports sans dépendance WPF. Le VM est Singleton par factory explicite ; InterventionsView conserve les relais publics, le focus, le curseur et l’animation. Les décisions Execute/Skip/CancelAll et l’attente des actions critiques restent celles du parcours existant. Le lot 0e n’est pas commencé.
+
 Le lot 0d-5 extrait `ResourcesViewModel` et `ProcessResourceItemViewModel` selon le modèle 0d-4 : état observable, commandes, analyse, actions et persistance sans dépendance WPF. La confirmation ressources est un état du VM (overlay et décision Execute/Skip/CancelAll) : fermeture propre et relance Explorer exigent une validation simple, fermeture forcée une validation renforcée ; les autres actions gardent leur comportement. Le VM est Singleton par factory explicite ; la vue conserve uniquement relais, focus, défilement, curseur et animation. Le lot 0e (contrats et unification des confirmations) n’est pas commencé.
 
 CommunityToolkit.Mvvm 8.2.2 est utilisé dans App pour le premier `ReportsHistoryViewModel` (0d-4), modèle des lots suivants : état observable et commandes sans dépendance WPF, services injectés, cartes via ItemsControl. `IFileSaveDialog` isole le dialogue de sauvegarde WPF. Le ViewModel et le dialogue sont Singleton par factories explicites ; la vue conserve les relais publics, le focus, le défilement et l’état du mini noyau.
@@ -14,7 +16,7 @@ La solution `Virgil.sln` contient six projets :
 
 | Projet | Réalité du dépôt |
 | --- | --- |
-| `src/Virgil.App` | Application WPF .NET 8 Windows x64, fenêtre principale, vues Nettoyage, Mises à jour, Applications, Interventions, Ressources et Historique des rapports, contrôle animé Virgil. Composition Hosting/DI dans App, services injectés et vues sans construction directe de services. ReportsHistoryView et ResourcesView utilisent des ViewModels ; les autres vues gardent leur logique dans le code-behind (0d-6+). |
+| `src/Virgil.App` | Application WPF .NET 8 Windows x64, fenêtre principale, vues Nettoyage, Mises à jour, Applications, Interventions, Ressources et Historique des rapports, contrôle animé Virgil. Composition Hosting/DI dans App, services injectés et vues sans construction directe de services. ReportsHistoryView, ResourcesView et InterventionsView utilisent des ViewModels ; les autres vues gardent leur logique dans le code-behind (0d-7+). |
 | `src/Virgil.Infrastructure` | .NET 8 Windows (`net8.0-windows`), référence Core et Contracts, contient l’unique `ProcessRunner` de l’application. |
 | `src/Virgil.Core` | Services de diagnostic, monitoring, ressources/processus, nettoyage, mises à jour winget/Windows, inventaire/désinstallation d’applications, interventions et rapports. Contient aussi les accès Windows, fichiers, registre, processus et le client du helper : la séparation métier/OS reste à faire. Référence Contracts. |
 | `src/Virgil.Contracts` | .NET 8 (`net8.0`), sans référence de projet ni de package : modèles partagés de scan, santé système, nettoyage, mises à jour, applications, ressources, interventions, rapports et DTO du protocole élevé. Plusieurs enums de risque encore propres aux modules ; `ScanRules` encore présent. |
