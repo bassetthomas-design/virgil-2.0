@@ -62,7 +62,8 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<UpdateRiskClassifier>(), sp.GetRequiredService<WindowsUpdateStatusService>(),
             sp.GetRequiredService<DriverInformationService>()));
         services.AddTransient<IUpdateExecutionService>(sp => new WingetUpdateExecutionService(
-            sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>()));
+            sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
+            sp.GetRequiredService<IConfirmedPlanGate>()));
 
         services.AddTransient<IApplicationInventoryService>(sp => new ApplicationInventoryService(
             [new ApplicationRegistryReader(), new ApplicationWingetReader(sp.GetRequiredService<IProcessRunner>()),
@@ -83,7 +84,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IResourceMonitoringService>(_ => new ResourceMonitoringService());
         services.AddTransient<IProcessActionService>(sp => new ProcessActionService(
             sp.GetRequiredService<IProcessRuntime>(), sp.GetRequiredService<ProcessProtectionPolicy>(),
-            sp.GetRequiredService<IExplorerRestarter>(), sp.GetRequiredService<IInterventionCatalog>(), () => DateTimeOffset.Now));
+            sp.GetRequiredService<IExplorerRestarter>(), sp.GetRequiredService<IInterventionCatalog>(), () => DateTimeOffset.Now,
+            sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<ResourceReportBuilder>(_ => new ResourceReportBuilder());
         services.AddTransient<IMonitoringService>(_ => new MonitoringService());
 
@@ -122,7 +124,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(
             sp.GetRequiredService<IUpdateScanService>(), sp.GetRequiredService<IUpdateExecutionService>(),
             sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>(),
-            sp.GetRequiredService<IReportHistoryService>()));
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<UpdatesViewModel>()));
         services.AddSingleton<InterventionsViewModel>(sp => new InterventionsViewModel(
             sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IInterventionExecutionService>(),
@@ -130,7 +132,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<InterventionsViewModel>()));
         services.AddSingleton<ResourcesViewModel>(sp => new ResourcesViewModel(
             sp.GetRequiredService<IResourceMonitoringService>(), sp.GetRequiredService<IProcessActionService>(),
-            sp.GetRequiredService<ResourceReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));
+            sp.GetRequiredService<ResourceReportBuilder>(), sp.GetRequiredService<IReportHistoryService>(),
+            sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<ResourcesViewModel>()));
         services.AddSingleton<IApplicationUninstallConfirmationDialog>(_ => new ApplicationUninstallConfirmationDialogService());
         services.AddSingleton<ApplicationsViewModel>(sp => new ApplicationsViewModel(

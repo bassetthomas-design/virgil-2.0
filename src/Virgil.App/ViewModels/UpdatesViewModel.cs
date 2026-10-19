@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
@@ -22,6 +24,7 @@ public partial class UpdatesViewModel : ObservableObject
     private readonly WindowsUpdateStatusService _windowsUpdateStatusService;
     private readonly List<UpdateItem> _lastItems = new();
     private readonly Dictionary<string, UpdateItemViewModel> _selectionById = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<UpdateDecision>? _activeDecision;
@@ -33,12 +36,13 @@ public partial class UpdatesViewModel : ObservableObject
 
     public UpdatesViewModel(IUpdateScanService scanService, IUpdateExecutionService executionService,
         WindowsUpdateStatusService windowsUpdateStatusService, IProcessRunner processRunner,
-        IReportHistoryService reportHistoryService)
+        IReportHistoryService reportHistoryService, IConfirmationService confirmationService)
     {
         _scanService = scanService ?? throw new ArgumentNullException(nameof(scanService));
         _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
         _windowsUpdateStatusService = windowsUpdateStatusService ?? throw new ArgumentNullException(nameof(windowsUpdateStatusService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
+        _confirmationService = confirmationService;
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
         Entries.Add(new UpdateTextCardViewModel("Aucun scan lance."));
         RenderDrivers(new DriverInventoryReport());
@@ -260,9 +264,23 @@ public partial class UpdatesViewModel : ObservableObject
                     continue;
                 }
 
+                ConfirmedPlan plan;
+                try
+                {
+                    plan = _confirmationService.Issue(UpdateActionPreviewFactory.Create(item),
+                        new ConfirmationConsent(item.RiskLevel == UpdateRiskLevel.Sensitive
+                            ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+                }
+                catch (ConfirmationRefusedException)
+                {
+                    results.Add(_executionService.Cancel(item));
+                    errors.Add("Sequence annulee par l'utilisateur.");
+                    break;
+                }
+
                 RequestVirgilState(VirgilCoreState.Executing, "INSTALLATION");
                 var result = await _executionService
-                    .ExecuteAsync(item, _operationCancellation.Token)
+                    .ExecuteAsync(item, plan, _operationCancellation.Token)
                     .ConfigureAwait(true);
 
                 results.Add(result);

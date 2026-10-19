@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Interventions;
 using Virgil.Contracts;
 
@@ -8,6 +10,7 @@ public sealed class ProcessActionService : IProcessActionService
     private static readonly TimeSpan GracefulCloseTimeout = TimeSpan.FromSeconds(4);
     private static readonly TimeSpan ForcedCloseTimeout = TimeSpan.FromSeconds(3);
 
+    private readonly IConfirmedPlanGate _gate;
     private readonly IProcessRuntime _runtime;
     private readonly ProcessProtectionPolicy _protectionPolicy;
     private readonly IExplorerRestarter _explorerRestarter;
@@ -19,8 +22,10 @@ public sealed class ProcessActionService : IProcessActionService
         ProcessProtectionPolicy protectionPolicy,
         IExplorerRestarter explorerRestarter,
         IInterventionCatalog interventionCatalog,
-        Func<DateTimeOffset> now)
+        Func<DateTimeOffset> now,
+        IConfirmedPlanGate gate)
     {
+        _gate = gate;
         _runtime = runtime;
         _protectionPolicy = protectionPolicy;
         _explorerRestarter = explorerRestarter;
@@ -33,8 +38,7 @@ public sealed class ProcessActionService : IProcessActionService
     public async Task<ProcessActionResult> ExecuteAsync(
         ProcessActionKind action,
         ProcessResourceInfo? target,
-        bool confirmed,
-        bool reinforcedConfirmation,
+        ConfirmedPlan? plan,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -49,14 +53,10 @@ public sealed class ProcessActionService : IProcessActionService
                 "Information seulement en V1 : aucune API sure n'est retenue.");
         }
 
-        if (!confirmed)
-        {
-            return Failure(action, TargetName(target), "Validation explicite absente.");
-        }
-
         if (action == ProcessActionKind.RestartExplorer)
         {
-            return await RestartExplorerAsync(cancellationToken).ConfigureAwait(false);
+            var refusal = Consume(action, target, plan);
+            return refusal ?? await RestartExplorerAsync(cancellationToken).ConfigureAwait(false);
         }
 
         if (target is null)
@@ -75,14 +75,34 @@ public sealed class ProcessActionService : IProcessActionService
             return Failure(action, TargetName(target), identity.Error);
         }
 
+        if (action == ProcessActionKind.CloseMainWindow && (!target.CanCloseGracefully || !identity.Value!.HasMainWindow))
+            return Failure(action, TargetName(target), "Fermeture propre non autorisee.");
+        if (action == ProcessActionKind.KillProcess && !target.CanForceClose)
+            return Failure(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
+        if (action is not (ProcessActionKind.CloseMainWindow or ProcessActionKind.KillProcess))
+            return Failure(action, TargetName(target), "Action non prise en charge.");
+
+        var rejected = Consume(action, target, plan);
+        if (rejected is not null) return rejected;
+
         return action switch
         {
             ProcessActionKind.CloseMainWindow =>
                 await CloseGracefullyAsync(target, identity.Value!, cancellationToken).ConfigureAwait(false),
             ProcessActionKind.KillProcess =>
-                await KillAsync(target, reinforcedConfirmation, cancellationToken).ConfigureAwait(false),
+                await KillAsync(target, cancellationToken).ConfigureAwait(false),
             _ => Failure(action, TargetName(target), "Action non prise en charge.")
         };
+    }
+
+    private ProcessActionResult? Consume(ProcessActionKind action, ProcessResourceInfo? target, ConfirmedPlan? plan)
+    {
+        var validation = _gate.TryConsume(plan, ProcessActionPreviewFactory.Create(action, target));
+        if (!validation.IsAccepted)
+            return Failure(action, TargetName(target), "Action annulee.\n" + validation.Message);
+        if (action == ProcessActionKind.KillProcess && plan?.ConfirmationLevel != ConfirmationLevel.Reinforced)
+            return Failure(action, TargetName(target), "Action annulee.\nConsentement insuffisant pour cette action.");
+        return null;
     }
 
     public ProcessActionResult Skip(ProcessActionKind action, string target)
@@ -126,17 +146,8 @@ public sealed class ProcessActionService : IProcessActionService
 
     private async Task<ProcessActionResult> KillAsync(
         ProcessResourceInfo target,
-        bool reinforcedConfirmation,
         CancellationToken cancellationToken)
     {
-        if (!target.CanForceClose || !reinforcedConfirmation)
-        {
-            return Failure(
-                ProcessActionKind.KillProcess,
-                TargetName(target),
-                "Confirmation renforcee absente ou fermeture forcee interdite.");
-        }
-
         try
         {
             _runtime.Kill(target.ProcessId);

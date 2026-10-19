@@ -1,10 +1,11 @@
+using Virgil.Core.Actions;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Updates;
 
 public interface IUpdateExecutionService
 {
-    Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, CancellationToken cancellationToken);
+    Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken);
 
     UpdateExecutionResult Skip(UpdateItem item);
 

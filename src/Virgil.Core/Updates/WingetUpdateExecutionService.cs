@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Virgil.Core.Processes;
 using System.Diagnostics;
 using Virgil.Contracts;
@@ -6,23 +7,26 @@ namespace Virgil.Core.Updates;
 
 public sealed class WingetUpdateExecutionService : IUpdateExecutionService
 {
+    private readonly IConfirmedPlanGate _gate;
     private readonly WingetAvailabilityService _availabilityService;
     private readonly IProcessRunner _processRunner;
 
-    public WingetUpdateExecutionService(IProcessRunner processRunner)
-        : this(new WingetAvailabilityService(processRunner), processRunner)
+    public WingetUpdateExecutionService(IProcessRunner processRunner, IConfirmedPlanGate gate)
+        : this(new WingetAvailabilityService(processRunner), processRunner, gate)
     {
     }
 
     public WingetUpdateExecutionService(
         WingetAvailabilityService availabilityService,
-        IProcessRunner processRunner)
+        IProcessRunner processRunner,
+        IConfirmedPlanGate gate)
     {
+        _gate = gate;
         _availabilityService = availabilityService;
         _processRunner = processRunner;
     }
 
-    public async Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, CancellationToken cancellationToken)
+    public async Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken)
     {
         var startedAt = DateTimeOffset.Now;
         var stopwatch = Stopwatch.StartNew();
@@ -51,6 +55,14 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
                 "WinGet indisponible. Aucune action effectuee.",
                 winget.Message);
+        }
+
+        var validation = _gate.TryConsume(plan, UpdateActionPreviewFactory.Create(item));
+        if (!validation.IsAccepted)
+        {
+            stopwatch.Stop();
+            return BuildResult(item, UpdateItemStatus.Cancelled, startedAt, stopwatch.Elapsed,
+                "Installation annulee.\n" + validation.Message, validation.Message);
         }
 
         var capabilities = WingetAvailabilityService.GetCapabilities(winget.Version);
