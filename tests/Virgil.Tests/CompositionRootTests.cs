@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Virgil.App.Hosting;
+using Virgil.App.ViewModels;
 using Virgil.Core.Applications;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
@@ -57,6 +58,22 @@ public sealed class CompositionRootTests
             Assert.NotNull(descriptor.ImplementationFactory);
             Assert.NotSame(provider.GetRequiredService(descriptor.ServiceType), provider.GetRequiredService(descriptor.ServiceType));
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Windows")]
+    public void CleanupViewModelResolvesAsExplicitSingletonWithValidatedComposition()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var registration = Assert.Single(services, d => d.ServiceType == typeof(CleanupViewModel));
+        Assert.Equal(ServiceLifetime.Singleton, registration.Lifetime);
+        Assert.NotNull(registration.ImplementationFactory);
+        var vm = provider.GetRequiredService<CleanupViewModel>();
+        Assert.Same(vm, provider.GetRequiredService<CleanupViewModel>());
+        var viewRegistration = Assert.Single(services, d => d.ServiceType == typeof(Virgil.App.Views.CleanupView));
+        Assert.Equal(ServiceLifetime.Singleton, viewRegistration.Lifetime);
+        Assert.NotNull(viewRegistration.ImplementationFactory);
     }
 
     private static ServiceProvider BuildProvider() => new ServiceCollection().AddVirgilServices()

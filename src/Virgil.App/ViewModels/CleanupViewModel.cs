@@ -1,0 +1,689 @@
+using Virgil.App.Animation;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
+using Virgil.Core.Cleanup;
+using Virgil.Core.Reports;
+using Virgil.Core.Processes;
+using Virgil.Contracts;
+
+namespace Virgil.App.ViewModels;
+
+public partial class CleanupViewModel : ObservableObject
+{
+    private readonly ICleanupPreviewService _previewService;
+    private readonly ICleanupExecutionService _executionService;
+    private readonly CleanupStorageAnalyzer _storageAnalyzer;
+    private readonly List<CleanupZonePreview> _lastPreview = new();
+    private CleanupStorageAnalysis? _lastStorageAnalysis;
+    private readonly IReportHistoryService _reportHistoryService;
+    private CancellationTokenSource? _operationCancellation;
+    private TaskCompletionSource<CleanupZoneDecision>? _activeDecision;
+    private CleanupSessionReport? _lastReport;
+    private bool _operationInProgress;
+
+    private readonly IProcessRunner _processRunner;
+
+    public CleanupViewModel(
+        ICleanupPreviewService previewService,
+        ICleanupExecutionService executionService,
+        IProcessRunner processRunner,
+        CleanupStorageAnalyzer storageAnalyzer,
+        IReportHistoryService reportHistoryService)
+    {
+        _previewService = previewService ?? throw new ArgumentNullException(nameof(previewService));
+        _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
+        _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
+        _storageAnalyzer = storageAnalyzer ?? throw new ArgumentNullException(nameof(storageAnalyzer));
+        _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
+        Entries.Add(new CleanupTextCardItem("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan."));
+    }
+
+    public ObservableCollection<object> Entries { get; } = new();
+    [ObservableProperty] private string statusText = "Aucune analyse nettoyage lancee.";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdle))]
+    private bool isBusy;
+    public bool IsIdle => !IsBusy;
+    [ObservableProperty] private bool isAnalyzeEnabled = true;
+    [ObservableProperty] private bool isLaunchCleanupEnabled;
+    [ObservableProperty] private bool isAdvancedCleanupEnabled;
+    [ObservableProperty] private bool isReviewManualEnabled;
+    [ObservableProperty] private bool isReportButtonEnabled;
+    [ObservableProperty] private bool isReturnHomeEnabled = true;
+    [ObservableProperty] private bool isValidationOpen;
+    [ObservableProperty] private string validationTitle = "VALIDATION REQUISE";
+    [ObservableProperty] private string validationReason = string.Empty;
+    [ObservableProperty] private string validationRoot = string.Empty;
+    [ObservableProperty] private string validationMetrics = string.Empty;
+    [ObservableProperty] private string validationEffect = string.Empty;
+    [ObservableProperty] private string validationNotTouched = string.Empty;
+    [ObservableProperty] private string validationWarning = string.Empty;
+    [ObservableProperty] private string executeZoneLabel = "EXECUTER";
+    [ObservableProperty] private bool isReportOpen;
+    [ObservableProperty] private string reportText = string.Empty;
+    [ObservableProperty] private VirgilCoreState miniCoreState = VirgilCoreState.Idle;
+    [ObservableProperty] private VirgilCoreState validationCoreState = VirgilCoreState.Idle;
+    [ObservableProperty] private VirgilCoreState reportCoreState = VirgilCoreState.Idle;
+
+    public event Action<string>? VirgilMessageRequested;
+
+    public event Action<VirgilCoreState, string>? VirgilStateRequested;
+
+    public event EventHandler? ReturnHomeRequested;
+
+    public event EventHandler? ReportPersisted;
+
+    public void CancelActiveOperation()
+    {
+        _operationCancellation?.Cancel();
+        CompleteDecision(CleanupZoneDecision.CancelAll);
+    }
+
+    public bool TryCloseOverlay()
+    {
+        if (IsReportOpen)
+        {
+            HideReport();
+            return true;
+        }
+
+        if (IsValidationOpen)
+        {
+            CompleteDecision(CleanupZoneDecision.Skip);
+            return true;
+        }
+
+        if (_operationInProgress)
+        {
+            CancelActiveOperation();
+            VirgilMessageRequested?.Invoke("Annulation demandee.\nOperation en cours d'arret.");
+            return true;
+        }
+
+        return false;
+    }
+
+    [RelayCommand]
+    private Task LaunchCleanupSafeAsync() => LaunchCleanupAsync(CleanupClassification.Cleanable);
+
+    [RelayCommand]
+    private Task LaunchCleanupAdvancedAsync() => LaunchCleanupAsync(CleanupClassification.AdvancedCleanable);
+
+    [RelayCommand]
+    private void ReviewManual()
+    {
+        var count = _lastStorageAnalysis?.Items.Count ?? 0;
+        VirgilMessageRequested?.Invoke(count == 0
+            ? "Aucun element personnel volumineux detecte dans les emplacements analyses."
+            : $"Elements volumineux detectes : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
+    }
+
+    [RelayCommand]
+    private void ViewReport() => ShowReport();
+
+    [RelayCommand]
+    private void ReturnHome() => ReturnHomeRequested?.Invoke(this, EventArgs.Empty);
+
+    [RelayCommand]
+    private void ExecuteDecision() => CompleteDecision(CleanupZoneDecision.Execute);
+
+    [RelayCommand]
+    private void SkipDecision() => CompleteDecision(CleanupZoneDecision.Skip);
+
+    [RelayCommand]
+    private void CancelDecision() => CompleteDecision(CleanupZoneDecision.CancelAll);
+
+    [RelayCommand]
+    private void CloseReport() => HideReport();
+
+    [RelayCommand]
+    private async Task AnalyzeZonesAsync()
+    {
+        if (!BeginOperation("Analyse des zones autorisees."))
+        {
+            return;
+        }
+
+        try
+        {
+            _lastPreview.Clear();
+            StatusText = "Analyse en cours.";
+            RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
+            VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
+
+            var previews = await _previewService
+                .PreviewAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
+                .ConfigureAwait(true);
+
+            _lastStorageAnalysis = await _storageAnalyzer
+                .AnalyzeAsync(_operationCancellation.Token)
+                .ConfigureAwait(true);
+
+            _lastPreview.AddRange(previews);
+            RenderPreviews();
+            UpdateCommandState();
+            StatusText = "Previsualisation disponible. Validation par zone requise.";
+            RequestVirgilState(VirgilCoreState.Success, "PRET");
+            AnnouncePreviewResult();
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Analyse annulee.";
+            RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.");
+        }
+        catch
+        {
+            StatusText = "Analyse nettoyage indisponible.";
+            RequestVirgilState(VirgilCoreState.Error, "ERREUR");
+            VirgilMessageRequested?.Invoke("Analyse nettoyage indisponible.\nAucune action effectuee.");
+        }
+        finally
+        {
+            EndOperation();
+        }
+    }
+
+    private async Task LaunchCleanupAsync(CleanupClassification classification)
+    {
+        var selected = _lastPreview
+            .Where(preview => preview.Definition.Classification == classification)
+            .Where(preview => preview.Definition.IsExecutable && preview.HasEligibleCandidates)
+            .ToList();
+
+        if (selected.Count == 0)
+        {
+            VirgilMessageRequested?.Invoke("Aucune zone eligible.\nRelancez une analyse.");
+            return;
+        }
+
+        if (!BeginOperation("Nettoyage guide en attente de validation."))
+        {
+            return;
+        }
+
+        var startedAt = DateTimeOffset.Now;
+        var results = new List<CleanupStepResult>();
+        var sessionErrors = new List<string>();
+
+        try
+        {
+            RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
+
+            foreach (var preview in selected)
+            {
+                _operationCancellation!.Token.ThrowIfCancellationRequested();
+                var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
+                RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
+
+                if (decision == CleanupZoneDecision.CancelAll)
+                {
+                    results.Add(_executionService.CancelZone(preview));
+                    sessionErrors.Add("Session annulee par l'utilisateur.");
+                    break;
+                }
+
+                if (decision == CleanupZoneDecision.Skip)
+                {
+                    results.Add(_executionService.SkipZone(preview));
+                    VirgilMessageRequested?.Invoke("Zone passee.\nAucune modification effectuee.");
+                    continue;
+                }
+
+                RequestVirgilState(VirgilCoreState.Executing, "NETTOYAGE");
+                var result = await _executionService
+                    .ExecuteZoneAsync(preview, new Progress<CleanupProgress>(HandleProgress), _operationCancellation.Token)
+                    .ConfigureAwait(true);
+
+                results.Add(result);
+                AnnounceZoneResult(result);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            sessionErrors.Add("Session annulee.");
+        }
+        catch
+        {
+            sessionErrors.Add("Erreur pendant le nettoyage guide.");
+            RequestVirgilState(VirgilCoreState.Error, "ERREUR");
+        }
+        finally
+        {
+            var storage = _lastStorageAnalysis;
+            _lastReport = _executionService.CreateReport(startedAt, results, sessionErrors) with
+            {
+                EstimatedBytes = selected.Sum(preview => preview.EligibleBytes),
+                ReviewItems = storage?.ReviewItemCount ?? 0,
+                ReviewBytes = storage?.ReviewBytes ?? 0,
+                ProtectedItems = storage?.ProtectedItemCount ?? 0,
+                AdvancedRefused = results.Count(result => result.Zone.Classification == CleanupClassification.AdvancedCleanable && result.Status == CleanupStepStatus.Skipped),
+                LockedFilesIgnored = results.Sum(result => result.ErrorFiles),
+                ReparsePointsIgnored = _lastPreview.SelectMany(preview => preview.Errors).Count(error => error.Contains("reanalyse", StringComparison.OrdinalIgnoreCase)),
+                RefusedPaths = _lastPreview.SelectMany(preview => preview.Errors).Where(error => error.Contains("refus", StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            };
+            await PersistReportAsync(ReportMapper.FromCleanup(_lastReport, _lastPreview.Count));
+            IsReportButtonEnabled = true;
+            RenderPreviews();
+            EndOperation();
+            CompleteSessionState(_lastReport);
+            AnnounceSessionEnd(_lastReport);
+            ShowReport();
+        }
+    }
+
+    private async Task PersistReportAsync(ReportEntry report)
+    {
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private bool BeginOperation(string status)
+    {
+        if (_operationInProgress)
+        {
+            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            return false;
+        }
+
+        _operationInProgress = true;
+        _operationCancellation = new CancellationTokenSource();
+        StatusText = status;
+        SetButtonsEnabled(false);
+        IsBusy = true;
+        return true;
+    }
+
+    private void EndOperation()
+    {
+        _operationInProgress = false;
+        _operationCancellation?.Dispose();
+        _operationCancellation = null;
+        IsBusy = false;
+        SetButtonsEnabled(true);
+        UpdateCommandState();
+    }
+
+    private void SetButtonsEnabled(bool enabled)
+    {
+        IsAnalyzeEnabled = enabled;
+        IsLaunchCleanupEnabled = enabled && HasExecutable(CleanupClassification.Cleanable);
+        IsAdvancedCleanupEnabled = enabled && HasExecutable(CleanupClassification.AdvancedCleanable);
+        IsReviewManualEnabled = enabled && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
+        IsReportButtonEnabled = enabled && _lastReport is not null;
+        IsReturnHomeEnabled = enabled;
+    }
+
+    private void UpdateCommandState()
+    {
+        IsLaunchCleanupEnabled = !_operationInProgress && HasExecutable(CleanupClassification.Cleanable);
+        IsAdvancedCleanupEnabled = !_operationInProgress && HasExecutable(CleanupClassification.AdvancedCleanable);
+        IsReviewManualEnabled = !_operationInProgress && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
+        IsReportButtonEnabled = !_operationInProgress && _lastReport is not null;
+    }
+
+    private void HandleProgress(CleanupProgress progress)
+    {
+        if (progress.TotalFiles > 0)
+        {
+            StatusText = string.Join(" - ", new[]
+            {
+                $"{progress.Message} : {progress.ProcessedFiles}/{progress.TotalFiles} fichiers",
+                $"{progress.DeletedFiles} supprimes",
+                $"{FormatBytes(progress.DeletedBytes)} liberes",
+                $"{progress.SkippedFiles + progress.ErrorFiles} ignores"
+            });
+            return;
+        }
+
+        StatusText = progress.Percent.HasValue
+            ? $"{progress.Step} - {progress.Percent.Value}%"
+            : progress.Step;
+    }
+
+    private async Task<CleanupZoneDecision> AskZoneDecisionAsync(
+        CleanupZonePreview preview,
+        CancellationToken cancellationToken)
+    {
+        var decision = new TaskCompletionSource<CleanupZoneDecision>();
+        _activeDecision = decision;
+        ShowValidation(preview);
+
+        using var registration = cancellationToken.Register(() => CompleteDecision(CleanupZoneDecision.CancelAll));
+        return await decision.Task.ConfigureAwait(true);
+    }
+
+    private void ShowValidation(CleanupZonePreview preview)
+    {
+        ValidationTitle = preview.Definition.RequiresReinforcedConfirmation
+            ? preview.Definition.Id == CleanupZoneId.RecycleBin
+                ? "VIDER LA CORBEILLE - CONFIRMATION RENFORCEE"
+                : "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE"
+            : "NETTOYAGE SUR - VALIDATION REQUISE";
+        ValidationReason = $"Zone : {preview.Definition.DisplayName}\n{preview.Definition.Description}";
+        ValidationRoot = LogicalRootLabel(preview.Definition.Id);
+        ValidationMetrics = string.Join("\n", new[]
+        {
+            $"Taille : {FormatBytes(preview.EligibleBytes)}",
+            $"Fichiers : {preview.EligibleFileCount}",
+            $"Age minimal : {FormatAge(preview.Definition.MinimumAge)}",
+            $"Risque : {RiskLabel(preview.Definition.RiskLevel)}"
+        });
+        ValidationEffect = $"{preview.Definition.Effect}\nSuppression definitive apres confirmation de cette zone uniquement.";
+        ValidationNotTouched = preview.Definition.NotTouched;
+        ValidationWarning = preview.Definition.Warning;
+        ExecuteZoneLabel = preview.Definition.Id == CleanupZoneId.RecycleBin ? "VIDER LA CORBEILLE" : "NETTOYER";
+        IsValidationOpen = true;
+        RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+        ValidationCoreState = VirgilCoreState.SensitiveAction;
+        VirgilMessageRequested?.Invoke($"Validation requise.\nZone : {preview.Definition.DisplayName.ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.");
+    }
+
+    private void CompleteDecision(CleanupZoneDecision decision)
+    {
+        if (_activeDecision is null)
+        {
+            return;
+        }
+
+        ValidationCoreState = VirgilCoreState.Idle;
+        IsValidationOpen = false;
+        var activeDecision = _activeDecision;
+        _activeDecision = null;
+        activeDecision.TrySetResult(decision);
+    }
+
+    private void RenderPreviews()
+    {
+        Entries.Clear();
+
+        AddCategorySection("NETTOYAGE SUR", CleanupClassification.Cleanable);
+        AddCategorySection("NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
+
+        Entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+
+        Entries.Add(new CleanupTextCardItem("A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
+        if (_lastStorageAnalysis is not null)
+        {
+            foreach (var item in _lastStorageAnalysis.Items.Take(20))
+            {
+                Entries.Add(new CleanupReviewItemViewModel(item, _processRunner, message => VirgilMessageRequested?.Invoke(message)));
+            }
+        }
+
+        Entries.Add(new CleanupTextCardItem("PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
+
+        if (Entries.Count == 0)
+        {
+            Entries.Add(new CleanupTextCardItem("Aucune zone analysee."));
+        }
+    }
+
+    private void AddCategorySection(string title, CleanupClassification classification)
+    {
+        Entries.Add(new CleanupSectionTitleItem(title));
+        foreach (var preview in _lastPreview
+            .Where(preview => preview.Definition.Classification == classification)
+            .OrderBy(preview => preview.Definition.DisplayOrder))
+        {
+            Entries.Add(new CleanupZoneItemViewModel(preview));
+        }
+
+        foreach (var preview in _lastPreview
+            .Where(preview => preview.Definition.Classification == CleanupClassification.InformationOnly)
+            .Where(preview => classification == CleanupClassification.AdvancedCleanable)
+            .OrderBy(preview => preview.Definition.DisplayOrder))
+        {
+            Entries.Add(new CleanupZoneItemViewModel(preview));
+        }
+    }
+
+    private void AnnouncePreviewResult()
+    {
+        var totalBytes = _lastPreview.Where(preview => preview.Definition.IsExecutable).Sum(preview => preview.EligibleBytes);
+        var reviewCount = _lastStorageAnalysis?.Items.Count ?? 0;
+
+        if (totalBytes == 0)
+        {
+            VirgilMessageRequested?.Invoke("Analyse terminee.\nAucun nettoyage necessaire.");
+            return;
+        }
+
+        VirgilMessageRequested?.Invoke($"Previsualisation terminee.\n{_lastPreview.Count} zones analysees.\n{FormatBytes(totalBytes)} potentiellement recuperables.\n{reviewCount} elements personnels ou ambigus a revoir, aucune suppression proposee.");
+    }
+
+    private void AnnounceSessionEnd(CleanupSessionReport report)
+    {
+        if (IsCancellationReport(report))
+        {
+            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.");
+            return;
+        }
+
+        if (HasBlockingFailure(report))
+        {
+            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nRapport partiel disponible.");
+            return;
+        }
+
+        VirgilMessageRequested?.Invoke($"Nettoyage termine.\nEspace libere : {FormatBytes(report.DeletedBytes)}.\nRapport disponible.");
+    }
+
+    private void AnnounceZoneResult(CleanupStepResult result)
+    {
+        if (result.Status == CleanupStepStatus.Expired)
+        {
+            VirgilMessageRequested?.Invoke($"Zone expiree : {result.Zone.DisplayName}.\nRelancez l'analyse.");
+            return;
+        }
+
+        VirgilMessageRequested?.Invoke($"Zone traitee.\n{FormatBytes(result.DeletedBytes)} liberes.\n{result.ErrorFiles} fichiers verrouilles ignores.");
+    }
+
+    private void CompleteSessionState(CleanupSessionReport report)
+    {
+        StatusText = $"Rapport pret : {report.DeletedFiles} fichiers, {FormatBytes(report.DeletedBytes)}.";
+
+        if (IsCancellationReport(report))
+        {
+            RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+            return;
+        }
+
+        if (HasBlockingFailure(report))
+        {
+            RequestVirgilState(VirgilCoreState.Error, "ERREUR");
+            return;
+        }
+
+        if (report.Errors.Count > 0 || report.ErrorFiles > 0)
+        {
+            RequestVirgilState(VirgilCoreState.Warning, "ATTENTION");
+            return;
+        }
+
+        RequestVirgilState(VirgilCoreState.Success, "TERMINE");
+    }
+
+    private void ShowReport()
+    {
+        if (_lastReport is null)
+        {
+            VirgilMessageRequested?.Invoke("Aucun rapport nettoyage disponible.");
+            return;
+        }
+
+        ReportText = FormatReport(_lastReport, _lastPreview.Count);
+        IsReportOpen = true;
+        ReportCoreState = IsCancellationReport(_lastReport) || _lastReport.Errors.Count > 0 || _lastReport.ErrorFiles > 0
+            ? VirgilCoreState.Warning
+            : VirgilCoreState.Success;
+    }
+
+    private void HideReport()
+    {
+        ReportCoreState = VirgilCoreState.Idle;
+        IsReportOpen = false;
+    }
+
+    private static string FormatReport(CleanupSessionReport report, int analyzedZones)
+    {
+        var ignoredFiles = report.Results.Sum(result => result.SkippedFiles);
+        var partialErrors = report.Errors.Count + report.Results.Sum(result => result.Errors.Count);
+        var builder = new StringBuilder();
+        builder.AppendLine($"Date : {report.StartedAt:yyyy-MM-dd HH:mm:ss}");
+        builder.AppendLine($"Duree : {report.Duration.TotalSeconds:0.0} s");
+        builder.AppendLine($"Zones analysees : {analyzedZones}");
+        builder.AppendLine($"Zones executees : {CountExecutedZones(report)}");
+        builder.AppendLine($"Zones passees : {report.SkippedZones}");
+        builder.AppendLine($"Annulation : {(IsCancellationReport(report) ? "oui" : "non")}");
+        builder.AppendLine($"Fichiers supprimes : {report.DeletedFiles}");
+        builder.AppendLine($"Volume libere : {FormatBytes(report.DeletedBytes)}");
+        builder.AppendLine($"Volume estime : {FormatBytes(report.EstimatedBytes)}");
+        builder.AppendLine($"Elements a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
+        builder.AppendLine($"Elements proteges : {report.ProtectedItems}");
+        builder.AppendLine($"Zones avancees refusees : {report.AdvancedRefused}");
+        builder.AppendLine($"Points de reanalyse ignores : {report.ReparsePointsIgnored}");
+        builder.AppendLine($"Redemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}");
+        builder.AppendLine("Aucun fichier personnel supprime automatiquement.");
+        builder.AppendLine($"Fichiers verrouilles : {report.ErrorFiles}");
+        builder.AppendLine($"Fichiers ignores : {ignoredFiles}");
+        builder.AppendLine($"Erreurs partielles : {partialErrors}");
+        builder.AppendLine();
+
+        foreach (var result in report.Results)
+        {
+            builder.AppendLine($"{result.Zone.DisplayName} : {StatusLabel(result.Status)}");
+            builder.AppendLine($"  Supprimes : {result.DeletedFiles} - {FormatBytes(result.DeletedBytes)}");
+            builder.AppendLine($"  Ignores : {result.SkippedFiles} - Erreurs : {result.ErrorFiles}");
+
+            foreach (var error in result.Errors.Take(3))
+            {
+                builder.AppendLine($"  Erreur : {error}");
+            }
+        }
+
+        if (report.Errors.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("Erreurs session :");
+
+            foreach (var error in report.Errors.Take(5))
+            {
+                builder.AppendLine($"- {error}");
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private void RequestVirgilState(VirgilCoreState state, string label)
+    {
+        MiniCoreState = state;
+        VirgilStateRequested?.Invoke(state, label);
+    }
+
+    private static int CountExecutedZones(CleanupSessionReport report)
+    {
+        return report.Results.Count(result => result.Status is
+            CleanupStepStatus.Completed or
+            CleanupStepStatus.PartialFailure or
+            CleanupStepStatus.Expired or
+            CleanupStepStatus.Failed);
+    }
+
+    private static bool IsCancellationReport(CleanupSessionReport report)
+    {
+        return report.CancelledZones > 0 ||
+            report.Errors.Any(error => error.Contains("annulee", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasBlockingFailure(CleanupSessionReport report)
+    {
+        return report.Results.Count == 0 &&
+            report.Errors.Any(error => error.Contains("Erreur", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string StatusLabel(CleanupStepStatus status)
+    {
+        return status switch
+        {
+            CleanupStepStatus.Completed => "terminee",
+            CleanupStepStatus.Skipped => "passee",
+            CleanupStepStatus.Cancelled => "annulee",
+            CleanupStepStatus.Expired => "preview expiree",
+            CleanupStepStatus.PartialFailure => "partielle",
+            _ => "echec"
+        };
+    }
+
+    internal static string LogicalRootLabel(CleanupZoneId zoneId)
+    {
+        return zoneId switch
+        {
+            CleanupZoneId.UserTemporaryFiles => "%TEMP% utilisateur",
+            CleanupZoneId.UserCrashDumps => "%LOCALAPPDATA%\\CrashDumps",
+            CleanupZoneId.DirectXShaderCache => "%LOCALAPPDATA%\\D3DSCache",
+            _ => "Zone autorisee"
+        };
+    }
+
+    private bool HasExecutable(CleanupClassification classification)
+    {
+        return _lastPreview.Any(preview => preview.Definition.Classification == classification && preview.Definition.IsExecutable && preview.HasEligibleCandidates);
+    }
+
+    internal static string ClassificationLabel(CleanupClassification classification)
+    {
+        return classification switch
+        {
+            CleanupClassification.Cleanable => "nettoyable sur",
+            CleanupClassification.AdvancedCleanable => "nettoyable avance",
+            CleanupClassification.ReviewOnly => "a revoir manuellement",
+            CleanupClassification.Protected => "protege",
+            _ => "information seulement"
+        };
+    }
+
+    internal static string RiskLabel(CleanupRiskLevel risk)
+    {
+        return risk switch
+        {
+            CleanupRiskLevel.Low => "faible",
+            CleanupRiskLevel.Medium => "moyen",
+            _ => "eleve"
+        };
+    }
+
+    internal static string FormatAge(TimeSpan age)
+    {
+        return age.TotalDays >= 1 ? $"{age.TotalDays:0} jours" : $"{age.TotalHours:0} heures";
+    }
+
+    internal static string FormatBytes(long bytes)
+    {
+        return ScanRules.FormatBytes(bytes);
+    }
+
+    private enum CleanupZoneDecision
+    {
+        Execute,
+        Skip,
+        CancelAll
+    }
+}

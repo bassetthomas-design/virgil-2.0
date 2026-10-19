@@ -1,0 +1,586 @@
+using Virgil.App.Animation;
+using Virgil.App.ViewModels;
+using Virgil.Contracts;
+using Virgil.Core.Cleanup;
+using Virgil.Core.Processes;
+using Virgil.Core.Reports;
+using Xunit;
+
+namespace Virgil.Tests;
+
+public sealed class CleanupViewModelTests
+{
+    [Fact]
+    public void InitialStateMatchesViewAndCommandsHaveNoSideEffects()
+    {
+        var f = new Fixture();
+        var vm = f.Vm;
+        Assert.Equal("Aucune analyse nettoyage lancee.", vm.StatusText);
+        Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
+        AssertIdle(vm);
+        Assert.False(vm.IsLaunchCleanupEnabled);
+        Assert.False(vm.IsAdvancedCleanupEnabled);
+        Assert.False(vm.IsReviewManualEnabled);
+        Assert.False(vm.IsReportButtonEnabled);
+        Assert.False(vm.IsValidationOpen);
+        Assert.False(vm.IsReportOpen);
+        Assert.Equal("VALIDATION REQUISE", vm.ValidationTitle);
+        Assert.Equal("EXECUTER", vm.ExecuteZoneLabel);
+        Assert.Empty(vm.ValidationReason + vm.ValidationRoot + vm.ValidationMetrics + vm.ValidationEffect + vm.ValidationNotTouched + vm.ValidationWarning + vm.ReportText);
+        Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
+        Assert.Equal(VirgilCoreState.Idle, vm.ValidationCoreState);
+        Assert.Equal(VirgilCoreState.Idle, vm.ReportCoreState);
+        Assert.False(vm.TryCloseOverlay());
+        vm.ExecuteDecisionCommand.Execute(null);
+        vm.SkipDecisionCommand.Execute(null);
+        vm.CancelDecisionCommand.Execute(null);
+        vm.CancelActiveOperation();
+        Assert.Empty(f.Actions.Order);
+        vm.ReviewManualCommand.Execute(null);
+        Assert.Equal("Aucun element personnel volumineux detecte dans les emplacements analyses.", f.Messages.Last());
+        vm.ViewReportCommand.Execute(null);
+        Assert.Equal("Aucun rapport nettoyage disponible.", f.Messages.Last());
+        var home = 0;
+        vm.ReturnHomeRequested += (_, _) => home++;
+        vm.ReturnHomeCommand.Execute(null);
+        Assert.Equal(1, home);
+    }
+
+    [Fact]
+    public async Task AnalyzeKeepsEntriesOrderAndCardContent()
+    {
+        var f = new Fixture();
+        var safeLater = Preview(CleanupZoneId.DirectXShaderCache, order: 4);
+        var safeFirst = Preview(order: 1) with { Errors = new[] { "un", "deux", "trois", "quatre" } };
+        var advanced = Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable, 8);
+        var info = Preview(CleanupZoneId.PrefetchInformation, CleanupClassification.InformationOnly, 0, executable: false);
+        f.Previews.Items = new[] { safeLater, info, advanced, safeFirst, Preview(CleanupZoneId.TechnicalLogs, CleanupClassification.Protected) };
+        await f.Analyze();
+        AssertIdle(f.Vm);
+        Assert.True(f.Vm.IsLaunchCleanupEnabled);
+        Assert.True(f.Vm.IsAdvancedCleanupEnabled);
+        Assert.False(f.Vm.IsReviewManualEnabled);
+        Assert.Equal("Previsualisation disponible. Validation par zone requise.", f.Vm.StatusText);
+        Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
+        Assert.Contains("5 zones analysees.", f.Messages.Last());
+        Assert.Equal(9, f.Vm.Entries.Count);
+        Assert.Equal("NETTOYAGE SUR", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[0]).Text);
+        var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
+        Assert.Same(safeFirst, card.Preview);
+        Assert.Equal("USERTEMPORARYFILES", card.Title);
+        Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Categorie : nettoyable sur", "Action : guidee apres validation", "Examines : 3 fichiers", "Eligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Anciennete minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
+        Assert.Same(safeLater, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Preview);
+        Assert.Equal("NETTOYAGE AVANCE", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[3]).Text);
+        Assert.Same(advanced, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[4]).Preview);
+        Assert.Same(info, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Preview);
+        Assert.Contains("Action : information seulement", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Lines);
+        Assert.Equal(new[]
+        {
+            "NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown.",
+            "A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
+            "PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."
+        }, f.Vm.Entries.OfType<CleanupTextCardItem>().Select(c => c.Text));
+        Assert.Empty(f.Actions.Order);
+    }
+
+    [Fact]
+    public async Task EmptyAnalysisRetainsSectionsAndThreeFixedCards()
+    {
+        var f = new Fixture();
+        f.Previews.Items = Array.Empty<CleanupZonePreview>();
+        await f.Analyze();
+        Assert.Equal(5, f.Vm.Entries.Count);
+        Assert.Equal(2, f.Vm.Entries.OfType<CleanupSectionTitleItem>().Count());
+        Assert.Equal(3, f.Vm.Entries.OfType<CleanupTextCardItem>().Count());
+        Assert.Equal("Analyse terminee.\nAucun nettoyage necessaire.", f.Messages.Last());
+        await f.Run();
+        Assert.Equal("Aucune zone eligible.\nRelancez une analyse.", f.Messages.Last());
+        Assert.False(f.Vm.IsLaunchCleanupEnabled);
+        Assert.False(f.Vm.IsAdvancedCleanupEnabled);
+        Assert.Empty(f.Actions.Order);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnalysisCancellationOrErrorRestoresButtonsAndTexts(bool error)
+    {
+        var f = new Fixture();
+        var gate = new TaskCompletionSource<IReadOnlyList<CleanupZonePreview>>();
+        f.Previews.Handler = token => gate.Task.WaitAsync(token);
+        var pending = f.Analyze();
+        AssertBusy(f.Vm);
+        Assert.Equal("Analyse en cours.", f.Vm.StatusText);
+        Assert.Equal(VirgilCoreState.Scanning, f.Vm.MiniCoreState);
+        if (error) gate.SetException(new InvalidOperationException());
+        else Assert.True(f.Vm.TryCloseOverlay());
+        await pending;
+        AssertIdle(f.Vm);
+        Assert.Equal(error ? "Analyse nettoyage indisponible." : "Analyse annulee.", f.Vm.StatusText);
+        Assert.Equal(error ? VirgilCoreState.Error : VirgilCoreState.Idle, f.Vm.MiniCoreState);
+        Assert.Contains(error ? "Analyse nettoyage indisponible.\nAucune action effectuee." : "Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.", f.Messages);
+        if (!error) Assert.Contains("Annulation demandee.\nOperation en cours d'arret.", f.Messages);
+        Assert.False(f.Vm.IsLaunchCleanupEnabled);
+        Assert.False(f.Vm.IsAdvancedCleanupEnabled);
+        Assert.False(f.Vm.IsReviewManualEnabled);
+        Assert.Empty(f.Actions.Order);
+        Assert.Equal(0, f.History.Calls);
+    }
+
+    [Theory]
+    [InlineData("SkipDecision")]
+    [InlineData("CancelDecision")]
+    [InlineData("TryCloseOverlay")]
+    [InlineData("CancelActiveOperation")]
+    public async Task AbandoningValidationNeverExecutesAndAlwaysPersists(string decision)
+    {
+        var f = new Fixture();
+        await f.Analyze();
+        var pending = f.Run();
+        Assert.True(f.Vm.IsValidationOpen);
+        AssertBusy(f.Vm);
+        Assert.Empty(f.Actions.Order);
+        Assert.Equal(VirgilCoreState.SensitiveAction, f.Vm.ValidationCoreState);
+        Decide(f.Vm, decision);
+        await pending;
+        var skip = decision is "SkipDecision" or "TryCloseOverlay";
+        Assert.Equal(new[] { (skip ? "Skip:" : "Cancel:") + CleanupZoneId.UserTemporaryFiles }, f.Actions.Order);
+        Assert.Equal(skip ? CleanupStepStatus.Skipped : CleanupStepStatus.Cancelled, Assert.Single(f.Actions.Report!.Results).Status);
+        Assert.Equal(1, f.History.Calls);
+        Assert.Equal(1, f.Persisted);
+        Assert.False(f.History.Token.CanBeCanceled);
+        Assert.Equal(ReportKind.Cleanup, f.History.Saved!.Kind);
+        AssertIdle(f.Vm);
+        Assert.True(f.Vm.IsReportButtonEnabled);
+        Assert.False(f.Vm.IsValidationOpen);
+        Assert.Equal(VirgilCoreState.Idle, f.Vm.ValidationCoreState);
+        Assert.Equal(skip ? VirgilCoreState.Success : VirgilCoreState.Idle, f.Vm.MiniCoreState);
+        Assert.Equal(skip ? VirgilCoreState.Success : VirgilCoreState.Warning, f.Vm.ReportCoreState);
+        Assert.True(f.Vm.IsReportOpen);
+        Assert.Contains(skip ? "Zones passees : 1" : "Annulation : oui", f.Vm.ReportText);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
+    }
+
+    [Fact]
+    public async Task SkipExecuteCancelKeepsPreviewOrderAndRequiresEachZonesDecision()
+    {
+        var f = new Fixture();
+        // Display sorting must not reorder the guided session inherited from the preview service.
+        f.Previews.Items = new[] { Preview(CleanupZoneId.DirectXShaderCache, order: 9), Preview(order: 1), Preview(CleanupZoneId.UserCrashDumps, order: 4), Preview(CleanupZoneId.TechnicalLogs) };
+        await f.Analyze();
+        var pending = f.Run();
+        Assert.StartsWith("Zone : DirectXShaderCache\n", f.Vm.ValidationReason);
+        await NextValidation(f.Vm, () => f.Vm.SkipDecisionCommand.Execute(null), "UserTemporaryFiles");
+        Assert.Equal(new[] { "Skip:DirectXShaderCache" }, f.Actions.Order);
+        await NextValidation(f.Vm, () => f.Vm.ExecuteDecisionCommand.Execute(null), "UserCrashDumps");
+        Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles" }, f.Actions.Order);
+        f.Vm.CancelDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles", "Cancel:UserCrashDumps" }, f.Actions.Order);
+        Assert.Equal(new[] { CleanupStepStatus.Skipped, CleanupStepStatus.Completed, CleanupStepStatus.Cancelled }, f.Actions.Report!.Results.Select(r => r.Status));
+        Assert.Equal(new[] { "Session annulee par l'utilisateur." }, f.Actions.Report.Errors);
+        Assert.Contains("Volume estime : 8 Ko", f.Vm.ReportText);
+        Assert.Contains("Zones executees : 1", f.Vm.ReportText);
+        Assert.Contains("Zones analysees : 4", f.Vm.ReportText);
+        Assert.Contains("Fichiers supprimes : 1", f.Vm.ReportText);
+        Assert.Equal(1, f.Persisted);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OnlyEligibleExecutableZonesOfRequestedClassificationAreProposed(bool advanced)
+    {
+        var f = new Fixture();
+        var classification = advanced ? CleanupClassification.AdvancedCleanable : CleanupClassification.Cleanable;
+        f.Previews.Items = new[]
+        {
+            Preview(), Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable),
+            Preview(CleanupZoneId.TechnicalLogs, classification, executable: false),
+            Preview(CleanupZoneId.UserCrashDumps, classification, eligible: 0),
+            Preview(CleanupZoneId.PrefetchInformation, CleanupClassification.InformationOnly),
+            Preview(CleanupZoneId.RecycleBin, CleanupClassification.Protected),
+            Preview(CleanupZoneId.InternetCache, CleanupClassification.ReviewOnly)
+        };
+        await f.Analyze();
+        var pending = f.Run(advanced);
+        Assert.StartsWith(advanced ? "Zone : WindowsOld\n" : "Zone : UserTemporaryFiles\n", f.Vm.ValidationReason);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(new[] { advanced ? "Execute:WindowsOld" : "Execute:UserTemporaryFiles" }, f.Actions.Order);
+        Assert.Contains("Volume estime : 2 Ko", f.Vm.ReportText);
+    }
+
+    [Theory]
+    [InlineData(CleanupZoneId.UserTemporaryFiles, false, "NETTOYAGE SUR - VALIDATION REQUISE", "NETTOYER", "%TEMP% utilisateur")]
+    [InlineData(CleanupZoneId.WindowsOld, true, "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE", "NETTOYER", "Zone autorisee")]
+    [InlineData(CleanupZoneId.RecycleBin, true, "VIDER LA CORBEILLE - CONFIRMATION RENFORCEE", "VIDER LA CORBEILLE", "Zone autorisee")]
+    public async Task ValidationPreservesTitleLabelMetricsAndSafety(CleanupZoneId id, bool reinforced, string title, string label, string root)
+    {
+        var f = new Fixture();
+        var p = Preview(id) with { Definition = Preview(id).Definition with { RequiresReinforcedConfirmation = reinforced } };
+        f.Previews.Items = new[] { p };
+        await f.Analyze();
+        var pending = f.Run();
+        Assert.Equal(title, f.Vm.ValidationTitle);
+        Assert.Equal(label, f.Vm.ExecuteZoneLabel);
+        Assert.Equal(root, f.Vm.ValidationRoot);
+        Assert.Equal($"Zone : {id}\nDescription", f.Vm.ValidationReason);
+        Assert.Equal("Taille : 2 Ko\nFichiers : 2\nAge minimal : 2 jours\nRisque : faible", f.Vm.ValidationMetrics);
+        Assert.Equal("Effet\nSuppression definitive apres confirmation de cette zone uniquement.", f.Vm.ValidationEffect);
+        Assert.Equal("Non touche", f.Vm.ValidationNotTouched);
+        Assert.Equal("Attention", f.Vm.ValidationWarning);
+        Assert.Equal($"Validation requise.\nZone : {id.ToString().ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.", f.Messages.Last());
+        f.Vm.CancelDecisionCommand.Execute(null);
+        await pending;
+        Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
+    }
+
+    [Theory]
+    [InlineData("SkipDecision")]
+    [InlineData("CancelDecision")]
+    public async Task DecisionCanBeCompletedSynchronouslyFromValidationAnnouncement(string decision)
+    {
+        var f = new Fixture();
+        await f.Analyze();
+        f.Vm.VirgilMessageRequested += message =>
+        {
+            if (message.StartsWith("Validation requise.")) Decide(f.Vm, decision);
+        };
+        await f.Run().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(f.Vm.IsValidationOpen);
+        Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
+        Assert.Equal(1, f.Persisted);
+    }
+
+    [Fact]
+    public async Task CancellationDuringExecutionCancelsTokenAndPersistsPartialReport()
+    {
+        var f = new Fixture();
+        var gate = new TaskCompletionSource<CleanupStepResult>();
+        f.Actions.Handler = (_, token) => gate.Task.WaitAsync(token);
+        await f.Analyze();
+        var pending = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        Assert.False(f.Vm.IsValidationOpen);
+        AssertBusy(f.Vm);
+        Assert.True(f.Vm.TryCloseOverlay());
+        Assert.True(f.Actions.Token.IsCancellationRequested);
+        await pending;
+        Assert.Contains("Annulation demandee.\nOperation en cours d'arret.", f.Messages);
+        Assert.Contains("Session annulee.", f.Actions.Report!.Errors);
+        Assert.Equal(VirgilCoreState.Idle, f.Vm.MiniCoreState);
+        Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
+        Assert.True(f.Vm.IsReportOpen);
+        Assert.Equal(1, f.Persisted);
+        AssertIdle(f.Vm);
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(false, "Historique inaccessible.")]
+    [InlineData(true, "Avertissement historique.")]
+    public async Task PersistenceResultPreservesErrorMessageAndEvent(bool success, string? error)
+    {
+        var f = new Fixture();
+        f.History.Result = new() { Success = success, ReadableError = error };
+        await f.Analyze();
+        var pending = f.Run();
+        f.Vm.SkipDecisionCommand.Execute(null);
+        await pending;
+        Assert.Contains(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Messages);
+        Assert.Equal(success ? 1 : 0, f.Persisted);
+        Assert.True(f.Vm.IsReportOpen);
+        Assert.True(f.Vm.IsReportButtonEnabled);
+    }
+
+    [Fact]
+    public async Task ComputedReportIncludesAdvancedRefusalsLocksReparseAndDistinctRefusedPaths()
+    {
+        var f = new Fixture();
+        f.Previews.Items = new[]
+        {
+            Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "Point de reanalyse ignore", "Chemin refuse A" } },
+            Preview(CleanupZoneId.RecycleBin, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "POINT DE REANALYSE ignore", "CHEMIN REFUSE A", "Chemin refuse B" } }
+        };
+        f.Actions.Errors = new[] { "Fichier verrouille" };
+        f.Actions.ErrorFiles = 3;
+        await f.Analyze();
+        var pending = f.Run(true);
+        await NextValidation(f.Vm, () => f.Vm.SkipDecisionCommand.Execute(null), "RecycleBin");
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        var saved = f.History.Saved!;
+        Assert.Contains("Zones avancees refusees : 1", saved.SimpleView);
+        Assert.Contains("Espace estime : 4 Ko", saved.SimpleView);
+        Assert.Contains("Fichiers ignores ou verrouilles : 3", saved.SimpleView);
+        Assert.Contains("Elements a revoir : 0", saved.SimpleView);
+        Assert.Contains("Elements proteges : 0", saved.SimpleView);
+        Assert.Contains("Points de reanalyse ignores : 2", saved.TechnicalDetails);
+        Assert.Contains("Chemins refuses : Chemin refuse A | Chemin refuse B", saved.TechnicalDetails);
+        Assert.Contains("Erreurs lisibles : Point de reanalyse ignore | Chemin refuse A", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Lines);
+        Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
+        Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
+        Assert.Contains("Fichiers verrouilles : 3", f.Vm.ReportText);
+        Assert.Contains("  Erreur : Fichier verrouille", f.Vm.ReportText);
+    }
+
+    [Fact]
+    public async Task ExecutionErrorStillBuildsAndPersistsReport()
+    {
+        var f = new Fixture();
+        f.Actions.Handler = (_, _) => throw new InvalidOperationException();
+        await f.Analyze();
+        var pending = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(new[] { "Erreur pendant le nettoyage guide." }, f.Actions.Report!.Errors);
+        Assert.Equal(VirgilCoreState.Error, f.Vm.MiniCoreState);
+        Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
+        Assert.Contains("Nettoyage interrompu.\nRapport partiel disponible.", f.Messages);
+        Assert.Contains("Erreurs session :", f.Vm.ReportText);
+        Assert.Equal(1, f.Persisted);
+        AssertIdle(f.Vm);
+    }
+
+    [Fact]
+    public async Task ReportCloseHasPriorityOverPendingValidation()
+    {
+        var f = new Fixture();
+        await f.Analyze();
+        var pending = f.Run();
+        f.Vm.SkipDecisionCommand.Execute(null);
+        await pending;
+        Assert.True(f.Vm.TryCloseOverlay());
+        Assert.Equal(VirgilCoreState.Idle, f.Vm.ReportCoreState);
+        Assert.False(f.Vm.TryCloseOverlay());
+        pending = f.Run();
+        f.Vm.ViewReportCommand.Execute(null);
+        Assert.True(f.Vm.TryCloseOverlay());
+        Assert.True(f.Vm.IsValidationOpen);
+        Assert.False(pending.IsCompleted);
+        Assert.True(f.Vm.TryCloseOverlay());
+        await pending;
+        f.Vm.CloseReportCommand.Execute(null);
+        Assert.False(f.Vm.IsReportOpen);
+        Assert.Equal(VirgilCoreState.Idle, f.Vm.ReportCoreState);
+        Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task ReviewCommandsKeepThreeLinesExplorerArgumentsAndNoCleanupEffects(int failure)
+    {
+        var runner = new FakeRunner { Failure = failure };
+        var messages = new List<string>();
+        var item = new CleanupStorageReviewItem("C:\\Donnees\\Mon fichier.iso", "Mon fichier.iso", "ISO", 2048, new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero), CleanupClassification.ReviewOnly, "A verifier");
+        var card = new CleanupReviewItemViewModel(item, runner, messages.Add);
+        Assert.Equal("MON FICHIER.ISO", card.Title);
+        Assert.Equal(new[] { "ISO - 2 Ko - 2026-10-19", "a revoir manuellement - A verifier", "Emplacement : C:\\Donnees\\Mon fichier.iso" }, card.Lines);
+        Assert.False(card.IsHidden);
+        card.IgnoreCommand.Execute(null);
+        Assert.True(card.IsHidden);
+        Assert.Equal(0, runner.Calls);
+        Assert.Empty(messages);
+        card.MarkCommand.Execute(null);
+        Assert.Equal("Element marque a revoir : Mon fichier.iso.\nAucune suppression effectuee.", messages.Last());
+        Assert.Equal(0, runner.Calls);
+        await card.OpenLocationCommand.ExecuteAsync(null);
+        var request = runner.Request!;
+        Assert.Equal("explorer.exe", request.FileName);
+        Assert.Equal("/select,\"C:\\Donnees\\Mon fichier.iso\"", request.RawArguments);
+        Assert.Empty(request.Arguments);
+        Assert.True(request.UseShellExecute);
+        Assert.False(request.WaitForExit);
+        Assert.False(runner.Token.CanBeCanceled);
+        Assert.Equal(1, runner.Calls);
+        if (failure != 0) Assert.Equal("Emplacement indisponible. Aucune modification effectuee.", messages.Last());
+        else Assert.Single(messages);
+    }
+
+    [Fact]
+    [Trait("Category", "Windows")]
+    public async Task StorageReviewCapsCardsAtTwentyPreservesOrderAndCountsAllItemsInReport()
+    {
+        var directory = Directory.CreateTempSubdirectory("VirgilCleanupVm-");
+        try
+        {
+            for (var i = 1; i <= 22; i++) File.WriteAllBytes(Path.Combine(directory.FullName, $"archive-{i:00}.bin"), new byte[i]);
+            File.WriteAllBytes(Path.Combine(directory.FullName, "photo.jpg"), new byte[23]);
+            var f = new Fixture(new CleanupStorageAnalyzer(new[] { directory.FullName }, largeFileThreshold: 1));
+            await f.Analyze();
+            var cards = f.Vm.Entries.OfType<CleanupReviewItemViewModel>().ToList();
+            Assert.Equal(20, cards.Count);
+            Assert.Equal("PHOTO.JPG", cards[0].Title);
+            Assert.Equal("ARCHIVE-22.BIN", cards[1].Title);
+            Assert.Equal("ARCHIVE-04.BIN", cards[19].Title);
+            Assert.True(f.Vm.IsReviewManualEnabled);
+            f.Vm.ReviewManualCommand.Execute(null);
+            Assert.Equal("Elements volumineux detectes : 23.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.", f.Messages.Last());
+            cards[0].IgnoreCommand.Execute(null);
+            Assert.True(cards[0].IsHidden);
+            Assert.Empty(f.Actions.Order);
+            Assert.Equal(0, f.Runner.Calls);
+            var pending = f.Run();
+            f.Vm.SkipDecisionCommand.Execute(null);
+            await pending;
+            Assert.Contains("Elements a revoir : 22 (253 o)", f.History.Saved!.SimpleView);
+            Assert.Contains("Elements proteges : 1", f.History.Saved.SimpleView);
+            Assert.Contains("Elements a revoir : 22 - 253 o", f.Vm.ReportText);
+            Assert.False(f.Vm.Entries.OfType<CleanupReviewItemViewModel>().First().IsHidden);
+            Assert.Equal(23, Directory.GetFiles(directory.FullName).Length);
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
+    private static async Task NextValidation(CleanupViewModel vm, Action decide, string name)
+    {
+        var next = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(vm.IsValidationOpen) && vm.IsValidationOpen && vm.ValidationReason.StartsWith($"Zone : {name}\n")) next.TrySetResult(true);
+        }
+        vm.PropertyChanged += Changed;
+        try
+        {
+            decide();
+            await next.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { vm.PropertyChanged -= Changed; }
+    }
+
+    private static void AssertIdle(CleanupViewModel vm)
+    {
+        Assert.True(vm.IsIdle);
+        Assert.False(vm.IsBusy);
+        Assert.True(vm.IsAnalyzeEnabled);
+        Assert.True(vm.IsReturnHomeEnabled);
+    }
+
+    private static void AssertBusy(CleanupViewModel vm)
+    {
+        Assert.True(vm.IsBusy);
+        Assert.False(vm.IsIdle);
+        Assert.False(vm.IsAnalyzeEnabled);
+        Assert.False(vm.IsLaunchCleanupEnabled);
+        Assert.False(vm.IsAdvancedCleanupEnabled);
+        Assert.False(vm.IsReviewManualEnabled);
+        Assert.False(vm.IsReportButtonEnabled);
+        Assert.False(vm.IsReturnHomeEnabled);
+    }
+
+    private static void Decide(CleanupViewModel vm, string decision)
+    {
+        switch (decision)
+        {
+            case "SkipDecision": vm.SkipDecisionCommand.Execute(null); break;
+            case "CancelDecision": vm.CancelDecisionCommand.Execute(null); break;
+            case "TryCloseOverlay": Assert.True(vm.TryCloseOverlay()); break;
+            case "CancelActiveOperation": vm.CancelActiveOperation(); break;
+            default: throw new ArgumentOutOfRangeException(nameof(decision));
+        }
+    }
+
+    private static CleanupZonePreview Preview(CleanupZoneId id = CleanupZoneId.UserTemporaryFiles,
+        CleanupClassification classification = CleanupClassification.Cleanable, int order = 0, bool executable = true, int eligible = 2) =>
+        new(new CleanupZoneDefinition(id, id.ToString(), "Description", "Zone test", TimeSpan.FromDays(2), CleanupRiskLevel.Low, "Attention", "Effet", "Non touche", order)
+        { Classification = classification, IsExecutable = executable }, DateTimeOffset.Now, 3, eligible, 2048, 1, Array.Empty<CleanupCandidate>(), Array.Empty<string>());
+
+    private sealed class Fixture
+    {
+        public FakePreview Previews { get; } = new();
+        public FakeActions Actions { get; } = new();
+        public FakeHistory History { get; } = new();
+        public FakeRunner Runner { get; } = new();
+        public CleanupViewModel Vm { get; }
+        public List<string> Messages { get; } = new();
+        public int Persisted { get; private set; }
+        public Fixture(CleanupStorageAnalyzer? analyzer = null)
+        {
+            Vm = new(Previews, Actions, Runner, analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>()), History);
+            Vm.VirgilMessageRequested += Messages.Add;
+            Vm.ReportPersisted += (_, _) => Persisted++;
+        }
+        public Task Analyze() => Vm.AnalyzeZonesCommand.ExecuteAsync(null);
+        public Task Run(bool advanced = false) => advanced ? Vm.LaunchCleanupAdvancedCommand.ExecuteAsync(null) : Vm.LaunchCleanupSafeCommand.ExecuteAsync(null);
+    }
+
+    private sealed class FakePreview : ICleanupPreviewService
+    {
+        public IReadOnlyList<CleanupZonePreview> Items { get; set; } = new[] { Preview() };
+        public Func<CancellationToken, Task<IReadOnlyList<CleanupZonePreview>>>? Handler { get; set; }
+        public IReadOnlyList<CleanupZoneDefinition> GetZones() => Items.Select(p => p.Definition).ToList();
+        public Task<IReadOnlyList<CleanupZonePreview>> PreviewAsync(IProgress<CleanupProgress>? progress, CancellationToken cancellationToken) =>
+            Handler?.Invoke(cancellationToken) ?? Task.FromResult(Items);
+    }
+
+    private sealed class FakeActions : ICleanupExecutionService
+    {
+        public List<string> Order { get; } = new();
+        public CleanupSessionReport? Report { get; private set; }
+        public Func<CleanupZonePreview, CancellationToken, Task<CleanupStepResult>>? Handler { get; set; }
+        public CancellationToken Token { get; private set; }
+        public int ErrorFiles { get; set; }
+        public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+        public Task<CleanupStepResult> ExecuteZoneAsync(CleanupZonePreview preview, IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
+        {
+            Order.Add("Execute:" + preview.Definition.Id);
+            Token = cancellationToken;
+            return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed, 1, 1024, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors));
+        }
+        public CleanupStepResult SkipZone(CleanupZonePreview preview)
+        {
+            Order.Add("Skip:" + preview.Definition.Id);
+            return Result(preview, CleanupStepStatus.Skipped);
+        }
+        public CleanupStepResult CancelZone(CleanupZonePreview preview)
+        {
+            Order.Add("Cancel:" + preview.Definition.Id);
+            return Result(preview, CleanupStepStatus.Cancelled);
+        }
+        private static CleanupStepResult Result(CleanupZonePreview p, CleanupStepStatus status) => new(p.Definition, status, 0, 0, 0, 0, TimeSpan.Zero, Array.Empty<string>());
+        public CleanupSessionReport CreateReport(DateTimeOffset startedAt, IReadOnlyList<CleanupStepResult> results, IReadOnlyList<string> errors)
+        {
+            Report = new(startedAt, startedAt.AddSeconds(2), TimeSpan.FromSeconds(2), results.ToArray(), errors.ToArray());
+            return Report;
+        }
+    }
+
+    private sealed class FakeRunner : IProcessRunner
+    {
+        public int Calls { get; private set; }
+        public int Failure { get; init; }
+        public ProcessLaunchRequest? Request { get; private set; }
+        public CancellationToken Token { get; private set; }
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucun processus de nettoyage attendu.");
+        public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            Request = request;
+            Token = cancellationToken;
+            if (Failure == 2) throw new InvalidOperationException();
+            return Task.FromResult(new ProcessLaunchResult(Failure == 0, null, Failure == 1 ? "Erreur" : null));
+        }
+    }
+
+    private sealed class FakeHistory : IReportHistoryService
+    {
+        public ReportSaveResult Result { get; set; } = new() { Success = true };
+        public ReportEntry? Saved { get; private set; }
+        public CancellationToken Token { get; private set; }
+        public int Calls { get; private set; }
+        public Task<ReportSaveResult> SaveAsync(ReportEntry report, CancellationToken cancellationToken)
+        {
+            Saved = report;
+            Token = cancellationToken;
+            Calls++;
+            return Task.FromResult(Result);
+        }
+        public Task<ReportHistoryLoadResult> LoadAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ReportEntry?> GetLatestAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ReportEntry?> GetAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+}

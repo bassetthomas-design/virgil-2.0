@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Animation;
@@ -34,11 +35,14 @@ public partial class InterventionsView : UserControl
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(InterventionsViewModel.IsValidationOpen) && _viewModel.IsValidationOpen)
-            ExecuteInterventionButton.Focus();
+            Dispatcher.BeginInvoke(new Action(() => ExecuteInterventionButton.Focus()), DispatcherPriority.Input);
         if (args.PropertyName == nameof(InterventionsViewModel.IsReportOpen))
         {
-            if (_viewModel.IsReportOpen) CloseInterventionsReportButton.Focus();
-            else ViewInterventionsReportButton.Focus();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_viewModel.IsReportOpen) CloseInterventionsReportButton.Focus();
+                else ViewInterventionsReportButton.Focus();
+            }), DispatcherPriority.Input);
         }
         if (args.PropertyName == nameof(InterventionsViewModel.IsBusy))
             Mouse.OverrideCursor = _viewModel.IsBusy ? Cursors.Wait : null;
