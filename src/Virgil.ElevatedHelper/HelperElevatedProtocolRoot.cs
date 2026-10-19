@@ -1,11 +1,12 @@
+using Virgil.Contracts.Elevated;
 using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace Virgil.Contracts.Elevated;
+namespace Virgil.ElevatedHelper;
 
 [SupportedOSPlatform("windows")]
-public sealed class ElevatedProtocolRoot
+internal sealed class HelperElevatedProtocolRoot
 {
     private static readonly SecurityIdentifier SystemSid =
         new(WellKnownSidType.LocalSystemSid, null);
@@ -15,39 +16,17 @@ public sealed class ElevatedProtocolRoot
     private readonly ElevatedPathGuard _pathGuard;
     private readonly Func<SecurityIdentifier> _currentUserSidProvider;
 
-    public ElevatedProtocolRoot()
-        : this(new ElevatedPathGuard(), CurrentUserSid)
-    {
-    }
-
-    public ElevatedProtocolRoot(ElevatedPathGuard pathGuard)
+    public HelperElevatedProtocolRoot(ElevatedPathGuard pathGuard)
         : this(pathGuard, CurrentUserSid)
     {
     }
 
-    public ElevatedProtocolRoot(
+    public HelperElevatedProtocolRoot(
         ElevatedPathGuard pathGuard,
         Func<SecurityIdentifier> currentUserSidProvider)
     {
         _pathGuard = pathGuard;
         _currentUserSidProvider = currentUserSidProvider;
-    }
-
-    public string EnsureCreated(string localAppData)
-    {
-        var normalizedLocalAppData = _pathGuard.NormalizeLocalAppData(localAppData);
-        var virgilDirectory = Path.Combine(normalizedLocalAppData, "Virgil");
-        var rootDirectory = Path.Combine(virgilDirectory, "Temp");
-
-        _pathGuard.ValidateRoot(normalizedLocalAppData, allowMissingSecureDirectories: true);
-        EnsureDirectory(virgilDirectory);
-        _pathGuard.ValidateRoot(normalizedLocalAppData, allowMissingSecureDirectories: true);
-        ApplyAndValidateAcl(virgilDirectory);
-        _pathGuard.ValidateRoot(normalizedLocalAppData, allowMissingSecureDirectories: true);
-        EnsureDirectory(rootDirectory);
-        _pathGuard.ValidateRoot(normalizedLocalAppData, allowMissingSecureDirectories: false);
-        ApplyAndValidateAcl(rootDirectory);
-        return _pathGuard.ValidateRoot(normalizedLocalAppData, allowMissingSecureDirectories: false);
     }
 
     public string ValidateExisting(string localAppData)
@@ -57,37 +36,9 @@ public sealed class ElevatedProtocolRoot
             normalizedLocalAppData,
             allowMissingSecureDirectories: false);
 
-        ValidateAcl(Path.Combine(normalizedLocalAppData, "Virgil"));
+        ValidateAcl(Path.Combine(normalizedLocalAppData, ElevatedPathGuard.ApplicationDirectoryName));
         ValidateAcl(rootDirectory);
         return rootDirectory;
-    }
-
-    private void EnsureDirectory(string path)
-    {
-        if (!Directory.Exists(path))
-        {
-            Directory.CreateDirectory(path);
-        }
-    }
-
-    private void ApplyAndValidateAcl(string path)
-    {
-        try
-        {
-            var userSid = _currentUserSidProvider();
-            var security = new DirectorySecurity();
-            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-            security.SetOwner(userSid);
-            AddFullControl(security, userSid);
-            AddFullControl(security, SystemSid);
-            AddFullControl(security, AdministratorsSid);
-            new DirectoryInfo(path).SetAccessControl(security);
-            ValidateAcl(path);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or InvalidOperationException or SystemException)
-        {
-            throw new InvalidOperationException("Permissions du dossier temporaire Virgil non garanties.", ex);
-        }
     }
 
     private void ValidateAcl(string path)
@@ -132,16 +83,6 @@ public sealed class ElevatedProtocolRoot
         {
             throw new InvalidOperationException("Permissions du dossier temporaire Virgil non garanties.", ex);
         }
-    }
-
-    private static void AddFullControl(DirectorySecurity security, SecurityIdentifier sid)
-    {
-        security.AddAccessRule(new FileSystemAccessRule(
-            sid,
-            FileSystemRights.FullControl,
-            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-            PropagationFlags.None,
-            AccessControlType.Allow));
     }
 
     private static SecurityIdentifier CurrentUserSid()

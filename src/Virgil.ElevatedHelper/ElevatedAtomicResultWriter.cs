@@ -8,23 +8,23 @@ namespace Virgil.ElevatedHelper;
 public sealed class ElevatedAtomicResultWriter
 {
     private readonly ElevatedPathGuard _pathGuard;
-    private readonly ElevatedProtocolRoot _protocolRoot;
+    private readonly Func<string, string> _validateProtocolRoot;
     private readonly Func<byte[]> _temporaryNonceProvider;
 
     public ElevatedAtomicResultWriter(
         ElevatedPathGuard pathGuard,
-        ElevatedProtocolRoot protocolRoot)
-        : this(pathGuard, protocolRoot, () => RandomNumberGenerator.GetBytes(8))
+        Func<string, string> validateProtocolRoot)
+        : this(pathGuard, validateProtocolRoot, () => RandomNumberGenerator.GetBytes(8))
     {
     }
 
     public ElevatedAtomicResultWriter(
         ElevatedPathGuard pathGuard,
-        ElevatedProtocolRoot protocolRoot,
+        Func<string, string> validateProtocolRoot,
         Func<byte[]> temporaryNonceProvider)
     {
         _pathGuard = pathGuard;
-        _protocolRoot = protocolRoot;
+        _validateProtocolRoot = validateProtocolRoot;
         _temporaryNonceProvider = temporaryNonceProvider;
     }
 
@@ -33,7 +33,7 @@ public sealed class ElevatedAtomicResultWriter
         ElevatedInterventionResult result)
     {
         ValidateResultIdentity(validated.Request, result);
-        _protocolRoot.ValidateExisting(validated.LocalAppDataDirectory);
+        _validateProtocolRoot(validated.LocalAppDataDirectory);
         var resultPath = _pathGuard.ValidateFilePath(
             validated.LocalAppDataDirectory,
             validated.Request.ResultPath,

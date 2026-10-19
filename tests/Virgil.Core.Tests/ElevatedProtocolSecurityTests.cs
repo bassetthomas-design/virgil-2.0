@@ -1,4 +1,8 @@
 using Virgil.Contracts.Elevated;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using ClientDiskInspector = Virgil.Core.Interventions.ElevatedDiskInspector;
+using HelperDiskInspector = Virgil.ElevatedHelper.ElevatedDiskInspector;
 using System.Text.Json;
 using Virgil.Core.Interventions;
 using Virgil.Contracts;
@@ -7,8 +11,31 @@ using Xunit;
 
 namespace Virgil.Tests;
 
-public sealed class ElevatedProtocolSecurityTests
+public sealed class ElevatedProtocolSecurityTests : ElevatedProtocolSecurityCases
 {
+    public ElevatedProtocolSecurityTests() : base(useHelper: false) { }
+}
+
+public sealed class HelperElevatedProtocolSecurityTests : ElevatedProtocolSecurityCases
+{
+    public HelperElevatedProtocolSecurityTests() : base(useHelper: true) { }
+}
+
+[Trait("Category", "Windows")]
+public abstract class ElevatedProtocolSecurityCases
+{
+    private readonly bool _useHelper;
+
+    protected ElevatedProtocolSecurityCases(bool useHelper) => _useHelper = useHelper;
+
+    private ElevatedPathGuard CreateGuard() => _useHelper
+        ? HelperDiskInspector.CreatePathGuard()
+        : ClientDiskInspector.CreatePathGuard();
+
+    private Func<string, string> RootValidator(ElevatedPathGuard guard) => _useHelper
+        ? new HelperElevatedProtocolRoot(guard).ValidateExisting
+        : new ElevatedProtocolRoot(guard).ValidateExisting;
+
     private const string Nonce = "ABCDEF0123456789ABCDEF0123456789";
     private static readonly DateTimeOffset FixedUtcNow =
         new(2026, 6, 18, 10, 0, 0, TimeSpan.Zero);
@@ -88,7 +115,7 @@ public sealed class ElevatedProtocolSecurityTests
     public async Task Existing_request_is_never_overwritten()
     {
         using var sandbox = TemporarySandbox.Create();
-        var guard = new ElevatedPathGuard();
+        var guard = CreateGuard();
         var protocolRoot = new ElevatedProtocolRoot(guard);
         var root = protocolRoot.EnsureCreated(sandbox.Root);
         var requestPath = Path.Combine(root, $"intervention-{Nonce}.request.json");
@@ -172,7 +199,7 @@ public sealed class ElevatedProtocolSecurityTests
     {
         using var sandbox = TemporarySandbox.Create();
         var current = FixedUtcNow;
-        var guard = new ElevatedPathGuard();
+        var guard = CreateGuard();
         var protocolRoot = new ElevatedProtocolRoot(guard);
         var store = CreateStore(sandbox.Root, guard, protocolRoot, () => current);
         var requestFile = await store.CreateAsync(InterventionId.FlushDns, CancellationToken.None);
@@ -229,7 +256,7 @@ public sealed class ElevatedProtocolSecurityTests
         var validated = await fixture.Validator.ValidateAsync(fixture.RequestPath);
         var writer = new ElevatedAtomicResultWriter(
             fixture.Validator.PathGuard,
-            fixture.Validator.ProtocolRoot,
+            fixture.Validator.ValidateProtocolRoot,
             () => new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
         var result = ValidResult(
             validated.Request,
@@ -250,7 +277,7 @@ public sealed class ElevatedProtocolSecurityTests
     {
         using var sandbox = TemporarySandbox.Create();
         var current = FixedUtcNow;
-        var guard = new ElevatedPathGuard();
+        var guard = CreateGuard();
         var protocolRoot = new ElevatedProtocolRoot(guard);
         var store = CreateStore(sandbox.Root, guard, protocolRoot, () => current);
         var requestFile = await store.CreateAsync(InterventionId.FlushDns, CancellationToken.None);
@@ -258,10 +285,10 @@ public sealed class ElevatedProtocolSecurityTests
             () => current,
             () => sandbox.Root,
             guard,
-            protocolRoot);
+            RootValidator(guard));
         var validated = await validator.ValidateAsync(requestFile.RequestPath);
         current = FixedUtcNow.AddSeconds(5);
-        var writer = new ElevatedAtomicResultWriter(guard, protocolRoot);
+        var writer = new ElevatedAtomicResultWriter(guard, RootValidator(guard));
         await writer.WriteAsync(
             validated,
             ValidResult(requestFile, FixedUtcNow.AddSeconds(1), FixedUtcNow.AddSeconds(2)));
@@ -272,6 +299,65 @@ public sealed class ElevatedProtocolSecurityTests
         Assert.Equal(InterventionStatus.Completed, result.Status);
         Assert.Equal(Nonce, result.Nonce);
         Assert.Equal(InterventionId.FlushDns, result.ActionId);
+    }
+
+    [Fact]
+    public void Secure_acl_has_exactly_current_user_system_and_administrators()
+    {
+        using var sandbox = TemporarySandbox.Create();
+        var guard = CreateGuard();
+        var root = new ElevatedProtocolRoot(guard).EnsureCreated(sandbox.Root);
+        using var identity = WindowsIdentity.GetCurrent();
+        var expected = new[]
+        {
+            identity.User!.Value,
+            new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null).Value,
+            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null).Value
+        };
+        foreach (var path in new[] { Path.Combine(sandbox.Root, "Virgil"), root })
+        {
+            var acl = new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner);
+            Assert.True(acl.AreAccessRulesProtected);
+            Assert.Equal(identity.User, acl.GetOwner(typeof(SecurityIdentifier)));
+            var rules = acl.GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>().ToArray();
+            Assert.Equal(expected.OrderBy(sid => sid), rules.Select(rule => rule.IdentityReference.Value).OrderBy(sid => sid));
+            Assert.All(rules, rule =>
+            {
+                Assert.False(rule.IsInherited);
+                Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
+                Assert.Equal(FileSystemRights.FullControl, rule.FileSystemRights);
+                Assert.Equal(InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, rule.InheritanceFlags);
+                Assert.Equal(PropagationFlags.None, rule.PropagationFlags);
+            });
+        }
+        Assert.Equal(root, RootValidator(guard)(sandbox.Root));
+    }
+
+    [Theory]
+    [InlineData("Virgil", false)]
+    [InlineData("Virgil", true)]
+    [InlineData("Temp", false)]
+    [InlineData("Temp", true)]
+    public void Unsafe_acl_is_rejected_by_both_implementations(string directory, bool foreignSid)
+    {
+        using var sandbox = TemporarySandbox.Create();
+        var guard = CreateGuard();
+        var clientRoot = new ElevatedProtocolRoot(guard);
+        var root = clientRoot.EnsureCreated(sandbox.Root);
+        var path = directory == "Temp" ? root : Path.Combine(sandbox.Root, "Virgil");
+        var info = new DirectoryInfo(path);
+        var acl = info.GetAccessControl(AccessControlSections.Access);
+        var sid = new SecurityIdentifier(foreignSid ? WellKnownSidType.WorldSid : WellKnownSidType.LocalSystemSid, null);
+        if (foreignSid)
+            acl.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.Read, AccessControlType.Allow));
+        else
+            acl.PurgeAccessRules(sid);
+        info.SetAccessControl(acl);
+
+        var error = Assert.Throws<InvalidOperationException>(() => RootValidator(guard)(sandbox.Root));
+        Assert.Equal("Permissions du dossier temporaire Virgil non garanties.", error.Message);
+        var cause = Assert.IsType<InvalidOperationException>(error.InnerException);
+        Assert.Equal(foreignSid ? "ACL du dossier temporaire Virgil trop large." : "ACL du dossier temporaire Virgil incomplete.", cause.Message);
     }
 
     private static ElevatedActionDispatcher CreateDispatcher(
@@ -300,7 +386,7 @@ public sealed class ElevatedProtocolSecurityTests
             utcNow);
     }
 
-    private static RequestFixture WriteRequest(
+    private RequestFixture WriteRequest(
         string localAppData,
         DateTimeOffset createdAt,
         string? requestFileName = null,
@@ -322,7 +408,10 @@ public sealed class ElevatedProtocolSecurityTests
             ResultPath = resultPath
         };
         File.WriteAllText(requestPath, JsonSerializer.Serialize(request));
-        var validator = new ElevatedRequestValidator(() => FixedUtcNow, () => localAppData);
+        var guard = CreateGuard();
+        var validator = _useHelper
+            ? new ElevatedRequestValidator(() => FixedUtcNow, () => localAppData)
+            : new ElevatedRequestValidator(() => FixedUtcNow, () => localAppData, guard, RootValidator(guard));
         return new RequestFixture(validator, request, requestPath);
     }
 
@@ -394,7 +483,7 @@ public sealed class ElevatedProtocolSecurityTests
             }
 
             return ElevatedPathEntry.Missing;
-        });
+        }, _ => true);
     }
 
     private static string ProtocolRootPath(string localAppData)

@@ -25,7 +25,7 @@ public sealed class ElevatedHelperRequestStore
     public ElevatedHelperRequestStore(Func<string> localAppDataProvider)
     {
         _localAppDataProvider = localAppDataProvider;
-        _pathGuard = new ElevatedPathGuard();
+        _pathGuard = ElevatedDiskInspector.CreatePathGuard();
         _protocolRoot = new ElevatedProtocolRoot(_pathGuard);
         _nonceProvider = () => RandomNumberGenerator.GetBytes(16);
         _utcNow = () => DateTimeOffset.UtcNow;

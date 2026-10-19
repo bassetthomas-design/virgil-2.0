@@ -34,7 +34,7 @@ public sealed class ElevatedActionDispatcher
             commandRunner,
             securityContext,
             systemDirectoryProvider,
-            new ElevatedAtomicResultWriter(validator.PathGuard, validator.ProtocolRoot))
+            new ElevatedAtomicResultWriter(validator.PathGuard, validator.ValidateProtocolRoot))
     {
     }
 
