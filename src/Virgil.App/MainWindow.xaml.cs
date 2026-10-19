@@ -411,7 +411,6 @@ public partial class MainWindow : Window
 
     private void WireCleanupModule()
     {
-        CleanupModuleView.ConfigureReportHistory(_reportHistoryService);
         CleanupModuleView.VirgilMessageRequested += AppendVirgilMessage;
         CleanupModuleView.VirgilStateRequested += SetVirgilState;
         CleanupModuleView.ReturnHomeRequested += (_, _) => ShowHome();

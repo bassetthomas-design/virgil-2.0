@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Virgil.App.Animation;
@@ -35,9 +36,9 @@ public partial class ResourcesView : UserControl
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(ResourcesViewModel.IsValidationOpen) && _viewModel.IsValidationOpen)
-            ExecuteResourceActionButton.Focus();
+            Dispatcher.BeginInvoke(new Action(() => ExecuteResourceActionButton.Focus()), DispatcherPriority.Input);
         if (args.PropertyName == nameof(ResourcesViewModel.IsReportOpen) && _viewModel.IsReportOpen)
-            CloseResourcesReportButton.Focus();
+            Dispatcher.BeginInvoke(new Action(() => CloseResourcesReportButton.Focus()), DispatcherPriority.Input);
         if (args.PropertyName == nameof(ResourcesViewModel.IsBusy))
             Mouse.OverrideCursor = _viewModel.IsBusy ? Cursors.Wait : null;
         if (args.PropertyName == nameof(ResourcesViewModel.MiniCoreState))

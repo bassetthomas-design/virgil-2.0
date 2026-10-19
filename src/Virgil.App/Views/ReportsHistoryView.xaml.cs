@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Threading;
 using System.Windows.Controls;
 using Virgil.App.Animation;
 using Virgil.App.ViewModels;
@@ -57,8 +58,11 @@ public partial class ReportsHistoryView : UserControl
             ReportsMiniCore.SetState(_viewModel.MiniCoreState);
         if (args.PropertyName == nameof(ReportsHistoryViewModel.IsDetailsOpen))
         {
-            if (_viewModel.IsDetailsOpen) CloseReportDetailsButton.Focus();
-            else LastPersistentReportButton.Focus();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_viewModel.IsDetailsOpen) CloseReportDetailsButton.Focus();
+                else LastPersistentReportButton.Focus();
+            }), DispatcherPriority.Input);
         }
     }
 }

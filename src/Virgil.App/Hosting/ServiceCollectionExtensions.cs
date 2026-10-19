@@ -111,8 +111,11 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
-        services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<ICleanupPreviewService>(),
-            sp.GetRequiredService<ICleanupExecutionService>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
+        services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
+            sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<ICleanupExecutionService>(),
+            sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>(),
+            sp.GetRequiredService<IReportHistoryService>()));
+        services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<CleanupViewModel>()));
         services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<IUpdateScanService>(),
             sp.GetRequiredService<IUpdateExecutionService>(), sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>()));
         services.AddSingleton<InterventionsViewModel>(sp => new InterventionsViewModel(
