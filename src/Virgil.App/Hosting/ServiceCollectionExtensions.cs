@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
+        services.AddVirgilConfirmation();
         services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
 
         services.AddTransient<IInterventionCatalog>(_ => new InterventionCatalog());
