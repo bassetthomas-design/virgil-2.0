@@ -1,3 +1,4 @@
+using static Virgil.Tests.TestRepositoryRoot;
 using Xunit;
 
 namespace Virgil.Tests;
@@ -21,16 +22,4 @@ public sealed class LayerDependencyArchitectureTests
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
 
-    private static string FindRepositoryRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "Virgil.sln")))
-            {
-                return directory.FullName;
-            }
-        }
-
-        throw new DirectoryNotFoundException("Virgil.sln introuvable depuis AppContext.BaseDirectory.");
-    }
 }

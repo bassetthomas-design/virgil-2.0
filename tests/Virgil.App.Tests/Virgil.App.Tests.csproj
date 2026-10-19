@@ -20,5 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Virgil.Core.Tests\TestPlans.cs" Link="Shared\TestPlans.cs" />
+    <Compile Include="..\Virgil.Core.Tests\TestRepositoryRoot.cs" Link="Shared\TestRepositoryRoot.cs" />
   </ItemGroup>
 </Project>

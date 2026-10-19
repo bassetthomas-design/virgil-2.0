@@ -30,7 +30,7 @@ La solution `Virgil.sln` contient sept projets :
 | `src/Virgil.Contracts` | .NET 8 (`net8.0`), sans référence de projet ni de package : modèles partagés de scan, santé système, nettoyage, mises à jour, applications, ressources, interventions, rapports et DTO du protocole élevé. Plusieurs enums de risque encore propres aux modules ; `ScanRules` encore présent. |
 | `src/Virgil.ElevatedHelper` | Exécutable Windows séparé, requêtes/résultats via fichiers, validation du contexte et des chemins, allowlist de commandes, écriture atomique des résultats. Référence Contracts seulement. |
 | `tests/Virgil.Core.Tests` | Tests xUnit des services, politiques, sécurité et protocole/helper ; référence Core, Contracts, Infrastructure et ElevatedHelper, sans App (frontière vérifiée par deux tests d’architecture). Séparation livrée en 0g (PR #48). |
-| `tests/Virgil.App.Tests` | Tests xUnit des ViewModels, composition/DI, animation, instance unique, logs App, exceptions, manifeste et architecture App ; référence App, Core, Contracts et Infrastructure. `TestPlans` est lié depuis Core.Tests, sans copie. |
+| `tests/Virgil.App.Tests` | Tests xUnit des ViewModels, composition/DI, animation, instance unique, logs App, exceptions, manifeste et architecture App ; référence App, Core, Contracts et Infrastructure. `TestPlans` et le localisateur `TestRepositoryRoot` sont liés depuis Core.Tests, sans copie. |
 
 Les modèles d’animation sont dans `Virgil.App/Animation` (namespace `Virgil.App.Animation`).
 

@@ -1,3 +1,4 @@
+using static Virgil.Tests.TestRepositoryRoot;
 using Virgil.Core.Cleanup;
 using Virgil.Contracts;
 using Xunit;
@@ -361,12 +362,6 @@ public sealed class CleanupV2SafetyTests
         Assert.DoesNotContain("RD /S /Q", source, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Virgil.sln"))) current = current.Parent;
-        return current?.FullName ?? throw new DirectoryNotFoundException("Racine de test introuvable.");
-    }
 
     private static CleanupZoneDefinition TestZone(string root)
     {

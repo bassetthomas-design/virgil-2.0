@@ -1,3 +1,4 @@
+using static Virgil.Tests.TestRepositoryRoot;
 using Xunit;
 
 namespace Virgil.Tests;
@@ -16,11 +17,5 @@ public sealed class CleanupViewArchitectureTests
         Assert.Contains("A REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Virgil.sln"))) current = current.Parent;
-        return current?.FullName ?? throw new DirectoryNotFoundException("Racine de test introuvable.");
-    }
 
 }
