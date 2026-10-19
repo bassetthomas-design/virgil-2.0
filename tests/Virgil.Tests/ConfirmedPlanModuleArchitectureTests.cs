@@ -25,7 +25,7 @@ public sealed class ConfirmedPlanModuleArchitectureTests
         foreach (var (type, name) in modules)
         {
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            var execution = Assert.Single(methods.Where(m => m.Name == name));
+            var execution = Assert.Single(methods, m => m.Name == name);
             Assert.Contains(execution.GetParameters(), p => p.ParameterType == typeof(ConfirmedPlan));
             Assert.All(methods, m => Assert.DoesNotContain(m.GetParameters(), p => p.ParameterType == typeof(bool)));
         }
