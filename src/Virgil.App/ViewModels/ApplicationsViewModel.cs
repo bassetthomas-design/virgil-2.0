@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
@@ -20,6 +22,7 @@ namespace Virgil.App.ViewModels;
 
 public partial class ApplicationsViewModel : ObservableObject
 {
+    private readonly IConfirmationService _confirmationService;
     private readonly IApplicationInventoryService _inventoryService;
     private readonly ApplicationUninstallService _uninstallService;
     private readonly List<InstalledApplication> _applications = new();
@@ -35,8 +38,10 @@ public partial class ApplicationsViewModel : ObservableObject
 
     public ApplicationsViewModel(IApplicationInventoryService inventoryService,
         ApplicationUninstallService uninstallService, IProcessRunner processRunner,
-        IReportHistoryService reportHistoryService, IApplicationUninstallConfirmationDialog confirmationDialog)
+        IReportHistoryService reportHistoryService, IApplicationUninstallConfirmationDialog confirmationDialog,
+        IConfirmationService confirmationService)
     {
+        _confirmationService = confirmationService ?? throw new ArgumentNullException(nameof(confirmationService));
         _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
         _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
@@ -223,6 +228,19 @@ public partial class ApplicationsViewModel : ObservableObject
             return;
         }
 
+        ConfirmedPlan confirmedPlan;
+        try
+        {
+            confirmedPlan = _confirmationService.Issue(ApplicationActionPreviewFactory.Create(plan),
+                new ConfirmationConsent(confirmation.ReinforcedConfirmed
+                    ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+        }
+        catch (ConfirmationRefusedException exception)
+        {
+            ReportUninstallCancelled($"Desinstallation annulee.\n{exception.Message}");
+            return;
+        }
+
         if (!BeginOperation("Desinstallateur officiel en cours de lancement."))
         {
             return;
@@ -238,7 +256,7 @@ public partial class ApplicationsViewModel : ObservableObject
             });
 
             var result = await _uninstallService
-                .LaunchOfficialUninstallAsync(application, confirmation, progress, _operationCancellation!.Token)
+                .LaunchOfficialUninstallAsync(application, confirmedPlan, confirmation, progress, _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
             _lastUninstallResult = result;

@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Virgil.App.Hosting;
 using Virgil.App.ViewModels;
@@ -33,6 +34,18 @@ public sealed class CompositionRootTests
         Assert.IsType<CleanupExecutionService>(provider.GetRequiredService<ICleanupExecutionService>());
         Assert.IsType<ReportHistoryService>(provider.GetRequiredService<IReportHistoryService>());
         Assert.IsType<ReportExportService>(provider.GetRequiredService<IReportExportService>());
+    }
+
+    [Fact]
+    public void ApplicationsServiceUsesTheSharedConfirmationGate()
+    {
+        var services = new ServiceCollection().AddVirgilServices();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var service = provider.GetRequiredService<ApplicationUninstallService>();
+        var field = typeof(ApplicationUninstallService).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Single(value => value.FieldType == typeof(IConfirmedPlanGate));
+        Assert.Same(provider.GetRequiredService<IConfirmationService>(), field.GetValue(service));
+        Assert.Same(provider.GetRequiredService<IConfirmedPlanGate>(), field.GetValue(service));
     }
 
     [Fact]

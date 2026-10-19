@@ -14,7 +14,9 @@ Refactor sans nouvelle fonctionnalité. Sous-lots obligatoirement ordonnés, une
 | 0c | Extraire Infrastructure et centraliser les lancements de l’application derrière un seul `IProcessRunner`, en deux PR : 0c-1 (Infrastructure, IProcessRunner, lanceurs Updates/applications/helper) puis 0c-2 (ouverture d’emplacements, Explorer, vues, test de garde). |
 | 0d | 0d-1 : composition Hosting/DI ; 0d-2 : Serilog, settings JSON et gestionnaire global d’exceptions ; 0d-3 : instance unique, manifeste `asInvoker` et `TreatWarningsAsErrors` ; 0d-4+ : vues minces et ViewModels CommunityToolkit.Mvvm injectés. |
 | 0e-1 | Livrer les contrats `RiskLevel`, `ActionPreview`, `ActionResult`, le `ConfirmedPlan` dans Core et la porte unique `ConfirmationService` avec tests de sécurité ; aucun branchement ni changement de comportement des modules. |
-| 0e-2 | Réaliser les correspondances de `CleanupRiskLevel`, `ApplicationRiskLevel`, `InterventionRiskLevel` et `UpdateRiskLevel` vers `RiskLevel`, puis brancher progressivement les actions sur la porte ; préserver les confirmations et gardes pendant la migration. |
+| 0e-2 | Livré (PR #43) : correspondances pures des quatre enums vers RiskLevel, registre de confirmation borné, pilote de désinstallation Applications sur la porte ; dialogues et politiques conservés. |
+| 0e-3 | À réaliser : brancher Ressources (ProcessActionService et bool reinforcedConfirmation) et Mises à jour. |
+| 0e-4 | À réaliser : brancher Interventions et Nettoyage, en conservant les gardes et RequiresReinforcedConfirmation indépendamment de l’enum de nettoyage. |
 | 0f | Faire en sorte que le helper ne référence que Contracts parmi les projets Virgil ; préserver son allowlist et ses validations. |
 | 0g | Séparer les tests en `Virgil.Core.Tests` / `Virgil.App.Tests`, dont les tests d’animation dans App.Tests. |
 

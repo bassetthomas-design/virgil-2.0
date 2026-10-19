@@ -564,6 +564,76 @@ public sealed class ConfirmedPlanSafetyTests
             throw new NotSupportedException();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PurgePreservesExactRetentionBoundary(bool consume)
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.True(service.TryConsume(plan, preview).IsAccepted);
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.AlreadyUsed);
+        clock.AdvanceMonotonic(TimeSpan.FromMinutes(25));
+        Rejected(consume ? service.TryConsume(plan, preview) : service.Validate(plan, preview), PlanRejectionReason.Expired);
+        clock.AdvanceMonotonic(TimeSpan.FromTicks(1));
+        Rejected(consume ? service.TryConsume(plan, preview) : service.Validate(plan, preview), PlanRejectionReason.UnknownProvenance);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, preview), PlanRejectionReason.UnknownProvenance);
+        Assert.Equal(0, action.Effects);
+        // A purged identity can never regain consent, including after wall-clock rollback.
+        clock.AdvanceUtc(TimeSpan.FromDays(-1));
+        Rejected(service.TryConsume(plan, preview), PlanRejectionReason.UnknownProvenance);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(15)]
+    public void IssuePurgesUsingConfiguredLifetimeAndMonotonicTime(int minutes)
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock, TimeSpan.FromMinutes(minutes));
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        clock.AdvanceUtc(TimeSpan.FromDays(-1));
+        clock.AdvanceMonotonic(TimeSpan.FromMinutes(minutes) + ConfirmationService.MaximumLifetime + TimeSpan.FromTicks(1));
+        service.Issue(preview, Consent(preview));
+        var registry = (System.Collections.IDictionary)typeof(ConfirmationService)
+            .GetField("_issued", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(service)!;
+        Assert.Equal(1, registry.Count);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, preview), PlanRejectionReason.UnknownProvenance);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void CapacityEvictsOldestIssuanceEvenWhenTimestampsAreEqual()
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview();
+        var plans = Enumerable.Range(0, 1024).Select(_ => service.Issue(preview, Consent(preview))).ToArray();
+        Assert.True(service.TryConsume(plans[0], preview).IsAccepted);
+        service.Issue(preview, Consent(preview));
+        Rejected(service.TryConsume(plans[0], preview), PlanRejectionReason.UnknownProvenance);
+        Assert.All(plans.Skip(1), plan => Assert.True(service.Validate(plan, preview).IsAccepted));
+        service.Issue(preview, Consent(preview));
+        Rejected(service.Validate(plans[1], preview), PlanRejectionReason.UnknownProvenance);
+        Assert.True(service.TryConsume(plans[2], preview).IsAccepted);
+    }
+
+    [Fact]
+    public void PurgedProvenanceStillPrecedesActionAndHashButFollowsMissing()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        clock.AdvanceMonotonic(TimeSpan.FromMinutes(25) + TimeSpan.FromTicks(1));
+        Rejected(service.Validate(null, preview), PlanRejectionReason.Missing);
+        Rejected(service.TryConsume(plan, preview with { ActionId = "autre", Targets = [] }), PlanRejectionReason.UnknownProvenance);
+    }
+
     private sealed class FakeTimeProvider : TimeProvider
     {
         private DateTimeOffset _now = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
