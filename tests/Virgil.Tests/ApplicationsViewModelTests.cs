@@ -258,7 +258,11 @@ public sealed class ApplicationsViewModelTests
             Assert.Contains("Confirmation renforcee : oui", f.Vm.ReportDetails);
             Assert.Contains("Lance : oui", f.Vm.ReportDetails);
         }
-        else Assert.Contains(f.Messages, m => m.StartsWith("Desinstallation annulee.", StringComparison.Ordinal));
+        else
+        {
+            Assert.Equal(0, f.Runner.Started);
+            Assert.Equal("Desinstallation annulee.\nConfirmation renforcee absente pour une application classee attention.", f.Messages.Last());
+        }
         Idle(f.Vm);
     }
 
@@ -469,6 +473,22 @@ public sealed class ApplicationsViewModelTests
         Assert.DoesNotContain("Process.Start", vm);
         Assert.DoesNotContain("ProcessStartInfo", vm);
         Assert.Contains("Source = \"ApplicationsDetails\"", vm);
+    }
+
+    [Fact]
+    public void ViewKeepsCoresAtRestAndOnlySchedulesOverlayFocusOnOpening()
+    {
+        Assert.Null(typeof(ApplicationsViewModel).GetProperty("MiniCoreState"));
+        Assert.Null(typeof(ApplicationsViewModel).GetProperty("DetailsCoreState"));
+        var view = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Virgil.App/Views/ApplicationsView.xaml.cs"));
+        Assert.DoesNotContain("SetState", view);
+        Assert.Contains("nameof(ApplicationsViewModel.IsDetailsOpen) && _viewModel.IsDetailsOpen", view);
+        Assert.Contains("nameof(ApplicationsViewModel.IsReportOpen) && _viewModel.IsReportOpen", view);
+        Assert.Contains("if (_viewModel.IsDetailsOpen) CloseDetailsButton.Focus();", view);
+        Assert.Contains("if (_viewModel.IsReportOpen) CloseApplicationsReportButton.Focus();", view);
+        Assert.DoesNotContain("else", view);
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(view, @"\.Focus\(\)").Count);
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(view, "DispatcherPriority.Input").Count);
     }
 
     private static void AssertRequest(ProcessLaunchRequest request, string target, string? raw)

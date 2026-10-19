@@ -35,24 +35,17 @@ public partial class ApplicationsView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(ApplicationsViewModel.IsDetailsOpen))
+        if (args.PropertyName == nameof(ApplicationsViewModel.IsDetailsOpen) && _viewModel.IsDetailsOpen)
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_viewModel.IsDetailsOpen) CloseDetailsButton.Focus();
-                else AnalyzeApplicationsButton.Focus();
             }), DispatcherPriority.Input);
-        if (args.PropertyName == nameof(ApplicationsViewModel.IsReportOpen))
+        if (args.PropertyName == nameof(ApplicationsViewModel.IsReportOpen) && _viewModel.IsReportOpen)
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_viewModel.IsReportOpen) CloseApplicationsReportButton.Focus();
-                else if (_viewModel.IsDetailsOpen) CloseDetailsButton.Focus();
-                else AnalyzeApplicationsButton.Focus();
             }), DispatcherPriority.Input);
         if (args.PropertyName == nameof(ApplicationsViewModel.IsBusy))
             Mouse.OverrideCursor = _viewModel.IsBusy ? Cursors.Wait : null;
-        if (args.PropertyName == nameof(ApplicationsViewModel.MiniCoreState))
-            ApplicationsMiniCore.SetState(_viewModel.MiniCoreState);
-        if (args.PropertyName == nameof(ApplicationsViewModel.DetailsCoreState))
-            DetailsCore.SetState(_viewModel.DetailsCoreState);
     }
 }

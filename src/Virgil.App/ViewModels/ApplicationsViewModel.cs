@@ -61,8 +61,6 @@ public partial class ApplicationsViewModel : ObservableObject
     [ObservableProperty] private bool isDetailsOpen;
     [ObservableProperty] private bool isReportOpen;
     [ObservableProperty] private double progress;
-    [ObservableProperty] private VirgilCoreState miniCoreState = VirgilCoreState.Idle;
-    [ObservableProperty] private VirgilCoreState detailsCoreState = VirgilCoreState.Idle;
     [ObservableProperty] private string statusText = "Inventaire pret. Desinstallation individuelle uniquement.";
     [ObservableProperty] private string inventorySummary = "NON ANALYSE";
     [ObservableProperty] private string riskSummary = "NON CLASSE";
@@ -313,10 +311,6 @@ public partial class ApplicationsViewModel : ObservableObject
             });
 
             reinforcedConfirmed = _confirmationDialog.Confirm("Confirmation renforcee applications", reinforcedMessage);
-            if (!reinforcedConfirmed)
-            {
-                return ApplicationUninstallConfirmation.None;
-            }
         }
 
         return new ApplicationUninstallConfirmation
@@ -633,8 +627,6 @@ public partial class ApplicationsViewModel : ObservableObject
 
     private void RequestVirgilState(VirgilCoreState state, string label)
     {
-        MiniCoreState = state;
-        DetailsCoreState = state;
         VirgilStateRequested?.Invoke(state, label);
     }
 
