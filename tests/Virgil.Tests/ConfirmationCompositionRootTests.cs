@@ -10,7 +10,7 @@ public sealed class ConfirmationCompositionRootTests
     [Fact]
     public void ApplicationCompositionRegistersOneAuthorityWithValidatedBuild()
     {
-        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        var services = new ServiceCollection().AddVirgilServices();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true, ValidateScopes = true

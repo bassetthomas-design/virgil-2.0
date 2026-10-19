@@ -309,7 +309,178 @@ public sealed class ConfirmedPlanSafetyTests
         var service = new ConfirmationService(new FakeTimeProvider());
         var plan = service.Issue(preview, Consent(preview));
         targets[0] = "cible B";
-        Rejected(service.TryConsume(plan, preview), PlanRejectionReason.PreviewHashMismatch);
+        Assert.Equal("cible A", preview.Targets[0]);
+        Assert.Equal(plan.PreviewHash, ActionPreviewHasher.Hash(preview));
+        Assert.True(service.TryConsume(plan, preview).IsAccepted);
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(false, 2)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    public void SourceMutationNeverChangesSnapshotBeforeOrAfterConsumption(bool useWith, int stage)
+    {
+        var targets = new List<string> { "cible A" };
+        var parameters = new Dictionary<string, string> { ["option"] = "valeur confirmée" };
+        var effects = new List<string> { "effet confirmé" };
+        var backups = new List<string> { "sauvegarde confirmée" };
+        var preview = useWith
+            ? Preview() with { Targets = targets, Parameters = parameters, Effects = effects, RequiredBackups = backups }
+            : new ActionPreview("test.action", "Action de test", RiskLevel.Low, targets, parameters, effects,
+                false, false, Reversibility.Full, backups);
+        var hash = ActionPreviewHasher.Hash(preview);
+        var service = new ConfirmationService(new FakeTimeProvider());
+        ConfirmedPlan? plan = stage >= 1 ? service.Issue(preview, Consent(preview)) : null;
+        if (stage == 2) Assert.True(service.TryConsume(plan, preview).IsAccepted);
+
+        targets[0] = "cible non confirmée";
+        targets.Add("cible ajoutée");
+        parameters["option"] = "valeur non confirmée";
+        parameters.Add("nouvelle option", "ajout");
+        effects.Clear();
+        backups[0] = "autre sauvegarde";
+
+        Assert.Equal("cible A", Assert.Single(preview.Targets));
+        Assert.Equal("valeur confirmée", Assert.Single(preview.Parameters).Value);
+        Assert.Equal("effet confirmé", Assert.Single(preview.Effects));
+        Assert.Equal("sauvegarde confirmée", Assert.Single(preview.RequiredBackups));
+        Assert.Equal(hash, ActionPreviewHasher.Hash(preview));
+        if (plan is not null) Assert.Equal(plan.PreviewHash, hash);
+        if (stage < 2)
+        {
+            plan ??= service.Issue(preview, Consent(preview));
+            Assert.True(service.TryConsume(plan, preview).IsAccepted);
+        }
+        // The future effect reads the same frozen scope even after consumption.
+        Assert.Equal("cible A", preview.Targets[0]);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void SnapshotCollectionsRejectWritesThroughMutableInterfaces(int field)
+    {
+        var preview = Preview();
+        var hash = ActionPreviewHasher.Hash(preview);
+        if (field == 1)
+        {
+            var dictionary = Assert.IsAssignableFrom<IDictionary<string, string>>(preview.Parameters);
+            Assert.True(dictionary.IsReadOnly);
+            Assert.Throws<NotSupportedException>(() => dictionary["a"] = "autre");
+            Assert.Throws<NotSupportedException>(() => dictionary.Add("nouveau", "autre"));
+            var untyped = Assert.IsAssignableFrom<System.Collections.IDictionary>(preview.Parameters);
+            Assert.Throws<NotSupportedException>(() => untyped["a"] = "autre");
+        }
+        else
+        {
+            var values = field switch { 0 => preview.Targets, 2 => preview.Effects, _ => preview.RequiredBackups };
+            var list = Assert.IsAssignableFrom<IList<string>>(values);
+            Assert.True(list.IsReadOnly);
+            Assert.Throws<NotSupportedException>(() => list[0] = "autre");
+            Assert.Throws<NotSupportedException>(() => list.Add("autre"));
+            var untyped = Assert.IsAssignableFrom<System.Collections.IList>(values);
+            Assert.Throws<NotSupportedException>(() => untyped[0] = "autre");
+        }
+        Assert.Equal(hash, ActionPreviewHasher.Hash(preview));
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(false, 2)]
+    [InlineData(false, 3)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    [InlineData(true, 2)]
+    [InlineData(true, 3)]
+    public void NullCollectionsAreRejectedOnConstructionAndWith(bool useWith, int field)
+    {
+        var preview = Preview();
+        Assert.Throws<ArgumentNullException>(() => useWith
+            ? field switch
+            {
+                0 => preview with { Targets = null! }, 1 => preview with { Parameters = null! },
+                2 => preview with { Effects = null! }, _ => preview with { RequiredBackups = null! }
+            }
+            : new ActionPreview(preview.ActionId, preview.Title, preview.RiskLevel,
+                field == 0 ? null! : preview.Targets, field == 1 ? null! : preview.Parameters,
+                field == 2 ? null! : preview.Effects, false, false, Reversibility.Full,
+                field == 3 ? null! : preview.RequiredBackups));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NullCurrentPreviewIsRejectedBeforeValidation(bool consume)
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        foreach (var candidate in new ConfirmedPlan?[] { null, plan })
+        {
+            var exception = Assert.Throws<ArgumentNullException>(() => consume
+                ? service.TryConsume(candidate, null!) : service.Validate(candidate, null!));
+            Assert.Equal("currentPreview", exception.ParamName);
+        }
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(15)]
+    public void MonotonicDeadlineExpiresDespiteWallClockRollback(int minutes)
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock, TimeSpan.FromMinutes(minutes));
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        clock.AdvanceUtc(TimeSpan.FromHours(-1));
+        clock.AdvanceMonotonic(TimeSpan.FromMinutes(minutes) - TimeSpan.FromTicks(1));
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+        clock.AdvanceMonotonic(TimeSpan.FromTicks(1));
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.Expired);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, preview), PlanRejectionReason.Expired);
+        Assert.Equal(0, action.Effects);
+        Assert.Equal(TimeSpan.FromMinutes(minutes), plan.ExpiresAt - plan.IssuedAt);
+    }
+
+    [Fact]
+    public void WallClockDeadlineExpiresWithoutMonotonicAdvance()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        clock.AdvanceUtc(TimeSpan.FromMinutes(10) - TimeSpan.FromTicks(1));
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+        clock.AdvanceUtc(TimeSpan.FromTicks(1));
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.Expired);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, preview), PlanRejectionReason.Expired);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void MonotonicExpirationPreservesRejectionPriority()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.True(service.TryConsume(plan, preview).IsAccepted);
+        clock.AdvanceUtc(TimeSpan.FromHours(-1));
+        clock.AdvanceMonotonic(TimeSpan.FromMinutes(10));
+        Rejected(service.Validate(null, preview), PlanRejectionReason.Missing);
+        Rejected(service.Validate(Clone(plan), preview with { ActionId = "autre" }), PlanRejectionReason.UnknownProvenance);
+        Rejected(service.Validate(plan, preview with { ActionId = "autre", Targets = [] }), PlanRejectionReason.ActionMismatch);
+        Rejected(service.Validate(plan, preview with { Targets = [] }), PlanRejectionReason.PreviewHashMismatch);
+        Rejected(service.TryConsume(plan, preview), PlanRejectionReason.Expired);
     }
 
     [Fact]
@@ -396,8 +567,17 @@ public sealed class ConfirmedPlanSafetyTests
     private sealed class FakeTimeProvider : TimeProvider
     {
         private DateTimeOffset _now = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
+        private long _timestamp = TimeSpan.TicksPerHour;
         public override DateTimeOffset GetUtcNow() => _now;
-        public void Advance(TimeSpan duration) => _now += duration;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => _timestamp;
+        public void AdvanceUtc(TimeSpan duration) => _now += duration;
+        public void AdvanceMonotonic(TimeSpan duration) => _timestamp += duration.Ticks;
+        public void Advance(TimeSpan duration)
+        {
+            AdvanceUtc(duration);
+            AdvanceMonotonic(duration);
+        }
     }
 
     private sealed class FakeAction(IConfirmedPlanGate gate)

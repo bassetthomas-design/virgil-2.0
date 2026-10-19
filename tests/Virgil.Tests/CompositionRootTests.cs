@@ -48,15 +48,28 @@ public sealed class CompositionRootTests
     }
 
     [Fact]
-    public void EveryCoreServiceIsTransientAndHasAnExplicitFactory()
+    public void CoreServicesExceptConfirmationAuthorityAreTransientAndHaveExplicitFactories()
     {
         var services = new ServiceCollection().AddVirgilServices();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
-        foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType != typeof(IProcessRunner)))
+        var singletonTypes = new[]
         {
-            Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+            typeof(IProcessRunner), typeof(TimeProvider), typeof(Virgil.Core.Actions.ConfirmationService),
+            typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate)
+        };
+        foreach (var descriptor in services)
+        {
             Assert.NotNull(descriptor.ImplementationFactory);
-            Assert.NotSame(provider.GetRequiredService(descriptor.ServiceType), provider.GetRequiredService(descriptor.ServiceType));
+            if (singletonTypes.Contains(descriptor.ServiceType))
+            {
+                Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+                Assert.Same(provider.GetRequiredService(descriptor.ServiceType), provider.GetRequiredService(descriptor.ServiceType));
+            }
+            else
+            {
+                Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+                Assert.NotSame(provider.GetRequiredService(descriptor.ServiceType), provider.GetRequiredService(descriptor.ServiceType));
+            }
         }
     }
 

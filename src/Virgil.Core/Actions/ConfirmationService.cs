@@ -11,7 +11,9 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
     private readonly object _sync = new();
     // Object identity, not public values, establishes provenance. Retain used entries
     // to distinguish AlreadyUsed from UnknownProvenance until this authority is released.
-    private readonly Dictionary<ConfirmedPlan, bool> _issued = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<ConfirmedPlan, IssuedPlan> _issued = new(ReferenceEqualityComparer.Instance);
+
+    private readonly record struct IssuedPlan(long Timestamp, bool Used);
 
     public ConfirmationService(TimeProvider timeProvider, TimeSpan? lifetime = null)
     {
@@ -41,24 +43,27 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
         var hash = ActionPreviewHasher.Hash(preview);
         lock (_sync)
         {
+            var timestamp = _timeProvider.GetTimestamp();
             var now = _timeProvider.GetUtcNow();
             var plan = new ConfirmedPlan(Guid.NewGuid(), preview.ActionId, hash, consent.Level, now, now + _lifetime);
-            _issued.Add(plan, false);
+            _issued.Add(plan, new(timestamp, false));
             return plan;
         }
     }
 
     public PlanValidationResult Validate(ConfirmedPlan? plan, ActionPreview currentPreview)
     {
+        ArgumentNullException.ThrowIfNull(currentPreview);
         lock (_sync) return ValidateLocked(plan, currentPreview);
     }
 
     public PlanValidationResult TryConsume(ConfirmedPlan? plan, ActionPreview currentPreview)
     {
+        ArgumentNullException.ThrowIfNull(currentPreview);
         lock (_sync)
         {
             var result = ValidateLocked(plan, currentPreview);
-            if (result.IsAccepted) _issued[plan!] = true;
+            if (result.IsAccepted) _issued[plan!] = _issued[plan!] with { Used = true };
             return result;
         }
     }
@@ -66,15 +71,15 @@ public sealed class ConfirmationService : IConfirmationService, IConfirmedPlanGa
     private PlanValidationResult ValidateLocked(ConfirmedPlan? plan, ActionPreview preview)
     {
         if (plan is null) return Refuse(PlanRejectionReason.Missing, "Plan de confirmation absent.");
-        if (!_issued.TryGetValue(plan, out var used))
+        if (!_issued.TryGetValue(plan, out var issued))
             return Refuse(PlanRejectionReason.UnknownProvenance, "Provenance du plan inconnue.");
         if (!string.Equals(plan.ActionId, preview.ActionId, StringComparison.Ordinal))
             return Refuse(PlanRejectionReason.ActionMismatch, "Le plan concerne une autre action.");
         if (!string.Equals(plan.PreviewHash, ActionPreviewHasher.Hash(preview), StringComparison.Ordinal))
             return Refuse(PlanRejectionReason.PreviewHashMismatch, "L’aperçu a changé ; une nouvelle confirmation est nécessaire.");
-        if (plan.ExpiresAt <= _timeProvider.GetUtcNow())
+        if (_timeProvider.GetElapsedTime(issued.Timestamp) >= _lifetime || plan.ExpiresAt <= _timeProvider.GetUtcNow())
             return Refuse(PlanRejectionReason.Expired, "Le plan de confirmation a expiré.");
-        if (used) return Refuse(PlanRejectionReason.AlreadyUsed, "Le plan de confirmation a déjà été utilisé.");
+        if (issued.Used) return Refuse(PlanRejectionReason.AlreadyUsed, "Le plan de confirmation a déjà été utilisé.");
         return new(true, null, "Plan de confirmation accepté.");
     }
 

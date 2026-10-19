@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
+        services.AddVirgilConfirmation();
         services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
 
         services.AddTransient<IInterventionCatalog>(_ => new InterventionCatalog());
@@ -111,7 +112,6 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
-        services.AddVirgilConfirmation();
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<ICleanupExecutionService>(),
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>(),
