@@ -2,9 +2,9 @@
 
 Les spécifications validées des actions et leur rattachement aux phases sont décrits dans [ACTIONS.md](ACTIONS.md) ; elles décrivent la cible produit.
 
-## Situation au démarrage de la phase 0a
+## Situation après le lot 0g
 
-La solution comporte App (WPF, animation dans App/Animation), Core, Contracts, ElevatedHelper et Virgil.Tests (xUnit). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
+La solution comporte App (WPF, animation dans App/Animation), Core, Contracts, Infrastructure, ElevatedHelper et les projets xUnit Virgil.Core.Tests et Virgil.App.Tests (0g livré, PR #48). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
 La CI `.github/workflows/build.yml` sur Windows restaure, compile, teste et publie un artefact self-contained win-x64. La réussite d’un build se constate uniquement dans GitHub Actions ; ce document ne constitue pas une attestation de CI verte. Aucun installateur Inno Setup n’est encore présent.
 
@@ -24,7 +24,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
-| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 livré (PR #36) ; 0d-5 livré (PR #37) ; 0d-6 livré (PR #38) ; 0d-7 livré (PR #39) ; 0d-8 livré (PR #40) ; 0d-9 livré (PR #41) ; lot 0d terminé ; 0e-1 livré (PR #42) ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé ; 0f livré (PR #47) ; 0g livré (PR #48), sous-lots 0a–0g livrés ; phase 0 non clôturée : appels OS directs encore dans Core | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
+| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 livré (PR #36) ; 0d-5 livré (PR #37) ; 0d-6 livré (PR #38) ; 0d-7 livré (PR #39) ; 0d-8 livré (PR #40) ; 0d-9 livré (PR #41) ; lot 0d terminé ; 0e-1 livré (PR #42) ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé ; 0f livré (PR #47) ; 0g livré (PR #48), sous-lots 0a–0g livrés ; phase 0 non clôturée : 0f-bis reste à livrer pour sortir le code OS de Contracts | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
 | 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
@@ -36,8 +36,8 @@ Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, 
 
 ## Correctifs P1 post-0e
 
-Les deux P1 sont livres (PR #46) : execution WinGet epinglee sur la version confirmee avec refus si elle manque ou est invalide ; sonde et ouverture des emplacements Applications via le port Core IInstallationLocationService, implemente dans Infrastructure et injecte par Hosting. Textes UI existants inchanges. 0f, 0g et Phase 1 restent hors perimetre.
+Les deux P1 sont livres (PR #46) : execution WinGet epinglee sur la version confirmee avec refus si elle manque ou est invalide ; sonde et ouverture des emplacements Applications via le port Core IInstallationLocationService, implemente dans Infrastructure et injecte par Hosting. Textes UI existants inchanges. 0f livré (PR #47) ; 0g livré (PR #48). La Phase 1 reste hors périmètre de ces correctifs ; 0f-bis reste à livrer.
 
 ## Prochain travail
 
-0g livré (PR #48) : `Virgil.Core.Tests` et `Virgil.App.Tests`, 746 cas existants conservés et deux tests d’architecture ajoutés. La phase 0 n’est pas déclarée terminée : la séparation métier/OS reste à achever (appels OS directs encore dans Core, voir ARCHITECTURE.md) et la CI Windows reste la référence de validation. Prochain travail : Phase 1 — Diagnostic + Nettoyage, après satisfaction des critères de clôture de phase 0. Préserver les gardes existants ; aucune fonctionnalité de Phase 1 n’est livrée par 0g.
+0g livré (PR #48) : `Virgil.Core.Tests` et `Virgil.App.Tests`, 746 cas existants conservés et deux tests d’architecture ajoutés (476 + 272 = 748 cas, CI Windows verte, 0 warning). La phase 0 n’est pas encore close : il reste 0f-bis pour sortir de `Virgil.Contracts` le code OS `ElevatedProtocolRoot`, ACL et `WindowsIdentity` (finding P1 du bot Codex sur la PR #47), conformément à la cible « Contracts sans dépendance OS » d’[ARCHITECTURE.md](ARCHITECTURE.md). Prochain travail : 0f-bis, puis Phase 1 — Diagnostic + Nettoyage. Préserver les gardes existants ; aucune fonctionnalité de Phase 1 n’est livrée par 0g.
