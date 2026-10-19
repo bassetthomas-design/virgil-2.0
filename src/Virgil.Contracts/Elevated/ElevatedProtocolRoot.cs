@@ -1,8 +1,10 @@
+using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace Virgil.Core.Interventions;
+namespace Virgil.Contracts.Elevated;
 
+[SupportedOSPlatform("windows")]
 public sealed class ElevatedProtocolRoot
 {
     private static readonly SecurityIdentifier SystemSid =

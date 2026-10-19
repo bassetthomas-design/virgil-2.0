@@ -1,3 +1,4 @@
+using Virgil.Contracts.Elevated;
 using System.Text.Json;
 using Virgil.Core.Interventions;
 using Virgil.Contracts;

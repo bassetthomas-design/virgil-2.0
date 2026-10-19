@@ -1,4 +1,4 @@
-using Virgil.Core.Interventions;
+using Virgil.Contracts.Elevated;
 using Virgil.Contracts;
 
 namespace Virgil.ElevatedHelper;

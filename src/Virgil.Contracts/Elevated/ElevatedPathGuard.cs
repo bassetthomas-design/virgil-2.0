@@ -1,4 +1,4 @@
-namespace Virgil.Core.Interventions;
+namespace Virgil.Contracts.Elevated;
 
 public enum ElevatedPathExistence
 {
