@@ -90,6 +90,25 @@ public sealed class CompositionRootTests
         Assert.Equal(ServiceLifetime.Singleton, view.Lifetime); Assert.NotNull(view.ImplementationFactory);
     }
 
+    [Fact]
+    [Trait("Category", "Windows")]
+    public void ApplicationsViewModelAndDialogResolveAsExplicitSingletons()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        foreach (var type in new[] { typeof(ApplicationsViewModel), typeof(Virgil.App.Services.IApplicationUninstallConfirmationDialog), typeof(Virgil.App.Views.ApplicationsView) })
+        {
+            var descriptor = Assert.Single(services, d => d.ServiceType == type);
+            Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+            Assert.NotNull(descriptor.ImplementationFactory);
+        }
+        var vm = provider.GetRequiredService<ApplicationsViewModel>();
+        Assert.Same(vm, provider.GetRequiredService<ApplicationsViewModel>());
+        var dialog = provider.GetRequiredService<Virgil.App.Services.IApplicationUninstallConfirmationDialog>();
+        Assert.IsType<Virgil.App.Services.ApplicationUninstallConfirmationDialogService>(dialog);
+        Assert.Same(dialog, provider.GetRequiredService<Virgil.App.Services.IApplicationUninstallConfirmationDialog>());
+    }
+
     private static ServiceProvider BuildProvider() => new ServiceCollection().AddVirgilServices()
         .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 }

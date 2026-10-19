@@ -443,7 +443,6 @@ public partial class MainWindow : Window
 
     private void WireApplicationsModule()
     {
-        ApplicationsModuleView.ConfigureReportHistory(_reportHistoryService);
         ApplicationsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         ApplicationsModuleView.VirgilStateRequested += SetVirgilState;
         ApplicationsModuleView.ReturnHomeRequested += (_, _) => ShowHome();

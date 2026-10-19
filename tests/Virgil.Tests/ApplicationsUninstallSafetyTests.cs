@@ -354,33 +354,49 @@ public sealed class ApplicationsUninstallSafetyTests
     }
 
     [Fact]
-    public void ApplicationsView_LaunchButtonIsWiredToDetailsConfirmationFlow()
+    [Trait("Category", "Windows")]
+    public async Task ApplicationsViewModel_DetailsCommandRequiresConfirmationBeforeLaunch()
     {
-        var root = FindRepositoryRoot();
-        var xaml = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml"));
-        var source = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml.cs"));
+        var f = new ApplicationsViewModelTests.Fixture();
+        await f.Analyze();
+        f.OpenDetails();
+        Assert.Empty(f.Runner.Requests);
+        await f.Launch();
+        Assert.Single(f.Dialog.Calls);
+        Assert.Empty(f.Runner.Requests);
+        f.Dialog.Answers.Enqueue(true);
+        await f.Launch();
+        Assert.Single(f.Runner.Requests);
 
-        Assert.Contains("x:Name=\"LaunchUninstallButton\"", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Click=\"LaunchUninstall_Click\"", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("private async void LaunchUninstall_Click", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("RequestUninstallConfirmation(application, plan)", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("LaunchOfficialUninstallAsync(application, confirmation", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ResolveDialogOwner()", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("owner.Activate();", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ReportUninstallCancelled($\"Desinstallation annulee", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ReportUninstallBlocked(\"Aucune application selectionnee", source, StringComparison.OrdinalIgnoreCase);
+        var doc = ApplicationsViewModelTests.ReadXaml();
+        System.Xml.Linq.XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        System.Xml.Linq.XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var button = Assert.Single(doc.Descendants(p + "Button"), e => (string?)e.Attribute(x + "Name") == "LaunchUninstallButton");
+        Assert.Equal("{Binding LaunchUninstallCommand}", (string?)button.Attribute("Command"));
+        Assert.Equal("{Binding IsLaunchUninstallEnabled}", (string?)button.Attribute("IsEnabled"));
+        Assert.Contains(button.Ancestors(), e => (string?)e.Attribute(x + "Name") == "ApplicationDetailsOverlay");
     }
 
     [Fact]
-    public void ApplicationsView_DoesNotExposeDirectUninstallButtonOnCards()
+    [Trait("Category", "Windows")]
+    public async Task ApplicationsViewModel_CardsOnlyExposeDetailsAndLocationCommands()
     {
-        var root = FindRepositoryRoot();
-        var source = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "ApplicationsView.xaml.cs"));
+        var f = new ApplicationsViewModelTests.Fixture();
+        await f.Analyze();
+        var card = Assert.Single(f.Cards);
+        var commands = card.GetType().GetProperties().Where(p => typeof(CommunityToolkit.Mvvm.Input.IRelayCommand).IsAssignableFrom(p.PropertyType)).Select(p => p.Name).OrderBy(n => n).ToArray();
+        Assert.Equal(new[] { "DetailsCommand", "OpenLocationCommand" }, commands);
+        card.DetailsCommand.Execute(null);
+        Assert.True(f.Vm.IsDetailsOpen);
+        Assert.Empty(f.Dialog.Calls);
+        Assert.Empty(f.Runner.Requests);
 
-        Assert.DoesNotContain("CreateButton(\"DESINSTALLER\"", source, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("application.CanUninstall && !_operationInProgress", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ShowDetails(application)", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("LaunchUninstallButton", source, StringComparison.OrdinalIgnoreCase);
+        var doc = ApplicationsViewModelTests.ReadXaml();
+        System.Xml.Linq.XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var template = Assert.Single(doc.Descendants(p + "DataTemplate"), e => (string?)e.Attribute("DataType") == "{x:Type vm:ApplicationItemViewModel}");
+        Assert.Equal(new[] { "{Binding DetailsCommand}", "{Binding OpenLocationCommand}" }, template.Descendants(p + "Button").Select(e => (string?)e.Attribute("Command")).ToArray());
+        Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Content"))?.Contains("DESINSTALL", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Command"))?.Contains("Uninstall", StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private static InstalledApplication SafeWingetApplication()
