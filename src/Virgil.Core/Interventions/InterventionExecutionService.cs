@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
@@ -6,39 +7,40 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
 {
     private readonly IInterventionElevatedHelperClient _helperClient;
     private readonly IExplorerRestarter _explorerRestarter;
+    private readonly IConfirmedPlanGate _gate;
 
     public InterventionExecutionService(
         IInterventionElevatedHelperClient helperClient,
-        IExplorerRestarter explorerRestarter)
+        IExplorerRestarter explorerRestarter,
+        IConfirmedPlanGate gate)
     {
+        _gate = gate;
         _helperClient = helperClient;
         _explorerRestarter = explorerRestarter;
     }
 
     public async Task<InterventionExecutionResult> ExecuteAsync(
         InterventionDiagnostic diagnostic,
-        bool confirmed,
+        ConfirmedPlan? plan,
         CancellationToken cancellationToken)
     {
-        if (!confirmed)
-        {
-            return Failure(diagnostic, "Confirmation explicite absente.");
-        }
-
         if (!diagnostic.IsAvailable)
         {
             return Failure(diagnostic, "Action indisponible selon le diagnostic.");
         }
 
-        if (diagnostic.Definition.Id == InterventionId.RestartExplorer)
-        {
-            return await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (!diagnostic.Definition.RequiresAdministrator)
+        var restartExplorer = diagnostic.Definition.Id == InterventionId.RestartExplorer;
+        if (!restartExplorer && !diagnostic.Definition.RequiresAdministrator)
         {
             return Failure(diagnostic, "Action locale non prise en charge.");
         }
+
+        var validation = _gate.TryConsume(plan, InterventionActionPreviewFactory.Create(diagnostic.Definition));
+        if (!validation.IsAccepted)
+            return Failure(diagnostic, "Intervention annulee.\n" + validation.Message);
+
+        if (restartExplorer)
+            return await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
 
         var result = await _helperClient
             .ExecuteAsync(diagnostic.Definition, cancellationToken)

@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
@@ -22,6 +24,7 @@ public partial class CleanupViewModel : ObservableObject
     private readonly CleanupStorageAnalyzer _storageAnalyzer;
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
+    private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<CleanupZoneDecision>? _activeDecision;
@@ -35,8 +38,10 @@ public partial class CleanupViewModel : ObservableObject
         ICleanupExecutionService executionService,
         IProcessRunner processRunner,
         CleanupStorageAnalyzer storageAnalyzer,
-        IReportHistoryService reportHistoryService)
+        IReportHistoryService reportHistoryService,
+        IConfirmationService confirmationService)
     {
+        _confirmationService = confirmationService;
         _previewService = previewService ?? throw new ArgumentNullException(nameof(previewService));
         _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
@@ -223,6 +228,21 @@ public partial class CleanupViewModel : ObservableObject
                 var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
                 RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
 
+                ConfirmedPlan? plan = null;
+                if (decision == CleanupZoneDecision.Execute)
+                {
+                    try
+                    {
+                        plan = _confirmationService.Issue(CleanupActionPreviewFactory.Create(preview),
+                            new ConfirmationConsent(preview.Definition.RequiresReinforcedConfirmation
+                                ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+                    }
+                    catch (ConfirmationRefusedException)
+                    {
+                        decision = CleanupZoneDecision.CancelAll;
+                    }
+                }
+
                 if (decision == CleanupZoneDecision.CancelAll)
                 {
                     results.Add(_executionService.CancelZone(preview));
@@ -239,7 +259,7 @@ public partial class CleanupViewModel : ObservableObject
 
                 RequestVirgilState(VirgilCoreState.Executing, "NETTOYAGE");
                 var result = await _executionService
-                    .ExecuteZoneAsync(preview, new Progress<CleanupProgress>(HandleProgress), _operationCancellation.Token)
+                    .ExecuteZoneAsync(preview, plan, new Progress<CleanupProgress>(HandleProgress), _operationCancellation.Token)
                     .ConfigureAwait(true);
 
                 results.Add(result);

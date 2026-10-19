@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Virgil.App.Animation;
 using Virgil.App.ViewModels;
 using Virgil.Contracts;
@@ -10,6 +11,17 @@ namespace Virgil.Tests;
 
 public sealed class CleanupViewModelTests
 {
+    [Fact]
+    public async Task RefusedIssuanceUsesCancelAllPath()
+    {
+        var f = new Fixture(); f.Confirmation.Refuse = true;
+        await f.Analyze(); var pending = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, f.Confirmation.Calls);
+        Assert.Equal(new[] { "Cancel:UserTemporaryFiles" }, f.Actions.Order);
+        Assert.Equal("Session annulee par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+    }
+
     [Fact]
     public void InitialStateMatchesViewAndCommandsHaveNoSideEffects()
     {
@@ -177,6 +189,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles" }, f.Actions.Order);
         f.Vm.CancelDecisionCommand.Execute(null);
         await pending;
+        Assert.Equal(1, f.Confirmation.Calls);
         Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles", "Cancel:UserCrashDumps" }, f.Actions.Order);
         Assert.Equal(new[] { CleanupStepStatus.Skipped, CleanupStepStatus.Completed, CleanupStepStatus.Cancelled }, f.Actions.Report!.Results.Select(r => r.Status));
         Assert.Equal(new[] { "Session annulee par l'utilisateur." }, f.Actions.Report.Errors);
@@ -492,6 +505,7 @@ public sealed class CleanupViewModelTests
     private sealed class Fixture
     {
         public FakePreview Previews { get; } = new();
+        public RecordingConfirmation Confirmation { get; } = new();
         public FakeActions Actions { get; } = new();
         public FakeHistory History { get; } = new();
         public FakeRunner Runner { get; } = new();
@@ -500,7 +514,8 @@ public sealed class CleanupViewModelTests
         public int Persisted { get; private set; }
         public Fixture(CleanupStorageAnalyzer? analyzer = null)
         {
-            Vm = new(Previews, Actions, Runner, analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>()), History);
+            Actions.Authority = Confirmation.Authority;
+            Vm = new(Previews, Actions, Runner, analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>()), History, Confirmation);
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.ReportPersisted += (_, _) => Persisted++;
         }
@@ -519,14 +534,17 @@ public sealed class CleanupViewModelTests
 
     private sealed class FakeActions : ICleanupExecutionService
     {
+        public ConfirmationService Authority { get; set; } = null!;
         public List<string> Order { get; } = new();
         public CleanupSessionReport? Report { get; private set; }
         public Func<CleanupZonePreview, CancellationToken, Task<CleanupStepResult>>? Handler { get; set; }
         public CancellationToken Token { get; private set; }
         public int ErrorFiles { get; set; }
         public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
-        public Task<CleanupStepResult> ExecuteZoneAsync(CleanupZonePreview preview, IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
+        public Task<CleanupStepResult> ExecuteZoneAsync(CleanupZonePreview preview, ConfirmedPlan? plan, IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
         {
+            Assert.NotNull(plan);
+            Assert.True(Authority.TryConsume(plan, CleanupActionPreviewFactory.Create(preview)).IsAccepted);
             Order.Add("Execute:" + preview.Definition.Id);
             Token = cancellationToken;
             return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed, 1, 1024, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors));
