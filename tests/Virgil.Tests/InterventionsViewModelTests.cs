@@ -12,6 +12,30 @@ namespace Virgil.Tests;
 
 public sealed class InterventionsViewModelTests
 {
+    [Theory]
+    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
+    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]
+    public async Task ExistingOverlayIssuesPlanThenRealServiceReachesExactlyOneAdapter(
+        InterventionId id, InterventionRiskLevel risk, string label)
+    {
+        var confirmation = new RecordingConfirmation();
+        var helper = new RecordingHelper { ThrowOnCall = false };
+        var explorer = new RecordingExplorer { ThrowOnCall = false };
+        var service = new InterventionExecutionService(helper, explorer, confirmation.Authority);
+        var f = new Fixture(service, confirmation);
+        var diagnostic = Diagnostic(id, risk: risk);
+        f.Diagnostics.Items = new[] { diagnostic with { Definition = diagnostic.Definition with { RequiresAdministrator = id != InterventionId.RestartExplorer } } };
+        await f.Analyze(); var pending = f.Run();
+        Assert.Equal(label, f.Vm.ExecuteActionLabel);
+        Assert.Equal(0, confirmation.Calls); Assert.Equal(0, helper.Calls + explorer.Calls);
+        f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, confirmation.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 0 : 1, helper.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 1 : 0, explorer.Calls);
+        Assert.Single(f.History.Saved!.ExecutedActions);
+    }
+
     [Fact]
     public async Task RefusedIssuanceUsesCancelAllPath()
     {
@@ -538,8 +562,9 @@ public sealed class InterventionsViewModelTests
         public (VirgilCoreState State, string Label)? State { get; private set; }
         public int Persisted { get; private set; }
         public IEnumerable<InterventionItemViewModel> Items => Vm.SystemItems.Concat(Vm.NetworkItems).Concat(Vm.StorageItems).Concat(Vm.InterfaceItems);
-        public Fixture(IInterventionExecutionService? execution = null)
+        public Fixture(IInterventionExecutionService? execution = null, RecordingConfirmation? confirmation = null)
         {
+            Confirmation = confirmation ?? new RecordingConfirmation();
             Actions.Authority = Confirmation.Authority;
             Vm = new(Diagnostics, execution ?? Actions, new InterventionReportBuilder(), History, Confirmation);
             Vm.VirgilMessageRequested += message => Message = message;
@@ -606,21 +631,25 @@ public sealed class InterventionsViewModelTests
 
     private sealed class RecordingHelper : IInterventionElevatedHelperClient
     {
+        public bool ThrowOnCall { get; init; } = true;
         public int Calls { get; private set; }
         public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
         {
             Calls++;
-            throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
+            return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed });
         }
     }
 
     private sealed class RecordingExplorer : IExplorerRestarter
     {
+        public bool ThrowOnCall { get; init; } = true;
         public int Calls { get; private set; }
         public Task<InterventionExecutionResult> RestartAsync(InterventionDiagnostic diagnostic, CancellationToken cancellationToken)
         {
             Calls++;
-            throw new InvalidOperationException("Explorer ne doit jamais etre relance sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Explorer ne doit jamais etre relance sans EXECUTER.");
+            return Task.FromResult(new InterventionExecutionResult { Action = diagnostic.Definition, Status = InterventionStatus.Completed, WasConfirmed = true });
         }
     }
 
