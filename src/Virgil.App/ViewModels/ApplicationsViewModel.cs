@@ -1,0 +1,677 @@
+using Virgil.App.Animation;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Virgil.App.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
+using Virgil.Core.Applications;
+using Virgil.Core.Reports;
+using Virgil.Core.Processes;
+using Virgil.Core.Scanning;
+using Virgil.Contracts;
+using Virgil.Contracts.Applications;
+
+namespace Virgil.App.ViewModels;
+
+public partial class ApplicationsViewModel : ObservableObject
+{
+    private readonly IApplicationInventoryService _inventoryService;
+    private readonly ApplicationUninstallService _uninstallService;
+    private readonly List<InstalledApplication> _applications = new();
+    private readonly IReportHistoryService _reportHistoryService;
+    private readonly IApplicationUninstallConfirmationDialog _confirmationDialog;
+    private CancellationTokenSource? _operationCancellation;
+    private ApplicationInventoryReport? _lastInventoryReport;
+    private ApplicationUninstallResult? _lastUninstallResult;
+    private InstalledApplication? _selectedApplication;
+    private bool _operationInProgress;
+
+    private readonly IProcessRunner _processRunner;
+
+    public ApplicationsViewModel(IApplicationInventoryService inventoryService,
+        ApplicationUninstallService uninstallService, IProcessRunner processRunner,
+        IReportHistoryService reportHistoryService, IApplicationUninstallConfirmationDialog confirmationDialog)
+    {
+        _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
+        _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
+        _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
+        _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
+        _confirmationDialog = confirmationDialog ?? throw new ArgumentNullException(nameof(confirmationDialog));
+        Entries.Add(new ApplicationTextCardViewModel("Lancez un inventaire. Aucune action ne sera executee."));
+    }
+
+    public ObservableCollection<object> Entries { get; } = new();
+    public ObservableCollection<ApplicationTextCardViewModel> Remnants { get; } = new();
+    [ObservableProperty] private string searchText = string.Empty;
+    [ObservableProperty] private string selectedFilter = "TOUT";
+    partial void OnSearchTextChanged(string value) => RenderApplications();
+    partial void OnSelectedFilterChanged(string value) => RenderApplications();
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdle))]
+    private bool isBusy;
+    public bool IsIdle => !IsBusy;
+    [ObservableProperty] private bool isReportButtonEnabled;
+    [ObservableProperty] private bool isLaunchUninstallEnabled;
+    [ObservableProperty] private bool isOpenApplicationLocationEnabled;
+    [ObservableProperty] private bool isDetailsOpen;
+    [ObservableProperty] private bool isReportOpen;
+    [ObservableProperty] private double progress;
+    [ObservableProperty] private string statusText = "Inventaire pret. Desinstallation individuelle uniquement.";
+    [ObservableProperty] private string inventorySummary = "NON ANALYSE";
+    [ObservableProperty] private string riskSummary = "NON CLASSE";
+    [ObservableProperty] private string detailsTitle = "DETAIL APPLICATION";
+    [ObservableProperty] private string detailsBody = string.Empty;
+    [ObservableProperty] private string detailsCommand = string.Empty;
+    [ObservableProperty] private string detailsSafety = string.Empty;
+    [ObservableProperty] private string launchUninstallLabel = "LANCER DESINSTALLATEUR";
+    [ObservableProperty] private string openApplicationLocationLabel = "OUVRIR EMPLACEMENT";
+    [ObservableProperty] private string reportSummary = string.Empty;
+    [ObservableProperty] private string reportDetails = string.Empty;
+    [ObservableProperty] private string reportErrors = string.Empty;
+
+    public event Action<string>? VirgilMessageRequested;
+
+    public event Action<VirgilCoreState, string>? VirgilStateRequested;
+
+    public event EventHandler? ReturnHomeRequested;
+
+    public event EventHandler? ReportPersisted;
+
+    public void CancelActiveOperation()
+    {
+        _operationCancellation?.Cancel();
+    }
+
+    public bool TryCloseOverlay()
+    {
+        if (IsReportOpen)
+        {
+            HideReport();
+            return true;
+        }
+
+        if (IsDetailsOpen)
+        {
+            HideDetails();
+            return true;
+        }
+
+        if (_operationInProgress)
+        {
+            CancelActiveOperation();
+            VirgilMessageRequested?.Invoke("Annulation demandee.\nOperation applications en cours d'arret.");
+            return true;
+        }
+
+        return false;
+    }
+
+    [RelayCommand]
+    private void ViewReport() => ShowReport();
+    [RelayCommand]
+    private void ReturnHome() => ReturnHomeRequested?.Invoke(this, EventArgs.Empty);
+    [RelayCommand]
+    private void CloseDetails() => HideDetails();
+    [RelayCommand]
+    private void CloseReport() => HideReport();
+    [RelayCommand]
+    private async Task LaunchUninstallAsync()
+    {
+        try
+        {
+            if (_selectedApplication is null)
+            {
+                ReportUninstallBlocked("Aucune application selectionnee.\nOuvrez les details d'une application avant de lancer une action.");
+                return;
+            }
+            await LaunchUninstallAsync(_selectedApplication).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            ReportUninstallException(exception);
+        }
+    }
+    [RelayCommand]
+    private async Task OpenApplicationLocationAsync()
+    {
+        if (_selectedApplication is not null)
+            await OpenApplicationLocationOrSettingsAsync(_selectedApplication).ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task AnalyzeAsync()
+    {
+        if (!BeginOperation("Inventaire applications en cours."))
+        {
+            return;
+        }
+
+        try
+        {
+            RequestVirgilState(VirgilCoreState.Scanning, "APPLICATIONS");
+            VirgilMessageRequested?.Invoke("Inventaire applications lance.\nLecture seule.\nAucune desinstallation.");
+            var progress = new Progress<ApplicationInventoryProgress>(item =>
+            {
+                Progress = item.Percent ?? 0;
+                StatusText = $"{item.Status} {item.Percent ?? 0} %";
+            });
+
+            var report = await _inventoryService
+                .InventoryAsync(progress, _operationCancellation!.Token)
+                .ConfigureAwait(true);
+
+            _lastInventoryReport = report;
+            _lastUninstallResult = null;
+            _applications.Clear();
+            _applications.AddRange(report.Applications);
+            RenderInventory(report);
+            RenderApplications();
+            await PersistReportAsync(ApplicationReportMapper.FromInventory(report)).ConfigureAwait(true);
+            IsReportButtonEnabled = true;
+            StatusText = "Inventaire termine.";
+            RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
+            VirgilMessageRequested?.Invoke(
+                $"Inventaire termine.\nApplications : {report.Applications.Count}.\nDesinstallables : {report.UninstallableCount}.");
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Inventaire annule.";
+            RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+            VirgilMessageRequested?.Invoke("Inventaire applications annule.\nAucune action effectuee.");
+        }
+        catch
+        {
+            StatusText = "Inventaire applications indisponible.";
+            RequestVirgilState(VirgilCoreState.Error, "ERREUR");
+            VirgilMessageRequested?.Invoke("Inventaire applications indisponible.\nAucune action effectuee.");
+        }
+        finally
+        {
+            EndOperation();
+        }
+    }
+
+    private async Task LaunchUninstallAsync(InstalledApplication application)
+    {
+        var plan = _uninstallService.BuildPlan(application);
+        if (!application.CanUninstall)
+        {
+            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            return;
+        }
+
+        if (!plan.CanLaunch)
+        {
+            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            return;
+        }
+
+        StatusText = "Confirmation utilisateur requise.";
+        RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+        VirgilMessageRequested?.Invoke("Confirmation de desinstallation demandee.\nUne fenetre de validation doit s'ouvrir au premier plan.");
+
+        var confirmation = RequestUninstallConfirmation(application, plan);
+        var confirmationDecision = new ApplicationUninstallConfirmationPolicy().Validate(plan, confirmation);
+        if (!confirmationDecision.CanProceed)
+        {
+            ReportUninstallCancelled($"Desinstallation annulee.\n{confirmationDecision.Reason}");
+            return;
+        }
+
+        if (!BeginOperation("Desinstallateur officiel en cours de lancement."))
+        {
+            return;
+        }
+
+        try
+        {
+            RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+            var progress = new Progress<ApplicationUninstallProgress>(item =>
+            {
+                Progress = item.Percent ?? 0;
+                StatusText = item.Status;
+            });
+
+            var result = await _uninstallService
+                .LaunchOfficialUninstallAsync(application, confirmation, progress, _operationCancellation!.Token)
+                .ConfigureAwait(true);
+
+            _lastUninstallResult = result;
+            RenderUninstallResult(result);
+            ShowDetails(application);
+            await PersistReportAsync(ApplicationReportMapper.FromUninstall(result)).ConfigureAwait(true);
+            IsReportButtonEnabled = true;
+            RequestVirgilState(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
+            VirgilMessageRequested?.Invoke(result.WasLaunched
+                ? "Desinstalleur officiel lance.\nLe statut final peut dependre de l'assistant externe.\nRestes analyses en lecture seule."
+                : $"Desinstalleur non lance.\n{result.Result}\nRapport disponible.");
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Desinstallation annulee.";
+            RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+            VirgilMessageRequested?.Invoke("Desinstallation annulee.\nAucun desinstallateur lance.");
+        }
+        catch (Exception exception)
+        {
+            ReportUninstallException(exception);
+        }
+        finally
+        {
+            EndOperation();
+        }
+    }
+
+    private ApplicationUninstallConfirmation RequestUninstallConfirmation(
+        InstalledApplication application,
+        ApplicationUninstallPlan plan)
+    {
+        var explicitMessage = string.Join("\n", new[]
+        {
+            "Confirmation explicite obligatoire.",
+            string.Empty,
+            $"Application : {application.DisplayName}",
+            $"Editeur : {Empty(application.Publisher)}",
+            $"Risque : {RiskLabel(application.RiskLevel)} - {application.RiskReason}",
+            $"Methode : {UninstallMethodLabel(plan.Method)}",
+            string.Empty,
+            "Virgil va uniquement lancer le desinstallateur officiel valide.",
+            "Aucun dossier d'application ne sera supprime directement.",
+            "Aucune donnee personnelle ne sera supprimee automatiquement.",
+            string.Empty,
+            "Continuer ?"
+        });
+
+        var explicitResponse = _confirmationDialog.Confirm("Confirmation desinstallation", explicitMessage);
+        if (!explicitResponse)
+        {
+            return ApplicationUninstallConfirmation.None;
+        }
+
+        var reinforcedConfirmed = false;
+        if (plan.RequiresReinforcedConfirmation)
+        {
+            var reinforcedMessage = string.Join("\n", new[]
+            {
+                "Confirmation renforcee requise.",
+                string.Empty,
+                $"Application : {application.DisplayName}",
+                "Cette application est classee ATTENTION.",
+                "Elle peut contenir des profils, projets, presets, bibliotheques ou sauvegardes.",
+                string.Empty,
+                "Virgil ne supprime rien lui-meme, mais l'assistant officiel peut modifier ou retirer l'application.",
+                "Ne continuez que si vous avez sauvegarde ce qui doit l'etre.",
+                string.Empty,
+                "Confirmer malgre ce risque ?"
+            });
+
+            reinforcedConfirmed = _confirmationDialog.Confirm("Confirmation renforcee applications", reinforcedMessage);
+        }
+
+        return new ApplicationUninstallConfirmation
+        {
+            ExplicitlyConfirmed = true,
+            ReinforcedConfirmed = reinforcedConfirmed,
+            Source = "ApplicationsDetails"
+        };
+    }
+
+    private void ReportUninstallBlocked(string message)
+    {
+        StatusText = "Desinstallation bloquee.";
+        RequestVirgilState(VirgilCoreState.Warning, "APPLICATIONS");
+        VirgilMessageRequested?.Invoke(message);
+    }
+
+    private void ReportUninstallCancelled(string message)
+    {
+        StatusText = "Desinstallation annulee.";
+        RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+        VirgilMessageRequested?.Invoke(message);
+    }
+
+    private void ReportUninstallException(Exception exception)
+    {
+        StatusText = "Desinstallateur officiel indisponible.";
+        RequestVirgilState(VirgilCoreState.Error, "ERREUR");
+        VirgilMessageRequested?.Invoke($"Desinstallateur officiel indisponible.\nErreur : {exception.Message}");
+    }
+
+    private void RenderInventory(ApplicationInventoryReport report)
+    {
+        InventorySummary = $"{report.Applications.Count} detectees, {report.UninstallableCount} desinstallables, {report.Errors.Count} avertissement(s).";
+        RiskSummary = $"{report.SafeCount} simples, {report.CautionCount} attention, {report.ProtectedCount} protegees, {report.UnknownCount} inconnues.";
+    }
+
+    private void RenderApplications()
+    {
+        Entries.Clear();
+        var items = FilteredApplications().ToList();
+        if (items.Count == 0)
+        {
+            Entries.Add(new ApplicationTextCardViewModel(_applications.Count == 0
+                ? "Aucune application inventoriee."
+                : "Aucune application ne correspond au filtre."));
+            return;
+        }
+        foreach (var application in items)
+            Entries.Add(new ApplicationItemViewModel(application, ShowDetails, OpenApplicationLocationOrSettingsAsync));
+    }
+
+    public IEnumerable<InstalledApplication> FilteredApplications()
+    {
+        var query = SearchText.Trim();
+        var filter = SelectedFilter;
+        return _applications.Where(application =>
+        {
+            var matchesQuery = string.IsNullOrWhiteSpace(query) ||
+                application.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                application.Publisher.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                (application.WingetId?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false);
+            if (!matchesQuery)
+            {
+                return false;
+            }
+
+            return filter switch
+            {
+                "DESINSTALLABLE" => application.CanUninstall,
+                "ATTENTION" => application.RiskLevel == ApplicationRiskLevel.Caution,
+                "PROTEGE" => application.RiskLevel == ApplicationRiskLevel.Protected,
+                "INCONNU" => application.RiskLevel == ApplicationRiskLevel.Unknown,
+                _ => true
+            };
+        });
+    }
+
+    private void ShowDetails(InstalledApplication application)
+    {
+        _selectedApplication = application;
+        DetailsTitle = application.DisplayName;
+        DetailsBody = string.Join("\n", new[]
+        {
+            $"Editeur : {Empty(application.Publisher)}",
+            $"Version : {Empty(application.Version)}",
+            $"Source : {string.Join(", ", application.Sources.Count == 0 ? [application.Source] : application.Sources)}",
+            $"Architecture : {application.Architecture}",
+            $"Emplacement : {Empty(application.InstallLocation)}",
+            $"Risque : {RiskLabel(application.RiskLevel)}",
+            $"Raison : {application.RiskReason}",
+            $"Statut : {application.Status}"
+        });
+        DetailsCommand = application.UninstallKind switch
+        {
+            ApplicationUninstallKind.Winget => $"winget uninstall --id {application.WingetId} --exact",
+            ApplicationUninstallKind.StoreSettings => "Parametres Windows. Aucun retrait Store execute par Virgil V1.",
+            _ => Empty(application.UninstallCommand ?? application.QuietUninstallCommand)
+        };
+        DetailsSafety = string.Join("\n", new[]
+        {
+            "Desinstallation individuelle uniquement depuis cet ecran de details.",
+            "Confirmation explicite obligatoire avant tout lancement.",
+            "Desinstalleur officiel ou WinGet exact uniquement.",
+            "Suppression par dossier interdite.",
+            "Aucune suppression automatique de donnees personnelles.",
+            "Pilotes, securite, runtimes et composants systeme bloques.",
+            application.RiskLevel == ApplicationRiskLevel.Caution
+                ? "Attention : confirmation renforcee obligatoire, profils, projets, presets ou sauvegardes possibles."
+                : "Validation stricte appliquee avant lancement."
+        });
+        LaunchUninstallLabel = !application.CanUninstall
+            ? "DESINSTALLATION BLOQUEE"
+            : application.RiskLevel == ApplicationRiskLevel.Caution
+                ? "LANCER AVEC VALIDATION RENFORCEE"
+                : "LANCER DESINSTALLATEUR";
+        IsLaunchUninstallEnabled = !_operationInProgress;
+        IsOpenApplicationLocationEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
+        OpenApplicationLocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings
+            ? "PARAMETRES WINDOWS"
+            : "OUVRIR EMPLACEMENT";
+        RenderDetailsRemnants(application);
+        IsDetailsOpen = true;
+    }
+
+    private void RenderDetailsRemnants(InstalledApplication application)
+    {
+        Remnants.Clear();
+        var result = _lastUninstallResult;
+        if (result?.Application.Id != application.Id)
+        {
+            Remnants.Add(new ApplicationTextCardViewModel("Disponibles apres lancement du desinstallateur officiel. Analyse lecture seule uniquement."));
+            return;
+        }
+
+        if (result.Remnants.Remnants.Count == 0)
+        {
+            Remnants.Add(new ApplicationTextCardViewModel("Aucun reste accessible detecte en lecture seule."));
+            return;
+        }
+
+        foreach (var remnant in result.Remnants.Remnants.Take(12))
+        {
+            Remnants.Add(new ApplicationTextCardViewModel(
+                $"{RemnantKindLabel(remnant.Kind)} - {remnant.Path}\n{remnant.Reason}\nAction automatique : aucune."));
+        }
+    }
+
+    private void RenderUninstallResult(ApplicationUninstallResult result)
+    {
+        StatusText = result.Result;
+        ReportSummary = $"{result.Application.DisplayName}\n{result.Result}";
+        ReportDetails = string.Join("\n", new[]
+        {
+            $"Methode : {result.Method}",
+            $"Lance : {(result.WasLaunched ? "oui" : "non")}",
+            $"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}",
+            $"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}",
+            $"Statut inconnu : {(result.StatusUnknown ? "oui" : "non")}",
+            $"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}",
+            $"Restes : {result.Remnants.Remnants.Count}",
+            $"Techniques : {result.Remnants.TechnicalCount}",
+            $"Personnels/proteges : {result.Remnants.UserDataCount + result.Remnants.ProtectedCount}",
+            "Suppression automatique : aucune"
+        });
+        ReportErrors = result.Errors.Count == 0
+            ? "Aucune"
+            : string.Join("\n", result.Errors.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private async Task OpenApplicationLocationOrSettingsAsync(InstalledApplication application)
+    {
+        if (application.UninstallKind == ApplicationUninstallKind.StoreSettings)
+        {
+            await OpenWindowsSettingsAsync().ConfigureAwait(true);
+            return;
+        }
+
+        var path = application.InstallLocation;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            VirgilMessageRequested?.Invoke("Emplacement indisponible.");
+            return;
+        }
+
+        try
+        {
+            ProcessLaunchResult result;
+            if (Directory.Exists(path))
+            {
+                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"\"{path}\""), CancellationToken.None);
+            }
+            else if (File.Exists(path))
+            {
+                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"/select,\"{path}\""), CancellationToken.None);
+            }
+            else
+            {
+                VirgilMessageRequested?.Invoke("Emplacement introuvable.");
+                return;
+            }
+
+            VirgilMessageRequested?.Invoke(result.LaunchError is not null
+                ? "Ouverture emplacement impossible."
+                : "Emplacement ouvert.\nAucune suppression executee.");
+        }
+        catch
+        {
+            VirgilMessageRequested?.Invoke("Ouverture emplacement impossible.");
+        }
+    }
+
+    private async Task OpenWindowsSettingsAsync()
+    {
+        try
+        {
+            await _processRunner.LaunchAsync(new ProcessLaunchRequest(
+                "ms-settings:appsfeatures", Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
+        }
+        catch
+        {
+            // Non blocking. The report and inventory remain available.
+        }
+    }
+
+    private void ShowReport()
+    {
+        if (_lastUninstallResult is not null)
+        {
+            RenderUninstallResult(_lastUninstallResult);
+        }
+        else if (_lastInventoryReport is not null)
+        {
+            ReportSummary = $"{_lastInventoryReport.Applications.Count} application(s), {_lastInventoryReport.UninstallableCount} desinstallable(s).";
+            ReportDetails = string.Join("\n", new[]
+            {
+                $"Protegees : {_lastInventoryReport.ProtectedCount}",
+                $"Attention : {_lastInventoryReport.CautionCount}",
+                $"Inconnues : {_lastInventoryReport.UnknownCount}",
+                "Aucune action executee depuis l'inventaire.",
+                "Aucune donnee personnelle supprimee automatiquement."
+            });
+            ReportErrors = _lastInventoryReport.Errors.Count == 0
+                ? "Aucune"
+                : string.Join("\n", _lastInventoryReport.Errors);
+        }
+        else
+        {
+            ReportSummary = "Aucun rapport applications disponible.";
+            ReportDetails = "Lancez un inventaire applications.";
+            ReportErrors = "Aucune";
+        }
+
+        IsReportOpen = true;
+    }
+
+    private void HideReport()
+    {
+        IsReportOpen = false;
+    }
+
+    private void HideDetails()
+    {
+        IsDetailsOpen = false;
+        _selectedApplication = null;
+    }
+
+    private async Task PersistReportAsync(ReportEntry report)
+    {
+        var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
+        if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
+        {
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+        }
+
+        if (result.Success)
+        {
+            ReportPersisted?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private bool BeginOperation(string status)
+    {
+        if (_operationInProgress)
+        {
+            VirgilMessageRequested?.Invoke("Operation applications deja en cours.");
+            return false;
+        }
+
+        _operationInProgress = true;
+        _operationCancellation = new CancellationTokenSource();
+        StatusText = status;
+        Progress = 0;
+        SetInteractionEnabled(false);
+        return true;
+    }
+
+    private void EndOperation()
+    {
+        _operationInProgress = false;
+        _operationCancellation?.Dispose();
+        _operationCancellation = null;
+        SetInteractionEnabled(true);
+    }
+
+    private void SetInteractionEnabled(bool enabled)
+    {
+        IsBusy = !enabled;
+        IsReportButtonEnabled = enabled && (_lastInventoryReport is not null || _lastUninstallResult is not null);
+        IsLaunchUninstallEnabled = enabled && _selectedApplication is not null;
+        IsOpenApplicationLocationEnabled = enabled && (_selectedApplication?.CanOpenLocation == true ||
+            _selectedApplication?.UninstallKind == ApplicationUninstallKind.StoreSettings);
+    }
+
+    private void RequestVirgilState(VirgilCoreState state, string label)
+    {
+        VirgilStateRequested?.Invoke(state, label);
+    }
+
+    internal static string RiskLabel(ApplicationRiskLevel risk)
+    {
+        return risk switch
+        {
+            ApplicationRiskLevel.SafeToUninstall => "desinstallable",
+            ApplicationRiskLevel.Caution => "attention",
+            ApplicationRiskLevel.Protected => "protege",
+            _ => "inconnu"
+        };
+    }
+
+    private static string RemnantKindLabel(ApplicationRemnantKind kind)
+    {
+        return kind switch
+        {
+            ApplicationRemnantKind.TechnicalRemnant => "technique",
+            ApplicationRemnantKind.UserData => "donnee personnelle",
+            ApplicationRemnantKind.ProtectedRemnant => "protege",
+            _ => "inconnu"
+        };
+    }
+
+    private static string UninstallMethodLabel(ApplicationUninstallKind kind)
+    {
+        return kind switch
+        {
+            ApplicationUninstallKind.Msi => "MSI officiel",
+            ApplicationUninstallKind.RegistryUninstallString => "desinstalleur officiel",
+            ApplicationUninstallKind.RegistryQuietUninstallString => "desinstalleur officiel silencieux",
+            ApplicationUninstallKind.Winget => "WinGet exact",
+            ApplicationUninstallKind.StoreSettings => "parametres Windows",
+            _ => "inconnue"
+        };
+    }
+
+    internal static string Empty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "N/A" : value;
+    }
+
+    internal static string FormatBytes(long? bytes)
+    {
+        return bytes.HasValue ? ScanRules.FormatBytes(bytes.Value) : "N/A";
+    }
+}

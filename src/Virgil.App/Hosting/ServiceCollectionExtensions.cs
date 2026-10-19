@@ -129,8 +129,12 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IResourceMonitoringService>(), sp.GetRequiredService<IProcessActionService>(),
             sp.GetRequiredService<ResourceReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));
         services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<ResourcesViewModel>()));
-        services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<IApplicationInventoryService>(),
-            sp.GetRequiredService<ApplicationUninstallService>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<IApplicationUninstallConfirmationDialog>(_ => new ApplicationUninstallConfirmationDialogService());
+        services.AddSingleton<ApplicationsViewModel>(sp => new ApplicationsViewModel(
+            sp.GetRequiredService<IApplicationInventoryService>(), sp.GetRequiredService<ApplicationUninstallService>(),
+            sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<IReportHistoryService>(),
+            sp.GetRequiredService<IApplicationUninstallConfirmationDialog>()));
+        services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<ApplicationsViewModel>()));
         services.AddSingleton<IFileSaveDialog>(_ => new SaveFileDialogService());
         services.AddSingleton<ReportsHistoryViewModel>(sp => new ReportsHistoryViewModel(
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
