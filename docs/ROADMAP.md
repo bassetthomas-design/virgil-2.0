@@ -16,9 +16,9 @@ Refactor sans nouvelle fonctionnalité. Sous-lots obligatoirement ordonnés, une
 | 0e-1 | Livrer les contrats `RiskLevel`, `ActionPreview`, `ActionResult`, le `ConfirmedPlan` dans Core et la porte unique `ConfirmationService` avec tests de sécurité ; aucun branchement ni changement de comportement des modules. |
 | 0e-2 | Livré (PR #43) : correspondances pures des quatre enums vers RiskLevel, registre de confirmation borné, pilote de désinstallation Applications sur la porte ; dialogues et politiques conservés. |
 | 0e-3 | Livré (PR #44) : Ressources et Mises à jour exigent ConfirmedPlan après les overlays existants ; gardes avant la porte, usage unique avant effet. |
-| 0e-4 | Livré (PR #45) : Interventions et Nettoyage sur ConfirmedPlan, gardes conservés et RequiresReinforcedConfirmation indépendant de l’enum ; lot 0e terminé. 0f livré (PR #47) ; 0g à réaliser. |
+| 0e-4 | Livré (PR #45) : Interventions et Nettoyage sur ConfirmedPlan, gardes conservés et RequiresReinforcedConfirmation indépendant de l’enum ; lot 0e terminé. 0f livré (PR #47) ; 0g livré (PR #48). |
 | 0f | Livré (PR #47) : helper limité à Contracts, gardes de chemins et racine du protocole partagés ; allowlist et validations préservées. |
-| 0g | Séparer les tests en `Virgil.Core.Tests` / `Virgil.App.Tests`, dont les tests d’animation dans App.Tests. |
+| 0g | Livré (PR #48) : tests séparés en `Virgil.Core.Tests` (sans App) et `Virgil.App.Tests` (dont animation), aides non dupliquées et deux tests d’architecture ; 746 cas existants préservés. |
 
 Chaque lot préserve les protections existantes ; le code legacy sans rapport reste hors périmètre. Les critères ci-dessous portent sur la fin de la phase complète.
 
