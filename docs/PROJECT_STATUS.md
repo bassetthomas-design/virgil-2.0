@@ -34,6 +34,10 @@ Périmètre des points de restauration précisé, critères de distribution alph
 
 Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, figurent dans [ROADMAP.md](ROADMAP.md). Ne clôturer aucune phase sur la seule présence d’un fichier ou d’un écran.
 
+## Correctifs P1 post-0e
+
+Les deux P1 sont livres (PR #46) : execution WinGet epinglee sur la version confirmee avec refus si elle manque ou est invalide ; sonde et ouverture des emplacements Applications via le port Core IInstallationLocationService, implemente dans Infrastructure et injecte par Hosting. Textes UI existants inchanges. 0f, 0g et Phase 1 restent hors perimetre.
+
 ## Prochain travail
 
 0d-8 livré (PR #40), 0d-9 livré (PR #41) ; lot 0d terminé. 0e-1 livré (PR #42) : contrats et porte unique testés ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé, puis 0f helper limité à Contracts, puis 0g séparation des tests. Une PR par sous-lot, selon [AGENTS.md](../AGENTS.md). Préserver les gardes existants pendant toute la migration et ne pas ajouter de fonctionnalité avant la clôture de la phase 0.
