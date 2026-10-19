@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Virgil.App.Animation;
 using Virgil.App.Hosting;
@@ -11,6 +12,43 @@ namespace Virgil.Tests;
 
 public sealed class InterventionsViewModelTests
 {
+    [Theory]
+    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
+    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]
+    public async Task ExistingOverlayIssuesPlanThenRealServiceReachesExactlyOneAdapter(
+        InterventionId id, InterventionRiskLevel risk, string label)
+    {
+        var confirmation = new RecordingConfirmation();
+        var helper = new RecordingHelper { ThrowOnCall = false };
+        var explorer = new RecordingExplorer { ThrowOnCall = false };
+        var service = new InterventionExecutionService(helper, explorer, confirmation.Authority);
+        var f = new Fixture(service, confirmation);
+        var diagnostic = Diagnostic(id, risk: risk);
+        f.Diagnostics.Items = new[] { diagnostic with { Definition = diagnostic.Definition with { RequiresAdministrator = id != InterventionId.RestartExplorer } } };
+        await f.Analyze();
+        Assert.Single(f.Items).IsSelected = true;
+        var pending = f.Run();
+        Assert.Equal(label, f.Vm.ExecuteActionLabel);
+        Assert.Equal(0, confirmation.Calls); Assert.Equal(0, helper.Calls + explorer.Calls);
+        f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, confirmation.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 0 : 1, helper.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 1 : 0, explorer.Calls);
+        Assert.Single(f.History.Saved!.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task RefusedIssuanceUsesCancelAllPath()
+    {
+        var f = new Fixture(); f.Confirmation.Refuse = true;
+        await f.Analyze(); var pending = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, f.Confirmation.Calls);
+        Assert.Empty(f.Actions.Executed); Assert.Single(f.Actions.Cancelled);
+        Assert.Equal("Parcours annule par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+    }
+
     [Fact]
     public void InitialStateMatchesView()
     {
@@ -220,7 +258,7 @@ public sealed class InterventionsViewModelTests
         await pending;
         var call = Assert.Single(f.Actions.Executed);
         Assert.Same(d, call.Diagnostic);
-        Assert.True(call.Confirmed);
+        Assert.NotNull(call.Plan);
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.ValidationCoreState);
         Assert.True(f.Vm.IsReportOpen);
@@ -243,6 +281,7 @@ public sealed class InterventionsViewModelTests
         Assert.True(f.Vm.IsValidationOpen);
         f.Vm.CancelDecisionCommand.Execute(null);
         await pending;
+        Assert.Equal(1, f.Confirmation.Calls);
         Assert.Equal(new[] { "Skip:FlushDns", "Execute:RestartExplorer", "Cancel:SfcScan" }, f.Actions.Order);
         Assert.Equal(f.Diagnostics.Items, f.Actions.Report!.ProposedActions);
         Assert.Equal(new[] { InterventionStatus.Skipped, InterventionStatus.Completed, InterventionStatus.Cancelled }, f.Actions.Report.Results.Select(r => r.Status));
@@ -292,7 +331,7 @@ public sealed class InterventionsViewModelTests
     {
         var helper = new RecordingHelper();
         var explorer = new RecordingExplorer();
-        var real = new InterventionExecutionService(helper, explorer);
+        var real = new InterventionExecutionService(helper, explorer, TestPlans.Authority);
         var f = new Fixture(real);
         f.Diagnostics.Items = new[] { Diagnostic(action) with { Definition = Diagnostic(action).Definition with { RequiresAdministrator = true } } };
         await f.Analyze();
@@ -517,6 +556,7 @@ public sealed class InterventionsViewModelTests
     private sealed class Fixture
     {
         public FakeDiagnostics Diagnostics { get; } = new();
+        public RecordingConfirmation Confirmation { get; } = new();
         public FakeActions Actions { get; } = new();
         public FakeHistory History { get; } = new();
         public InterventionsViewModel Vm { get; }
@@ -524,9 +564,11 @@ public sealed class InterventionsViewModelTests
         public (VirgilCoreState State, string Label)? State { get; private set; }
         public int Persisted { get; private set; }
         public IEnumerable<InterventionItemViewModel> Items => Vm.SystemItems.Concat(Vm.NetworkItems).Concat(Vm.StorageItems).Concat(Vm.InterfaceItems);
-        public Fixture(IInterventionExecutionService? execution = null)
+        public Fixture(IInterventionExecutionService? execution = null, RecordingConfirmation? confirmation = null)
         {
-            Vm = new(Diagnostics, execution ?? Actions, new InterventionReportBuilder(), History);
+            Confirmation = confirmation ?? new RecordingConfirmation();
+            Actions.Authority = Confirmation.Authority;
+            Vm = new(Diagnostics, execution ?? Actions, new InterventionReportBuilder(), History, Confirmation);
             Vm.VirgilMessageRequested += message => Message = message;
             Vm.VirgilStateRequested += (state, label) => State = (state, label);
             Vm.ReportPersisted += (_, _) => Persisted++;
@@ -550,7 +592,8 @@ public sealed class InterventionsViewModelTests
 
     private sealed class FakeActions : IInterventionExecutionService
     {
-        public List<(InterventionDiagnostic Diagnostic, bool Confirmed)> Executed { get; } = new();
+        public ConfirmationService Authority { get; set; } = null!;
+        public List<(InterventionDiagnostic Diagnostic, ConfirmedPlan? Plan)> Executed { get; } = new();
         public List<InterventionDiagnostic> Skipped { get; } = new();
         public List<InterventionDiagnostic> Cancelled { get; } = new();
         public List<string> Order { get; } = new();
@@ -558,13 +601,15 @@ public sealed class InterventionsViewModelTests
         public InterventionStatus ResultStatus { get; set; } = InterventionStatus.Completed;
         public Func<InterventionDiagnostic, CancellationToken, Task<InterventionExecutionResult>>? Handler { get; set; }
         public CancellationToken Token { get; private set; }
-        public Task<InterventionExecutionResult> ExecuteAsync(InterventionDiagnostic diagnostic, bool confirmed, CancellationToken cancellationToken)
+        public Task<InterventionExecutionResult> ExecuteAsync(InterventionDiagnostic diagnostic, ConfirmedPlan? plan, CancellationToken cancellationToken)
         {
-            Executed.Add((diagnostic, confirmed));
+            Assert.NotNull(plan);
+            Assert.True(Authority.TryConsume(plan, InterventionActionPreviewFactory.Create(diagnostic.Definition)).IsAccepted);
+            Executed.Add((diagnostic, plan));
             Order.Add("Execute:" + diagnostic.Definition.Id);
             Token = cancellationToken;
             return Handler?.Invoke(diagnostic, cancellationToken) ?? Task.FromResult(new InterventionExecutionResult
-            { Action = diagnostic.Definition, Status = ResultStatus, WasConfirmed = confirmed });
+            { Action = diagnostic.Definition, Status = ResultStatus, WasConfirmed = plan is not null });
         }
         public InterventionExecutionResult Skip(InterventionDiagnostic diagnostic)
         {
@@ -588,21 +633,25 @@ public sealed class InterventionsViewModelTests
 
     private sealed class RecordingHelper : IInterventionElevatedHelperClient
     {
+        public bool ThrowOnCall { get; init; } = true;
         public int Calls { get; private set; }
         public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
         {
             Calls++;
-            throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
+            return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed });
         }
     }
 
     private sealed class RecordingExplorer : IExplorerRestarter
     {
+        public bool ThrowOnCall { get; init; } = true;
         public int Calls { get; private set; }
         public Task<InterventionExecutionResult> RestartAsync(InterventionDiagnostic diagnostic, CancellationToken cancellationToken)
         {
             Calls++;
-            throw new InvalidOperationException("Explorer ne doit jamais etre relance sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Explorer ne doit jamais etre relance sans EXECUTER.");
+            return Task.FromResult(new InterventionExecutionResult { Action = diagnostic.Definition, Status = InterventionStatus.Completed, WasConfirmed = true });
         }
     }
 

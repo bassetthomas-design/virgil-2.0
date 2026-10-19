@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,29 +15,32 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     public static readonly TimeSpan PreviewValidity = TimeSpan.FromMinutes(10);
 
     private readonly Func<DateTimeOffset> _now;
+    private readonly IConfirmedPlanGate _gate;
     private readonly IRecycleBinService _recycleBinService;
     private readonly CleanupSafetyClassifier _safetyClassifier;
 
-    public CleanupExecutionService()
-        : this(() => DateTimeOffset.Now)
+    public CleanupExecutionService(IConfirmedPlanGate gate)
+        : this(gate, () => DateTimeOffset.Now)
     {
     }
 
-    public CleanupExecutionService(Func<DateTimeOffset>? now)
-        : this(now, new WindowsRecycleBinService())
+    public CleanupExecutionService(IConfirmedPlanGate gate, Func<DateTimeOffset>? now)
+        : this(gate, now, new WindowsRecycleBinService())
     {
     }
 
-    public CleanupExecutionService(Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
-        : this(now, recycleBinService, new CleanupSafetyClassifier())
+    public CleanupExecutionService(IConfirmedPlanGate gate, Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
+        : this(gate, now, recycleBinService, new CleanupSafetyClassifier())
     {
     }
 
     public CleanupExecutionService(
+        IConfirmedPlanGate gate,
         Func<DateTimeOffset>? now,
         IRecycleBinService recycleBinService,
         CleanupSafetyClassifier safetyClassifier)
     {
+        _gate = gate;
         _now = now ?? (() => DateTimeOffset.Now);
         _recycleBinService = recycleBinService;
         _safetyClassifier = safetyClassifier;
@@ -44,10 +48,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
     public Task<CleanupStepResult> ExecuteZoneAsync(
         CleanupZonePreview preview,
+        ConfirmedPlan? plan,
         IProgress<CleanupProgress>? progress,
         CancellationToken cancellationToken)
     {
-        return Task.Run(() => ExecuteZone(preview, progress, cancellationToken), CancellationToken.None);
+        return Task.Run(() => ExecuteZone(preview, plan, progress, cancellationToken), CancellationToken.None);
     }
 
     public CleanupStepResult SkipZone(CleanupZonePreview preview)
@@ -92,6 +97,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
     private CleanupStepResult ExecuteZone(
         CleanupZonePreview preview,
+        ConfirmedPlan? plan,
         IProgress<CleanupProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -103,30 +109,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         var errorFiles = 0;
         var status = CleanupStepStatus.Completed;
 
-        if (preview.Definition.Id == CleanupZoneId.RecycleBin)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return CancelZone(preview);
-            }
-
-            if (_now() - preview.GeneratedAt > PreviewValidity)
-            {
-                return CreateExpiredResult(preview, stopwatch.Elapsed);
-            }
-
-            var recycleResult = _recycleBinService.Empty();
-            stopwatch.Stop();
-            return new CleanupStepResult(
-                preview.Definition,
-                recycleResult.Success ? CleanupStepStatus.Completed : CleanupStepStatus.Failed,
-                (int)Math.Clamp(recycleResult.ItemCount, 0, int.MaxValue),
-                recycleResult.FreedBytes,
-                0,
-                recycleResult.Success ? 0 : 1,
-                stopwatch.Elapsed,
-                string.IsNullOrWhiteSpace(recycleResult.ReadableError) ? Array.Empty<string>() : new[] { recycleResult.ReadableError });
-        }
+        if (cancellationToken.IsCancellationRequested)
+            return CancelZone(preview);
 
         if (!preview.Definition.IsExecutable ||
             preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
@@ -146,6 +130,25 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         if (_now() - preview.GeneratedAt > PreviewValidity)
         {
             return CreateExpiredResult(preview, stopwatch.Elapsed);
+        }
+
+        var validation = _gate.TryConsume(plan, CleanupActionPreviewFactory.Create(preview));
+        if (!validation.IsAccepted)
+            return CancelZone(preview) with { Errors = new[] { "Nettoyage annule.\n" + validation.Message } };
+
+        if (preview.Definition.Id == CleanupZoneId.RecycleBin)
+        {
+            var recycleResult = _recycleBinService.Empty();
+            stopwatch.Stop();
+            return new CleanupStepResult(
+                preview.Definition,
+                recycleResult.Success ? CleanupStepStatus.Completed : CleanupStepStatus.Failed,
+                (int)Math.Clamp(recycleResult.ItemCount, 0, int.MaxValue),
+                recycleResult.FreedBytes,
+                0,
+                recycleResult.Success ? 0 : 1,
+                stopwatch.Elapsed,
+                string.IsNullOrWhiteSpace(recycleResult.ReadableError) ? Array.Empty<string>() : new[] { recycleResult.ReadableError });
         }
 
         var eligible = preview.Candidates.Where(candidate => candidate.IsEligible).ToList();

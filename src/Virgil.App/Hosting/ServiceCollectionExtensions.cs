@@ -50,7 +50,8 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IInterventionCatalog>(), File.Exists, () => Environment.SystemDirectory,
             Process.GetProcessesByName, NetworkInterface.GetAllNetworkInterfaces));
         services.AddTransient<IInterventionExecutionService>(sp => new InterventionExecutionService(
-            sp.GetRequiredService<IInterventionElevatedHelperClient>(), sp.GetRequiredService<IExplorerRestarter>()));
+            sp.GetRequiredService<IInterventionElevatedHelperClient>(), sp.GetRequiredService<IExplorerRestarter>(),
+            sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<InterventionReportBuilder>(_ => new InterventionReportBuilder());
 
         services.AddTransient<WingetAvailabilityService>(sp => new WingetAvailabilityService(sp.GetRequiredService<IProcessRunner>()));
@@ -97,7 +98,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ICleanupService>(sp => sp.GetRequiredService<CleanupPreviewService>());
         services.AddTransient<ICleanupPreviewService>(sp => sp.GetRequiredService<CleanupPreviewService>());
         services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
-            () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
+            sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
         services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
@@ -119,7 +120,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<ICleanupExecutionService>(),
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>(),
-            sp.GetRequiredService<IReportHistoryService>()));
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<CleanupViewModel>()));
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(
             sp.GetRequiredService<IUpdateScanService>(), sp.GetRequiredService<IUpdateExecutionService>(),
@@ -128,7 +129,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<UpdatesViewModel>()));
         services.AddSingleton<InterventionsViewModel>(sp => new InterventionsViewModel(
             sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IInterventionExecutionService>(),
-            sp.GetRequiredService<InterventionReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));
+            sp.GetRequiredService<InterventionReportBuilder>(), sp.GetRequiredService<IReportHistoryService>(),
+            sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<InterventionsViewModel>()));
         services.AddSingleton<ResourcesViewModel>(sp => new ResourcesViewModel(
             sp.GetRequiredService<IResourceMonitoringService>(), sp.GetRequiredService<IProcessActionService>(),

@@ -106,8 +106,8 @@ public sealed class CleanupServicesTests
         using var cancellation = new CancellationTokenSource();
         var progress = new CancellingProgress(cancellation);
 
-        var result = await new CleanupExecutionService(() => Now)
-            .ExecuteZoneAsync(preview, progress, cancellation.Token);
+        var result = await new CleanupExecutionService(TestPlans.Authority, () => Now)
+            .ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), progress, cancellation.Token);
 
         Assert.True(result.Status is CleanupStepStatus.Cancelled or CleanupStepStatus.Completed);
         Assert.True(result.DeletedFiles <= 2);
@@ -120,7 +120,7 @@ public sealed class CleanupServicesTests
         var file = sandbox.WriteFile("old.tmp", 32, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
 
-        var result = new CleanupExecutionService(() => Now).SkipZone(preview);
+        var result = new CleanupExecutionService(TestPlans.Authority, () => Now).SkipZone(preview);
 
         Assert.Equal(CleanupStepStatus.Skipped, result.Status);
         Assert.True(File.Exists(file));
@@ -132,9 +132,9 @@ public sealed class CleanupServicesTests
         using var sandbox = TemporarySandbox.Create();
         var file = sandbox.WriteFile("old.tmp", 32, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
-        var staleExecution = new CleanupExecutionService(() => Now.AddMinutes(11));
+        var staleExecution = new CleanupExecutionService(TestPlans.Authority, () => Now.AddMinutes(11));
 
-        var result = await staleExecution.ExecuteZoneAsync(preview, null, CancellationToken.None);
+        var result = await staleExecution.ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         Assert.Equal(CleanupStepStatus.Expired, result.Status);
         Assert.True(File.Exists(file));
@@ -201,7 +201,7 @@ public sealed class CleanupServicesTests
         var definition = TestZone(sandbox.Root, TimeSpan.FromHours(1));
         var preview = new CleanupZonePreview(definition, Now, 0, 0, 0, 0, Array.Empty<CleanupCandidate>(), Array.Empty<string>());
 
-        var result = new CleanupExecutionService(() => Now).CancelZone(preview);
+        var result = new CleanupExecutionService(TestPlans.Authority, () => Now).CancelZone(preview);
 
         Assert.Equal(CleanupStepStatus.Cancelled, result.Status);
     }
@@ -212,8 +212,8 @@ public sealed class CleanupServicesTests
         using var sandbox = TemporarySandbox.Create();
         sandbox.WriteFile("old.tmp", 10, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
-        var service = new CleanupExecutionService(() => Now.AddSeconds(2));
-        var result = await service.ExecuteZoneAsync(preview, null, CancellationToken.None);
+        var service = new CleanupExecutionService(TestPlans.Authority, () => Now.AddSeconds(2));
+        var result = await service.ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         var report = service.CreateReport(Now, new[] { result }, new[] { "Session partielle." });
 
@@ -250,7 +250,7 @@ public sealed class CleanupServicesTests
 
     private static Task<CleanupStepResult> ExecuteAsync(CleanupZonePreview preview)
     {
-        return new CleanupExecutionService(() => Now).ExecuteZoneAsync(preview, null, CancellationToken.None);
+        return new CleanupExecutionService(TestPlans.Authority, () => Now).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
     }
 
     private sealed class CancellingProgress : IProgress<CleanupProgress>

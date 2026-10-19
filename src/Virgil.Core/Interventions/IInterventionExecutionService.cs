@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Interventions;
@@ -6,7 +7,7 @@ public interface IInterventionExecutionService
 {
     Task<InterventionExecutionResult> ExecuteAsync(
         InterventionDiagnostic diagnostic,
-        bool confirmed,
+        ConfirmedPlan? plan,
         CancellationToken cancellationToken);
 
     InterventionExecutionResult Skip(InterventionDiagnostic diagnostic);

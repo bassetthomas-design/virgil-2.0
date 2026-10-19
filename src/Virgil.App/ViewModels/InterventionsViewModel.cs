@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
@@ -20,6 +22,7 @@ public partial class InterventionsViewModel : ObservableObject
     private readonly InterventionReportBuilder _reportBuilder;
     private readonly List<InterventionDiagnostic> _diagnostics = new();
     private readonly Dictionary<InterventionId, InterventionItemViewModel> _selectionById = new();
+    private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<InterventionDecision>? _activeDecision;
@@ -31,8 +34,10 @@ public partial class InterventionsViewModel : ObservableObject
         IInterventionDiagnosticService diagnosticService,
         IInterventionExecutionService executionService,
         InterventionReportBuilder reportBuilder,
-        IReportHistoryService reportHistoryService)
+        IReportHistoryService reportHistoryService,
+        IConfirmationService confirmationService)
     {
+        _confirmationService = confirmationService;
         _diagnosticService = diagnosticService;
         _executionService = executionService;
         _reportBuilder = reportBuilder;
@@ -199,6 +204,21 @@ public partial class InterventionsViewModel : ObservableObject
                 _operationCancellation!.Token.ThrowIfCancellationRequested();
                 var decision = await AskDecisionAsync(diagnostic).ConfigureAwait(true);
 
+                ConfirmedPlan? plan = null;
+                if (decision == InterventionDecision.Execute)
+                {
+                    try
+                    {
+                        plan = _confirmationService.Issue(InterventionActionPreviewFactory.Create(diagnostic.Definition),
+                            new ConfirmationConsent(diagnostic.Definition.RiskLevel == InterventionRiskLevel.Sensitive
+                                ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+                    }
+                    catch (ConfirmationRefusedException)
+                    {
+                        decision = InterventionDecision.CancelAll;
+                    }
+                }
+
                 if (decision == InterventionDecision.CancelAll)
                 {
                     results.Add(_executionService.Cancel(diagnostic));
@@ -218,7 +238,7 @@ public partial class InterventionsViewModel : ObservableObject
                 SetButtonsEnabled(false);
 
                 var result = await _executionService
-                    .ExecuteAsync(diagnostic, confirmed: true, _operationCancellation.Token)
+                    .ExecuteAsync(diagnostic, plan, _operationCancellation.Token)
                     .ConfigureAwait(true);
 
                 _criticalActionStarted = false;

@@ -146,9 +146,9 @@ public sealed class InterventionsModuleTests
     public async Task Execution_service_never_elevates_without_explicit_confirmation()
     {
         var helper = new RecordingHelperClient();
-        var service = new InterventionExecutionService(helper, new FakeExplorerRestarter());
+        var service = new InterventionExecutionService(helper, new FakeExplorerRestarter(), TestPlans.Authority);
 
-        var result = await service.ExecuteAsync(Diagnostic(InterventionId.FlushDns), confirmed: false, CancellationToken.None);
+        var result = await service.ExecuteAsync(Diagnostic(InterventionId.FlushDns), plan: null, CancellationToken.None);
 
         Assert.Equal(InterventionStatus.Failed, result.Status);
         Assert.False(result.WasElevated);
@@ -160,9 +160,9 @@ public sealed class InterventionsModuleTests
     {
         var helper = new RecordingHelperClient();
         var restarter = new FakeExplorerRestarter();
-        var service = new InterventionExecutionService(helper, restarter);
+        var service = new InterventionExecutionService(helper, restarter, TestPlans.Authority);
 
-        var result = await service.ExecuteAsync(Diagnostic(InterventionId.RestartExplorer), confirmed: true, CancellationToken.None);
+        var result = await service.ExecuteAsync(Diagnostic(InterventionId.RestartExplorer), TestPlans.Intervention(Diagnostic(InterventionId.RestartExplorer)), CancellationToken.None);
 
         Assert.Equal(InterventionStatus.Completed, result.Status);
         Assert.False(result.WasElevated);

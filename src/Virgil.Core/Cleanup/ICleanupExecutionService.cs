@@ -1,3 +1,4 @@
+using Virgil.Core.Actions;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -10,6 +11,7 @@ public interface ICleanupExecutionService
 {
     Task<CleanupStepResult> ExecuteZoneAsync(
         CleanupZonePreview preview,
+        ConfirmedPlan? plan,
         IProgress<CleanupProgress>? progress,
         CancellationToken cancellationToken);
 
