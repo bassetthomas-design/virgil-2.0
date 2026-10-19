@@ -16,7 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Virgil.Core\Virgil.Core.csproj" />
     <ProjectReference Include="..\..\src\Virgil.Contracts\Virgil.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\Virgil.App\Virgil.App.csproj" />
     <ProjectReference Include="..\..\src\Virgil.ElevatedHelper\Virgil.ElevatedHelper.csproj" />
   </ItemGroup>
 </Project>

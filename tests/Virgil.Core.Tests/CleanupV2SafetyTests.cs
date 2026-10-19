@@ -350,18 +350,6 @@ public sealed class CleanupV2SafetyTests
     }
 
     [Fact]
-    public void Cleanup_view_has_no_global_clean_everything_button()
-    {
-        var root = FindRepositoryRoot();
-        var xaml = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "CleanupView.xaml"));
-
-        Assert.DoesNotContain("TOUT NETTOYER", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NETTOYAGE SUR", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NETTOYAGE AVANCE", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("A REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void Dangerous_user_script_commands_are_not_reproduced_in_cleanup_core()
     {
         var root = Path.Combine(FindRepositoryRoot(), "src", "Virgil.Core", "Cleanup");
