@@ -133,3 +133,5 @@ Ce mécanisme a remplacé le paramètre `bool userConfirmed` de la désinstallat
 ## Migration
 
 La [roadmap](ROADMAP.md) fixe les phases et leurs critères de sortie. La phase 0 construit les fondations sans nouvelle fonctionnalité ; la phase 1 migre Diagnostic et Nettoyage sur le contrat commun. Les capacités déjà présentes restent soumises à leurs protections tant que leur migration n’est pas validée. La présente documentation n’atteste ni l’implémentation de la cible ni un build réussi.
+
+Les gardes de chemins purs du protocole élevé restent dans Contracts ; les inspections disque, la création des dossiers, les ACL et les fichiers du protocole client sont dans Infrastructure.Windows derrière les ports Core IElevatedProtocolRoot et IElevatedProtocolFiles, injectés par Hosting, et la validation disque/ACL du helper reste interne au helper, qui ne référence que Contracts.

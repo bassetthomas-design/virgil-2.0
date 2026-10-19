@@ -16,7 +16,7 @@ public sealed class ElevatedRequestValidator
     private readonly Func<DateTimeOffset> _utcNow;
     private readonly Func<string> _localAppDataProvider;
     private readonly ElevatedPathGuard _pathGuard;
-    private readonly ElevatedProtocolRoot _protocolRoot;
+    private readonly Func<string, string> _validateProtocolRoot;
 
     public ElevatedRequestValidator()
         : this(() => DateTimeOffset.UtcNow, () => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))
@@ -27,32 +27,32 @@ public sealed class ElevatedRequestValidator
     {
         _utcNow = utcNow;
         _localAppDataProvider = localAppDataProvider;
-        _pathGuard = new ElevatedPathGuard();
-        _protocolRoot = new ElevatedProtocolRoot(_pathGuard);
+        _pathGuard = ElevatedDiskInspector.CreatePathGuard();
+        _validateProtocolRoot = new HelperElevatedProtocolRoot(_pathGuard).ValidateExisting;
     }
 
     public ElevatedRequestValidator(
         Func<DateTimeOffset> utcNow,
         Func<string> localAppDataProvider,
         ElevatedPathGuard pathGuard,
-        ElevatedProtocolRoot protocolRoot)
+        Func<string, string> validateProtocolRoot)
     {
         _utcNow = utcNow;
         _localAppDataProvider = localAppDataProvider;
         _pathGuard = pathGuard;
-        _protocolRoot = protocolRoot;
+        _validateProtocolRoot = validateProtocolRoot;
     }
 
     public string RootDirectory => _pathGuard.GetProtocolRoot(_localAppDataProvider());
 
     public ElevatedPathGuard PathGuard => _pathGuard;
 
-    public ElevatedProtocolRoot ProtocolRoot => _protocolRoot;
+    internal Func<string, string> ValidateProtocolRoot => _validateProtocolRoot;
 
     public async Task<ValidatedElevatedRequest> ValidateAsync(string requestPath)
     {
         var localAppData = _pathGuard.NormalizeLocalAppData(_localAppDataProvider());
-        var rootDirectory = _protocolRoot.ValidateExisting(localAppData);
+        var rootDirectory = _validateProtocolRoot(localAppData);
         var fullRequestPath = _pathGuard.ValidateFilePath(
             localAppData,
             requestPath,

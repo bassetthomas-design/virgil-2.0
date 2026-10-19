@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using Virgil.Infrastructure.Windows;
 using Xunit;
 
@@ -85,12 +87,37 @@ public sealed class SingleInstanceGuardTests
         Assert.False(received.WaitOne(TimeSpan.FromMilliseconds(100)));
     }
 
+    private sealed class NativeThreadExit : WaitHandle
+    {
+        public void OpenCurrentThread()
+        {
+            SafeWaitHandle = OpenThread(0x00100000, false, GetCurrentThreadId()); // SYNCHRONIZE
+            Assert.False(SafeWaitHandle.IsInvalid);
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern SafeWaitHandle OpenThread(
+            uint desiredAccess, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, uint threadId);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+    }
+
     [Fact]
     public void AbandonedMutexIsAcquired()
     {
         var names = Names();
         using var mutex = new Mutex(false, names.Mutex);
-        OnOtherThread(() => Assert.True(mutex.WaitOne(0)));
+        using var nativeExit = new NativeThreadExit();
+        OnOtherThread(() =>
+        {
+            // Retain the native thread handle before it can exit and its ID can be reused.
+            nativeExit.OpenCurrentThread();
+            Assert.True(mutex.WaitOne(0));
+        });
+        // Join observes managed completion, which can precede native thread teardown and
+        // mutex abandonment. A signaled OS thread handle guarantees teardown completed.
+        Assert.True(nativeExit.WaitOne(TimeSpan.FromSeconds(5)));
         using var guard = new SingleInstanceGuard(names.Mutex, names.Event);
         Assert.True(guard.TryAcquire());
     }

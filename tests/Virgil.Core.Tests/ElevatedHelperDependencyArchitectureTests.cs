@@ -17,6 +17,17 @@ public sealed class ElevatedHelperDependencyArchitectureTests
     }
 
     [Fact]
+    public void ContractsAssemblyHasNoWindowsSecurityReferences()
+    {
+        var references = typeof(Virgil.Contracts.Elevated.ElevatedPathGuard).Assembly.GetReferencedAssemblies()
+            .Select(reference => reference.Name).ToArray();
+
+        Assert.DoesNotContain("System.Security.AccessControl", references);
+        Assert.DoesNotContain("System.IO.FileSystem.AccessControl", references);
+        Assert.DoesNotContain("System.Security.Principal.Windows", references);
+    }
+
+    [Fact]
     public void HelperProjectReferencesOnlyContracts()
     {
         var root = FindRepositoryRoot();

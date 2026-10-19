@@ -18,28 +18,30 @@ public readonly record struct ElevatedPathEntry(bool Exists, FileAttributes Attr
 
 public sealed class ElevatedPathGuard
 {
+    public const string ApplicationDirectoryName = "Virgil";
+    public const string TemporaryDirectoryName = "Temp";
     private readonly Func<string, ElevatedPathEntry> _inspect;
 
-    public ElevatedPathGuard()
-        : this(InspectPath)
-    {
-    }
+    private readonly Func<string, bool> _volumeExists;
 
-    public ElevatedPathGuard(Func<string, ElevatedPathEntry> inspect)
+    public ElevatedPathGuard(
+        Func<string, ElevatedPathEntry> inspect,
+        Func<string, bool> volumeExists)
     {
         _inspect = inspect;
+        _volumeExists = volumeExists;
     }
 
     public string GetProtocolRoot(string localAppData)
     {
-        return Path.Combine(NormalizeLocalAppData(localAppData), "Virgil", "Temp");
+        return Path.Combine(NormalizeLocalAppData(localAppData), ApplicationDirectoryName, TemporaryDirectoryName);
     }
 
     public string ValidateRoot(string localAppData, bool allowMissingSecureDirectories)
     {
         var normalizedLocalAppData = NormalizeLocalAppData(localAppData);
-        var virgilDirectory = Path.Combine(normalizedLocalAppData, "Virgil");
-        var rootDirectory = Path.Combine(virgilDirectory, "Temp");
+        var virgilDirectory = Path.Combine(normalizedLocalAppData, ApplicationDirectoryName);
+        var rootDirectory = Path.Combine(virgilDirectory, TemporaryDirectoryName);
 
         ValidateDirectory(normalizedLocalAppData, mustExist: true);
         ValidateDirectory(virgilDirectory, mustExist: !allowMissingSecureDirectories);
@@ -105,7 +107,7 @@ public sealed class ElevatedPathGuard
 
         var fullPath = NormalizePath(localAppData);
         var volumeRoot = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrWhiteSpace(volumeRoot) || !Directory.Exists(volumeRoot))
+        if (string.IsNullOrWhiteSpace(volumeRoot) || !_volumeExists(volumeRoot))
         {
             throw new InvalidOperationException("Racine Windows LocalAppData invalide.");
         }
@@ -146,22 +148,6 @@ public sealed class ElevatedPathGuard
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             throw new InvalidOperationException("Verification physique du chemin impossible.", ex);
-        }
-    }
-
-    private static ElevatedPathEntry InspectPath(string path)
-    {
-        try
-        {
-            return new ElevatedPathEntry(true, File.GetAttributes(path));
-        }
-        catch (FileNotFoundException)
-        {
-            return ElevatedPathEntry.Missing;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return ElevatedPathEntry.Missing;
         }
     }
 

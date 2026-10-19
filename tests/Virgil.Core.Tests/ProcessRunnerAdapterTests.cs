@@ -1,3 +1,4 @@
+using Virgil.Infrastructure.Windows;
 using Virgil.Core.Applications;
 using Virgil.Core.Interventions;
 using Virgil.Core.Processes;
@@ -122,7 +123,8 @@ public sealed class ProcessRunnerAdapterTests
             var helperPath = Path.Combine(directory, "helper.exe");
             await File.WriteAllTextAsync(helperPath, string.Empty);
             var runner = new FakeProcessRunner { Result = new(false, null, "UAC refused") };
-            var store = new ElevatedHelperRequestStore(() => directory);
+            var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(),
+                () => System.Security.Cryptography.RandomNumberGenerator.GetBytes(16), () => DateTimeOffset.UtcNow);
             var client = new ElevatedHelperClient(store, new ElevatedProcessLauncher(runner), () => helperPath);
             var result = await client.ExecuteAsync(new InterventionCatalog().Get(InterventionId.FlushDns), CancellationToken.None);
             Assert.Single(runner.Requests);

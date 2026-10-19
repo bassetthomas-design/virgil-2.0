@@ -37,6 +37,24 @@ public sealed class CompositionRootTests
     }
 
     [Fact]
+    [Trait("Category", "Windows")]
+    public void ElevatedRequestStoreUsesInjectedInfrastructurePorts()
+    {
+        var root = new Virgil.Infrastructure.Windows.ElevatedProtocolRoot();
+        var files = new Virgil.Infrastructure.Windows.ElevatedProtocolFiles();
+        var services = new ServiceCollection().AddVirgilServices();
+        services.AddTransient<IElevatedProtocolRoot>(_ => root);
+        services.AddTransient<IElevatedProtocolFiles>(_ => files);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var store = provider.GetRequiredService<ElevatedHelperRequestStore>();
+        var fields = typeof(ElevatedHelperRequestStore).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.Same(root, fields.Single(field => field.FieldType == typeof(IElevatedProtocolRoot)).GetValue(store));
+        Assert.Same(files, fields.Single(field => field.FieldType == typeof(IElevatedProtocolFiles)).GetValue(store));
+        Assert.Same(root.PathGuard, fields.Single(field => field.FieldType == typeof(Virgil.Contracts.Elevated.ElevatedPathGuard)).GetValue(store));
+    }
+
+    [Fact]
     public void ApplicationsServiceUsesTheSharedConfirmationGate()
     {
         var services = new ServiceCollection().AddVirgilServices();
