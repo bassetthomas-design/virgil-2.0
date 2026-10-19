@@ -1,3 +1,4 @@
+using Virgil.Infrastructure.Windows;
 using Virgil.Contracts.Elevated;
 using System.Text.Json;
 using Virgil.Core.Cleanup;
@@ -181,7 +182,8 @@ public sealed class InterventionsModuleTests
         var helperPath = Path.Combine(sandbox.Root, "Virgil.ElevatedHelper.exe");
         File.WriteAllText(helperPath, string.Empty);
         var client = new ElevatedHelperClient(
-            new ElevatedHelperRequestStore(() => occupiedPath),
+            new ElevatedHelperRequestStore(() => occupiedPath, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(),
+                () => System.Security.Cryptography.RandomNumberGenerator.GetBytes(16), () => DateTimeOffset.UtcNow),
             launcher,
             () => helperPath);
 

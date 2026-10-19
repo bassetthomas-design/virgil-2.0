@@ -1,12 +1,13 @@
+using Virgil.Core.Interventions;
 using Virgil.Contracts.Elevated;
 using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace Virgil.Core.Interventions;
+namespace Virgil.Infrastructure.Windows;
 
 [SupportedOSPlatform("windows")]
-public sealed class ElevatedProtocolRoot
+public sealed class ElevatedProtocolRoot : IElevatedProtocolRoot
 {
     private static readonly SecurityIdentifier SystemSid =
         new(WellKnownSidType.LocalSystemSid, null);
@@ -33,6 +34,8 @@ public sealed class ElevatedProtocolRoot
         _pathGuard = pathGuard;
         _currentUserSidProvider = currentUserSidProvider;
     }
+
+    public ElevatedPathGuard PathGuard => _pathGuard;
 
     public string EnsureCreated(string localAppData)
     {

@@ -1,7 +1,8 @@
+using Virgil.Infrastructure.Windows;
 using Virgil.Contracts.Elevated;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using ClientDiskInspector = Virgil.Core.Interventions.ElevatedDiskInspector;
+using ClientDiskInspector = Virgil.Infrastructure.Windows.ElevatedDiskInspector;
 using HelperDiskInspector = Virgil.ElevatedHelper.ElevatedDiskInspector;
 using System.Text.Json;
 using Virgil.Core.Interventions;
@@ -120,7 +121,7 @@ public abstract class ElevatedProtocolSecurityCases
         var root = protocolRoot.EnsureCreated(sandbox.Root);
         var requestPath = Path.Combine(root, $"intervention-{Nonce}.request.json");
         File.WriteAllText(requestPath, "original");
-        var store = CreateStore(sandbox.Root, guard, protocolRoot, () => FixedUtcNow);
+        var store = CreateStore(sandbox.Root, protocolRoot, () => FixedUtcNow);
 
         await Assert.ThrowsAsync<IOException>(() =>
             store.CreateAsync(InterventionId.FlushDns, CancellationToken.None));
@@ -201,7 +202,7 @@ public abstract class ElevatedProtocolSecurityCases
         var current = FixedUtcNow;
         var guard = CreateGuard();
         var protocolRoot = new ElevatedProtocolRoot(guard);
-        var store = CreateStore(sandbox.Root, guard, protocolRoot, () => current);
+        var store = CreateStore(sandbox.Root, protocolRoot, () => current);
         var requestFile = await store.CreateAsync(InterventionId.FlushDns, CancellationToken.None);
         current = FixedUtcNow.AddSeconds(5);
         var validResult = ValidResult(requestFile, FixedUtcNow.AddSeconds(1), FixedUtcNow.AddSeconds(2));
@@ -279,7 +280,7 @@ public abstract class ElevatedProtocolSecurityCases
         var current = FixedUtcNow;
         var guard = CreateGuard();
         var protocolRoot = new ElevatedProtocolRoot(guard);
-        var store = CreateStore(sandbox.Root, guard, protocolRoot, () => current);
+        var store = CreateStore(sandbox.Root, protocolRoot, () => current);
         var requestFile = await store.CreateAsync(InterventionId.FlushDns, CancellationToken.None);
         var validator = new ElevatedRequestValidator(
             () => current,
@@ -374,14 +375,13 @@ public abstract class ElevatedProtocolSecurityCases
 
     private static ElevatedHelperRequestStore CreateStore(
         string localAppData,
-        ElevatedPathGuard guard,
-        ElevatedProtocolRoot protocolRoot,
+        IElevatedProtocolRoot protocolRoot,
         Func<DateTimeOffset> utcNow)
     {
         return new ElevatedHelperRequestStore(
             () => localAppData,
-            guard,
             protocolRoot,
+            new ElevatedProtocolFiles(),
             () => Convert.FromHexString(Nonce),
             utcNow);
     }

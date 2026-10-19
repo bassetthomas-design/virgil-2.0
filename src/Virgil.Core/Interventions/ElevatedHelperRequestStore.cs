@@ -1,5 +1,4 @@
 using Virgil.Contracts.Elevated;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Virgil.Contracts;
@@ -13,34 +12,22 @@ public sealed class ElevatedHelperRequestStore
 
     private readonly Func<string> _localAppDataProvider;
     private readonly ElevatedPathGuard _pathGuard;
-    private readonly ElevatedProtocolRoot _protocolRoot;
+    private readonly IElevatedProtocolRoot _protocolRoot;
+    private readonly IElevatedProtocolFiles _files;
     private readonly Func<byte[]> _nonceProvider;
     private readonly Func<DateTimeOffset> _utcNow;
 
-    public ElevatedHelperRequestStore()
-        : this(() => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))
-    {
-    }
-
-    public ElevatedHelperRequestStore(Func<string> localAppDataProvider)
-    {
-        _localAppDataProvider = localAppDataProvider;
-        _pathGuard = ElevatedDiskInspector.CreatePathGuard();
-        _protocolRoot = new ElevatedProtocolRoot(_pathGuard);
-        _nonceProvider = () => RandomNumberGenerator.GetBytes(16);
-        _utcNow = () => DateTimeOffset.UtcNow;
-    }
-
     public ElevatedHelperRequestStore(
         Func<string> localAppDataProvider,
-        ElevatedPathGuard pathGuard,
-        ElevatedProtocolRoot protocolRoot,
+        IElevatedProtocolRoot protocolRoot,
+        IElevatedProtocolFiles files,
         Func<byte[]> nonceProvider,
         Func<DateTimeOffset> utcNow)
     {
         _localAppDataProvider = localAppDataProvider;
-        _pathGuard = pathGuard;
+        _pathGuard = protocolRoot.PathGuard;
         _protocolRoot = protocolRoot;
+        _files = files;
         _nonceProvider = nonceProvider;
         _utcNow = utcNow;
     }
@@ -77,17 +64,8 @@ public sealed class ElevatedHelperRequestStore
 
         try
         {
-            await using var stream = new FileStream(requestPath, new FileStreamOptions
-            {
-                Mode = FileMode.CreateNew,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                Options = FileOptions.Asynchronous | FileOptions.WriteThrough
-            });
-            await JsonSerializer.SerializeAsync(stream, request, JsonOptions(), cancellationToken)
+            await _files.WriteRequestAsync(requestPath, request, JsonOptions(), cancellationToken)
                 .ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            stream.Flush(flushToDisk: true);
         }
         catch
         {
@@ -118,25 +96,13 @@ public sealed class ElevatedHelperRequestStore
                 requestFile.LocalAppDataDirectory,
                 requestFile.ResultPath,
                 ElevatedPathExistence.Optional);
-            if (!File.Exists(resultPath))
+            if (!_files.Exists(resultPath))
             {
                 return null;
             }
 
-            ElevatedInterventionResult? result;
-            await using (var stream = new FileStream(resultPath, new FileStreamOptions
-            {
-                Mode = FileMode.Open,
-                Access = FileAccess.Read,
-                Share = FileShare.None,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
-            }))
-            {
-                result = await JsonSerializer.DeserializeAsync<ElevatedInterventionResult>(
-                    stream,
-                    JsonOptions(),
-                    cancellationToken).ConfigureAwait(false);
-            }
+            var result = await _files.ReadResultAsync(resultPath, JsonOptions(), cancellationToken)
+                .ConfigureAwait(false);
 
             _pathGuard.ValidateFilePath(
                 requestFile.LocalAppDataDirectory,
@@ -267,9 +233,9 @@ public sealed class ElevatedHelperRequestStore
                 localAppData,
                 path,
                 ElevatedPathExistence.Optional);
-            if (File.Exists(validatedPath))
+            if (_files.Exists(validatedPath))
             {
-                File.Delete(validatedPath);
+                _files.Delete(validatedPath);
             }
         }
         catch

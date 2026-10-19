@@ -1,6 +1,6 @@
 using Virgil.Contracts.Elevated;
 
-namespace Virgil.Core.Interventions;
+namespace Virgil.Infrastructure.Windows;
 
 public static class ElevatedDiskInspector
 {

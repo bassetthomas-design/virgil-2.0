@@ -43,8 +43,14 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IExplorerRestarter>(sp => new ExplorerRestarter(
             Process.GetProcessesByName, sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<IElevatedProcessLauncher>(sp => new ElevatedProcessLauncher(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IElevatedProtocolRoot>(_ => new Virgil.Infrastructure.Windows.ElevatedProtocolRoot());
+        services.AddTransient<IElevatedProtocolFiles>(_ => new Virgil.Infrastructure.Windows.ElevatedProtocolFiles());
+        services.AddTransient<ElevatedHelperRequestStore>(sp => new ElevatedHelperRequestStore(
+            () => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            sp.GetRequiredService<IElevatedProtocolRoot>(), sp.GetRequiredService<IElevatedProtocolFiles>(),
+            () => System.Security.Cryptography.RandomNumberGenerator.GetBytes(16), () => DateTimeOffset.UtcNow));
         services.AddTransient<IInterventionElevatedHelperClient>(sp => new ElevatedHelperClient(
-            new ElevatedHelperRequestStore(), sp.GetRequiredService<IElevatedProcessLauncher>(),
+            sp.GetRequiredService<ElevatedHelperRequestStore>(), sp.GetRequiredService<IElevatedProcessLauncher>(),
             () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));
         services.AddTransient<IInterventionDiagnosticService>(sp => new InterventionDiagnosticService(
             sp.GetRequiredService<IInterventionCatalog>(), File.Exists, () => Environment.SystemDirectory,
