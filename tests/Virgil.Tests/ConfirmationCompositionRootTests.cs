@@ -10,7 +10,7 @@ public sealed class ConfirmationCompositionRootTests
     [Fact]
     public void ApplicationCompositionResolvesInfrastructureLocationPort()
     {
-        var services = new ServiceCollection().AddVirgilServices();
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true, ValidateScopes = true
