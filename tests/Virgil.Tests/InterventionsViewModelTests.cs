@@ -26,7 +26,9 @@ public sealed class InterventionsViewModelTests
         var f = new Fixture(service, confirmation);
         var diagnostic = Diagnostic(id, risk: risk);
         f.Diagnostics.Items = new[] { diagnostic with { Definition = diagnostic.Definition with { RequiresAdministrator = id != InterventionId.RestartExplorer } } };
-        await f.Analyze(); var pending = f.Run();
+        await f.Analyze();
+        Assert.Single(f.Items).IsSelected = true;
+        var pending = f.Run();
         Assert.Equal(label, f.Vm.ExecuteActionLabel);
         Assert.Equal(0, confirmation.Calls); Assert.Equal(0, helper.Calls + explorer.Calls);
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
