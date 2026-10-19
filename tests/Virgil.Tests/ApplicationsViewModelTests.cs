@@ -16,6 +16,38 @@ namespace Virgil.Tests;
 [Trait("Category", "Windows")]
 public sealed class ApplicationsViewModelTests
 {
+    [Theory]
+    [InlineData(InstallationLocationOpenResult.Missing, "Emplacement introuvable.")]
+    [InlineData(InstallationLocationOpenResult.Opened, "Emplacement ouvert.\nAucune suppression executee.")]
+    [InlineData(InstallationLocationOpenResult.Failed, "Ouverture emplacement impossible.")]
+    public async Task LocationUsesInjectedPortWithoutAccessingRealFileSystem(
+        InstallationLocationOpenResult result, string message)
+    {
+        var location = new FakeLocation { Result = result };
+        var f = new Fixture(location: location);
+        const string path = @"Z:\virtual-only\application";
+        f.Inventory.Report = new() { Applications = [Safe() with { InstallLocation = path }] };
+        await f.Analyze();
+        f.OpenDetails();
+        await f.Vm.OpenApplicationLocationCommand.ExecuteAsync(null);
+        Assert.Equal(path, Assert.Single(location.Paths));
+        Assert.Contains(message, f.Messages);
+        Assert.Empty(f.Runner.Requests);
+        Assert.Empty(f.Dialog.Calls);
+    }
+
+    private sealed class FakeLocation : IInstallationLocationService
+    {
+        public InstallationLocationOpenResult Result { get; init; }
+        public List<string> Paths { get; } = new();
+        public Task<InstallationLocationOpenResult> OpenAsync(string path, CancellationToken cancellationToken)
+        {
+            Paths.Add(path);
+            Assert.False(cancellationToken.CanBeCanceled);
+            return Task.FromResult(Result);
+        }
+    }
+
     [Fact]
     public void InitialStateIsReadOnlyAndHasNoSelection()
     {
@@ -39,11 +71,12 @@ public sealed class ApplicationsViewModelTests
     public void ConstructorRequiresEveryDependency()
     {
         var f = new Fixture();
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(null!, f.Uninstall, f.Runner, f.History, f.Dialog, f.Confirmations));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, null!, f.Runner, f.History, f.Dialog, f.Confirmations));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, null!, f.History, f.Dialog, f.Confirmations));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, null!, f.Dialog, f.Confirmations));
-        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, f.History, null!, f.Confirmations));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, f.History, f.Dialog, f.Confirmations, null!));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(null!, f.Uninstall, f.Runner, f.History, f.Dialog, f.Confirmations, f.Location));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, null!, f.Runner, f.History, f.Dialog, f.Confirmations, f.Location));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, null!, f.History, f.Dialog, f.Confirmations, f.Location));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, null!, f.Dialog, f.Confirmations, f.Location));
+        Assert.Throws<ArgumentNullException>(() => new ApplicationsViewModel(f.Inventory, f.Uninstall, f.Runner, f.History, null!, f.Confirmations, f.Location));
     }
 
     [Fact]
@@ -471,6 +504,10 @@ public sealed class ApplicationsViewModelTests
         Assert.Contains("owner.Focus();", service);
         Assert.Contains("MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No", service);
         var vm = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Virgil.App/ViewModels/ApplicationsViewModel.cs"));
+        Assert.DoesNotContain("System.IO", vm);
+        Assert.DoesNotContain("Directory.Exists", vm);
+        Assert.DoesNotContain("File.Exists", vm);
+        Assert.DoesNotContain("explorer.exe", vm);
         Assert.DoesNotContain("System.Windows", vm);
         Assert.DoesNotContain("Process.Start", vm);
         Assert.DoesNotContain("ProcessStartInfo", vm);
@@ -561,16 +598,18 @@ public sealed class ApplicationsViewModelTests
         public FakeRunner Runner { get; } = new();
         public FakeHistory History { get; } = new();
         public FakeDialog Dialog { get; } = new();
+        public IInstallationLocationService Location { get; }
         public ApplicationUninstallService Uninstall { get; }
         public ApplicationsViewModel Vm { get; }
         public List<string> Messages { get; } = new();
         public List<(VirgilCoreState State, string Label)> States { get; } = new();
         public int Persisted { get; private set; }
         public IEnumerable<ApplicationItemViewModel> Cards => Vm.Entries.OfType<ApplicationItemViewModel>();
-        public Fixture(IConfirmationService? confirmations = null)
+        public Fixture(IConfirmationService? confirmations = null, IInstallationLocationService? location = null)
         {
             Uninstall = new(new ApplicationUninstallCommandValidator(), new ShellApplicationProcessLauncher(Runner), new ApplicationRemnantScanner(), Confirmations);
-            Vm = new(Inventory, Uninstall, Runner, History, Dialog, confirmations ?? Confirmations);
+            Location = location ?? new Virgil.Infrastructure.Applications.InstallationLocationService(Runner);
+            Vm = new(Inventory, Uninstall, Runner, History, Dialog, confirmations ?? Confirmations, Location);
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.VirgilStateRequested += (s, l) => States.Add((s, l));
             Vm.ReportPersisted += (_, _) => Persisted++;

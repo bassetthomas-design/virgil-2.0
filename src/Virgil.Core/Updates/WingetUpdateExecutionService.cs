@@ -48,6 +48,15 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
                 "Aucun --id exact disponible.");
         }
 
+        // Le hash du plan valide AvailableVersion ; l'execution epingle cette valeur sans re-scan.
+        if (!IsValidPackageVersion(item.AvailableVersion))
+        {
+            stopwatch.Stop();
+            return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
+                "Mise a jour bloquee : version confirmee manquante ou invalide. Aucune installation effectuee.",
+                "Aucun --version exact disponible.");
+        }
+
         var winget = await _availabilityService.DetectAsync(cancellationToken).ConfigureAwait(false);
         if (!winget.IsAvailable || string.IsNullOrWhiteSpace(winget.ExecutablePath))
         {
@@ -69,7 +78,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         var result = await _processRunner
             .RunAsync(new ProcessRunRequest(
                 winget.ExecutablePath,
-                BuildUpgradeArguments(item.Id, capabilities),
+                BuildPinnedUpgradeArguments(item.Id, item.AvailableVersion!, capabilities),
                 TimeSpan.FromMinutes(15)),
                 cancellationToken)
             .ConfigureAwait(false);
@@ -135,6 +144,24 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
             Results = results,
             Errors = errors
         };
+    }
+
+    private static bool IsValidPackageVersion(string? version)
+    {
+        // Un seul jeton explicite : pas d'option, de guillemet ou de valeur inconnue.
+        return !string.IsNullOrWhiteSpace(version)
+            && version.Length <= 128
+            && char.IsAsciiLetterOrDigit(version[0])
+            && version.Any(char.IsAsciiDigit)
+            && version.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-' or '+' or '~');
+    }
+
+    private static IReadOnlyList<string> BuildPinnedUpgradeArguments(
+        string packageId, string version, WingetCapabilities capabilities)
+    {
+        var arguments = BuildUpgradeArguments(packageId, capabilities).ToList();
+        arguments.InsertRange(3, new[] { "--version", version });
+        return arguments;
     }
 
     public static IReadOnlyList<string> BuildUpgradeArguments(string packageId, WingetCapabilities capabilities)

@@ -169,6 +169,38 @@ public sealed class ResourceUpdateConfirmedPlanTests
         var service = new WingetUpdateExecutionService(new WingetAvailabilityService(runner, ["winget"]), runner, authority);
         Assert.Equal(UpdateItemStatus.Completed, (await service.ExecuteAsync(item, Issue(authority, UpdateActionPreviewFactory.Create(item)), CancellationToken.None)).Status);
         Assert.Equal(1, runner.Upgrades);
+        var arguments = Assert.Single(runner.UpgradeRequests).Arguments.ToList();
+        Assert.Equal(item.AvailableVersion, arguments[arguments.IndexOf("--version") + 1]);
+        Assert.Equal(item.Id, arguments[arguments.IndexOf("--id") + 1]);
+        Assert.Contains("--exact", arguments);
+        if (version == "v1.8.0")
+        {
+            Assert.Contains("--accept-package-agreements", arguments);
+            Assert.Contains("--accept-source-agreements", arguments);
+            Assert.Contains("--disable-interactivity", arguments);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("Unknown")]
+    [InlineData("--all")]
+    [InlineData("1.2 --force")]
+    [InlineData("1.2\"")]
+    [InlineData("1.2\n3")]
+    public async Task MissingOrInvalidConfirmedVersionNeverRunsUpgrade(string? version)
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var runner = new Runner();
+        var item = Item() with { AvailableVersion = version! };
+        var service = new WingetUpdateExecutionService(new WingetAvailabilityService(runner, ["winget"]), runner, authority);
+        var result = await service.ExecuteAsync(item, Issue(authority, UpdateActionPreviewFactory.Create(Item())), CancellationToken.None);
+        Assert.Equal(UpdateItemStatus.Failed, result.Status);
+        Assert.Equal("Mise a jour bloquee : version confirmee manquante ou invalide. Aucune installation effectuee.", result.UserMessage);
+        Assert.Equal(0, runner.Upgrades);
+        Assert.Empty(runner.UpgradeRequests);
     }
 
     [Theory]
@@ -244,9 +276,10 @@ public sealed class ResourceUpdateConfirmedPlanTests
     {
         public int Calls { get; private set; }
         public int Upgrades { get; set; }
+        public List<ProcessRunRequest> UpgradeRequests { get; } = new();
         public string Version { get; init; } = "v1.8.0";
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
-        { Calls++; if (request.Arguments[0] == "upgrade") Upgrades++; return Task.FromResult(new ProcessRunResult(0, Version, "")); }
+        { Calls++; if (request.Arguments[0] == "upgrade") { Upgrades++; UpgradeRequests.Add(request); } return Task.FromResult(new ProcessRunResult(0, Version, "")); }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
     private sealed class RejectGate : IConfirmedPlanGate

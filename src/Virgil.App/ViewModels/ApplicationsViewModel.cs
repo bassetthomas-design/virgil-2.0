@@ -3,7 +3,6 @@ using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,12 +34,14 @@ public partial class ApplicationsViewModel : ObservableObject
     private bool _operationInProgress;
 
     private readonly IProcessRunner _processRunner;
+    private readonly IInstallationLocationService _locationService;
 
     public ApplicationsViewModel(IApplicationInventoryService inventoryService,
         ApplicationUninstallService uninstallService, IProcessRunner processRunner,
         IReportHistoryService reportHistoryService, IApplicationUninstallConfirmationDialog confirmationDialog,
-        IConfirmationService confirmationService)
+        IConfirmationService confirmationService, IInstallationLocationService locationService)
     {
+        _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
         _confirmationService = confirmationService ?? throw new ArgumentNullException(nameof(confirmationService));
         _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
         _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
@@ -516,22 +517,14 @@ public partial class ApplicationsViewModel : ObservableObject
 
         try
         {
-            ProcessLaunchResult result;
-            if (Directory.Exists(path))
-            {
-                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"\"{path}\""), CancellationToken.None);
-            }
-            else if (File.Exists(path))
-            {
-                result = await _processRunner.LaunchAsync(new ProcessLaunchRequest("explorer.exe", Array.Empty<string>(), UseShellExecute: true, RawArguments: $"/select,\"{path}\""), CancellationToken.None);
-            }
-            else
+            var result = await _locationService.OpenAsync(path, CancellationToken.None).ConfigureAwait(true);
+            if (result == InstallationLocationOpenResult.Missing)
             {
                 VirgilMessageRequested?.Invoke("Emplacement introuvable.");
                 return;
             }
 
-            VirgilMessageRequested?.Invoke(result.LaunchError is not null
+            VirgilMessageRequested?.Invoke(result == InstallationLocationOpenResult.Failed
                 ? "Ouverture emplacement impossible."
                 : "Emplacement ouvert.\nAucune suppression executee.");
         }

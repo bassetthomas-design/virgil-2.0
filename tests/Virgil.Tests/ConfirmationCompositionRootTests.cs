@@ -8,6 +8,19 @@ namespace Virgil.Tests;
 public sealed class ConfirmationCompositionRootTests
 {
     [Fact]
+    public void ApplicationCompositionResolvesInfrastructureLocationPort()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true, ValidateScopes = true
+        });
+        Assert.IsType<Virgil.Infrastructure.Applications.InstallationLocationService>(
+            provider.GetRequiredService<Virgil.Core.Applications.IInstallationLocationService>());
+        Assert.NotNull(provider.GetRequiredService<Virgil.App.ViewModels.ApplicationsViewModel>());
+    }
+
+    [Fact]
     public void ApplicationCompositionRegistersOneAuthorityWithValidatedBuild()
     {
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
