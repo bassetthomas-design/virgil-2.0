@@ -10,10 +10,10 @@ public sealed class ElevatedHelperDependencyArchitectureTests
     public void HelperAssemblyReferencesOnlyContractsAmongVirgilAssemblies()
     {
         var references = typeof(ElevatedActionDispatcher).Assembly.GetReferencedAssemblies()
-            .Select(reference => reference.Name)
-            .Where(name => name is not null && name.StartsWith("Virgil.", StringComparison.Ordinal));
+            .Select(reference => reference.Name);
 
-        Assert.Equal("Virgil.Contracts", Assert.Single(references));
+        Assert.Equal("Virgil.Contracts", Assert.Single(references,
+            name => name is not null && name.StartsWith("Virgil.", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -22,8 +22,8 @@ public sealed class ElevatedHelperDependencyArchitectureTests
         var root = FindRepositoryRoot();
         var helperDirectory = Path.Combine(root, "src", "Virgil.ElevatedHelper");
         var project = XDocument.Load(Path.Combine(helperDirectory, "Virgil.ElevatedHelper.csproj"));
-        var reference = Assert.Single(project.Descendants()
-            .Where(element => element.Name.LocalName == "ProjectReference"));
+        var reference = Assert.Single(project.Descendants(),
+            element => element.Name.LocalName == "ProjectReference");
         var include = Assert.IsType<string>(reference.Attribute("Include")?.Value);
         var referencedProject = Path.GetFullPath(Path.Combine(helperDirectory,
             include.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar)));
