@@ -167,7 +167,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await LaunchWithPlanAsync(service, 
+        var result = await LaunchWithPlanAsync(service,
             CautionWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -193,7 +193,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await LaunchWithPlanAsync(service, 
+        var result = await LaunchWithPlanAsync(service,
             CautionWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -221,7 +221,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await LaunchWithPlanAsync(service, 
+        var result = await LaunchWithPlanAsync(service,
             SafeWingetApplication(),
             new ApplicationUninstallConfirmation
             {
@@ -247,7 +247,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await LaunchWithPlanAsync(service, 
+        var result = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "msi-app",
@@ -279,7 +279,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var result = await LaunchWithPlanAsync(service, 
+        var result = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "registry-app",
@@ -311,7 +311,7 @@ public sealed class ApplicationsUninstallSafetyTests
             launcher,
             new ApplicationRemnantScanner(), _confirmations);
 
-        var store = await LaunchWithPlanAsync(service, 
+        var store = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "store-app",
@@ -330,7 +330,7 @@ public sealed class ApplicationsUninstallSafetyTests
             null,
             CancellationToken.None);
 
-        var protectedApp = await LaunchWithPlanAsync(service, 
+        var protectedApp = await LaunchWithPlanAsync(service,
             new InstalledApplication
             {
                 Id = "driver",

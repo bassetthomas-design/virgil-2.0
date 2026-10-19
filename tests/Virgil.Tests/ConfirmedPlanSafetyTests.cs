@@ -601,7 +601,7 @@ public sealed class ConfirmedPlanSafetyTests
         service.Issue(preview, Consent(preview));
         var registry = (System.Collections.IDictionary)typeof(ConfirmationService)
             .GetField("_issued", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(service)!;
-        Assert.Equal(1, registry.Count);
+        Assert.Single(registry);
         var action = new FakeAction(service);
         Rejected(action.Execute(plan, preview), PlanRejectionReason.UnknownProvenance);
         Assert.Equal(0, action.Effects);
