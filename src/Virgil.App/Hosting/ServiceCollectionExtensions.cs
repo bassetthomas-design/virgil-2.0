@@ -111,6 +111,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddVirgilConfirmation();
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<ICleanupExecutionService>(),
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>(),

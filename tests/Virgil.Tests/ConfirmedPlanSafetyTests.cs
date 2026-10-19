@@ -1,0 +1,416 @@
+using System.Globalization;
+using System.Reflection;
+using System.Text.Json;
+using Virgil.Contracts.Actions;
+using Virgil.Core.Actions;
+using Xunit;
+
+namespace Virgil.Tests;
+
+public sealed class ConfirmedPlanSafetyTests
+{
+    private static ActionPreview Preview() => new("test.action", "Action de test", RiskLevel.Low,
+        ["cible A", "cible B"], new Dictionary<string, string> { ["b"] = "2", ["a"] = "1" },
+        ["effet A", "effet B"], false, false, Reversibility.Full, ["sauvegarde A", "sauvegarde B"]);
+
+    private static ConfirmationConsent Consent(ActionPreview preview) => new(
+        RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel),
+        preview.RiskLevel == RiskLevel.Critical ? ConfirmationService.ExpectedCriticalText(preview) : null);
+
+    [Theory]
+    [InlineData(RiskLevel.Info, ConfirmationLevel.Simple)]
+    [InlineData(RiskLevel.Low, ConfirmationLevel.Simple)]
+    [InlineData(RiskLevel.Sensitive, ConfirmationLevel.Reinforced)]
+    [InlineData(RiskLevel.Critical, ConfirmationLevel.Critical)]
+    public void EachRiskIssuesWithRequiredConsentRegardlessOfAdmin(RiskLevel risk, ConfirmationLevel expected)
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        foreach (var admin in new[] { false, true })
+        {
+            var preview = Preview() with { RiskLevel = risk, RequiresAdmin = admin };
+            var plan = service.Issue(preview, Consent(preview));
+            Assert.Equal(expected, plan.ConfirmationLevel);
+            Assert.Equal(preview.ActionId, plan.ActionId);
+            Assert.Equal(ActionPreviewHasher.Hash(preview), plan.PreviewHash);
+            Assert.NotEqual(Guid.Empty, plan.PlanId);
+            Assert.Equal(TimeSpan.FromMinutes(10), plan.ExpiresAt - plan.IssuedAt);
+            Assert.True(service.Validate(plan, preview).IsAccepted);
+        }
+    }
+
+    [Theory]
+    [InlineData(RiskLevel.Sensitive, ConfirmationLevel.Simple)]
+    [InlineData(RiskLevel.Critical, ConfirmationLevel.Simple)]
+    [InlineData(RiskLevel.Critical, ConfirmationLevel.Reinforced)]
+    [InlineData(RiskLevel.Low, (ConfirmationLevel)(-1))]
+    [InlineData(RiskLevel.Low, (ConfirmationLevel)99)]
+    public void InsufficientOrUndefinedConsentIsRefused(RiskLevel risk, ConfirmationLevel level)
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview() with { RiskLevel = risk };
+        var refused = Assert.Throws<ConfirmationRefusedException>(() => service.Issue(preview, new(level, null)));
+        Rejected(refused.Result, PlanRejectionReason.InsufficientConsent);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("JE COMPRENDS ET JE CONFIRME")]
+    [InlineData("je comprends et je confirme : test.action : cible A")]
+    [InlineData("JE COMPRENDS ET JE CONFIRME : autre.action : cible A")]
+    [InlineData("JE COMPRENDS ET JE CONFIRME : test.action : cible B")]
+    [InlineData("JE COMPRENDS ET JE CONFIRME : test.action : cible A ")]
+    public void CriticalTextMustMatchExactly(string? text)
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview() with { RiskLevel = RiskLevel.Critical };
+        var refused = Assert.Throws<ConfirmationRefusedException>(() => service.Issue(preview, new(ConfirmationLevel.Critical, text)));
+        Rejected(refused.Result, PlanRejectionReason.InsufficientConsent);
+    }
+
+    [Fact]
+    public void CriticalTextBindsActionAndFirstTarget()
+    {
+        var preview = Preview();
+        var text = ConfirmationService.ExpectedCriticalText(preview);
+        Assert.Contains(preview.ActionId, text);
+        Assert.Contains(preview.Targets[0], text);
+        Assert.NotEqual(text, ConfirmationService.ExpectedCriticalText(preview with { ActionId = "autre" }));
+        Assert.NotEqual(text, ConfirmationService.ExpectedCriticalText(preview with { Targets = ["autre"] }));
+        var empty = preview with { RiskLevel = RiskLevel.Critical, Targets = [] };
+        var service = new ConfirmationService(new FakeTimeProvider());
+        Assert.True(service.Validate(service.Issue(empty, Consent(empty)), empty).IsAccepted);
+    }
+
+    [Fact]
+    public void HigherConsentCanCoverLowerRisk()
+    {
+        var preview = Preview();
+        var service = new ConfirmationService(new FakeTimeProvider());
+        Assert.True(service.Validate(service.Issue(preview, new(ConfirmationLevel.Reinforced, null)), preview).IsAccepted);
+    }
+
+    [Theory]
+    [InlineData(PlanRejectionReason.Missing)]
+    [InlineData(PlanRejectionReason.UnknownProvenance)]
+    [InlineData(PlanRejectionReason.ActionMismatch)]
+    [InlineData(PlanRejectionReason.PreviewHashMismatch)]
+    [InlineData(PlanRejectionReason.Expired)]
+    [InlineData(PlanRejectionReason.AlreadyUsed)]
+    [InlineData(PlanRejectionReason.InsufficientConsent)]
+    public void EveryRefusalPreventsEffects(PlanRejectionReason reason)
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        ConfirmedPlan? plan = service.Issue(preview, Consent(preview));
+        var action = new FakeAction(service);
+        switch (reason)
+        {
+            case PlanRejectionReason.Missing: plan = null; break;
+            case PlanRejectionReason.UnknownProvenance:
+                plan = new ConfirmationService(clock).Issue(preview, Consent(preview)); break;
+            case PlanRejectionReason.ActionMismatch: preview = preview with { ActionId = "autre" }; break;
+            case PlanRejectionReason.PreviewHashMismatch: preview = preview with { Targets = ["autre"] }; break;
+            case PlanRejectionReason.Expired: clock.Advance(TimeSpan.FromMinutes(10)); break;
+            case PlanRejectionReason.AlreadyUsed: Assert.True(service.TryConsume(plan, preview).IsAccepted); break;
+            case PlanRejectionReason.InsufficientConsent:
+                preview = preview with { RiskLevel = RiskLevel.Critical };
+                var refusal = Assert.Throws<ConfirmationRefusedException>(() =>
+                    action.ConfirmAndExecute(service, preview, new(ConfirmationLevel.Simple, null)));
+                Rejected(refusal.Result, reason);
+                Assert.Equal(0, action.Effects);
+                return;
+        }
+        Rejected(service.Validate(plan, preview), reason);
+        Rejected(action.Execute(plan, preview), reason);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void ReflectionCloneHasUnknownProvenanceEvenWithAllIssuedValues()
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview();
+        var original = service.Issue(preview, Consent(preview));
+        var clone = Clone(original);
+        Assert.Equal(original.PlanId, clone.PlanId);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(clone, preview), PlanRejectionReason.UnknownProvenance);
+        Assert.Equal(0, action.Effects);
+        Assert.True(service.Validate(original, preview).IsAccepted);
+    }
+
+    [Theory]
+    [InlineData("target")]
+    [InlineData("parameter")]
+    [InlineData("effect")]
+    public void ChangedScopeRefusesPlan(string field)
+    {
+        var preview = Preview();
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var plan = service.Issue(preview, Consent(preview));
+        var changed = field switch
+        {
+            "target" => preview with { Targets = ["cible C"] },
+            "parameter" => preview with { Parameters = new Dictionary<string, string> { ["a"] = "3" } },
+            _ => preview with { Effects = ["effet C"] }
+        };
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, changed), PlanRejectionReason.PreviewHashMismatch);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void ExpirationIncludesExactBoundary()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.Equal(clock.GetUtcNow(), plan.IssuedAt);
+        clock.Advance(TimeSpan.FromMinutes(10) - TimeSpan.FromTicks(1));
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+        clock.Advance(TimeSpan.FromTicks(1));
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.Expired);
+        clock.Advance(TimeSpan.FromTicks(1));
+        Rejected(service.TryConsume(plan, preview), PlanRejectionReason.Expired);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(901)]
+    public void LifetimeOutsideBoundsIsRejected(int seconds)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ConfirmationService(new FakeTimeProvider(), TimeSpan.FromSeconds(seconds)));
+    }
+
+    [Fact]
+    public void MaximumLifetimeIsFifteenMinutes()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock, TimeSpan.FromMinutes(15));
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.Equal(TimeSpan.FromMinutes(15), plan.ExpiresAt - plan.IssuedAt);
+        clock.Advance(TimeSpan.FromMinutes(15));
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.Expired);
+    }
+
+    [Fact]
+    public void ValidationDoesNotConsumeAndSecondConsumptionIsRefused()
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+        Assert.True(service.Validate(plan, preview).IsAccepted);
+        var action = new FakeAction(service);
+        Assert.True(action.Execute(plan, preview).IsAccepted);
+        Rejected(action.Execute(plan, preview), PlanRejectionReason.AlreadyUsed);
+        Assert.Equal(1, action.Effects);
+    }
+
+    [Fact]
+    public void ConcurrentConsumptionAllowsExactlyOneEffect()
+    {
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        var action = new FakeAction(service);
+        Parallel.For(0, 32, _ => action.Execute(plan, preview));
+        Assert.Equal(1, action.Effects);
+    }
+
+    [Fact]
+    public void RejectionsFollowSpecifiedPriority()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new ConfirmationService(clock);
+        var preview = Preview();
+        var plan = service.Issue(preview, Consent(preview));
+        Assert.True(service.TryConsume(plan, preview).IsAccepted);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        Rejected(service.Validate(null, preview), PlanRejectionReason.Missing);
+        Rejected(service.Validate(Clone(plan), preview with { ActionId = "autre" }), PlanRejectionReason.UnknownProvenance);
+        Rejected(service.Validate(plan, preview with { ActionId = "autre", Targets = [] }), PlanRejectionReason.ActionMismatch);
+        Rejected(service.Validate(plan, preview with { Targets = [] }), PlanRejectionReason.PreviewHashMismatch);
+        Rejected(service.Validate(plan, preview), PlanRejectionReason.Expired);
+    }
+
+    [Fact]
+    public void HashIsStableAcrossDictionaryInsertionOrderAndCulture()
+    {
+        var preview = Preview();
+        var hash = ActionPreviewHasher.Hash(preview);
+        Assert.Matches("^[0-9A-F]{64}$", hash);
+        Assert.Equal(hash, ActionPreviewHasher.Hash(Preview()));
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("ar-SA");
+            Assert.Equal(hash, ActionPreviewHasher.Hash(preview with
+            {
+                Parameters = new Dictionary<string, string> { ["a"] = "1", ["b"] = "2" }
+            }));
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
+    }
+
+    public static IEnumerable<object[]> ChangedFields()
+    {
+        for (var i = 0; i < 18; i++) yield return [i];
+    }
+
+    [Theory]
+    [MemberData(nameof(ChangedFields))]
+    public void HashCoversEveryFieldAndCollectionOrder(int field)
+    {
+        var p = Preview();
+        var changed = field switch
+        {
+            0 => p with { ActionId = "autre" }, 1 => p with { Title = "Autre titre" },
+            2 => p with { RiskLevel = RiskLevel.Critical }, 3 => p with { Targets = ["autre", "cible B"] },
+            4 => p with { Targets = ["cible B", "cible A"] },
+            5 => p with { Parameters = new Dictionary<string, string> { ["a"] = "nouveau", ["b"] = "2" } },
+            6 => p with { Parameters = new Dictionary<string, string> { ["A"] = "1", ["b"] = "2" } },
+            7 => p with { Effects = ["nouveau", "effet B"] }, 8 => p with { Effects = ["effet B", "effet A"] },
+            9 => p with { RequiresAdmin = true }, 10 => p with { RebootRequired = true },
+            11 => p with { Reversibility = Reversibility.None }, 12 => p with { RequiredBackups = ["nouvelle"] },
+            13 => p with { RequiredBackups = ["sauvegarde B", "sauvegarde A"] },
+            14 => p with { Targets = [] }, 15 => p with { Parameters = new Dictionary<string, string>() },
+            16 => p with { Effects = [] }, _ => p with { RequiredBackups = [] }
+        };
+        Assert.NotEqual(ActionPreviewHasher.Hash(p), ActionPreviewHasher.Hash(changed));
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var plan = service.Issue(p, Consent(p));
+        var action = new FakeAction(service);
+        Rejected(action.Execute(plan, changed), field == 0 ? PlanRejectionReason.ActionMismatch : PlanRejectionReason.PreviewHashMismatch);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void HashFramingDistinguishesAmbiguousTextAndUnicode()
+    {
+        var p = Preview();
+        Assert.NotEqual(ActionPreviewHasher.Hash(p with { Targets = ["a:b", "c"] }),
+            ActionPreviewHasher.Hash(p with { Targets = ["a", "b:c"] }));
+        Assert.NotEqual(ActionPreviewHasher.Hash(p with { Title = "\ud800" }),
+            ActionPreviewHasher.Hash(p with { Title = "\ud801" }));
+    }
+
+    [Fact]
+    public void MutableBackingCollectionsCannotChangeAlreadyIssuedConsent()
+    {
+        var targets = new List<string> { "cible A" };
+        var preview = Preview() with { Targets = targets };
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var plan = service.Issue(preview, Consent(preview));
+        targets[0] = "cible B";
+        Rejected(service.TryConsume(plan, preview), PlanRejectionReason.PreviewHashMismatch);
+    }
+
+    [Fact]
+    public void PlanIsSealedReadOnlyAndAbsentFromContracts()
+    {
+        var type = typeof(ConfirmedPlan);
+        Assert.True(type.IsSealed);
+        Assert.Empty(type.GetConstructors());
+        Assert.All(type.GetProperties(), property => Assert.Null(property.GetSetMethod()));
+        Assert.DoesNotContain(typeof(ActionPreview).Assembly.GetTypes(), t => t.Name == nameof(ConfirmedPlan));
+        Assert.All(type.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic), constructor =>
+            Assert.DoesNotContain(constructor.GetCustomAttributesData(), a => a.AttributeType.Name == "JsonConstructorAttribute"));
+    }
+
+    [Fact]
+    public void JsonCannotProduceAnAcceptedPlan()
+    {
+        var preview = Preview();
+        var service = new ConfirmationService(new FakeTimeProvider());
+        var plan = service.Issue(preview, Consent(preview));
+        var json = JsonSerializer.Serialize(plan);
+        Assert.Throws<NotSupportedException>(() => JsonSerializer.Deserialize<ConfirmedPlan>(json));
+        var options = new JsonSerializerOptions();
+        options.Converters.Add(new ForgedPlanConverter(plan));
+        var forged = JsonSerializer.Deserialize<ConfirmedPlan>(json, options);
+        var action = new FakeAction(service);
+        Rejected(action.Execute(forged, preview), PlanRejectionReason.UnknownProvenance);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    public void CoreActionsHaveNoFileOrProcessDependencies()
+    {
+        var types = typeof(ConfirmedPlan).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Virgil.Core.Actions");
+        foreach (var type in types)
+        {
+            var referenced = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                .Select(f => f.FieldType)
+                .Concat(type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                    .SelectMany(m => m.GetParameters().Select(p => p.ParameterType).Append(m.ReturnType)));
+            Assert.DoesNotContain(referenced, t => t.Namespace?.StartsWith("System.IO", StringComparison.Ordinal) == true ||
+                t.Namespace?.StartsWith("System.Diagnostics", StringComparison.Ordinal) == true);
+        }
+        var root = RepositoryRoot();
+        foreach (var file in Directory.GetFiles(Path.Combine(root, "src/Virgil.Core/Actions"), "*.cs"))
+        {
+            var source = File.ReadAllText(file);
+            Assert.DoesNotContain("System.IO", source);
+            Assert.DoesNotContain("System.Diagnostics", source);
+        }
+    }
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Virgil.sln"))) directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Racine de test introuvable.");
+    }
+
+    private static void Rejected(PlanValidationResult result, PlanRejectionReason reason)
+    {
+        Assert.False(result.IsAccepted);
+        Assert.Equal(reason, result.Reason);
+        Assert.False(string.IsNullOrWhiteSpace(result.Message));
+    }
+
+    private static ConfirmedPlan Clone(ConfirmedPlan plan) => (ConfirmedPlan)Activator.CreateInstance(
+        typeof(ConfirmedPlan), BindingFlags.NonPublic | BindingFlags.Instance, null,
+        [plan.PlanId, plan.ActionId, plan.PreviewHash, plan.ConfirmationLevel, plan.IssuedAt, plan.ExpiresAt],
+        CultureInfo.InvariantCulture)!;
+
+    private sealed class ForgedPlanConverter(ConfirmedPlan template) : System.Text.Json.Serialization.JsonConverter<ConfirmedPlan>
+    {
+        public override ConfirmedPlan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using var document = JsonDocument.ParseValue(ref reader);
+            return Clone(template);
+        }
+        public override void Write(Utf8JsonWriter writer, ConfirmedPlan value, JsonSerializerOptions options) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FakeTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan duration) => _now += duration;
+    }
+
+    private sealed class FakeAction(IConfirmedPlanGate gate)
+    {
+        private int _effects;
+        public int Effects => _effects;
+        public PlanValidationResult Execute(ConfirmedPlan? plan, ActionPreview preview)
+        {
+            var result = gate.TryConsume(plan, preview);
+            if (result.IsAccepted) Interlocked.Increment(ref _effects);
+            return result;
+        }
+        public PlanValidationResult ConfirmAndExecute(IConfirmationService service, ActionPreview preview, ConfirmationConsent consent) =>
+            Execute(service.Issue(preview, consent), preview);
+    }
+}
