@@ -7,7 +7,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Virgil.Core\Virgil.Core.csproj" />
     <ProjectReference Include="..\Virgil.Contracts\Virgil.Contracts.csproj" />
   </ItemGroup>
 </Project>
