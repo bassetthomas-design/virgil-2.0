@@ -40,7 +40,7 @@ public partial class UpdatesViewModel : ObservableObject
         _windowsUpdateStatusService = windowsUpdateStatusService ?? throw new ArgumentNullException(nameof(windowsUpdateStatusService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
-        Entries.Add("Aucun scan lance.");
+        Entries.Add(new UpdateTextCardViewModel("Aucun scan lance."));
         RenderDrivers(new DriverInventoryReport());
     }
 
@@ -482,7 +482,7 @@ public partial class UpdatesViewModel : ObservableObject
         _selectionById.Clear();
         if (_lastItems.Count == 0)
         {
-            Entries.Add("Aucune mise a jour applicative previsualisee.");
+            Entries.Add(new UpdateTextCardViewModel("Aucune mise a jour applicative previsualisee."));
             return;
         }
         foreach (var item in _lastItems.OrderBy(item => item.RiskLevel).ThenBy(item => item.Name))

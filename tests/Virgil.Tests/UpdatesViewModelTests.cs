@@ -5,6 +5,7 @@ using Virgil.Core.Processes;
 using Virgil.Core.Reports;
 using Virgil.Core.Updates;
 using Xunit;
+using System.Xml.Linq;
 
 namespace Virgil.Tests;
 
@@ -20,7 +21,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("NON DETECTE", f.Vm.WingetStatus);
         Assert.Equal("OUVERTURE MANUELLE UNIQUEMENT", f.Vm.WindowsUpdateStatus);
         Assert.Equal("NON INVENTORIE", f.Vm.DriversStatus);
-        Assert.Equal("Aucun scan lance.", Assert.Single(f.Vm.Entries));
+        Assert.Equal("Aucun scan lance.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Single(f.Vm.DriverCards);
         Assert.False(f.Vm.IsRunSelectedEnabled);
         Assert.False(f.Vm.IsReportButtonEnabled);
@@ -96,7 +97,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("WinGet non detecte.", f.Vm.WingetStatus);
         Assert.Equal("WinGet non detecte.\nWindows Update reste disponible.", f.Messages.Last());
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
-        Assert.Equal("Aucune mise a jour applicative previsualisee.", Assert.Single(f.Vm.Entries));
+        Assert.Equal("Aucune mise a jour applicative previsualisee.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Equal(1, f.Persisted);
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Contains("WinGet : non detecte", f.Vm.ReportText);
@@ -333,6 +334,62 @@ public sealed class UpdatesViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         Assert.Equal(new[] { "Skip:app" }, f.Actions.Order);
         f.Vm.CloseReportCommand.Execute(null); Assert.False(f.Vm.TryCloseOverlay());
+    }
+
+    [Fact]
+    public async Task EntriesNeverContainRawStringsAcrossRenderingStates()
+    {
+        var f = new Fixture();
+        Assert.DoesNotContain(f.Vm.Entries, entry => entry is string);
+        Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries));
+
+        f.Scan.Report = Report();
+        await f.Analyze();
+        Assert.DoesNotContain(f.Vm.Entries, entry => entry is string);
+        Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries));
+
+        f.Scan.Report = Report(Item("app"));
+        await f.Analyze();
+        Assert.DoesNotContain(f.Vm.Entries, entry => entry is string);
+        Assert.IsType<UpdateItemViewModel>(Assert.Single(f.Vm.Entries));
+        f.SelectAll();
+        var pending = f.Run();
+        f.Vm.SkipDecisionCommand.Execute(null);
+        await pending;
+        Assert.DoesNotContain(f.Vm.Entries, entry => entry is string);
+        Assert.IsType<UpdateItemViewModel>(Assert.Single(f.Vm.Entries));
+    }
+
+    [Fact]
+    public void UpdatesViewScopesTextCardTemplatesToTheirLists()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Virgil.sln")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        var xaml = File.ReadAllText(Path.Combine(directory.FullName, "src", "Virgil.App", "Views", "UpdatesView.xaml"));
+        Assert.DoesNotMatch(@"<DataTemplate\b[^>]*\bDataType\s*=\s*[""'][^""']*\bString\b", xaml);
+
+        var document = XDocument.Parse(xaml);
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var templates = document.Descendants(presentation + "DataTemplate").ToArray();
+        var driversTemplate = Assert.Single(templates, t => (string?)t.Attribute(x + "Key") == "UpdatesTextCardTemplate");
+        Assert.Null(driversTemplate.Attribute("DataType"));
+        var drivers = Assert.Single(document.Descendants(presentation + "ItemsControl"), t => (string?)t.Attribute(x + "Name") == "DriversListPanel");
+        Assert.Equal("{StaticResource UpdatesTextCardTemplate}", (string?)drivers.Attribute("ItemTemplate"));
+        var textTemplate = Assert.Single(templates, t => (string?)t.Attribute("DataType") == "{x:Type vm:UpdateTextCardViewModel}");
+        foreach (var template in new[] { driversTemplate, textTemplate })
+        {
+            var border = Assert.Single(template.Elements(presentation + "Border"));
+            Assert.Equal("{StaticResource VirgilHudCard}", (string?)border.Attribute("Style"));
+            Assert.Equal("0,0,0,8", (string?)border.Attribute("Margin"));
+            var text = Assert.Single(border.Elements(presentation + "TextBlock"));
+            Assert.Equal("{StaticResource VirgilHudSecondaryText}", (string?)text.Attribute("Style"));
+            Assert.Equal("Wrap", (string?)text.Attribute("TextWrapping"));
+        }
+        Assert.Equal("{Binding Text}", (string?)textTemplate.Descendants(presentation + "TextBlock").Single().Attribute("Text"));
+        Assert.Equal("{Binding}", (string?)driversTemplate.Descendants(presentation + "TextBlock").Single().Attribute("Text"));
     }
 
     private static void Idle(UpdatesViewModel vm) { Assert.True(vm.IsIdle); Assert.False(vm.IsBusy); }
