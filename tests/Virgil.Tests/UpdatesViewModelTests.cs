@@ -73,7 +73,11 @@ public sealed class UpdatesViewModelTests
     public async Task ScanCancellationAndErrorKeepTextsAndDoNotPersist(bool cancelled)
     {
         var f = new Fixture();
-        f.Scan.Handler = _ => throw cancelled ? new OperationCanceledException() : new InvalidOperationException();
+        f.Scan.Handler = _ =>
+        {
+            if (cancelled) throw new OperationCanceledException();
+            throw new InvalidOperationException();
+        };
         await f.Analyze();
         Assert.Equal(cancelled ? "Scan annule." : "Scan mises a jour indisponible.", f.Vm.StatusText);
         Assert.Equal(cancelled ? "Scan annule.\nAucune action effectuee." : "Scan indisponible.\nAucune action effectuee.", f.Messages.Last());
@@ -279,7 +283,11 @@ public sealed class UpdatesViewModelTests
     [InlineData(true)]
     public async Task DriverInventoryFailureTexts(bool cancelled)
     {
-        var f = new Fixture(); f.Scan.Handler = _ => throw cancelled ? new OperationCanceledException() : new InvalidOperationException();
+        var f = new Fixture(); f.Scan.Handler = _ =>
+        {
+            if (cancelled) throw new OperationCanceledException();
+            throw new InvalidOperationException();
+        };
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
         Assert.Equal(cancelled ? "Inventaire pilotes annule." : "Inventaire pilotes indisponible.", f.Vm.StatusText);
         Assert.Equal(cancelled ? "Inventaire annule.\nAucune action effectuee." : "Inventaire indisponible.\nAucune action effectuee.", f.Messages.Last());
