@@ -6,6 +6,26 @@
              MinHeight="0"
              KeyboardNavigation.TabNavigation="Continue"
              FocusManager.IsFocusScope="True">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <DataTemplate x:Key="InterventionCardTemplate">
+            <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                <StackPanel>
+                    <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                              IsEnabled="{Binding IsAvailable}" Margin="0,0,0,8"
+                              Foreground="{DynamicResource App.TextPrimaryBrush}" />
+                    <ItemsControl ItemsSource="{Binding Lines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Style="{StaticResource VirgilHudSecondaryText}"
+                                           TextWrapping="Wrap" Margin="0,3,0,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
     <Grid ClipToBounds="True">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
@@ -26,7 +46,7 @@
                         <TextBlock Text="INTERVENTIONS CIBLEES"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="InterventionsStatusText"
-                                   Text="DIAGNOSTIC, VALIDATION ET EXECUTION"
+                                   Text="{Binding StatusText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    Margin="0,4,0,0" />
                     </StackPanel>
@@ -34,35 +54,39 @@
 
                 <WrapPanel KeyboardNavigation.TabNavigation="Continue">
                     <Button x:Name="AnalyzeInterventionsButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="ANALYSER LES INTERVENTIONS"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="210"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Analyser les interventions"
-                            Click="AnalyzeInterventions_Click" />
+                            Command="{Binding AnalyzeCommand}" />
                     <Button x:Name="RunGuidedButton"
+                            IsEnabled="{Binding IsRunGuidedEnabled}"
                             Content="LANCER LE PARCOURS GUIDE"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="205"
                             Margin="0,0,8,8"
-                            IsEnabled="False"
+
                             AutomationProperties.Name="Lancer le parcours guide"
-                            Click="RunGuided_Click" />
+                            Command="{Binding RunGuidedCommand}" />
                     <Button x:Name="ViewInterventionsReportButton"
+                            IsEnabled="{Binding IsReportButtonEnabled}"
                             Content="VOIR LE DERNIER RAPPORT"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="190"
                             Margin="0,0,8,8"
-                            IsEnabled="False"
+
                             AutomationProperties.Name="Voir le dernier rapport interventions"
-                            Click="ViewInterventionsReport_Click" />
+                            Command="{Binding ViewReportCommand}" />
                     <Button x:Name="ReturnHomeButton"
+                            IsEnabled="{Binding IsIdle}"
                             Content="RETOUR ACCUEIL"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="130"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Retour accueil"
-                            Click="ReturnHome_Click" />
+                            Command="{Binding ReturnHomeCommand}" />
                 </WrapPanel>
 
                 <Rectangle Style="{StaticResource VirgilSeparator}" />
@@ -76,13 +100,13 @@
                         <StackPanel>
                             <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="InterventionsOverallText"
-                                       Text="NON ANALYSE"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Text="{Binding OverallText}"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="ACTIONS RECOMMANDEES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="RecommendedCountText"
-                                       Text="0"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Text="{Binding RecommendedCountText}"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,0" />
                         </StackPanel>
                     </Border>
@@ -103,28 +127,96 @@
                 <TextBlock Text="SYSTEME"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
-                <StackPanel x:Name="SystemActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <StackPanel>
+                    <Border Margin="0,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SystemNotice}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding SystemNotice}" Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" Margin="0,3,0,0" />
+                    </Border>
+                    <ItemsControl x:Name="SystemActionsPanel" ItemsSource="{Binding SystemItems}"
+                                  ItemTemplate="{StaticResource InterventionCardTemplate}"
+                                  KeyboardNavigation.TabNavigation="Continue" />
+                </StackPanel>
 
                 <TextBlock Text="RESEAU"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
-                <StackPanel x:Name="NetworkActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <StackPanel>
+                    <Border Margin="0,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding NetworkNotice}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding NetworkNotice}" Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" Margin="0,3,0,0" />
+                    </Border>
+                    <ItemsControl x:Name="NetworkActionsPanel" ItemsSource="{Binding NetworkItems}"
+                                  ItemTemplate="{StaticResource InterventionCardTemplate}"
+                                  KeyboardNavigation.TabNavigation="Continue" />
+                </StackPanel>
 
                 <TextBlock Text="STOCKAGE"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
-                <StackPanel x:Name="StorageActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <StackPanel>
+                    <Border Margin="0,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StorageNotice}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding StorageNotice}" Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" Margin="0,3,0,0" />
+                    </Border>
+                    <ItemsControl x:Name="StorageActionsPanel" ItemsSource="{Binding StorageItems}"
+                                  ItemTemplate="{StaticResource InterventionCardTemplate}"
+                                  KeyboardNavigation.TabNavigation="Continue" />
+                </StackPanel>
 
                 <TextBlock Text="INTERFACE WINDOWS"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
-                <StackPanel x:Name="InterfaceActionsPanel" KeyboardNavigation.TabNavigation="Continue" />
+                <StackPanel>
+                    <Border Margin="0,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource VirgilHudCard}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding InterfaceNotice}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding InterfaceNotice}" Style="{StaticResource VirgilHudSecondaryText}"
+                                   TextWrapping="Wrap" Margin="0,3,0,0" />
+                    </Border>
+                    <ItemsControl x:Name="InterfaceActionsPanel" ItemsSource="{Binding InterfaceItems}"
+                                  ItemTemplate="{StaticResource InterventionCardTemplate}"
+                                  KeyboardNavigation.TabNavigation="Continue" />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
         <Grid x:Name="InterventionValidationOverlay"
               Panel.ZIndex="20"
-              Visibility="Collapsed"
+              Visibility="{Binding IsValidationOpen, Converter={StaticResource BoolToVisibility}}"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
@@ -153,7 +245,7 @@
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="ValidationTitleText"
-                                   Text="VALIDATION REQUISE"
+                                   Text="{Binding ValidationTitle}"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource App.TextPrimaryBrush}"
@@ -169,17 +261,20 @@
                         <StackPanel>
                             <TextBlock Text="EXPLICATION" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationDetailsText"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Text="{Binding ValidationDetails}"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="COMMANDE AUTORISEE" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationCommandText"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Text="{Binding ValidationCommand}"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationSafetyText"
-                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       Text="{Binding ValidationSafety}"
+                                   Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap" />
                         </StackPanel>
                     </ScrollViewer>
@@ -190,22 +285,22 @@
                                 HorizontalAlignment="Right"
                                 KeyboardNavigation.TabNavigation="Continue">
                         <Button x:Name="ExecuteInterventionButton"
-                                Content="EXECUTER"
+                                Content="{Binding ExecuteActionLabel}"
                                 Style="{StaticResource VirgilPrimaryButton}"
                                 AutomationProperties.Name="Executer cette intervention"
-                                Click="ExecuteIntervention_Click" />
+                                Command="{Binding ExecuteDecisionCommand}" />
                         <Button x:Name="SkipInterventionButton"
                                 Content="PASSER"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
                                 AutomationProperties.Name="Passer cette intervention"
-                                Click="SkipIntervention_Click" />
+                                Command="{Binding SkipDecisionCommand}" />
                         <Button x:Name="CancelAllInterventionsButton"
                                 Content="ANNULER TOUT"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
                                 AutomationProperties.Name="Annuler le parcours"
-                                Click="CancelAllInterventions_Click" />
+                                Command="{Binding CancelDecisionCommand}" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -213,7 +308,7 @@
 
         <Grid x:Name="InterventionsReportOverlay"
               Panel.ZIndex="30"
-              Visibility="Collapsed"
+              Visibility="{Binding IsReportOpen, Converter={StaticResource BoolToVisibility}}"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
               KeyboardNavigation.TabNavigation="Cycle">
@@ -237,6 +332,7 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False">
                         <TextBlock x:Name="InterventionsReportText"
+                                   Text="{Binding ReportText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    TextWrapping="Wrap" />
                     </ScrollViewer>
@@ -246,7 +342,7 @@
                             Style="{StaticResource VirgilSecondaryButton}"
                             HorizontalAlignment="Right"
                             AutomationProperties.Name="Fermer le rapport interventions"
-                            Click="CloseInterventionsReport_Click" />
+                            Command="{Binding CloseReportCommand}" />
                 </Grid>
             </Border>
         </Grid>

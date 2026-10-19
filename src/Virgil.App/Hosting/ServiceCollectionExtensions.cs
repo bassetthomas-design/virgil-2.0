@@ -115,8 +115,10 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<ICleanupExecutionService>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
         services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<IUpdateScanService>(),
             sp.GetRequiredService<IUpdateExecutionService>(), sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>()));
-        services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<IInterventionDiagnosticService>(),
-            sp.GetRequiredService<IInterventionExecutionService>(), sp.GetRequiredService<InterventionReportBuilder>()));
+        services.AddSingleton<InterventionsViewModel>(sp => new InterventionsViewModel(
+            sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IInterventionExecutionService>(),
+            sp.GetRequiredService<InterventionReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));
+        services.AddSingleton<InterventionsView>(sp => new InterventionsView(sp.GetRequiredService<InterventionsViewModel>()));
         services.AddSingleton<ResourcesViewModel>(sp => new ResourcesViewModel(
             sp.GetRequiredService<IResourceMonitoringService>(), sp.GetRequiredService<IProcessActionService>(),
             sp.GetRequiredService<ResourceReportBuilder>(), sp.GetRequiredService<IReportHistoryService>()));

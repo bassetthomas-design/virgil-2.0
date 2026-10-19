@@ -429,7 +429,6 @@ public partial class MainWindow : Window
 
     private void WireInterventionsModule()
     {
-        InterventionsModuleView.ConfigureReportHistory(_reportHistoryService);
         InterventionsModuleView.VirgilMessageRequested += AppendVirgilMessage;
         InterventionsModuleView.VirgilStateRequested += SetVirgilState;
         InterventionsModuleView.ReturnHomeRequested += (_, _) => ShowHome();
