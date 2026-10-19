@@ -419,7 +419,6 @@ public partial class MainWindow : Window
 
     private void WireUpdatesModule()
     {
-        UpdatesModuleView.ConfigureReportHistory(_reportHistoryService);
         UpdatesModuleView.VirgilMessageRequested += AppendVirgilMessage;
         UpdatesModuleView.VirgilStateRequested += SetVirgilState;
         UpdatesModuleView.ReturnHomeRequested += (_, _) => ShowHome();
