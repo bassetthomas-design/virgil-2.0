@@ -76,6 +76,20 @@ public sealed class CompositionRootTests
         Assert.NotNull(viewRegistration.ImplementationFactory);
     }
 
+    [Fact]
+    [Trait("Category", "Windows")]
+    public void UpdatesSingletonCompositionUsesExplicitFactories()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var descriptor = Assert.Single(services, d => d.ServiceType == typeof(UpdatesViewModel));
+        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+        Assert.NotNull(descriptor.ImplementationFactory);
+        Assert.Same(provider.GetRequiredService<UpdatesViewModel>(), provider.GetRequiredService<UpdatesViewModel>());
+        var view = Assert.Single(services, d => d.ServiceType == typeof(Virgil.App.Views.UpdatesView));
+        Assert.Equal(ServiceLifetime.Singleton, view.Lifetime); Assert.NotNull(view.ImplementationFactory);
+    }
+
     private static ServiceProvider BuildProvider() => new ServiceCollection().AddVirgilServices()
         .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 }
