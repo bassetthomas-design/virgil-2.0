@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -24,6 +26,7 @@ public partial class ResourcesViewModel : ObservableObject
     private readonly List<string> _skippedActions = new();
     private readonly List<string> _errors = new();
     private readonly HashSet<int> _completedProcessIds = new();
+    private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
     private TaskCompletionSource<ResourceDecision>? _activeDecision;
@@ -34,11 +37,12 @@ public partial class ResourcesViewModel : ObservableObject
         IResourceMonitoringService monitoringService,
         IProcessActionService actionService,
         ResourceReportBuilder reportBuilder,
-        IReportHistoryService reportHistoryService)
+        IReportHistoryService reportHistoryService, IConfirmationService confirmationService)
     {
         _monitoringService = monitoringService;
         _actionService = actionService;
         _reportBuilder = reportBuilder;
+        _confirmationService = confirmationService;
         _reportHistoryService = reportHistoryService;
         ReleaseInactiveMemoryLabel = _actionService.CanReleaseInactiveMemory
             ? "LIBERER MEMOIRE INACTIVE"
@@ -137,8 +141,7 @@ public partial class ResourcesViewModel : ObservableObject
             var result = await _actionService.ExecuteAsync(
                 ProcessActionKind.ReleaseInactiveMemory,
                 null,
-                confirmed: true,
-                reinforcedConfirmation: false,
+                plan: null,
                 _operationCancellation!.Token);
             RecordResult(result);
             await PersistCurrentReportAsync();
@@ -238,6 +241,20 @@ public partial class ResourcesViewModel : ObservableObject
         }
 
         var decision = await AskDecisionAsync(action, target).ConfigureAwait(true);
+        ConfirmedPlan? plan = null;
+        if (decision == ResourceDecision.Execute)
+        {
+            try
+            {
+                plan = _confirmationService.Issue(ProcessActionPreviewFactory.Create(action, target),
+                    new ConfirmationConsent(action == ProcessActionKind.KillProcess
+                        ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
+            }
+            catch (ConfirmationRefusedException)
+            {
+                decision = ResourceDecision.CancelAll;
+            }
+        }
         if (decision != ResourceDecision.Execute)
         {
             var targetName = TargetName(action, target);
@@ -251,10 +268,10 @@ public partial class ResourcesViewModel : ObservableObject
             return;
         }
 
-        await ExecuteActionAsync(action, target).ConfigureAwait(true);
+        await ExecuteActionAsync(action, target, plan).ConfigureAwait(true);
     }
 
-    private async Task ExecuteActionAsync(ProcessActionKind action, ProcessResourceInfo? target)
+    private async Task ExecuteActionAsync(ProcessActionKind action, ProcessResourceInfo? target, ConfirmedPlan? plan)
     {
         if (!BeginOperation($"{ActionLabel(action)} en cours."))
         {
@@ -267,8 +284,7 @@ public partial class ResourcesViewModel : ObservableObject
             var result = await _actionService.ExecuteAsync(
                 action,
                 target,
-                confirmed: true,
-                reinforcedConfirmation: action == ProcessActionKind.KillProcess,
+                plan,
                 _operationCancellation!.Token);
             RecordResult(result);
 
@@ -310,7 +326,7 @@ public partial class ResourcesViewModel : ObservableObject
 
     private async Task ExecuteOpenLocationAsync(ProcessResourceInfo target)
     {
-        await ExecuteActionAsync(ProcessActionKind.OpenLocation, target).ConfigureAwait(true);
+        await ExecuteActionAsync(ProcessActionKind.OpenLocation, target, null).ConfigureAwait(true);
     }
 
     private Task<ResourceDecision> AskDecisionAsync(

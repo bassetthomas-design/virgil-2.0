@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using Virgil.App.ViewModels;
 using Virgil.Contracts;
@@ -132,6 +134,10 @@ public sealed class UpdatesViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Equal(new[] { "Execute:app" }, f.Actions.Order);
+        Assert.Equal(1, f.Confirmation.Calls);
+        var plan = Assert.Single(f.Actions.Plans);
+        Assert.Equal(risk == UpdateRiskLevel.Sensitive ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, plan.ConfirmationLevel);
+        Assert.True(f.Confirmation.Authority.Validate(plan, UpdateActionPreviewFactory.Create(Item("app", risk))).IsAccepted);
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.ValidationCoreState);
         Assert.Equal(UpdateItemStatus.Completed, Assert.Single(f.Actions.Report!.Results).Status);
@@ -155,6 +161,7 @@ public sealed class UpdatesViewModelTests
         Assert.Empty(f.Actions.Order);
         Decide(f.Vm, decision);
         await pending;
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.DoesNotContain(f.Actions.Order, x => x.StartsWith("Execute:"));
         Assert.Equal(new[] { decision is "SkipDecision" or "TryCloseOverlay" ? "Skip:app" : "Cancel:app" }, f.Actions.Order);
         Assert.False(f.Vm.IsValidationOpen);
@@ -414,15 +421,51 @@ public sealed class UpdatesViewModelTests
         try { decide(); await opened.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
         finally { vm.PropertyChanged -= Changed; }
     }
+    [Fact]
+    public async Task SkipExecuteCancelIssuesOnePlanAndRunsOneUpgrade()
+    {
+        var f = new Fixture(); var runner = new UpgradeRunner();
+        f.Actions.Executor = new WingetUpdateExecutionService(new WingetAvailabilityService(runner, ["winget"]), runner, f.Confirmation.Authority);
+        f.Scan.Report = Report(Item("z"), Item("a"), Item("b"));
+        await f.Analyze(); f.SelectAll(); var pending = f.Run();
+        Assert.Equal(0, f.Confirmation.Calls);
+        await NextValidation(f.Vm, () => f.Vm.SkipDecisionCommand.Execute(null), "a");
+        Assert.Equal(0, f.Confirmation.Calls);
+        await NextValidation(f.Vm, () => f.Vm.ExecuteDecisionCommand.Execute(null), "b");
+        f.Vm.CancelDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, f.Confirmation.Calls); Assert.Equal(1, runner.Upgrades);
+        Assert.Equal(new[] { "Skip:z", "Execute:a", "Cancel:b" }, f.Actions.Order);
+    }
+
+    [Fact]
+    public async Task ConfirmationRefusalUsesExistingCancelAllPath()
+    {
+        var f = new Fixture(); f.Confirmation.Refuse = true;
+        await f.Analyze(); f.SelectAll(); var pending = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, f.Confirmation.Calls); Assert.Empty(f.Actions.Plans);
+        Assert.Equal(new[] { "Cancel:app" }, f.Actions.Order);
+        Assert.Equal("Sequence annulee.", f.Vm.StatusText);
+    }
+
+    private sealed class UpgradeRunner : IProcessRunner
+    {
+        public int Upgrades { get; private set; }
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
+        { if (request.Arguments[0] == "upgrade") Upgrades++; return Task.FromResult(new ProcessRunResult(0, "v1.8.0", "")); }
+        public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException();
+    }
+
     private static UpdateItem Item(string id, UpdateRiskLevel risk = UpdateRiskLevel.ValidationRequired) => new() { Id = id, Name = id, InstalledVersion = "1", AvailableVersion = "2", RiskLevel = risk, RiskReason = "Motif", CommandPreview = new() { ExecutablePath = "winget", Arguments = new[] { "upgrade", "app test" } } };
     private static UpdateScanReport Report(params UpdateItem[] items) => new() { Items = items, OverallStatus = "Pret", Winget = new() { IsAvailable = true, Message = "WinGet disponible" }, WindowsUpdate = new() { Status = "A jour", PendingRebootDetected = true } };
     private sealed class Fixture
     {
+        public RecordingConfirmation Confirmation { get; } = new();
         public FakeScan Scan { get; } = new(); public FakeActions Actions { get; } = new(); public FakeHistory History { get; } = new(); public FakeRunner Runner { get; } = new();
         public UpdatesViewModel Vm { get; }
         public List<string> Messages { get; } = new(); public List<(VirgilCoreState State, string Label)> States { get; } = new(); public int Persisted { get; private set; }
         public IEnumerable<UpdateItemViewModel> Cards => Vm.Entries.OfType<UpdateItemViewModel>();
-        public Fixture() { Vm = new(Scan, Actions, new WindowsUpdateStatusService(), Runner, History); Vm.VirgilMessageRequested += Messages.Add; Vm.VirgilStateRequested += (s, l) => States.Add((s, l)); Vm.ReportPersisted += (_, _) => Persisted++; }
+        public Fixture() { Vm = new(Scan, Actions, new WindowsUpdateStatusService(), Runner, History, Confirmation); Vm.VirgilMessageRequested += Messages.Add; Vm.VirgilStateRequested += (s, l) => States.Add((s, l)); Vm.ReportPersisted += (_, _) => Persisted++; }
         public Task Analyze() => Vm.ScanUpdatesCommand.ExecuteAsync(null);
         public Task Run() => Vm.RunSelectedCommand.ExecuteAsync(null);
         public void SelectAll() { foreach (var card in Cards.Where(c => c.IsSelectable)) card.IsSelected = true; }
@@ -435,9 +478,11 @@ public sealed class UpdatesViewModelTests
     }
     private sealed class FakeActions : IUpdateExecutionService
     {
+        public IUpdateExecutionService? Executor { get; set; }
+        public List<ConfirmedPlan> Plans { get; } = new();
         public List<string> Order { get; } = new(); public UpdateSessionReport? Report { get; private set; }
         public Func<UpdateItem, CancellationToken, Task<UpdateExecutionResult>>? Handler { get; set; }
-        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, CancellationToken cancellationToken) { Order.Add("Execute:" + item.Id); return Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
+        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken) { Assert.NotNull(plan); Plans.Add(plan); Order.Add("Execute:" + item.Id); return Executor?.ExecuteAsync(item, plan, cancellationToken) ?? Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
         public UpdateExecutionResult Skip(UpdateItem item) { Order.Add("Skip:" + item.Id); return Result(item, UpdateItemStatus.Skipped); }
         public UpdateExecutionResult Cancel(UpdateItem item) { Order.Add("Cancel:" + item.Id); return Result(item, UpdateItemStatus.Cancelled); }
         private static UpdateExecutionResult Result(UpdateItem item, UpdateItemStatus status) => new() { Item = item, Status = status };

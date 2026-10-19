@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Virgil.App.Animation;
 using Virgil.App.Hosting;
@@ -79,6 +81,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(ReportKind.Resources, f.History.Saved!.Kind);
         Assert.True(f.History.Saved.RestartRequired);
         Assert.Contains(f.History.Saved.ProposedActions, a => a.Name == "Examiner Bloc-notes (PID 7)");
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
     }
 
@@ -153,14 +156,17 @@ public sealed class ResourcesViewModelTests
         Assert.Contains(action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)", f.ViewModel.ValidationDetails);
         Assert.Contains(reinforced ? "perte de donnees" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermees" : "demande de fermeture", f.ViewModel.ValidationDetails);
         Assert.Contains(reinforced ? "Confirmation renforcee obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
         await pending;
         var call = Assert.Single(f.Actions.Calls);
         Assert.Equal(action, call.Action);
         Assert.Same(action == ProcessActionKind.RestartExplorer ? null : f.Process, call.Target);
-        Assert.True(call.Confirmed);
-        Assert.Equal(reinforced, call.Reinforced);
+        Assert.NotNull(call.Plan);
+        Assert.Equal(reinforced ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, call.Plan.ConfirmationLevel);
+        Assert.True(f.Confirmation.Authority.Validate(call.Plan, ProcessActionPreviewFactory.Create(action, call.Target)).IsAccepted);
+        Assert.Equal(1, f.Confirmation.Calls);
         Assert.False(f.ViewModel.IsValidationOpen);
         Assert.Equal(VirgilCoreState.Idle, f.ViewModel.ValidationCoreState);
         Assert.Equal(VirgilCoreState.Success, f.ViewModel.MiniCoreState);
@@ -181,6 +187,7 @@ public sealed class ResourcesViewModelTests
         var f = new Fixture();
         await f.Analyze();
         var pending = f.Request(action);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         switch (decision)
         {
@@ -190,6 +197,7 @@ public sealed class ResourcesViewModelTests
             case "CancelActiveOperation": f.ViewModel.CancelActiveOperation(); break;
         }
         await pending;
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         Assert.Equal(0, f.Actions.SkipCalls);
         Assert.False(f.ViewModel.IsValidationOpen);
@@ -206,6 +214,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(2, f.Persisted);
         // A stale execute decision cannot resurrect an abandoned request.
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
     }
 
@@ -226,6 +235,7 @@ public sealed class ResourcesViewModelTests
         await f.Request(action);
         Assert.Equal("Operation deja en cours.", f.Message);
         Assert.False(f.ViewModel.IsValidationOpen);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         Assert.True(f.ViewModel.TryCloseOverlay());
         await pending;
@@ -246,8 +256,8 @@ public sealed class ResourcesViewModelTests
         var call = Assert.Single(f.Actions.Calls);
         Assert.Equal(action, call.Action);
         Assert.Same(action == ProcessActionKind.OpenLocation ? f.Process : null, call.Target);
-        Assert.True(call.Confirmed);
-        Assert.False(call.Reinforced);
+        Assert.Null(call.Plan);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.False(f.ViewModel.IsValidationOpen);
         Assert.Equal(2, f.Persisted);
         Assert.Single(f.ViewModel.Items);
@@ -265,6 +275,7 @@ public sealed class ResourcesViewModelTests
         var f = new Fixture();
         await f.Analyze();
         await f.ViewModel.Items[0].IgnoreCommand.ExecuteAsync(null);
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         Assert.Equal(0, f.Actions.SkipCalls);
         Assert.Empty(f.ViewModel.Items);
@@ -314,6 +325,7 @@ public sealed class ResourcesViewModelTests
         Assert.True(f.ViewModel.TryCloseOverlay());
         await pending;
         Assert.False(f.ViewModel.TryCloseOverlay());
+        Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
     }
 
@@ -430,6 +442,18 @@ public sealed class ResourcesViewModelTests
         Assert.Same(provider.GetRequiredService<ResourcesViewModel>(), provider.GetRequiredService<ResourcesViewModel>());
     }
 
+    [Fact]
+    public async Task ConfirmationRefusalFollowsExistingCancelPath()
+    {
+        var f = new Fixture(); await f.Analyze(); f.Confirmation.Refuse = true;
+        var pending = f.Request(ProcessActionKind.CloseMainWindow);
+        f.ViewModel.ExecuteDecisionCommand.Execute(null); await pending;
+        Assert.Equal(1, f.Confirmation.Calls); Assert.Empty(f.Actions.Calls);
+        Assert.Equal("Action annulee.", f.ViewModel.StatusText);
+        Assert.Equal("Action non executee.", f.Message);
+        Assert.False(f.ViewModel.IsValidationOpen);
+    }
+
     private static string WithoutDate(string text) => text[(text.IndexOf('\n') + 1)..];
 
     private sealed class Fixture
@@ -443,6 +467,7 @@ public sealed class ResourcesViewModelTests
         public FakeMonitor Monitor { get; } = new();
         public FakeActions Actions { get; } = new();
         public FakeHistory History { get; } = new();
+        public RecordingConfirmation Confirmation { get; } = new();
         public ResourcesViewModel ViewModel { get; }
         public string? Message { get; private set; }
         public (VirgilCoreState State, string Label)? State { get; private set; }
@@ -459,7 +484,7 @@ public sealed class ResourcesViewModelTests
                 Samples = new[] { new ResourceSample { TotalMemoryBytes = 4UL * 1024 * 1024 * 1024,
                     UsedMemoryBytes = 2UL * 1024 * 1024 * 1024, Uptime = TimeSpan.FromDays(8) + TimeSpan.FromHours(3), ProcessCount = 42 } }
             };
-            ViewModel = new(Monitor, Actions, new ResourceReportBuilder(), History);
+            ViewModel = new(Monitor, Actions, new ResourceReportBuilder(), History, Confirmation);
             ViewModel.VirgilMessageRequested += message => Message = message;
             ViewModel.VirgilStateRequested += (state, label) => State = (state, label);
             ViewModel.ReportPersisted += (_, _) => Persisted++;
@@ -491,13 +516,13 @@ public sealed class ResourcesViewModelTests
     private sealed class FakeActions : IProcessActionService
     {
         public bool CanReleaseInactiveMemory { get; set; }
-        public List<(ProcessActionKind Action, ProcessResourceInfo? Target, bool Confirmed, bool Reinforced)> Calls { get; } = new();
+        public List<(ProcessActionKind Action, ProcessResourceInfo? Target, ConfirmedPlan? Plan)> Calls { get; } = new();
         public int SkipCalls { get; private set; }
         public ProcessActionResult Result { get; set; } = new() { Status = ProcessActionStatus.Completed, Summary = "Termine" };
         public Exception? Exception { get; set; }
-        public Task<ProcessActionResult> ExecuteAsync(ProcessActionKind action, ProcessResourceInfo? target, bool confirmed, bool reinforcedConfirmation, CancellationToken cancellationToken)
+        public Task<ProcessActionResult> ExecuteAsync(ProcessActionKind action, ProcessResourceInfo? target, ConfirmedPlan? plan, CancellationToken cancellationToken)
         {
-            Calls.Add((action, target, confirmed, reinforcedConfirmation));
+            Calls.Add((action, target, plan));
             return Exception is null ? Task.FromResult(Result with { Action = action }) : Task.FromException<ProcessActionResult>(Exception);
         }
         public ProcessActionResult Skip(ProcessActionKind action, string target)

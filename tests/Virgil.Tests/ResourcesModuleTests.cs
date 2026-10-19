@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Interventions;
 using Virgil.Core.Resources;
 using Virgil.Contracts;
@@ -7,6 +9,7 @@ namespace Virgil.Tests;
 
 public sealed class ResourcesModuleTests
 {
+    private readonly ConfirmationService _authority = new(TimeProvider.System);
     private static readonly DateTimeOffset StartedAt =
         new(2026, 6, 18, 9, 0, 0, TimeSpan.Zero);
 
@@ -119,8 +122,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.CloseMainWindow,
             Target(),
-            confirmed: true,
-            reinforcedConfirmation: false,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.CloseMainWindow, Target()), new ConfirmationConsent(ConfirmationLevel.Simple, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.PartialFailure, result.Status);
@@ -137,8 +139,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.KillProcess,
             Target(),
-            confirmed: true,
-            reinforcedConfirmation: false,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.KillProcess, Target()) with { RiskLevel = RiskLevel.Low }, new ConfirmationConsent(ConfirmationLevel.Simple, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
@@ -154,8 +155,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.KillProcess,
             Target(),
-            confirmed: true,
-            reinforcedConfirmation: true,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.KillProcess, Target()), new ConfirmationConsent(ConfirmationLevel.Reinforced, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Completed, result.Status);
@@ -171,8 +171,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.CloseMainWindow,
             Target(),
-            confirmed: false,
-            reinforcedConfirmation: false,
+            null,
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
@@ -202,8 +201,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.KillProcess,
             target,
-            confirmed: true,
-            reinforcedConfirmation: true,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.KillProcess, target), new ConfirmationConsent(ConfirmationLevel.Reinforced, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
@@ -223,8 +221,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.KillProcess,
             Target(),
-            confirmed: true,
-            reinforcedConfirmation: true,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.KillProcess, Target()), new ConfirmationConsent(ConfirmationLevel.Reinforced, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
@@ -263,8 +260,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.OpenLocation,
             target,
-            confirmed: true,
-            reinforcedConfirmation: false,
+            null,
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
@@ -288,8 +284,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.OpenLocation,
             target,
-            confirmed: true,
-            reinforcedConfirmation: false,
+            null,
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Completed, result.Status);
@@ -306,8 +301,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.ReleaseInactiveMemory,
             null,
-            confirmed: true,
-            reinforcedConfirmation: false,
+            null,
             CancellationToken.None);
 
         Assert.False(service.CanReleaseInactiveMemory);
@@ -323,8 +317,7 @@ public sealed class ResourcesModuleTests
         var result = await service.ExecuteAsync(
             ProcessActionKind.RestartExplorer,
             null,
-            confirmed: true,
-            reinforcedConfirmation: false,
+            _authority.Issue(ProcessActionPreviewFactory.Create(ProcessActionKind.RestartExplorer, null), new ConfirmationConsent(ConfirmationLevel.Simple, null)),
             CancellationToken.None);
 
         Assert.Equal(ProcessActionStatus.Completed, result.Status);
@@ -477,7 +470,7 @@ public sealed class ResourcesModuleTests
             AccessDenied: false);
     }
 
-    private static ProcessActionService CreateActionService(
+    private ProcessActionService CreateActionService(
         FakeProcessRuntime runtime,
         FakeExplorerRestarter? restarter = null)
     {
@@ -486,7 +479,7 @@ public sealed class ResourcesModuleTests
             Policy(),
             restarter ?? new FakeExplorerRestarter(),
             new InterventionCatalog(),
-            () => StartedAt);
+            () => StartedAt, _authority);
     }
 
     private sealed class FakeProcessRuntime : IProcessRuntime

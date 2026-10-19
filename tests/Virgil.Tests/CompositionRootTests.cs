@@ -48,6 +48,34 @@ public sealed class CompositionRootTests
         Assert.Same(provider.GetRequiredService<IConfirmedPlanGate>(), field.GetValue(service));
     }
 
+    [Theory]
+    [InlineData(typeof(IProcessActionService))]
+    [InlineData(typeof(IUpdateExecutionService))]
+    public void ResourceAndUpdateServicesUseSharedGate(Type serviceType)
+    {
+        using var provider = BuildProvider();
+        var service = provider.GetRequiredService(serviceType);
+        var field = service.GetType().GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Single(value => value.FieldType == typeof(IConfirmedPlanGate));
+        Assert.Same(provider.GetRequiredService<IConfirmationService>(), field.GetValue(service));
+        Assert.Same(provider.GetRequiredService<IConfirmedPlanGate>(), field.GetValue(service));
+    }
+
+    [Theory]
+    [Trait("Category", "Windows")]
+    [InlineData(typeof(ResourcesViewModel))]
+    [InlineData(typeof(UpdatesViewModel))]
+    public void ResourceAndUpdateViewModelsUseSharedIssuer(Type viewModelType)
+    {
+        using var provider = new ServiceCollection().AddVirgilServices().AddVirgilViews()
+            .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var vm = provider.GetRequiredService(viewModelType);
+        var field = viewModelType.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            .Single(value => value.FieldType == typeof(IConfirmationService));
+        Assert.Same(provider.GetRequiredService<IConfirmedPlanGate>(), field.GetValue(vm));
+        Assert.Same(provider.GetRequiredService<IConfirmationService>(), field.GetValue(vm));
+    }
+
     [Fact]
     public void ProcessRunnerIsTheSingleInfrastructureSingleton()
     {

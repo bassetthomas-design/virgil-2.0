@@ -1,3 +1,5 @@
+using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Processes;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Scanning;
@@ -9,6 +11,7 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesModuleTests
 {
+    private readonly ConfirmationService _authority = new(TimeProvider.System);
     [Fact]
     public async Task WingetAvailability_returns_unavailable_when_launch_fails()
     {
@@ -131,7 +134,7 @@ VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
             _ => new ProcessRunResult(0, "v1.8.0", string.Empty),
             _ => new ProcessRunResult(0, "done", string.Empty));
         var availability = new WingetAvailabilityService(runner, new[] { @"C:\tools\winget.exe" });
-        var service = new WingetUpdateExecutionService(availability, runner);
+        var service = new WingetUpdateExecutionService(availability, runner, _authority);
         var item = new UpdateItem
         {
             Id = "Microsoft.PowerToys",
@@ -142,7 +145,7 @@ VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
             RiskLevel = UpdateRiskLevel.ValidationRequired
         };
 
-        var result = await service.ExecuteAsync(item, CancellationToken.None);
+        var result = await service.ExecuteAsync(item, _authority.Issue(UpdateActionPreviewFactory.Create(item), new ConfirmationConsent(ConfirmationLevel.Simple, null)), CancellationToken.None);
         var command = runner.Requests[1].Arguments;
 
         Assert.Equal(UpdateItemStatus.Completed, result.Status);
@@ -160,7 +163,7 @@ VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
         var runner = new FakeProcessRunner(_ => new ProcessRunResult(0, "should not run", string.Empty));
         var service = new WingetUpdateExecutionService(
             new WingetAvailabilityService(runner, new[] { "winget.exe" }),
-            runner);
+            runner, _authority);
 
         var result = await service.ExecuteAsync(new UpdateItem
         {
@@ -168,7 +171,7 @@ VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
             Name = "BIOS updater",
             Source = UpdateSource.FirmwareInformation,
             RiskLevel = UpdateRiskLevel.CriticalInformationOnly
-        }, CancellationToken.None);
+        }, null, CancellationToken.None);
 
         Assert.Equal(UpdateItemStatus.InformationOnly, result.Status);
         Assert.Empty(runner.Requests);
@@ -177,7 +180,7 @@ VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
     [Fact]
     public void Execution_report_counts_skip_cancel_and_errors()
     {
-        var service = new WingetUpdateExecutionService(new FakeProcessRunner());
+        var service = new WingetUpdateExecutionService(new FakeProcessRunner(), _authority);
         var item = new UpdateItem { Id = "VideoLAN.VLC", Name = "VLC", Source = UpdateSource.Winget };
 
         var report = service.CreateReport(
