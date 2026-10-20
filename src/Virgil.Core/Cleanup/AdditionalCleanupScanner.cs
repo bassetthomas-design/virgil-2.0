@@ -22,8 +22,9 @@ public sealed class AdditionalCleanupScanner(IKnownFoldersProvider folders, IDow
                     root.Path, TimeSpan.Zero, CleanupRiskLevel.Medium, "Fichier de plus de 90 jours ou de plus de 500 Mo.",
                     "Mise en quarantaine après confirmation.", "Les autres dossiers ne sont pas parcourus pour les gros fichiers.", 450)
                 { Classification = CleanupClassification.AdvancedCleanable, RequiresReinforcedConfirmation = true };
-                result.Add(new(zone, now, 1, 1, file.SizeBytes, 0,
-                    [new(CleanupZoneId.OldDownloads, file.Path, file.Path, file.SizeBytes, file.LastWriteUtc, true, null) { Group = CleanupGroup.AVerifier }], []));
+                var eligible = !CleanupSafetyClassifier.IsPersonalExtension(file.Path);
+                result.Add(new(zone, now, 1, eligible ? 1 : 0, eligible ? file.SizeBytes : 0, eligible ? 0 : 1,
+                    [new(CleanupZoneId.OldDownloads, file.Path, file.Path, file.SizeBytes, file.LastWriteUtc, eligible, eligible ? null : "Type personnel ou archive protégé par les gardes existants.") { Group = CleanupGroup.AVerifier }], []));
             }
         }
         result.AddRange(leftovers.Analyze(await footprints.ReadAsync(token).ConfigureAwait(false), now));

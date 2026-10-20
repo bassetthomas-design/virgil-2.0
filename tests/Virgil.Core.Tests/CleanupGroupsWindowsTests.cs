@@ -65,7 +65,7 @@ public sealed class CleanupGroupsWindowsTests
     {
         var result = new KnownFoldersProvider().GetFolders();
         foreach (var kind in Enum.GetValues<KnownFolder>().Where(k => k != KnownFolder.OneDrive))
-            Assert.True(Path.IsPathFullyQualified(Assert.Single(result.Where(f => f.Kind == kind)).Path));
+            Assert.True(Path.IsPathFullyQualified(Assert.Single(result, f => f.Kind == kind).Path));
     }
 
     private sealed class Folders(KnownFolder kind, string root) : IKnownFoldersProvider

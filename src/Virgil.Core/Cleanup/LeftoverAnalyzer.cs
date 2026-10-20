@@ -7,7 +7,7 @@ public sealed class LeftoverAnalyzer
 {
     private static readonly string[] Protected = ["microsoft", "windows", "nvidia", "amd", "intel", "realtek", "virgil",
         "antivirus", "security", "defender", "avast", "avg", "kaspersky", "bitdefender", "eset", "mcafee", "norton",
-        "sophos", "malwarebytes", "crowdstrike", "sentinel", "trendmicro", "avira", "fsecure", "netframework", "dotnet", "visualc", "vcredist", "runtime", "driver", "commonfiles"];
+        "sophos", "malwarebytes", "crowdstrike", "sentinel", "trendmicro", "avira", "fsecure", "netframework", "dotnet", "visualc", "vcredist", "runtime", "driver", "commonfiles", "packages", "packagecache"];
 
     public IReadOnlyList<CleanupZonePreview> Analyze(SoftwareFootprintSnapshot snapshot, DateTimeOffset now)
     {
@@ -28,7 +28,8 @@ public sealed class LeftoverAnalyzer
                     snapshot.Installed.Any(i => Normalize(i.Name).Contains(Normalize(c.Name), StringComparison.OrdinalIgnoreCase) || Normalize(c.Name).Contains(Normalize(i.Name), StringComparison.OrdinalIgnoreCase));
                 var validRoot = c.Path.Length > 0 && CleanupPathGuard.IsStrictlyUnderRoot(c.Path, c.AllowedRoot);
                 var files = c.Files.Where(f => validRoot && CleanupPathGuard.IsStrictlyUnderRoot(f.Path, c.Path))
-                    .Select(f => new CleanupCandidate(CleanupZoneId.SoftwareLeftovers, f.Path, f.Path, f.SizeBytes, f.LastWriteUtc, true, null)
+                    .Select(f => new CleanupCandidate(CleanupZoneId.SoftwareLeftovers, f.Path, f.Path, f.SizeBytes, f.LastWriteUtc,
+                        !CleanupSafetyClassifier.IsPersonalExtension(f.Path), CleanupSafetyClassifier.IsPersonalExtension(f.Path) ? "Type personnel ou archive protégé par les gardes existants." : null)
                     { Group = CleanupGroup.RestesLogiciels, NeedsReview = uncertain }).ToArray();
                 var zone = new CleanupZoneDefinition(CleanupZoneId.SoftwareLeftovers,
                     $"{c.Name} (désinstallé){(uncertain ? " — à confirmer" : "")} : {total} octets, {count} fichiers, {keys.Length} clés de registre, dernière utilisation : {last?.ToString("u") ?? "inconnue"}",
@@ -40,7 +41,7 @@ public sealed class LeftoverAnalyzer
                     ValidatedRemnantRoot = validRoot ? c.Path : null, RemnantAllowedRoot = validRoot ? c.AllowedRoot : null,
                     RegistryKeys = keys, LastUsedUtc = last
                 };
-                result.Add(new(zone, now, files.Length, files.Length, files.Sum(f => f.SizeBytes), 0, files, []));
+                result.Add(new(zone, now, files.Length, files.Count(f => f.IsEligible), files.Where(f => f.IsEligible).Sum(f => f.SizeBytes), files.Count(f => !f.IsEligible), files, []));
             }
         }
         return result;

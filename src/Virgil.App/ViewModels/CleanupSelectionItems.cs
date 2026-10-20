@@ -15,7 +15,8 @@ public sealed partial class CleanupSelectionRow : ObservableObject
     public string Details => $"{Preview.Definition.Description}\n{Preview.EligibleBytes} octets, {Preview.EligibleFileCount} fichiers\n" +
         (Preview.Definition.IsPersonalFolder ? "Dossier personnel — sélection ligne par ligne, confirmation Critical, quarantaine uniquement.\n" : "") +
         (Preview.Definition.NeedsReview ? "À confirmer — sélection ligne par ligne uniquement.\n" : "") +
-        string.Join("\n", Preview.Definition.RegistryKeys);
+        string.Join("\n", Preview.Definition.RegistryKeys) + "\n" +
+        string.Join("\n", Preview.Candidates.Where(c => !c.IsEligible).Select(c => c.ExclusionReason));
     public bool CanSelect => Preview.Definition.Id != CleanupZoneId.WindowsOld && Preview.Definition.IsExecutable && Preview.HasEligibleCandidates &&
         Preview.Definition.Classification is CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable;
     public bool CanGroupSelect => CanSelect && !Preview.Definition.IsPersonalFolder && !Preview.Definition.NeedsReview &&

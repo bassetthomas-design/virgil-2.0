@@ -159,6 +159,9 @@ public partial class CleanupViewModel : ObservableObject
                 : purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
             if (action is null) { StatusText = "Aucun élément expiré à effacer."; return; }
             var preview = await action.PreviewAsync(_operationCancellation!.Token);
+            RequiresCriticalConfirmation = false;
+            CriticalConfirmationText = string.Empty;
+            ExpectedCriticalConfirmation = string.Empty;
             ValidationTitle = expiredOnly ? "Effacer les éléments expirés" : preview.Title;
             ValidationReason = "Éléments sélectionnés dans la quarantaine";
             ValidationRoot = string.Join("\n", preview.Targets);

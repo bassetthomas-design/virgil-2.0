@@ -13,6 +13,36 @@ namespace Virgil.Tests;
 public sealed class CleanupViewModelTests
 {
     [Fact]
+    public async Task PersonalSelectionRequiresIndividualChoiceAndTypedCriticalConsent()
+    {
+        var f = new Fixture();
+        var preview = Preview();
+        f.Previews.Items = new[] { preview with { Definition = preview.Definition with { IsPersonalFolder = true } } };
+        await f.Analyze();
+        var group = f.Vm.Groups.Single(g => g.Group == CleanupGroup.Sur);
+        group.IsSelected = true;
+        var row = Assert.Single(group.Rows);
+        Assert.False(row.IsSelected);
+        row.IsSelected = true;
+        var pending = f.Run();
+        Assert.True(f.Vm.RequiresCriticalConfirmation);
+        Assert.Contains("dossier personnel", f.Vm.ValidationTitle);
+        Assert.Contains("Dossier personnel", f.Vm.ValidationWarning);
+        Assert.NotEmpty(f.Vm.ExpectedCriticalConfirmation);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(new[] { "Cancel:UserTemporaryFiles" }, f.Actions.Order);
+        f.Vm.CloseReportCommand.Execute(null);
+        f.Actions.Order.Clear();
+        pending = f.Run();
+        f.Vm.CriticalConfirmationText = f.Vm.ExpectedCriticalConfirmation;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(new[] { "Execute:UserTemporaryFiles" }, f.Actions.Order);
+        Assert.Equal(2, f.Confirmation.Calls);
+    }
+
+    [Fact]
     public async Task RefusedIssuanceUsesCancelAllPath()
     {
         var f = new Fixture(); f.Confirmation.Refuse = true;

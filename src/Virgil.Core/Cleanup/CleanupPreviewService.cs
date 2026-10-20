@@ -152,7 +152,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
                 Math.Max(0, fileInfo.Length),
                 lastWrite,
                 isOldEnough,
-                exclusion);
+                exclusion) { Group = zone.Group };
         }
         catch
         {
@@ -172,7 +172,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             0,
             DateTimeOffset.MinValue,
             false,
-            reason);
+            reason) { Group = zone.Group };
     }
 
     private static CleanupZonePreview CreatePreview(
