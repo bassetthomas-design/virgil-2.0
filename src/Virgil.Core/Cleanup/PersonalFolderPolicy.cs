@@ -16,6 +16,8 @@ public sealed class PersonalFolderPolicy(IKnownFoldersProvider folders)
     private static bool CanQuarantine(CleanupZoneDefinition zone, string path, IReadOnlyList<KnownFolderPath> known)
     {
         if (known.Any(f => Same(path, f.Path))) return false;
+        if (zone.Id == CleanupZoneId.SoftwareLeftovers && known.Any(f => Same(zone.RootPath, f.Path) ||
+            CleanupPathGuard.IsStrictlyUnderRoot(f.Path, zone.RootPath))) return false;
         if (!IsPersonal(path, known)) return true;
         return zone.Id == CleanupZoneId.SoftwareLeftovers && zone.ValidatedRemnantRoot is { } remnant &&
             zone.RemnantAllowedRoot is { } root && CleanupPathGuard.IsStrictlyUnderRoot(remnant, root) &&

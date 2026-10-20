@@ -70,7 +70,7 @@ public sealed class CleanupGroupsTests
     [Theory]
     [InlineData("Microsoft")] [InlineData("Windows")] [InlineData("NVIDIA")] [InlineData("AMD")] [InlineData("Intel")]
     [InlineData("Realtek")] [InlineData("Antivirus")] [InlineData("Bitdefender")]
-    [InlineData("dotnet")] [InlineData("VC Redist Runtime")] [InlineData("Virgil")]
+    [InlineData(".NET")] [InlineData("VC++")] [InlineData("dotnet")] [InlineData("VC Redist Runtime")] [InlineData("Virgil")]
     public void ProtectedSoftwareIsNeverProposed(string name) =>
         Assert.Empty(new LeftoverAnalyzer().Analyze(Snapshot with { Candidates = [Dofus with { Name = name }] }, Now));
 
@@ -95,6 +95,8 @@ public sealed class CleanupGroupsTests
         Assert.True(Assert.Single(preview.Candidates).IsPersonalFolder);
         Assert.True(policy.CanQuarantine(preview.Definition, FileItem.Path));
         Assert.False(policy.CanQuarantine(preview.Definition, Root));
+        Assert.False(policy.CanQuarantine(preview.Definition with
+        { RootPath = Root, ValidatedRemnantRoot = Root, RemnantAllowedRoot = Path.GetDirectoryName(Root) }, FileItem.Path));
         Assert.False(policy.CanQuarantine(preview.Definition, Path.Combine(Root, "personnel.tmp")));
         var regular = preview with { Definition = preview.Definition with { Id = CleanupZoneId.UserTemporaryFiles, ValidatedRemnantRoot = null } };
         Assert.Equal(0, policy.Apply(regular).EligibleFileCount);

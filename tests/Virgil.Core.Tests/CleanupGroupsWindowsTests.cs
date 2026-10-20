@@ -61,6 +61,26 @@ public sealed class CleanupGroupsWindowsTests
 
     [Fact]
     [Trait("Category", "Windows")]
+    public void WindowsOldIsMeasuredWithoutExposingAnExecutableAction()
+    {
+        var root = Directory.CreateTempSubdirectory("VirgilOld-");
+        try
+        {
+            var path = Path.Combine(root.FullName, "previous.tmp"); File.WriteAllText(path, "cache");
+            var preview = new WindowsOldSource(root.FullName).Read(CancellationToken.None);
+            Assert.NotNull(preview);
+            Assert.Equal(CleanupGroup.AVerifier, preview.Definition.Group);
+            Assert.False(preview.Definition.IsExecutable);
+            Assert.Equal(1, preview.ExaminedFileCount); Assert.Equal(0, preview.EligibleFileCount);
+            Assert.Contains("5 octets", preview.Definition.Description);
+            Assert.Contains("outils Windows", preview.Definition.Description);
+            Assert.True(File.Exists(path));
+        }
+        finally { root.Delete(true); }
+    }
+
+    [Fact]
+    [Trait("Category", "Windows")]
     public void KnownFoldersAdapterResolvesAllSixWindowsFolders()
     {
         var result = new KnownFoldersProvider().GetFolders();
