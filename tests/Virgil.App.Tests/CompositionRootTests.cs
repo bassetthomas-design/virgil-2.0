@@ -18,6 +18,39 @@ namespace Virgil.Tests;
 public sealed class CompositionRootTests
 {
     [Fact]
+    [Trait("Category", "Windows")]
+    public async Task MaintenanceModuleAndEveryExecutableCleanupActionResolveWithValidatedComposition()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        var expected = CleanupZoneCatalog.CreateDefault().Where(zone => zone.IsExecutable &&
+            zone.Classification is Virgil.Contracts.CleanupClassification.Cleanable or Virgil.Contracts.CleanupClassification.AdvancedCleanable)
+            .OrderBy(zone => zone.Id).ToArray();
+        services.AddTransient<ICleanupPreviewService>(_ => new ContractPreview(expected));
+        services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer(Array.Empty<string>()));
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var module = Assert.Single(provider.GetServices<IMaintenanceModule>());
+        Assert.IsType<CleanupMaintenanceModule>(module);
+        Assert.Equal("cleanup", module.Id);
+        Assert.Equal("Nettoyage", module.Title);
+        Assert.IsType<Virgil.Infrastructure.Windows.CleanupDisk>(provider.GetRequiredService<ICleanupDisk>());
+        Assert.Empty(provider.GetServices<IMaintenanceAction>());
+        Assert.Empty(provider.GetServices<CleanupMaintenanceAction>());
+        var findings = await module.ScanAsync(CancellationToken.None);
+        var actions = module.GetActions(findings);
+        Assert.Equal(expected.Select(zone => zone.Id), actions.Cast<CleanupMaintenanceAction>().Select(action => action.ZoneId).OrderBy(id => id));
+        Assert.Equal(findings.ProposedActions.Select(action => action.Id).OrderBy(id => id), actions.Select(action => action.Id).OrderBy(id => id));
+        Assert.Equal(actions.Count, actions.Select(action => action.Id).Distinct().Count());
+        foreach (var action in actions)
+        {
+            var preview = await action.PreviewAsync(CancellationToken.None);
+            Assert.Equal(action.Id, preview.ActionId);
+            Assert.Equal(action.RiskLevel, preview.RiskLevel);
+            Assert.NotEmpty(preview.Targets);
+            Assert.NotEqual(DateTimeOffset.MinValue.ToString("O"), preview.Parameters["GeneratedAt"]);
+        }
+    }
+
+    [Fact]
     public void ServicesResolveWithoutConstructingWpfViews()
     {
         using var provider = BuildProvider();
@@ -183,4 +216,18 @@ public sealed class CompositionRootTests
 
     private static ServiceProvider BuildProvider() => new ServiceCollection().AddVirgilServices()
         .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+    private sealed class ContractPreview(IReadOnlyList<Virgil.Contracts.CleanupZoneDefinition> zones) : ICleanupPreviewService
+    {
+        public IReadOnlyList<Virgil.Contracts.CleanupZoneDefinition> GetZones() => zones;
+        public Task<IReadOnlyList<Virgil.Contracts.CleanupZonePreview>> PreviewAsync(
+            IProgress<Virgil.Contracts.CleanupProgress>? progress, CancellationToken cancellationToken)
+        {
+            IReadOnlyList<Virgil.Contracts.CleanupZonePreview> previews = zones.Select(zone =>
+                new Virgil.Contracts.CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 32, 0,
+                    new[] { new Virgil.Contracts.CleanupCandidate(zone.Id, "zone/old.tmp", "old.tmp", 32,
+                        DateTimeOffset.UtcNow.AddDays(-2), true, null) }, Array.Empty<string>())).ToArray();
+            return Task.FromResult(previews);
+        }
+    }
+
 }

@@ -60,7 +60,7 @@ public sealed record ActionPreview(
     }
 }
 
-public sealed record ActionResult(
+public record ActionResult(
     string ActionId,
     bool Succeeded,
     bool WasRefused,

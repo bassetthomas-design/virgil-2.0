@@ -19,9 +19,8 @@ namespace Virgil.App.ViewModels;
 
 public partial class CleanupViewModel : ObservableObject
 {
-    private readonly ICleanupPreviewService _previewService;
-    private readonly ICleanupExecutionService _executionService;
-    private readonly CleanupStorageAnalyzer _storageAnalyzer;
+    private readonly CleanupMaintenanceModule _module;
+    private IReadOnlyList<IMaintenanceAction> _actions = Array.Empty<IMaintenanceAction>();
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
     private readonly IConfirmationService _confirmationService;
@@ -34,18 +33,14 @@ public partial class CleanupViewModel : ObservableObject
     private readonly IProcessRunner _processRunner;
 
     public CleanupViewModel(
-        ICleanupPreviewService previewService,
-        ICleanupExecutionService executionService,
+        CleanupMaintenanceModule module,
         IProcessRunner processRunner,
-        CleanupStorageAnalyzer storageAnalyzer,
         IReportHistoryService reportHistoryService,
         IConfirmationService confirmationService)
     {
         _confirmationService = confirmationService;
-        _previewService = previewService ?? throw new ArgumentNullException(nameof(previewService));
-        _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
+        _module = module ?? throw new ArgumentNullException(nameof(module));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
-        _storageAnalyzer = storageAnalyzer ?? throw new ArgumentNullException(nameof(storageAnalyzer));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
         Entries.Add(new CleanupTextCardItem("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan."));
     }
@@ -159,19 +154,17 @@ public partial class CleanupViewModel : ObservableObject
         try
         {
             _lastPreview.Clear();
+            _actions = Array.Empty<IMaintenanceAction>();
             StatusText = "Analyse en cours.";
             RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
             VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
 
-            var previews = await _previewService
-                .PreviewAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
+            var findings = (CleanupFindings)await _module
+                .ScanAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
-
-            _lastStorageAnalysis = await _storageAnalyzer
-                .AnalyzeAsync(_operationCancellation.Token)
-                .ConfigureAwait(true);
-
-            _lastPreview.AddRange(previews);
+            _actions = _module.GetActions(findings, new Progress<CleanupProgress>(HandleProgress));
+            _lastStorageAnalysis = findings.Analysis.Storage;
+            _lastPreview.AddRange(findings.Analysis.Zones);
             RenderPreviews();
             UpdateCommandState();
             StatusText = "Previsualisation disponible. Validation par zone requise.";
@@ -228,12 +221,13 @@ public partial class CleanupViewModel : ObservableObject
                 var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
                 RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
 
+                var action = _actions.Single(action => action.Id == CleanupActionPreviewFactory.Create(preview).ActionId);
                 ConfirmedPlan? plan = null;
                 if (decision == CleanupZoneDecision.Execute)
                 {
                     try
                     {
-                        plan = _confirmationService.Issue(CleanupActionPreviewFactory.Create(preview),
+                        plan = _confirmationService.Issue(await action.PreviewAsync(_operationCancellation.Token).ConfigureAwait(true),
                             new ConfirmationConsent(preview.Definition.RequiresReinforcedConfirmation
                                 ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
                     }
@@ -245,22 +239,22 @@ public partial class CleanupViewModel : ObservableObject
 
                 if (decision == CleanupZoneDecision.CancelAll)
                 {
-                    results.Add(_executionService.CancelZone(preview));
+                    results.Add(_module.CancelZone(preview));
                     sessionErrors.Add("Session annulee par l'utilisateur.");
                     break;
                 }
 
                 if (decision == CleanupZoneDecision.Skip)
                 {
-                    results.Add(_executionService.SkipZone(preview));
+                    results.Add(_module.SkipZone(preview));
                     VirgilMessageRequested?.Invoke("Zone passee.\nAucune modification effectuee.");
                     continue;
                 }
 
                 RequestVirgilState(VirgilCoreState.Executing, "NETTOYAGE");
-                var result = await _executionService
-                    .ExecuteZoneAsync(preview, plan, new Progress<CleanupProgress>(HandleProgress), _operationCancellation.Token)
-                    .ConfigureAwait(true);
+                var actionResult = (CleanupMaintenanceResult)await action
+                    .ExecuteAsync(plan, _operationCancellation.Token).ConfigureAwait(true);
+                var result = actionResult.Step;
 
                 results.Add(result);
                 AnnounceZoneResult(result);
@@ -278,7 +272,7 @@ public partial class CleanupViewModel : ObservableObject
         finally
         {
             var storage = _lastStorageAnalysis;
-            _lastReport = _executionService.CreateReport(startedAt, results, sessionErrors) with
+            _lastReport = _module.CreateReport(startedAt, results, sessionErrors) with
             {
                 EstimatedBytes = selected.Sum(preview => preview.EligibleBytes),
                 ReviewItems = storage?.ReviewItemCount ?? 0,

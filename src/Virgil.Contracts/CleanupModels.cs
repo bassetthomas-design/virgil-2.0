@@ -162,7 +162,11 @@ public sealed record CleanupStepResult(
     int SkippedFiles,
     int ErrorFiles,
     TimeSpan Duration,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors)
+{
+    /// <summary>Renseigné uniquement pour un refus avant effet, jamais pour une erreur d'exécution.</summary>
+    public string? RefusalReason { get; init; }
+}
 
 public sealed record CleanupSessionReport(
     DateTimeOffset StartedAt,

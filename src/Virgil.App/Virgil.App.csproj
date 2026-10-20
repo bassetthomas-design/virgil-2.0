@@ -24,5 +24,8 @@
     <MSBuild Projects="../Virgil.ElevatedHelper/Virgil.ElevatedHelper.csproj"
              Targets="Publish"
              Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$(PublishDir)" />
+    <Error Condition="!Exists('$(PublishDir)Virgil.ElevatedHelper.exe')"
+           Text="Publication incomplete : Virgil.ElevatedHelper.exe est absent." />
+    <Message Importance="high" Text="Publication verifiee : Virgil.ElevatedHelper.exe est present." />
   </Target>
 </Project>
