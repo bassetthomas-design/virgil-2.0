@@ -12,8 +12,8 @@ public sealed class CleanupViewArchitectureTests
         var xaml = File.ReadAllText(Path.Combine(root, "src", "Virgil.App", "Views", "CleanupView.xaml"));
 
         Assert.DoesNotContain("TOUT NETTOYER", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NETTOYAGE SUR", xaml, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("NETTOYAGE AVANCE", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Binding Groups", xaml, StringComparison.Ordinal);
+        Assert.Contains("NETTOYER LA SÉLECTION", xaml, StringComparison.Ordinal);
         Assert.Contains("A REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
     }
 

@@ -15,6 +15,10 @@ public interface ICleanupExecutionService
         IProgress<CleanupProgress>? progress,
         CancellationToken cancellationToken);
 
+    Task<CleanupSelectionResult> ExecuteSelectionAsync(IReadOnlyList<CleanupZonePreview> selection, ConfirmedPlan? plan,
+        IProgress<CleanupProgress>? progress, CancellationToken cancellationToken) =>
+        Task.FromResult(CleanupSelectionResult.Refused("Exécution de sélection indisponible."));
+
     CleanupStepResult SkipZone(CleanupZonePreview preview);
 
     CleanupStepResult CancelZone(CleanupZonePreview preview);

@@ -14,6 +14,13 @@ public static class CleanupActionPreviewFactory
         var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ZoneId"] = definition.Id.ToString(),
+            ["Root"] = definition.RootPath,
+            ["Group"] = definition.Group.ToString(),
+            ["Personal"] = definition.IsPersonalFolder.ToString(),
+            ["NeedsReview"] = definition.NeedsReview.ToString(),
+            ["RemnantRoot"] = definition.ValidatedRemnantRoot ?? "",
+            ["AllowedRoot"] = definition.RemnantAllowedRoot ?? "",
+            ["RegistryReadOnly"] = string.Join("\n", definition.RegistryKeys),
             ["GeneratedAt"] = preview.GeneratedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)
         };
         var eligible = preview.Candidates.Where(candidate => candidate.IsEligible).ToList();
@@ -38,8 +45,9 @@ public static class CleanupActionPreviewFactory
         var risk = definition.RiskLevel.ToRiskLevel();
         if (definition.RequiresReinforcedConfirmation && risk < RiskLevel.Sensitive)
             risk = RiskLevel.Sensitive;
+        if (definition.IsPersonalFolder || eligible.Any(c => c.IsPersonalFolder)) risk = RiskLevel.Critical;
         return new ActionPreview("cleanup.zone." + definition.Id.ToString().ToLowerInvariant(),
-            definition.DisplayName, risk, eligible.Select(candidate => candidate.FullPath).ToArray(),
+            (definition.IsPersonalFolder ? "Dossier personnel — " : "") + definition.DisplayName, risk, eligible.Select(candidate => candidate.FullPath).ToArray(),
             parameters, quarantine ? [$"Conservé {preview.QuarantineRetentionDays} jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible."] : [definition.Effect],
             definition.RequiresElevation, false, quarantine ? Reversibility.Full : Reversibility.None, []);
     }

@@ -1,4 +1,5 @@
 using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using Virgil.App.ViewModels;
 using Virgil.Contracts;
@@ -175,28 +176,29 @@ public sealed class CleanupViewModelTests
     }
 
     [Fact]
-    public async Task SkipExecuteCancelKeepsPreviewOrderAndRequiresEachZonesDecision()
+    public async Task SelectionKeepsPreviewOrderAndRequiresOneDecision()
     {
         var f = new Fixture();
-        // Display sorting must not reorder the guided session inherited from the preview service.
+        // Une seule décision lie toute la sélection ; les zones décochées n'entrent pas dans l'aperçu.
         f.Previews.Items = new[] { Preview(CleanupZoneId.DirectXShaderCache, order: 9), Preview(order: 1), Preview(CleanupZoneId.UserCrashDumps, order: 4), Preview(CleanupZoneId.TechnicalLogs) };
         await f.Analyze();
+        var rows = f.Vm.Groups.SelectMany(g => g.Rows).ToArray();
+        rows[0].IsSelected = false;
+        rows[2].IsSelected = false;
         var pending = f.Run();
-        Assert.StartsWith("Zone : DirectXShaderCache\n", f.Vm.ValidationReason);
-        await NextValidation(f.Vm, () => f.Vm.SkipDecisionCommand.Execute(null), "UserTemporaryFiles");
-        Assert.Equal(new[] { "Skip:DirectXShaderCache" }, f.Actions.Order);
-        await NextValidation(f.Vm, () => f.Vm.ExecuteDecisionCommand.Execute(null), "UserCrashDumps");
-        Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles" }, f.Actions.Order);
-        f.Vm.CancelDecisionCommand.Execute(null);
+        Assert.Contains("UserTemporaryFiles", f.Vm.ValidationReason);
+        Assert.Contains("TechnicalLogs", f.Vm.ValidationReason);
+        Assert.DoesNotContain("DirectXShaderCache", f.Vm.ValidationReason);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Equal(1, f.Confirmation.Calls);
-        Assert.Equal(new[] { "Skip:DirectXShaderCache", "Execute:UserTemporaryFiles", "Cancel:UserCrashDumps" }, f.Actions.Order);
-        Assert.Equal(new[] { CleanupStepStatus.Skipped, CleanupStepStatus.Completed, CleanupStepStatus.Cancelled }, f.Actions.Report!.Results.Select(r => r.Status));
-        Assert.Equal(new[] { "Session annulee par l'utilisateur." }, f.Actions.Report.Errors);
-        Assert.Contains("Volume estime : 8 Ko", f.Vm.ReportText);
-        Assert.Contains("Zones executees : 1", f.Vm.ReportText);
+        Assert.Equal(new[] { "Execute:UserTemporaryFiles", "Execute:TechnicalLogs" }, f.Actions.Order);
+        Assert.All(f.Actions.Report!.Results, r => Assert.Equal(CleanupStepStatus.Completed, r.Status));
+        Assert.Empty(f.Actions.Report.Errors);
+        Assert.Contains("Volume estime : 4 Ko", f.Vm.ReportText);
+        Assert.Contains("Zones executees : 2", f.Vm.ReportText);
         Assert.Contains("Zones analysees : 4", f.Vm.ReportText);
-        Assert.Contains("Fichiers mis en quarantaine : 1", f.Vm.ReportText);
+        Assert.Contains("Fichiers mis en quarantaine : 2", f.Vm.ReportText);
         Assert.Equal(1, f.Persisted);
     }
 
@@ -217,8 +219,10 @@ public sealed class CleanupViewModelTests
             Preview(CleanupZoneId.InternetCache, CleanupClassification.ReviewOnly)
         };
         await f.Analyze();
+        foreach (var group in f.Vm.Groups) group.IsSelected = false;
+        f.Vm.Groups.Single(g => g.Group == (advanced ? CleanupGroup.AVerifier : CleanupGroup.Sur)).IsSelected = true;
         var pending = f.Run(advanced);
-        Assert.StartsWith(advanced ? "Zone : WindowsOld\n" : "Zone : UserTemporaryFiles\n", f.Vm.ValidationReason);
+        Assert.Contains(advanced ? "WindowsOld" : "UserTemporaryFiles", f.Vm.ValidationReason);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Equal(new[] { advanced ? "Execute:WindowsOld" : "Execute:UserTemporaryFiles" }, f.Actions.Order);
@@ -236,16 +240,19 @@ public sealed class CleanupViewModelTests
         f.Previews.Items = new[] { p };
         await f.Analyze();
         var pending = f.Run();
-        Assert.Equal(title, f.Vm.ValidationTitle);
-        Assert.Equal(label, f.Vm.ExecuteZoneLabel);
-        Assert.Equal(root, f.Vm.ValidationRoot);
-        Assert.Equal($"Zone : {id}\nDescription", f.Vm.ValidationReason);
-        Assert.Equal("Taille : 2 Ko\nFichiers : 2\nAge minimal : 2 jours\nRisque : faible", f.Vm.ValidationMetrics);
-        Assert.Equal(id == CleanupZoneId.RecycleBin ? "Effet\nSuppression définitive après confirmation de cette zone uniquement."
+        Assert.NotEmpty(title + label + root); // Paramètres historiques conservés pour les trois niveaux de zone.
+        Assert.Equal("Nettoyage — confirmation récapitulative", f.Vm.ValidationTitle);
+        Assert.Equal("CONFIRMER LA SÉLECTION", f.Vm.ExecuteZoneLabel);
+        Assert.Empty(f.Vm.ValidationRoot);
+        Assert.Contains(id.ToString(), f.Vm.ValidationReason);
+        Assert.Contains("Taille totale : 2 Ko", f.Vm.ValidationMetrics);
+        Assert.Contains("Nombre de fichiers : 2", f.Vm.ValidationMetrics);
+        Assert.Contains("Éléments sensibles : " + (reinforced ? "2" : "0"), f.Vm.ValidationMetrics);
+        Assert.Equal(id == CleanupZoneId.RecycleBin ? "Effet"
             : "Conservé 7 jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible.", f.Vm.ValidationEffect);
-        Assert.Equal("Non touche", f.Vm.ValidationNotTouched);
-        Assert.Equal("Attention", f.Vm.ValidationWarning);
-        Assert.Equal($"Validation requise.\nZone : {id.ToString().ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.", f.Messages.Last());
+        Assert.Contains("Clés de registre en lecture seule", f.Vm.ValidationNotTouched);
+        Assert.Contains(id == CleanupZoneId.RecycleBin ? "irréversible" : "quarantaine uniquement", f.Vm.ValidationWarning);
+        Assert.StartsWith("Validation requise.", f.Messages.Last());
         f.Vm.CancelDecisionCommand.Execute(null);
         await pending;
         Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
@@ -322,12 +329,12 @@ public sealed class CleanupViewModelTests
         f.Actions.ErrorFiles = 3;
         await f.Analyze();
         var pending = f.Run(true);
-        await NextValidation(f.Vm, () => f.Vm.SkipDecisionCommand.Execute(null), "RecycleBin");
+        Assert.DoesNotContain("WindowsOld", f.Vm.ValidationReason);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         var saved = f.History.Saved!;
-        Assert.Contains("Zones avancees refusees : 1", saved.SimpleView);
-        Assert.Contains("Espace estime : 4 Ko", saved.SimpleView);
+        Assert.Contains("Zones avancees refusees : 0", saved.SimpleView);
+        Assert.Contains("Espace estime : 2 Ko", saved.SimpleView);
         Assert.Contains("Fichiers ignores ou verrouilles : 3", saved.SimpleView);
         Assert.Contains("Elements a revoir : 0", saved.SimpleView);
         Assert.Contains("Elements proteges : 0", saved.SimpleView);
@@ -572,6 +579,23 @@ public sealed class CleanupViewModelTests
             return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed,
                 recycle ? 1 : 0, recycle ? 1024 : 0, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors)
                 { QuarantinedFiles = recycle ? 0 : 1, QuarantinedBytes = recycle ? 0 : 1024 });
+        }
+        public async Task<CleanupSelectionResult> ExecuteSelectionAsync(IReadOnlyList<CleanupZonePreview> selection, ConfirmedPlan? plan,
+            IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
+        {
+            Assert.NotNull(plan);
+            Assert.True(Authority.TryConsume(plan, CleanupSelectionAction.CreatePreview(selection)).IsAccepted);
+            var steps = new List<CleanupStepResult>();
+            foreach (var preview in selection)
+            {
+                Order.Add("Execute:" + preview.Definition.Id);
+                Token = cancellationToken;
+                var recycle = preview.Definition.Id == CleanupZoneId.RecycleBin;
+                steps.Add(Handler is not null ? await Handler(preview, cancellationToken) : new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed,
+                    recycle ? 1 : 0, recycle ? 1024 : 0, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors)
+                    { QuarantinedFiles = recycle ? 0 : 1, QuarantinedBytes = recycle ? 0 : 1024 });
+            }
+            return new(steps, null);
         }
         public CleanupStepResult SkipZone(CleanupZonePreview preview)
         {

@@ -4,6 +4,8 @@ using System.Linq;
 
 namespace Virgil.Contracts;
 
+public enum CleanupGroup { Sur, AVerifier, RestesLogiciels }
+
 public enum CleanupRiskLevel
 {
     Low,
@@ -43,7 +45,9 @@ public enum CleanupZoneId
     MicrosoftStoreCache,
     InstallerTemporaryFiles,
     WindowsOld,
-    PrefetchInformation
+    PrefetchInformation,
+    OldDownloads,
+    SoftwareLeftovers
 }
 
 public enum CleanupStepStatus
@@ -69,6 +73,15 @@ public sealed record CleanupZoneDefinition(
     int DisplayOrder)
 {
     public CleanupClassification Classification { get; init; } = CleanupClassification.Cleanable;
+    public CleanupGroup Group => Id == CleanupZoneId.SoftwareLeftovers ? CleanupGroup.RestesLogiciels
+        : Id == CleanupZoneId.RecycleBin || Classification == CleanupClassification.Cleanable ? CleanupGroup.Sur : CleanupGroup.AVerifier;
+    public bool IsPersonalFolder { get; init; }
+    public bool NeedsReview { get; init; }
+    public string? ValidatedRemnantRoot { get; init; }
+    public string? RemnantAllowedRoot { get; init; }
+    public IReadOnlyList<string> RegistryKeys { get; init; } = Array.Empty<string>();
+    public DateTimeOffset? LastUsedUtc { get; init; }
+
 
     public bool RequiresReinforcedConfirmation { get; init; }
 
@@ -127,7 +140,12 @@ public sealed record CleanupCandidate(
     long SizeBytes,
     DateTimeOffset LastWriteTimeUtc,
     bool IsEligible,
-    string? ExclusionReason);
+    string? ExclusionReason)
+{
+    public CleanupGroup Group { get; init; }
+    public bool IsPersonalFolder { get; init; }
+    public bool NeedsReview { get; init; }
+}
 
 public sealed record CleanupZonePreview(
     CleanupZoneDefinition Definition,

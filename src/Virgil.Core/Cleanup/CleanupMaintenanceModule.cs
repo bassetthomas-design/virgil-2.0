@@ -7,13 +7,17 @@ namespace Virgil.Core.Cleanup;
 public sealed class CleanupMaintenanceModule : IMaintenanceModule
 {
     private readonly CleanupAnalyzer _analyzer;
+    private readonly AdditionalCleanupScanner? _additional;
+    private readonly PersonalFolderPolicy? _personal;
     private readonly Func<int> _retention;
     private readonly ICleanupExecutionService _sessionResults;
 
     public CleanupMaintenanceModule(CleanupAnalyzer analyzer, ICleanupExecutionService sessionResults,
-        Func<int>? retention = null)
+        Func<int>? retention = null, AdditionalCleanupScanner? additional = null, PersonalFolderPolicy? personal = null)
     {
         _analyzer = analyzer;
+        _additional = additional;
+        _personal = personal;
         _retention = retention ?? (() => 7);
         _sessionResults = sessionResults;
     }
@@ -30,8 +34,10 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
         var days = _retention();
         if (days is < 1 or > 30) days = 7;
         var analysis = await _analyzer.AnalyzeAsync(progress, cancellationToken).ConfigureAwait(false);
+        var zones = analysis.Zones.Select(z => _personal?.Apply(z) ?? z).ToList();
+        if (_additional is not null) zones.AddRange(await _additional.ScanAsync(cancellationToken).ConfigureAwait(false));
         return new CleanupFindings(analysis with
-        { Zones = analysis.Zones.Select(zone => zone with { QuarantineRetentionDays = days }).ToArray() });
+        { Zones = zones.Select(zone => zone with { QuarantineRetentionDays = days }).ToArray() });
     }
 
     public IReadOnlyList<IMaintenanceAction> GetActions(Findings findings) => GetActions(findings, null);
@@ -45,6 +51,9 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
                 CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable)
             .Select(zone => (IMaintenanceAction)new CleanupMaintenanceAction(_sessionResults, zone, progress)).ToArray());
     }
+
+    public CleanupSelectionAction Select(IReadOnlyList<CleanupZonePreview> selection, IProgress<CleanupProgress>? progress = null) =>
+        new(_sessionResults, selection, progress);
 
     // Ces opérations ne produisent que des résultats/rapports ; aucune exécution de zone ici.
     public CleanupStepResult SkipZone(CleanupZonePreview preview) => _sessionResults.SkipZone(preview);
@@ -91,6 +100,7 @@ internal static class CleanupMaintenanceSnapshot
         {
             Definition = preview.Definition with
             {
+                RegistryKeys = Array.AsReadOnly(preview.Definition.RegistryKeys.ToArray()),
                 AllowedExtensions = Array.AsReadOnly(preview.Definition.AllowedExtensions.ToArray()),
                 RequiredPathFragments = Array.AsReadOnly(preview.Definition.RequiredPathFragments.ToArray()),
                 ExcludedPathFragments = Array.AsReadOnly(preview.Definition.ExcludedPathFragments.ToArray())
