@@ -18,6 +18,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     private readonly IRecycleBinService _recycleBinService;
     private readonly CleanupSafetyClassifier _safetyClassifier;
 
+    private readonly PersonalFolderPolicy? _personal;
     private readonly ICleanupDisk _disk;
     private readonly IQuarantineStore? _quarantine;
 
@@ -27,9 +28,10 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         Func<DateTimeOffset>? now = null,
         IRecycleBinService? recycleBinService = null,
         CleanupSafetyClassifier? safetyClassifier = null,
-        IQuarantineStore? quarantine = null)
+        IQuarantineStore? quarantine = null, PersonalFolderPolicy? personal = null)
     {
         _disk = disk;
+        _personal = personal;
         _quarantine = quarantine;
         _gate = gate;
         _now = now ?? (() => DateTimeOffset.Now);
@@ -45,6 +47,30 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     {
         return Task.Run(() => ExecuteZone(preview, plan, progress, cancellationToken), CancellationToken.None);
     }
+
+    public Task<CleanupSelectionResult> ExecuteSelectionAsync(IReadOnlyList<CleanupZonePreview> selection, ConfirmedPlan? plan,
+        IProgress<CleanupProgress>? progress, CancellationToken cancellationToken) => Task.Run(() =>
+    {
+        var snapshot = selection.Select(CleanupMaintenanceSnapshot.Copy).ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (snapshot.Length == 0 || snapshot.Any(p => p.Definition.Id == CleanupZoneId.WindowsOld || !p.Definition.IsExecutable ||
+            p.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable) ||
+            _now() - p.GeneratedAt > PreviewValidity || p.GeneratedAt > _now().AddMinutes(1)))
+            return CleanupSelectionResult.Refused("Sélection absente, non exécutable ou expirée.");
+        // Recalculer le caractère personnel avant la porte : un dossier redirigé change le hash et impose un nouveau scan.
+        if (_personal is not null && snapshot.Any(p =>
+            _personal.Apply(p).Definition.IsPersonalFolder != p.Definition.IsPersonalFolder))
+            return CleanupSelectionResult.Refused("Dossier personnel modifié : relancez l'analyse.");
+        var validation = _gate.TryConsume(plan, CleanupSelectionAction.CreatePreview(snapshot));
+        if (!validation.IsAccepted) return CleanupSelectionResult.Refused(validation.Message);
+        var results = new List<CleanupStepResult>();
+        foreach (var zone in snapshot)
+        {
+            results.Add(cancellationToken.IsCancellationRequested ? CancelZone(zone)
+                : ExecuteConfirmedZone(zone, progress, cancellationToken));
+        }
+        return new CleanupSelectionResult(results, null);
+    }, CancellationToken.None);
 
     public CleanupStepResult SkipZone(CleanupZonePreview preview)
     {
@@ -93,17 +119,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var errors = new List<string>();
-        var deletedFiles = 0;
-        var deletedBytes = 0L;
-        var skippedFiles = 0;
-        var errorFiles = 0;
-        var status = CleanupStepStatus.Completed;
 
         if (cancellationToken.IsCancellationRequested)
             return CancelZone(preview);
 
-        if (!preview.Definition.IsExecutable ||
+        if (preview.Definition.Id == CleanupZoneId.WindowsOld || !preview.Definition.IsExecutable ||
             preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
         {
             stopwatch.Stop();
@@ -123,6 +143,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             return CreateExpiredResult(preview, stopwatch.Elapsed);
         }
 
+        if (_personal is not null && _personal.Apply(preview).Definition.IsPersonalFolder != preview.Definition.IsPersonalFolder)
+            return CancelZone(preview) with { RefusalReason = "Dossier personnel modifié : relancez l'analyse." };
         var validation = _gate.TryConsume(plan, CleanupActionPreviewFactory.Create(preview));
         if (!validation.IsAccepted)
             return CancelZone(preview) with
@@ -130,6 +152,23 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
                 Errors = new[] { "Nettoyage annule.\n" + validation.Message },
                 RefusalReason = validation.Message
             };
+
+        return ExecuteConfirmedZone(preview, progress, cancellationToken);
+    }
+
+    // Accessible uniquement après consommation de la porte, par zone ou par sélection complète.
+    private CleanupStepResult ExecuteConfirmedZone(CleanupZonePreview preview, IProgress<CleanupProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var errors = new List<string>();
+        var deletedFiles = 0;
+        var deletedBytes = 0L;
+        var skippedFiles = 0;
+        var errorFiles = 0;
+        var status = CleanupStepStatus.Completed;
+        if (cancellationToken.IsCancellationRequested) return CancelZone(preview);
+        if (_now() - preview.GeneratedAt > PreviewValidity) return CreateExpiredResult(preview, stopwatch.Elapsed);
 
         if (preview.Definition.Id == CleanupZoneId.RecycleBin)
         {
@@ -222,6 +261,14 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         CleanupZoneDefinition zone,
         CleanupCandidate candidate, int retentionDays)
     {
+        if (_personal is not null && !_personal.CanQuarantine(zone, candidate.FullPath))
+            return CandidateDeleteResult.SkippedFile("Dossier personnel : fichier hors d'un reste identifié.");
+        if (zone.Id == CleanupZoneId.SoftwareLeftovers &&
+            (zone.ValidatedRemnantRoot is null || zone.RemnantAllowedRoot is null ||
+             !string.Equals(zone.RootPath, zone.ValidatedRemnantRoot, StringComparison.OrdinalIgnoreCase) ||
+             !CleanupPathGuard.IsStrictlyUnderRoot(zone.RootPath, zone.RemnantAllowedRoot) ||
+             CleanupPathGuard.ContainsReparsePoint(zone.RootPath, zone.RemnantAllowedRoot)))
+            return CandidateDeleteResult.SkippedFile("Racine du reste non validée.");
         if (!_safetyClassifier.CanDeleteCandidate(zone, candidate.FullPath, out var safetyReason))
         {
             return CandidateDeleteResult.SkippedFile(safetyReason);
@@ -263,6 +310,12 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             var fileInfo = _disk.ReadFile(fullPath);
             var lastWrite = fileInfo.LastWriteTimeUtc;
 
+            if (zone.Id == CleanupZoneId.OldDownloads &&
+                !AdditionalCleanupScanner.IsOldOrLarge(new(fullPath, fileInfo.Length, lastWrite), _now()))
+            {
+                reason = "Téléchargement devenu inéligible.";
+                return false;
+            }
             if (_now() - lastWrite < zone.MinimumAge)
             {
                 reason = "Fichier devenu recent.";

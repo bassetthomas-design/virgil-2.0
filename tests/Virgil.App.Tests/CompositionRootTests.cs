@@ -27,6 +27,7 @@ public sealed class CompositionRootTests
             .OrderBy(zone => zone.Id).ToArray();
         services.AddTransient<ICleanupPreviewService>(_ => new ContractPreview(expected));
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer(Array.Empty<string>()));
+        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var module = Assert.Single(provider.GetServices<IMaintenanceModule>());
         Assert.IsType<CleanupMaintenanceModule>(module);

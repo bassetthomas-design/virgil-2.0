@@ -20,11 +20,15 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
+    public ObservableCollection<CleanupGroupItem> Groups { get; } = new();
+    [ObservableProperty] private string criticalConfirmationText = string.Empty;
+    [ObservableProperty] private string expectedCriticalConfirmation = string.Empty;
+    [ObservableProperty] private bool requiresCriticalConfirmation;
+
     private readonly QuarantineService? _quarantine;
     public ObservableCollection<QuarantineItemViewModel> QuarantineItems { get; } = new();
     [ObservableProperty] private bool hasExpiredQuarantine;
     [ObservableProperty] private string expiredQuarantineLabel = string.Empty;
-    private IReadOnlyList<IMaintenanceAction> _actions = Array.Empty<IMaintenanceAction>();
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
     private readonly IConfirmationService _confirmationService;
@@ -155,6 +159,9 @@ public partial class CleanupViewModel : ObservableObject
                 : purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
             if (action is null) { StatusText = "Aucun élément expiré à effacer."; return; }
             var preview = await action.PreviewAsync(_operationCancellation!.Token);
+            RequiresCriticalConfirmation = false;
+            CriticalConfirmationText = string.Empty;
+            ExpectedCriticalConfirmation = string.Empty;
             ValidationTitle = expiredOnly ? "Effacer les éléments expirés" : preview.Title;
             ValidationReason = "Éléments sélectionnés dans la quarantaine";
             ValidationRoot = string.Join("\n", preview.Targets);
@@ -178,10 +185,10 @@ public partial class CleanupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task LaunchCleanupSafeAsync() => LaunchCleanupAsync(CleanupClassification.Cleanable);
+    private Task LaunchCleanupSafeAsync() => LaunchSelectionAsync();
 
     [RelayCommand]
-    private Task LaunchCleanupAdvancedAsync() => LaunchCleanupAsync(CleanupClassification.AdvancedCleanable);
+    private Task LaunchCleanupAdvancedAsync() => LaunchSelectionAsync();
 
     [RelayCommand]
     private void ReviewManual()
@@ -221,7 +228,6 @@ public partial class CleanupViewModel : ObservableObject
         try
         {
             _lastPreview.Clear();
-            _actions = Array.Empty<IMaintenanceAction>();
             StatusText = "Analyse en cours.";
             RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
             VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
@@ -229,9 +235,11 @@ public partial class CleanupViewModel : ObservableObject
             var findings = (CleanupFindings)await _module
                 .ScanAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
-            _actions = _module.GetActions(findings, new Progress<CleanupProgress>(HandleProgress));
             _lastStorageAnalysis = findings.Analysis.Storage;
             _lastPreview.AddRange(findings.Analysis.Zones);
+            Groups.Clear();
+            foreach (var group in Enum.GetValues<CleanupGroup>())
+                Groups.Add(new CleanupGroupItem(group, _lastPreview.Where(p => p.Definition.Group == group)));
             RenderPreviews();
             UpdateCommandState();
             StatusText = "Previsualisation disponible. Validation par zone requise.";
@@ -256,86 +264,64 @@ public partial class CleanupViewModel : ObservableObject
         }
     }
 
-    private async Task LaunchCleanupAsync(CleanupClassification classification)
+    private async Task LaunchSelectionAsync()
     {
-        var selected = _lastPreview
-            .Where(preview => preview.Definition.Classification == classification)
-            .Where(preview => preview.Definition.IsExecutable && preview.HasEligibleCandidates)
-            .ToList();
-
+        var selected = Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect && r.IsSelected).Select(r => r.Preview).ToList();
         if (selected.Count == 0)
         {
             VirgilMessageRequested?.Invoke("Aucune zone eligible.\nRelancez une analyse.");
             return;
         }
-
-        if (!BeginOperation("Nettoyage guide en attente de validation."))
-        {
-            return;
-        }
-
+        if (!BeginOperation("Nettoyage guide en attente de validation.")) return;
         var startedAt = DateTimeOffset.Now;
         var results = new List<CleanupStepResult>();
         var sessionErrors = new List<string>();
-
         try
         {
-            RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
-
-            foreach (var preview in selected)
+            var action = _module.Select(selected, new Progress<CleanupProgress>(HandleProgress));
+            var preview = await action.PreviewAsync(_operationCancellation!.Token);
+            ValidationTitle = preview.Title;
+            ValidationReason = "Sélection complète — " + string.Join(", ", selected.Select(p => p.Definition.DisplayName).Distinct());
+            ValidationRoot = string.Join("\n", preview.Targets);
+            ValidationMetrics = $"Taille totale : {FormatBytes(selected.Sum(p => p.EligibleBytes))}\nNombre de fichiers : {preview.Parameters["Files"]}\nÉléments sensibles : {preview.Parameters["Sensitive"]}\n" +
+                string.Join("\n", Groups.Select(g => g.Title + " : " + preview.Parameters[g.Group.ToString()]));
+            ValidationEffect = string.Join("\n", preview.Effects);
+            ValidationNotTouched = "Clés de registre en lecture seule. Fichiers hors sélection et racines conservés.";
+            ValidationWarning = selected.Any(p => p.Definition.Id == CleanupZoneId.RecycleBin)
+                ? "Corbeille : suppression irréversible via l'API Windows, confirmation renforcée obligatoire." : "Fichiers : quarantaine uniquement.";
+            RequiresCriticalConfirmation = preview.RiskLevel == RiskLevel.Critical;
+            CriticalConfirmationText = string.Empty;
+            ExpectedCriticalConfirmation = RequiresCriticalConfirmation ? ConfirmationService.ExpectedCriticalText(preview) : string.Empty;
+            if (RequiresCriticalConfirmation) ValidationWarning += "\nDossier personnel : confirmation Critical obligatoire. Recopiez le texte demandé.";
+            ExecuteZoneLabel = "CONFIRMER LA SÉLECTION";
+            ValidationCoreState = VirgilCoreState.SensitiveAction;
+            RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+            var decision = new TaskCompletionSource<CleanupZoneDecision>();
+            _activeDecision = decision;
+            IsValidationOpen = true;
+            VirgilMessageRequested?.Invoke("Validation requise. Sélection complète, aucun effet avant confirmation.");
+            using var registration = _operationCancellation.Token.Register(() => CompleteDecision(CleanupZoneDecision.CancelAll));
+            var choice = await decision.Task;
+            if (choice == CleanupZoneDecision.Execute)
             {
-                _operationCancellation!.Token.ThrowIfCancellationRequested();
-                var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
-                RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
-
-                var action = _actions.Single(action => action.Id == CleanupActionPreviewFactory.Create(preview).ActionId);
-                ConfirmedPlan? plan = null;
-                if (decision == CleanupZoneDecision.Execute)
+                try
                 {
-                    try
-                    {
-                        plan = _confirmationService.Issue(await action.PreviewAsync(_operationCancellation.Token).ConfigureAwait(true),
-                            new ConfirmationConsent(preview.Definition.RequiresReinforcedConfirmation
-                                ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null));
-                    }
-                    catch (ConfirmationRefusedException)
-                    {
-                        decision = CleanupZoneDecision.CancelAll;
-                    }
+                    var level = RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel);
+                    var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, RequiresCriticalConfirmation ? CriticalConfirmationText : null));
+                    var outcome = (CleanupSelectionActionResult)await action.ExecuteAsync(plan, _operationCancellation.Token);
+                    results.AddRange(outcome.Selection.Steps);
+                    if (outcome.WasRefused) sessionErrors.Add(outcome.RefusalReason!);
                 }
-
-                if (decision == CleanupZoneDecision.CancelAll)
-                {
-                    results.Add(_module.CancelZone(preview));
-                    sessionErrors.Add("Session annulee par l'utilisateur.");
-                    break;
-                }
-
-                if (decision == CleanupZoneDecision.Skip)
-                {
-                    results.Add(_module.SkipZone(preview));
-                    VirgilMessageRequested?.Invoke("Zone passee.\nAucune modification effectuee.");
-                    continue;
-                }
-
-                RequestVirgilState(VirgilCoreState.Executing, "NETTOYAGE");
-                var actionResult = (CleanupMaintenanceResult)await action
-                    .ExecuteAsync(plan, _operationCancellation.Token).ConfigureAwait(true);
-                var result = actionResult.Step;
-
-                results.Add(result);
-                AnnounceZoneResult(result);
+                catch (ConfirmationRefusedException) { choice = CleanupZoneDecision.CancelAll; }
+            }
+            if (choice != CleanupZoneDecision.Execute)
+            {
+                results.AddRange(selected.Select(p => choice == CleanupZoneDecision.Skip ? _module.SkipZone(p) : _module.CancelZone(p)));
+                if (choice == CleanupZoneDecision.CancelAll) sessionErrors.Add("Session annulee par l'utilisateur.");
             }
         }
-        catch (OperationCanceledException)
-        {
-            sessionErrors.Add("Session annulee.");
-        }
-        catch
-        {
-            sessionErrors.Add("Erreur pendant le nettoyage guide.");
-            RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-        }
+        catch (OperationCanceledException) { sessionErrors.Add("Session annulee."); }
+        catch { sessionErrors.Add("Erreur pendant le nettoyage guide."); }
         finally
         {
             var storage = _lastStorageAnalysis;
@@ -403,8 +389,8 @@ public partial class CleanupViewModel : ObservableObject
     private void SetButtonsEnabled(bool enabled)
     {
         IsAnalyzeEnabled = enabled;
-        IsLaunchCleanupEnabled = enabled && HasExecutable(CleanupClassification.Cleanable);
-        IsAdvancedCleanupEnabled = enabled && HasExecutable(CleanupClassification.AdvancedCleanable);
+        IsLaunchCleanupEnabled = enabled && HasSelection();
+        IsAdvancedCleanupEnabled = enabled && HasSelection();
         IsReviewManualEnabled = enabled && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
         IsReportButtonEnabled = enabled && _lastReport is not null;
         IsReturnHomeEnabled = enabled;
@@ -412,8 +398,8 @@ public partial class CleanupViewModel : ObservableObject
 
     private void UpdateCommandState()
     {
-        IsLaunchCleanupEnabled = !_operationInProgress && HasExecutable(CleanupClassification.Cleanable);
-        IsAdvancedCleanupEnabled = !_operationInProgress && HasExecutable(CleanupClassification.AdvancedCleanable);
+        IsLaunchCleanupEnabled = !_operationInProgress && HasSelection();
+        IsAdvancedCleanupEnabled = !_operationInProgress && HasSelection();
         IsReviewManualEnabled = !_operationInProgress && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
         IsReportButtonEnabled = !_operationInProgress && _lastReport is not null;
     }
@@ -730,6 +716,8 @@ public partial class CleanupViewModel : ObservableObject
             _ => "Zone autorisee"
         };
     }
+
+    private bool HasSelection() => Groups.SelectMany(g => g.Rows).Any(r => r.CanSelect);
 
     private bool HasExecutable(CleanupClassification classification)
     {

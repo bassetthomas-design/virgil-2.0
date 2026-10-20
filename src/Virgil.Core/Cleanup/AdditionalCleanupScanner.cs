@@ -1,0 +1,33 @@
+using Virgil.Contracts;
+
+namespace Virgil.Core.Cleanup;
+
+public sealed class AdditionalCleanupScanner(IKnownFoldersProvider folders, IDownloadsSource downloads,
+    ISoftwareFootprintSource footprints, LeftoverAnalyzer leftovers, PersonalFolderPolicy personal, TimeProvider clock, IWindowsOldSource? windowsOld = null)
+{
+    public static bool IsOldOrLarge(FootprintFile file, DateTimeOffset now) =>
+        now - file.LastWriteUtc > TimeSpan.FromDays(90) || file.SizeBytes > 500L * 1024 * 1024;
+
+    public async Task<IReadOnlyList<CleanupZonePreview>> ScanAsync(CancellationToken token)
+    {
+        var now = clock.GetUtcNow();
+        var result = new List<CleanupZonePreview>();
+        if (windowsOld?.Read(token) is { } old) result.Add(old);
+        foreach (var root in folders.GetFolders().Where(f => f.Kind == KnownFolder.Downloads))
+        {
+            foreach (var file in downloads.ReadFiles(root.Path, token).Where(f => IsOldOrLarge(f, now)))
+            {
+                token.ThrowIfCancellationRequested();
+                var zone = new CleanupZoneDefinition(CleanupZoneId.OldDownloads, "Téléchargements anciens ou volumineux", file.Path,
+                    root.Path, TimeSpan.Zero, CleanupRiskLevel.Medium, "Fichier de plus de 90 jours ou de plus de 500 Mo.",
+                    "Mise en quarantaine après confirmation.", "Les autres dossiers ne sont pas parcourus pour les gros fichiers.", 450)
+                { Classification = CleanupClassification.AdvancedCleanable, RequiresReinforcedConfirmation = true };
+                var eligible = !CleanupSafetyClassifier.IsPersonalExtension(file.Path);
+                result.Add(new(zone, now, 1, eligible ? 1 : 0, eligible ? file.SizeBytes : 0, eligible ? 0 : 1,
+                    [new(CleanupZoneId.OldDownloads, file.Path, file.Path, file.SizeBytes, file.LastWriteUtc, eligible, eligible ? null : "Type personnel ou archive protégé par les gardes existants.") { Group = CleanupGroup.AVerifier }], []));
+            }
+        }
+        result.AddRange(leftovers.Analyze(await footprints.ReadAsync(token).ConfigureAwait(false), now));
+        return result.Select(personal.Apply).ToArray();
+    }
+}

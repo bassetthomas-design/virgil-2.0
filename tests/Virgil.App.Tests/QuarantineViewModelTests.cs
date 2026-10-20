@@ -29,6 +29,7 @@ public sealed class QuarantineViewModelTests
         var store = new Store();
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
         services.AddSingleton<IQuarantineStore>(store);
+        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var vm = provider.GetRequiredService<CleanupViewModel>();
         vm.InitializeQuarantineCommand.Execute(null);
@@ -58,6 +59,7 @@ public sealed class QuarantineViewModelTests
         services.AddSingleton<IQuarantineStore>(store);
         services.AddTransient<ICleanupPreviewService>(_ => new EmptyPreviews());
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer(Array.Empty<string>()));
+        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var vm = provider.GetRequiredService<CleanupViewModel>();
         var notifications = 0;

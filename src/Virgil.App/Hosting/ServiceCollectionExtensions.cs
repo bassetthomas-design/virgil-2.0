@@ -97,6 +97,17 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ResourceReportBuilder>(_ => new ResourceReportBuilder());
         services.AddTransient<IMonitoringService>(_ => new MonitoringService());
 
+        services.AddTransient<IKnownFoldersProvider>(_ => new Virgil.Infrastructure.Windows.KnownFoldersProvider());
+        services.AddTransient<PersonalFolderPolicy>(sp => new PersonalFolderPolicy(sp.GetRequiredService<IKnownFoldersProvider>()));
+        services.AddTransient<IDownloadsSource>(_ => new Virgil.Infrastructure.Windows.DownloadsSource());
+        services.AddTransient<ISoftwareFootprintSource>(sp => new Virgil.Infrastructure.Windows.SoftwareFootprintSource(
+            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IWindowsOldSource>(_ => new Virgil.Infrastructure.Windows.WindowsOldSource());
+        services.AddTransient<LeftoverAnalyzer>(_ => new LeftoverAnalyzer());
+        services.AddTransient<AdditionalCleanupScanner>(sp => new AdditionalCleanupScanner(
+            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IDownloadsSource>(),
+            sp.GetRequiredService<ISoftwareFootprintSource>(), sp.GetRequiredService<LeftoverAnalyzer>(),
+            sp.GetRequiredService<PersonalFolderPolicy>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IWindowsOldSource>()));
         services.AddTransient<CleanupSafetyClassifier>(_ => new CleanupSafetyClassifier());
         services.AddTransient<IRecycleBinService>(_ => new WindowsRecycleBinService());
         services.AddTransient<CleanupPreviewService>(sp => new CleanupPreviewService(
@@ -111,13 +122,14 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ICleanupDisk>(_ => new Virgil.Infrastructure.Windows.CleanupDisk());
         services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
             sp.GetRequiredService<ICleanupDisk>(), sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>(),
-            sp.GetRequiredService<IQuarantineStore>()));
-        services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
+            sp.GetRequiredService<IQuarantineStore>(), sp.GetRequiredService<PersonalFolderPolicy>()));
+        services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer(Array.Empty<string>()));
         services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
         services.AddTransient<CleanupMaintenanceModule>(sp => new CleanupMaintenanceModule(
             sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>(),
-            () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7));
+            () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7,
+            sp.GetRequiredService<AdditionalCleanupScanner>(), sp.GetRequiredService<PersonalFolderPolicy>()));
         services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<CleanupMaintenanceModule>());
         services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
 

@@ -83,7 +83,7 @@
                     <TextBlock Text="NETTOYAGE COMPLET GUIDE V2"
                                Style="{StaticResource VirgilHudSectionTitle}"
                                FontSize="22" />
-                    <TextBlock Text="TECHNIQUE NETTOYE, PERSONNEL EN LECTURE SEULE"
+                    <TextBlock Text="SÉLECTION PAR GROUPE OU LIGNE, PUIS CONFIRMATION RÉCAPITULATIVE"
                                Style="{StaticResource VirgilHudSecondaryText}"
                                Margin="0,4,0,0" />
                     <TextBlock x:Name="CleanupStatusText"
@@ -103,14 +103,14 @@
                         Command="{Binding AnalyzeZonesCommand}"
                         IsEnabled="{Binding IsAnalyzeEnabled}" />
                 <Button x:Name="LaunchCleanupButton"
-                        Content="NETTOYAGE SUR"
+                        Content="NETTOYER LA SÉLECTION"
                         Style="{StaticResource VirgilPrimaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsLaunchCleanupEnabled}"
                         AutomationProperties.Name="Lancer le nettoyage guide"
                         Command="{Binding LaunchCleanupSafeCommand}" />
                 <Button x:Name="AdvancedCleanupButton"
-                        Content="NETTOYAGE AVANCE"
+                        Content="CONFIRMER LA SÉLECTION" Visibility="Collapsed"
                         Style="{StaticResource VirgilPrimaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsAdvancedCleanupEnabled}"
@@ -145,7 +145,39 @@
                           Focusable="False"
                           ClipToBounds="True">
                 <StackPanel>
-                    <ItemsControl x:Name="ZonesPanel" ItemsSource="{Binding Entries}" />
+                    <ItemsControl x:Name="ZonesPanel" ItemsSource="{Binding Groups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <GroupBox Header="{Binding Title}" Foreground="White" Margin="0,8">
+                                    <StackPanel Margin="12" IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                        <CheckBox Content="Sélectionner le groupe (hors dossiers personnels et lignes à confirmer)"
+                                                  IsThreeState="True" IsChecked="{Binding IsSelected, Mode=TwoWay}" Foreground="White" />
+                                        <ItemsControl ItemsSource="{Binding Sections}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="White" />
+                                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" Foreground="White" Margin="0,8">
+                                                                        <StackPanel>
+                                                                            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                                                                            <TextBlock Text="{Binding Details}" TextWrapping="Wrap" />
+                                                                        </StackPanel>
+                                                                    </CheckBox>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </GroupBox>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <GroupBox Header="Quarantaine" Margin="0,16,0,0" Foreground="White">
                         <StackPanel Margin="12">
                             <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
@@ -259,6 +291,10 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,3,0,0"
                                        Text="{Binding ValidationWarning}" />
+                            <StackPanel Visibility="{Binding RequiresCriticalConfirmation, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="{Binding ExpectedCriticalConfirmation}" TextWrapping="Wrap" Foreground="White" />
+                                <TextBox Text="{Binding CriticalConfirmationText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Confirmation du dossier personnel" />
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 

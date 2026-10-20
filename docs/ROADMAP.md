@@ -41,7 +41,7 @@ Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan
 | --- | --- |
 | 1a | Contrat commun `Findings` / `IMaintenanceModule` / `IMaintenanceAction` et Nettoyage branché dessus, à comportement identique ; Diagnostic à venir. |
 | 1b | Livré : quarantaine de 7 jours réglable (1–30), restauration taille/SHA-256 vérifiée, purge distincte confirmée ; expiration = proposition de purge confirmée, jamais effacement silencieux. |
-| 1c | Scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
+| 1c | Livré (PR #52) : scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
 | 1d | Module Diagnostic : vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
 | 1e | Analyse « ce qui ne va pas » : note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
 
@@ -123,4 +123,9 @@ Critères de sortie :
 - Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
 - Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
 
-1b livré : section Quarantaine minimale dans Nettoyage ; les trois groupes, restes de logiciels et Diagnostic restent à livrer dans les lots suivants. La CI Windows de la PR est la référence de validation.
+1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic reste à livrer en 1d/1e. La CI Windows de la PR est la référence de validation.
+
+
+### 1c — livré (PR #52)
+
+Trois groupes de Nettoyage, sélection par groupe/ligne et confirmation récapitulative unique liée au hash ; téléchargements >90 jours ou >500 Mo uniquement dans le dossier résolu ; restes de logiciels absents avec exclusions des programmes installés, références actives et liste protégée. Ports Windows injectés, politique des dossiers personnels avec sélection individuelle Critical et quarantaine. Clés de registre en lecture seule, suppression reportée à un lot ultérieur avec sauvegarde et point de restauration. Aucun changement Diagnostic, helper ou Applications. La Phase 1 reste ouverte pour 1d/1e. CI Windows du code final (run 176) : 915 tests, Core 625 + App 290, soit 850 + 65 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Dernière CI suivie dans la PR #52.
