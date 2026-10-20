@@ -46,7 +46,7 @@ public sealed class LeftoverAnalyzer
         return result;
     }
 
-    public static bool IsProtected(string name) => Protected.Any(p => Normalize(name).Contains(p, StringComparison.OrdinalIgnoreCase));
+    public static bool IsProtected(string name) => Normalize(name) is "net" or "vc" || Protected.Any(p => Normalize(name).Contains(p, StringComparison.OrdinalIgnoreCase));
     private static bool Matches(string a, string b) => Normalize(a) == Normalize(b);
     private static string Normalize(string name) => new(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
     private static bool Overlaps(string a, string b) => !string.IsNullOrWhiteSpace(b) &&

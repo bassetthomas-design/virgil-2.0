@@ -101,6 +101,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<PersonalFolderPolicy>();
         services.AddTransient<IDownloadsSource, Virgil.Infrastructure.Windows.DownloadsSource>();
         services.AddTransient<ISoftwareFootprintSource, Virgil.Infrastructure.Windows.SoftwareFootprintSource>();
+        services.AddTransient<IWindowsOldSource, Virgil.Infrastructure.Windows.WindowsOldSource>();
         services.AddTransient<LeftoverAnalyzer>();
         services.AddTransient<AdditionalCleanupScanner>();
         services.AddTransient<CleanupSafetyClassifier>(_ => new CleanupSafetyClassifier());

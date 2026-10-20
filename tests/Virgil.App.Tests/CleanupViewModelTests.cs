@@ -211,7 +211,7 @@ public sealed class CleanupViewModelTests
         var classification = advanced ? CleanupClassification.AdvancedCleanable : CleanupClassification.Cleanable;
         f.Previews.Items = new[]
         {
-            Preview(), Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable),
+            Preview(), Preview(CleanupZoneId.BrowserChromeCache, CleanupClassification.AdvancedCleanable),
             Preview(CleanupZoneId.TechnicalLogs, classification, executable: false),
             Preview(CleanupZoneId.UserCrashDumps, classification, eligible: 0),
             Preview(CleanupZoneId.PrefetchInformation, CleanupClassification.InformationOnly),
@@ -222,25 +222,24 @@ public sealed class CleanupViewModelTests
         foreach (var group in f.Vm.Groups) group.IsSelected = false;
         f.Vm.Groups.Single(g => g.Group == (advanced ? CleanupGroup.AVerifier : CleanupGroup.Sur)).IsSelected = true;
         var pending = f.Run(advanced);
-        Assert.Contains(advanced ? "WindowsOld" : "UserTemporaryFiles", f.Vm.ValidationReason);
+        Assert.Contains(advanced ? "BrowserChromeCache" : "UserTemporaryFiles", f.Vm.ValidationReason);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
-        Assert.Equal(new[] { advanced ? "Execute:WindowsOld" : "Execute:UserTemporaryFiles" }, f.Actions.Order);
+        Assert.Equal(new[] { advanced ? "Execute:BrowserChromeCache" : "Execute:UserTemporaryFiles" }, f.Actions.Order);
         Assert.Contains("Volume estime : 2 Ko", f.Vm.ReportText);
     }
 
     [Theory]
-    [InlineData(CleanupZoneId.UserTemporaryFiles, false, "NETTOYAGE SUR - VALIDATION REQUISE", "NETTOYER", "%TEMP% utilisateur")]
-    [InlineData(CleanupZoneId.WindowsOld, true, "NETTOYAGE AVANCE - CONFIRMATION RENFORCEE", "NETTOYER", "Zone autorisee")]
-    [InlineData(CleanupZoneId.RecycleBin, true, "VIDER LA CORBEILLE - CONFIRMATION RENFORCEE", "VIDER LA CORBEILLE", "Zone autorisee")]
-    public async Task ValidationPreservesTitleLabelMetricsAndSafety(CleanupZoneId id, bool reinforced, string title, string label, string root)
+    [InlineData(CleanupZoneId.UserTemporaryFiles, false)]
+    [InlineData(CleanupZoneId.BrowserChromeCache, true)]
+    [InlineData(CleanupZoneId.RecycleBin, true)]
+    public async Task ValidationPreservesTitleLabelMetricsAndSafety(CleanupZoneId id, bool reinforced)
     {
         var f = new Fixture();
         var p = Preview(id) with { Definition = Preview(id).Definition with { RequiresReinforcedConfirmation = reinforced } };
         f.Previews.Items = new[] { p };
         await f.Analyze();
         var pending = f.Run();
-        Assert.NotEmpty(title + label + root); // Paramètres historiques conservés pour les trois niveaux de zone.
         Assert.Equal("Nettoyage — confirmation récapitulative", f.Vm.ValidationTitle);
         Assert.Equal("CONFIRMER LA SÉLECTION", f.Vm.ExecuteZoneLabel);
         Assert.Empty(f.Vm.ValidationRoot);

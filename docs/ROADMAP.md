@@ -126,6 +126,6 @@ Critères de sortie :
 1b livré : section Quarantaine minimale dans Nettoyage ; les trois groupes, restes de logiciels et Diagnostic restent à livrer dans les lots suivants. La CI Windows de la PR est la référence de validation.
 
 
-### 1c — livré (PR à renseigner)
+### 1c — livré (PR #52)
 
 Trois groupes de Nettoyage, sélection par groupe/ligne et confirmation récapitulative unique liée au hash ; téléchargements >90 jours ou >500 Mo uniquement dans le dossier résolu ; restes de logiciels absents avec exclusions des programmes installés, références actives et liste protégée. Ports Windows injectés, politique des dossiers personnels avec sélection individuelle Critical et quarantaine. Clés de registre en lecture seule, suppression reportée à un lot ultérieur avec sauvegarde et point de restauration. Aucun changement Diagnostic, helper ou Applications. La Phase 1 reste ouverte pour 1d/1e. CI Windows et effectifs finaux suivis dans la PR.

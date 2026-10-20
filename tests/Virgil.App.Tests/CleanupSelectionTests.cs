@@ -45,7 +45,7 @@ public sealed class CleanupSelectionTests
     [Fact]
     public void NewPortsAndPolicyResolveWithValidateOnBuild()
     {
-        using var provider = new ServiceCollection().AddVirgilServices().BuildServiceProvider(new() { ValidateOnBuild = true, ValidateScopes = true });
+        using var provider = new ServiceCollection().AddVirgilServices().BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         Assert.IsType<Virgil.Infrastructure.Windows.KnownFoldersProvider>(provider.GetRequiredService<IKnownFoldersProvider>());
         Assert.IsType<Virgil.Infrastructure.Windows.SoftwareFootprintSource>(provider.GetRequiredService<ISoftwareFootprintSource>());
         Assert.IsType<Virgil.Infrastructure.Windows.DownloadsSource>(provider.GetRequiredService<IDownloadsSource>());
@@ -58,8 +58,9 @@ public sealed class CleanupSelectionTests
         { Classification = classification }, DateTimeOffset.UtcNow, 1, 1, 10, 0, [], []);
 }
 
-internal sealed class EmptyCleanupSource : ISoftwareFootprintSource, IDownloadsSource, IKnownFoldersProvider
+internal sealed class EmptyCleanupSource : ISoftwareFootprintSource, IDownloadsSource, IKnownFoldersProvider, IWindowsOldSource
 {
+    public CleanupZonePreview? Read(CancellationToken cancellationToken) => null;
     public IReadOnlyList<KnownFolderPath> GetFolders() => [];
     public IReadOnlyList<FootprintFile> ReadFiles(string downloadsRoot, CancellationToken cancellationToken) => [];
     public Task<SoftwareFootprintSnapshot> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(new SoftwareFootprintSnapshot([], [], []));
@@ -69,5 +70,6 @@ internal sealed class EmptyCleanupSource : ISoftwareFootprintSource, IDownloadsS
         services.AddSingleton<IKnownFoldersProvider>(source);
         services.AddSingleton<ISoftwareFootprintSource>(source);
         services.AddSingleton<IDownloadsSource>(source);
+        services.AddSingleton<IWindowsOldSource>(source);
     }
 }

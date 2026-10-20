@@ -17,3 +17,8 @@ public interface IDownloadsSource
 {
     IReadOnlyList<FootprintFile> ReadFiles(string downloadsRoot, CancellationToken cancellationToken);
 }
+
+public interface IWindowsOldSource
+{
+    Virgil.Contracts.CleanupZonePreview? Read(CancellationToken cancellationToken);
+}

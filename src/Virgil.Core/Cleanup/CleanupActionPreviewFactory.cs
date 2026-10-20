@@ -46,7 +46,11 @@ public static class CleanupActionPreviewFactory
         if (definition.RequiresReinforcedConfirmation && risk < RiskLevel.Sensitive)
             risk = RiskLevel.Sensitive;
         if (definition.IsPersonalFolder || eligible.Any(c => c.IsPersonalFolder)) risk = RiskLevel.Critical;
-        return new ActionPreview("cleanup.zone." + definition.Id.ToString().ToLowerInvariant(),
+        var id = "cleanup.zone." + definition.Id.ToString().ToLowerInvariant();
+        if (definition.Id is CleanupZoneId.OldDownloads or CleanupZoneId.SoftwareLeftovers)
+            id += "." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+                definition.RootPath + "\n" + string.Join("\n", eligible.Select(c => c.FullPath)))));
+        return new ActionPreview(id,
             (definition.IsPersonalFolder ? "Dossier personnel — " : "") + definition.DisplayName, risk, eligible.Select(candidate => candidate.FullPath).ToArray(),
             parameters, quarantine ? [$"Conservé {preview.QuarantineRetentionDays} jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible."] : [definition.Effect],
             definition.RequiresElevation, false, quarantine ? Reversibility.Full : Reversibility.None, []);

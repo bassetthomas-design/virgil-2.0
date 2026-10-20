@@ -35,7 +35,12 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
         if (days is < 1 or > 30) days = 7;
         var analysis = await _analyzer.AnalyzeAsync(progress, cancellationToken).ConfigureAwait(false);
         var zones = analysis.Zones.Select(z => _personal?.Apply(z) ?? z).ToList();
-        if (_additional is not null) zones.AddRange(await _additional.ScanAsync(cancellationToken).ConfigureAwait(false));
+        if (_additional is not null)
+        {
+            var additional = await _additional.ScanAsync(cancellationToken).ConfigureAwait(false);
+            if (additional.Any(p => p.Definition.Id == CleanupZoneId.WindowsOld)) zones.RemoveAll(p => p.Definition.Id == CleanupZoneId.WindowsOld);
+            zones.AddRange(additional);
+        }
         return new CleanupFindings(analysis with
         { Zones = zones.Select(zone => zone with { QuarantineRetentionDays = days }).ToArray() });
     }
@@ -100,7 +105,7 @@ internal static class CleanupMaintenanceSnapshot
         {
             Definition = preview.Definition with
             {
-                RegistryKeys = Array.AsReadOnly(preview.Definition.RegistryKeys.ToArray()),
+                RegistryKeys = preview.Definition.RegistryKeys.Count == 0 ? preview.Definition.RegistryKeys : Array.AsReadOnly(preview.Definition.RegistryKeys.ToArray()),
                 AllowedExtensions = Array.AsReadOnly(preview.Definition.AllowedExtensions.ToArray()),
                 RequiredPathFragments = Array.AsReadOnly(preview.Definition.RequiredPathFragments.ToArray()),
                 ExcludedPathFragments = Array.AsReadOnly(preview.Definition.ExcludedPathFragments.ToArray())

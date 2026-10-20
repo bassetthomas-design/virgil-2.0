@@ -3,7 +3,7 @@ using Virgil.Contracts;
 namespace Virgil.Core.Cleanup;
 
 public sealed class AdditionalCleanupScanner(IKnownFoldersProvider folders, IDownloadsSource downloads,
-    ISoftwareFootprintSource footprints, LeftoverAnalyzer leftovers, PersonalFolderPolicy personal, TimeProvider clock)
+    ISoftwareFootprintSource footprints, LeftoverAnalyzer leftovers, PersonalFolderPolicy personal, TimeProvider clock, IWindowsOldSource? windowsOld = null)
 {
     public static bool IsOldOrLarge(FootprintFile file, DateTimeOffset now) =>
         now - file.LastWriteUtc > TimeSpan.FromDays(90) || file.SizeBytes > 500L * 1024 * 1024;
@@ -12,6 +12,7 @@ public sealed class AdditionalCleanupScanner(IKnownFoldersProvider folders, IDow
     {
         var now = clock.GetUtcNow();
         var result = new List<CleanupZonePreview>();
+        if (windowsOld?.Read(token) is { } old) result.Add(old);
         foreach (var root in folders.GetFolders().Where(f => f.Kind == KnownFolder.Downloads))
         {
             foreach (var file in downloads.ReadFiles(root.Path, token).Where(f => IsOldOrLarge(f, now)))
