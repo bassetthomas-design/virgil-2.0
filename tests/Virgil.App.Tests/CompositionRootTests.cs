@@ -147,7 +147,8 @@ public sealed class CompositionRootTests
         var singletonTypes = new[]
         {
             typeof(IProcessRunner), typeof(TimeProvider), typeof(Virgil.Core.Actions.ConfirmationService),
-            typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate)
+            typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate),
+            typeof(IQuarantineStore) // Un magasin partagé sérialise les déplacements et les manifestes.
         };
         foreach (var descriptor in services)
         {

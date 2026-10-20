@@ -11,6 +11,7 @@ using Xunit;
 
 namespace Virgil.Tests;
 
+[Trait("Category", "Windows")]
 public sealed class CleanupServicesTests
 {
     private static readonly DateTimeOffset Now = new(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
@@ -91,7 +92,8 @@ public sealed class CleanupServicesTests
         var result = await ExecuteAsync(preview);
 
         Assert.Equal(CleanupStepStatus.PartialFailure, result.Status);
-        Assert.Equal(1, result.DeletedFiles);
+        Assert.Equal(1, result.QuarantinedFiles);
+        Assert.Equal(0, result.DeletedFiles);
         Assert.Equal(1, result.ErrorFiles);
         Assert.True(File.Exists(locked));
         Assert.False(File.Exists(free));
@@ -107,11 +109,12 @@ public sealed class CleanupServicesTests
         using var cancellation = new CancellationTokenSource();
         var progress = new CancellingProgress(cancellation);
 
-        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now)
+        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now, quarantine: new TestQuarantineStore())
             .ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), progress, cancellation.Token);
 
         Assert.True(result.Status is CleanupStepStatus.Cancelled or CleanupStepStatus.Completed);
-        Assert.True(result.DeletedFiles <= 2);
+        Assert.True(result.QuarantinedFiles <= 2);
+        Assert.Equal(0, result.DeletedFiles);
     }
 
     [Fact]
@@ -121,7 +124,7 @@ public sealed class CleanupServicesTests
         var file = sandbox.WriteFile("old.tmp", 32, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
 
-        var result = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now).SkipZone(preview);
+        var result = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now, quarantine: new TestQuarantineStore()).SkipZone(preview);
 
         Assert.Equal(CleanupStepStatus.Skipped, result.Status);
         Assert.True(File.Exists(file));
@@ -133,7 +136,7 @@ public sealed class CleanupServicesTests
         using var sandbox = TemporarySandbox.Create();
         var file = sandbox.WriteFile("old.tmp", 32, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
-        var staleExecution = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now.AddMinutes(11));
+        var staleExecution = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now.AddMinutes(11), quarantine: new TestQuarantineStore());
 
         var result = await staleExecution.ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
@@ -151,12 +154,14 @@ public sealed class CleanupServicesTests
 
         var result = await ExecuteAsync(preview);
 
-        Assert.Equal(25, result.DeletedBytes);
-        Assert.Equal(2, result.DeletedFiles);
+        Assert.Equal(25, result.QuarantinedBytes);
+        Assert.Equal(0, result.DeletedBytes);
+        Assert.Equal(2, result.QuarantinedFiles);
+        Assert.Equal(0, result.DeletedFiles);
     }
 
     [Fact]
-    public async Task Execution_deletes_empty_subfolders_but_never_root()
+    public async Task Execution_preserves_empty_subfolders_for_verified_restore()
     {
         using var sandbox = TemporarySandbox.Create();
         var child = Directory.CreateDirectory(Path.Combine(sandbox.Root, "child")).FullName;
@@ -166,7 +171,7 @@ public sealed class CleanupServicesTests
         var result = await ExecuteAsync(preview);
 
         Assert.Equal(CleanupStepStatus.Completed, result.Status);
-        Assert.False(Directory.Exists(child));
+        Assert.True(Directory.Exists(child));
         Assert.True(Directory.Exists(sandbox.Root));
     }
 
@@ -202,7 +207,7 @@ public sealed class CleanupServicesTests
         var definition = TestZone(sandbox.Root, TimeSpan.FromHours(1));
         var preview = new CleanupZonePreview(definition, Now, 0, 0, 0, 0, Array.Empty<CleanupCandidate>(), Array.Empty<string>());
 
-        var result = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now).CancelZone(preview);
+        var result = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now, quarantine: new TestQuarantineStore()).CancelZone(preview);
 
         Assert.Equal(CleanupStepStatus.Cancelled, result.Status);
     }
@@ -213,13 +218,15 @@ public sealed class CleanupServicesTests
         using var sandbox = TemporarySandbox.Create();
         sandbox.WriteFile("old.tmp", 10, Now.AddDays(-2));
         var preview = await PreviewSingleZoneAsync(CreatePreviewService(sandbox.Root, TimeSpan.FromHours(1)));
-        var service = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now.AddSeconds(2));
+        var service = new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now.AddSeconds(2), quarantine: new TestQuarantineStore());
         var result = await service.ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         var report = service.CreateReport(Now, new[] { result }, new[] { "Session partielle." });
 
-        Assert.Equal(1, report.DeletedFiles);
-        Assert.Equal(10, report.DeletedBytes);
+        Assert.Equal(1, report.QuarantinedFiles);
+        Assert.Equal(0, report.DeletedFiles);
+        Assert.Equal(10, report.QuarantinedBytes);
+        Assert.Equal(0, report.DeletedBytes);
         Assert.Equal("Session partielle.", Assert.Single(report.Errors));
     }
 
@@ -251,7 +258,7 @@ public sealed class CleanupServicesTests
 
     private static Task<CleanupStepResult> ExecuteAsync(CleanupZonePreview preview)
     {
-        return new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
+        return new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => Now, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
     }
 
     private sealed class CancellingProgress : IProgress<CleanupProgress>

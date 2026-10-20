@@ -24,7 +24,7 @@ public sealed class CleanupMaintenanceAction : IMaintenanceAction
     public RiskLevel RiskLevel => CreatePreview().RiskLevel;
     public bool RequiresAdmin => _preview.Definition.RequiresElevation;
     public bool RebootRequired => false;
-    public Reversibility Reversibility => Reversibility.None;
+    public Reversibility Reversibility => CreatePreview().Reversibility;
 
     public Task<ActionPreview> PreviewAsync(CancellationToken cancellationToken)
     {
@@ -49,7 +49,7 @@ public sealed record CleanupMaintenanceResult : ActionResult
         : base(actionId, step.Status == CleanupStepStatus.Completed,
             step.RefusalReason is not null, step.RefusalReason,
             step.Errors,
-            step.DeletedFiles > 0 ? new[] { $"{step.DeletedFiles} fichiers supprimés, {step.DeletedBytes} octets libérés." } : Array.Empty<string>(),
+            step.QuarantinedFiles > 0 ? new[] { step.QuarantineSummary } : step.DeletedFiles > 0 ? new[] { $"{step.DeletedFiles} fichiers supprimés, {step.DeletedBytes} octets libérés." } : Array.Empty<string>(),
             Array.Empty<string>())
     {
         Step = step;

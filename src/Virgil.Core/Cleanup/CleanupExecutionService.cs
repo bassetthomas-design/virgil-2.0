@@ -19,15 +19,18 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     private readonly CleanupSafetyClassifier _safetyClassifier;
 
     private readonly ICleanupDisk _disk;
+    private readonly IQuarantineStore? _quarantine;
 
     public CleanupExecutionService(
         ICleanupDisk disk,
         IConfirmedPlanGate gate,
         Func<DateTimeOffset>? now = null,
         IRecycleBinService? recycleBinService = null,
-        CleanupSafetyClassifier? safetyClassifier = null)
+        CleanupSafetyClassifier? safetyClassifier = null,
+        IQuarantineStore? quarantine = null)
     {
         _disk = disk;
+        _quarantine = quarantine;
         _gate = gate;
         _now = now ?? (() => DateTimeOffset.Now);
         _recycleBinService = recycleBinService ?? disk.RecycleBin;
@@ -144,7 +147,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
 
         var eligible = preview.Candidates.Where(candidate => candidate.IsEligible).ToList();
-        Report(progress, preview.Definition.Id, "Suppression", 0, eligible.Count, preview.Definition.DisplayName);
+        Report(progress, preview.Definition.Id, "Mise en quarantaine", 0, eligible.Count, preview.Definition.DisplayName);
 
         for (var index = 0; index < eligible.Count; index++)
         {
@@ -156,7 +159,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             }
 
             var candidate = eligible[index];
-            var result = TryDeleteCandidate(preview.Definition, candidate);
+            var result = TryDeleteCandidate(preview.Definition, candidate, preview.QuarantineRetentionDays);
             deletedFiles += result.Deleted ? 1 : 0;
             deletedBytes += result.Deleted ? result.Bytes : 0;
             skippedFiles += result.Skipped ? 1 : 0;
@@ -170,7 +173,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             Report(
                 progress,
                 preview.Definition.Id,
-                "Suppression",
+                "Mise en quarantaine",
                 index + 1,
                 eligible.Count,
                 preview.Definition.DisplayName,
@@ -180,10 +183,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
                 errorFiles);
         }
 
-        if (status != CleanupStepStatus.Cancelled)
-        {
-            DeleteEmptySubdirectories(preview.Definition, errors);
-        }
+        // Conserver les dossiers pour permettre une restauration à leur emplacement exact.
         stopwatch.Stop();
 
         if (status != CleanupStepStatus.Cancelled)
@@ -206,17 +206,21 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         return new CleanupStepResult(
             preview.Definition,
             status,
-            deletedFiles,
-            deletedBytes,
+            0,
+            0,
             skippedFiles,
             errorFiles,
             stopwatch.Elapsed,
-            errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+            errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+        {
+            QuarantinedFiles = deletedFiles, QuarantinedBytes = deletedBytes,
+            QuarantineRetentionDays = preview.QuarantineRetentionDays
+        };
     }
 
     private CandidateDeleteResult TryDeleteCandidate(
         CleanupZoneDefinition zone,
-        CleanupCandidate candidate)
+        CleanupCandidate candidate, int retentionDays)
     {
         if (!_safetyClassifier.CanDeleteCandidate(zone, candidate.FullPath, out var safetyReason))
         {
@@ -228,19 +232,20 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             return CandidateDeleteResult.SkippedFile(reason);
         }
 
-        if (!IsStillEligible(fullPath, zone, out var bytes, out reason))
+        if (!IsStillEligible(fullPath, zone, out _, out reason))
         {
             return CandidateDeleteResult.SkippedFile(reason);
         }
 
         try
         {
-            _disk.DeleteFile(fullPath);
-            return CandidateDeleteResult.DeletedFile(bytes);
+            if (_quarantine is null) throw new InvalidOperationException("Stockage de quarantaine indisponible.");
+            var entry = _quarantine.MoveToQuarantine(fullPath, zone, _now(), retentionDays);
+            return CandidateDeleteResult.DeletedFile(entry.SizeBytes);
         }
         catch
         {
-            return CandidateDeleteResult.FailedFile($"Suppression impossible : {candidate.LogicalPath}.");
+            return CandidateDeleteResult.FailedFile($"Mise en quarantaine impossible (volume, verrou ou droits) : {candidate.LogicalPath}.");
         }
     }
 
@@ -271,83 +276,6 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         {
             reason = "Lecture du fichier impossible.";
             return false;
-        }
-    }
-
-    private void DeleteEmptySubdirectories(
-        CleanupZoneDefinition zone,
-        ICollection<string> errors)
-    {
-        foreach (var directoryPath in EnumerateDirectoriesDeepestFirst(zone.RootPath))
-        {
-            if (!CleanupPathGuard.IsStrictlyUnderRoot(directoryPath, zone.RootPath))
-            {
-                continue;
-            }
-
-            if (!_safetyClassifier.CanDeleteEmptyDirectory(zone, directoryPath))
-            {
-                continue;
-            }
-
-            TryDeleteEmptyDirectory(directoryPath, errors);
-        }
-    }
-
-    private IReadOnlyList<string> EnumerateDirectoriesDeepestFirst(string rootPath)
-    {
-        var directories = new List<string>();
-        var pending = new Stack<string>();
-        pending.Push(rootPath);
-
-        while (pending.Count > 0)
-        {
-            var current = pending.Pop();
-
-            foreach (var child in SafeGetDirectories(current))
-            {
-                if (!CleanupPathGuard.IsStrictlyUnderRoot(child, rootPath))
-                {
-                    continue;
-                }
-
-                if (CleanupPathGuard.HasReparsePointAtPath(child))
-                {
-                    continue;
-                }
-
-                directories.Add(child);
-                pending.Push(child);
-            }
-        }
-
-        return directories.OrderByDescending(path => path.Length).ToList();
-    }
-
-    private IReadOnlyList<string> SafeGetDirectories(string directoryPath)
-    {
-        try
-        {
-            return _disk.GetDirectories(directoryPath);
-        }
-        catch
-        {
-            return Array.Empty<string>();
-        }
-    }
-
-    private void TryDeleteEmptyDirectory(string directoryPath, ICollection<string> errors)
-    {
-        try
-        {
-            if (!_disk.HasEntries(directoryPath))
-            {
-                _disk.DeleteEmptyDirectory(directoryPath);
-            }
-        }
-        catch
-        {
-            errors.Add("Un sous-dossier vide n'a pas pu etre retire.");
         }
     }
 

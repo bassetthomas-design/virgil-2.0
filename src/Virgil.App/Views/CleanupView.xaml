@@ -144,7 +144,35 @@
                           HorizontalScrollBarVisibility="Disabled"
                           Focusable="False"
                           ClipToBounds="True">
-                <ItemsControl x:Name="ZonesPanel" ItemsSource="{Binding Entries}" />
+                <StackPanel>
+                    <ItemsControl x:Name="ZonesPanel" ItemsSource="{Binding Entries}" />
+                    <GroupBox Header="Quarantaine" Margin="0,16,0,0" Foreground="White">
+                        <StackPanel Margin="12">
+                            <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
+                            <ItemsControl ItemsSource="{Binding QuarantineItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected}" Margin="0,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" />
+                                                <TextBlock Text="{Binding Details}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding ExpirationStatus}" />
+                                            </StackPanel>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <WrapPanel IsEnabled="{Binding IsIdle}">
+                                <Button Content="Actualiser" Command="{Binding RefreshQuarantineCommand}" Margin="4" />
+                                <Button Content="Restaurer" Command="{Binding RestoreQuarantineCommand}" Margin="4" />
+                                <Button Content="Vider la quarantaine maintenant" Command="{Binding PurgeQuarantineCommand}" Margin="4" />
+                                <Button Content="{Binding ExpiredQuarantineLabel}" Command="{Binding PurgeExpiredQuarantineCommand}"
+                                        Visibility="{Binding HasExpiredQuarantine, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="4" />
+                            </WrapPanel>
+                            <TextBlock Text="Pour vider toute la quarantaine, laissez la sélection vide." TextWrapping="Wrap" />
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
             </ScrollViewer>
         </Grid>
 

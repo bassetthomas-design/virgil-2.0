@@ -10,6 +10,7 @@ public static class CleanupActionPreviewFactory
     public static ActionPreview Create(CleanupZonePreview preview)
     {
         var definition = preview.Definition;
+        var quarantine = definition.Id != CleanupZoneId.RecycleBin;
         var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["ZoneId"] = definition.Id.ToString(),
@@ -23,6 +24,7 @@ public static class CleanupActionPreviewFactory
         }
         else
         {
+            parameters["QuarantineRetentionDays"] = preview.QuarantineRetentionDays.ToString(CultureInfo.InvariantCulture);
             parameters["EligibleFileCount"] = preview.EligibleFileCount.ToString(CultureInfo.InvariantCulture);
             parameters["EligibleBytes"] = preview.EligibleBytes.ToString(CultureInfo.InvariantCulture);
             for (var i = 0; i < eligible.Count; i++)
@@ -38,6 +40,7 @@ public static class CleanupActionPreviewFactory
             risk = RiskLevel.Sensitive;
         return new ActionPreview("cleanup.zone." + definition.Id.ToString().ToLowerInvariant(),
             definition.DisplayName, risk, eligible.Select(candidate => candidate.FullPath).ToArray(),
-            parameters, [definition.Effect], definition.RequiresElevation, false, Reversibility.None, []);
+            parameters, quarantine ? [$"Conservé {preview.QuarantineRetentionDays} jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible."] : [definition.Effect],
+            definition.RequiresElevation, false, quarantine ? Reversibility.Full : Reversibility.None, []);
     }
 }

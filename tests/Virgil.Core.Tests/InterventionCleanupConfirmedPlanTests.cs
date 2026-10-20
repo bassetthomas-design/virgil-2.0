@@ -105,7 +105,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
     {
         using var files = new Files(); var preview = files.Preview;
         var clock = new Clock(); var authority = new ConfirmationService(clock); var effects = new Effects();
-        var service = new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, effects);
+        var service = new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, effects, quarantine: new TestQuarantineStore());
         if (scenario == "simple") preview = preview with { Definition = preview.Definition with { RequiresReinforcedConfirmation = true } };
         var action = CleanupActionPreviewFactory.Create(preview);
         if (scenario == "simple") action = action with { RiskLevel = RiskLevel.Low };
@@ -154,7 +154,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         };
         if (scenario == "expired") clock.Advance();
         if (scenario == "reused") Assert.True(authority.TryConsume(plan, action).IsAccepted);
-        var result = await new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, effects)
+        var result = await new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, effects, quarantine: new TestQuarantineStore())
             .ExecuteZoneAsync(preview, plan, null, CancellationToken.None);
         Assert.Equal(CleanupStepStatus.Cancelled, result.Status); Assert.Equal(0, result.DeletedFiles);
         Assert.Equal(0, effects.Calls); Assert.True(File.Exists(files.Path));
@@ -171,7 +171,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         if (scenario == "information") preview = preview with { Definition = preview.Definition with { IsExecutable = false } };
         if (scenario == "recycle-expired") preview = preview with { Definition = preview.Definition with { Id = CleanupZoneId.RecycleBin } };
         var now = scenario.Contains("expired", StringComparison.Ordinal) ? preview.GeneratedAt.AddMinutes(11) : preview.GeneratedAt;
-        var result = await new CleanupExecutionService(new CleanupDisk(), gate, () => now, effects).ExecuteZoneAsync(preview, null, null,
+        var result = await new CleanupExecutionService(new CleanupDisk(), gate, () => now, effects, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, null, null,
             new CancellationToken(scenario == "cancelled"));
         Assert.Equal(scenario == "information" ? CleanupStepStatus.Skipped : scenario == "cancelled" ? CleanupStepStatus.Cancelled : CleanupStepStatus.Expired, result.Status);
         if (scenario.Contains("expired", StringComparison.Ordinal)) Assert.Equal("Previsualisation expiree. Relancer l'analyse.", Assert.Single(result.Errors));
@@ -183,10 +183,10 @@ public sealed class InterventionCleanupConfirmedPlanTests
     public async Task CleanupDeletesOnceAndReusedPlanHasNoEffect()
     {
         using var files = new Files(); var preview = files.Preview; var authority = new ConfirmationService(TimeProvider.System);
-        var service = new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, new Effects());
+        var service = new CleanupExecutionService(new CleanupDisk(), authority, () => preview.GeneratedAt, new Effects(), quarantine: new TestQuarantineStore());
         var plan = Issue(authority, CleanupActionPreviewFactory.Create(preview));
         var first = await service.ExecuteZoneAsync(preview, plan, null, CancellationToken.None);
-        Assert.Equal(CleanupStepStatus.Completed, first.Status); Assert.Equal(1, first.DeletedFiles); Assert.False(File.Exists(files.Path));
+        Assert.Equal(CleanupStepStatus.Completed, first.Status); Assert.Equal(1, first.QuarantinedFiles); Assert.Equal(0, first.DeletedFiles); Assert.False(File.Exists(files.Path));
         File.WriteAllText(files.Path, "replacement");
         Assert.Equal(CleanupStepStatus.Cancelled, (await service.ExecuteZoneAsync(preview, plan, null, CancellationToken.None)).Status);
         Assert.Equal("replacement", File.ReadAllText(files.Path));
