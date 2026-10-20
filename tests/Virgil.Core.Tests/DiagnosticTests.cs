@@ -124,6 +124,43 @@ public sealed class DiagnosticTests
         Assert.NotNull(await next);
     }
     [Fact]
+    public async Task ConcurrentSamplersShareTheSameGateAndWaitingCancellationDoesNotRead()
+    {
+        var clock = new ManualClock();
+        var source = new FakeSource();
+        var sampler = new DiagnosticSampler(source, clock);
+        using var active = new CancellationTokenSource();
+        using var waiting = new CancellationTokenSource();
+        var first = sampler.SampleAsync(active.Token);
+        var second = sampler.SampleAsync(waiting.Token);
+        Assert.Equal(1, source.Reads);
+        waiting.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        Assert.Equal(1, source.Reads);
+        active.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+    }
+    [Fact]
+    public async Task CancellationDuringSecondReadCannotPublishCompletedFindings()
+    {
+        var clock = new ManualClock();
+        using var cancellation = new CancellationTokenSource();
+        var source = new CancelOnSecondRead(cancellation);
+        var module = new DiagnosticModule(new DiagnosticSampler(source, clock));
+        var result = module.ScanAsync(cancellation.Token);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => result);
+    }
+    private sealed class CancelOnSecondRead(CancellationTokenSource cancellation) : IDiagnosticSource
+    {
+        private int _reads;
+        public Task<DiagnosticReading> ReadAsync(CancellationToken cancellationToken)
+        {
+            if (++_reads == 2) cancellation.Cancel();
+            return Task.FromResult(Reading(_reads * 100));
+        }
+    }
+    [Fact]
     public void DiagnosticCoreContainsNoOsAccess()
     {
         var folder = System.IO.Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "src", "Virgil.Core", "Diagnostic");

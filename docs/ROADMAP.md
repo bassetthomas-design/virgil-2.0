@@ -42,7 +42,7 @@ Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan
 | 1a | Contrat commun `Findings` / `IMaintenanceModule` / `IMaintenanceAction` et Nettoyage branché dessus, à comportement identique ; Diagnostic à venir. |
 | 1b | Livré : quarantaine de 7 jours réglable (1–30), restauration taille/SHA-256 vérifiée, purge distincte confirmée ; expiration = proposition de purge confirmée, jamais effacement silencieux. |
 | 1c | Livré (PR #52) : scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
-| 1d | Livré : module Diagnostic en lecture seule ; CI Windows suivie dans la PR 1d. Vue détaillée : vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
+| 1d | Livré (PR #53) : module Diagnostic en lecture seule ; CI Windows suivie dans la PR. Vue détaillée : vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
 | 1e | Analyse « ce qui ne va pas » : note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
 
 1a conserve le parcours existant de suppression/corbeille et les protections ; quarantaine, nouveaux groupes, restes de logiciels, Diagnostic et nouvelle UI restent hors de ce sous-lot.

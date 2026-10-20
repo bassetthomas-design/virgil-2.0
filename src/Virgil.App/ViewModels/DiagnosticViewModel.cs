@@ -92,7 +92,7 @@ public sealed class DiagnosticViewModel : ObservableObject
         var session = _presentation;
         if (session is null || session.IsCancellationRequested || !_visible || _minimized) return;
         var token = session.Token;
-        if (!await _refreshGate.WaitAsync(0, token)) return;
+        if (!await _refreshGate.WaitAsync(0)) return;
         try
         {
             IsRefreshing = true;

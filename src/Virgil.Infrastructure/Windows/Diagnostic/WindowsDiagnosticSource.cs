@@ -58,7 +58,7 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
             var id = PdhReader.Instance(path);
             disks.Add(new(id, "Disque physique", pdh.Counter(path, DiagnosticCounterKind.Rate),
                 Match(diskWrite, id, DiagnosticCounterKind.Rate), Match(diskResponse, id, DiagnosticCounterKind.AverageMilliseconds),
-                Missing<double>("capacité disponible par volume"), Missing<double>("espace libre disponible par volume"), ReadHealth(id)));
+                ReadPhysicalCapacity(id), Missing<double>("espace libre disponible par volume"), ReadHealth(id)));
         }
         foreach (var drive in DriveInfo.GetDrives())
         {
@@ -180,6 +180,18 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
         if (!GetSystemTimes(out var idle, out var kernel, out var user)) return AbsentCounter("temps processeur Windows inaccessible");
         static double T(System.Runtime.InteropServices.ComTypes.FILETIME t) => ((ulong)(uint)t.dwHighDateTime << 32) | (uint)t.dwLowDateTime;
         return new(Number(T(idle)), Number(T(kernel) + T(user)), DiagnosticCounterKind.IdleTime, Identity: "GetSystemTimes");
+    }
+    private static DiagnosticValue<double> ReadPhysicalCapacity(string id)
+    {
+        var number = id.Split(' ')[0];
+        if (!int.TryParse(number, out _)) return Missing<double>();
+        using var handle = CreateFile(@"\\.\PhysicalDrive" + number, 0, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+        if (handle.IsInvalid) return Missing<double>("capacité physique inaccessible");
+        var buffer = new byte[256];
+        // IOCTL_DISK_GET_DRIVE_GEOMETRY_EX : FILE_ANY_ACCESS, lecture seule, DiskSize à l'offset 24.
+        if (!DeviceIoControl(handle, 0x000700A0, IntPtr.Zero, 0, buffer, (uint)buffer.Length, out var returned, IntPtr.Zero) || returned < 32)
+            return Missing<double>("géométrie du disque non exposée par Windows");
+        return Number(BitConverter.ToInt64(buffer, 24));
     }
     private static DiagnosticValue<string> ReadHealth(string id)
     {

@@ -92,6 +92,89 @@ public sealed class DiagnosticPresentationTests
         Assert.Contains(reading.Disks, d => d.Kind == "Volume" && d.Total.IsAvailable && d.Total.Value > 0);
         Assert.Contains(reading.Processes, p => p.Pid == Environment.ProcessId);
     }
+    [Fact]
+    public async Task VisibleViewRefreshesEveryTwoSecondsUsingInjectedClockAndStopsItsTimer()
+    {
+        var clock = new PresentationClock();
+        var source = new ImmediateSource();
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(source, clock)), clock);
+        vm.SetPresentation(true, false);
+        Assert.Equal(1, source.Reads);
+        var first = source.SecondRead.Task;
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await first.WaitAsync(TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => vm.Snapshot is not null);
+        Assert.Equal(2, source.Reads);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await WaitUntilAsync(() => source.Reads == 3);
+        // La période démarre à t=0 ; la deuxième mesure débute à t=2.
+        vm.SetPresentation(false, false);
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+        clock.Advance(TimeSpan.FromSeconds(20));
+        Assert.Equal(3, source.Reads);
+    }
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition()) await Task.Delay(1, deadline.Token);
+    }
+    private sealed class ImmediateSource : IDiagnosticSource
+    {
+        public int Reads;
+        public TaskCompletionSource SecondRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<DiagnosticReading> ReadAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Reads++;
+            var v = DiagnosticValue<double>.Available(100);
+            var gauge = new DiagnosticCounter(v, v, DiagnosticCounterKind.Gauge);
+            var result = new DiagnosticReading(new(gauge, new[] { gauge }, v, v, v), new(v, v, v, v, v, v),
+                Array.Empty<RawDisk>(), Array.Empty<RawNetwork>(), Array.Empty<RawGpu>(), Array.Empty<RawProcess>());
+            if (Reads == 2) SecondRead.TrySetResult();
+            return Task.FromResult(result);
+        }
+    }
+    private sealed class PresentationClock : TimeProvider
+    {
+        private long _ticks;
+        private readonly List<PresentationTimer> _timers = new();
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => _ticks;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(_ticks);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new PresentationTimer(this, callback, state);
+            lock (_timers) _timers.Add(timer);
+            timer.Change(dueTime, period);
+            return timer;
+        }
+        public void Advance(TimeSpan by)
+        {
+            _ticks += by.Ticks;
+            PresentationTimer[] timers;
+            lock (_timers) timers = _timers.ToArray();
+            foreach (var timer in timers) timer.Fire(_ticks);
+        }
+        private sealed class PresentationTimer(PresentationClock owner, TimerCallback callback, object? state) : ITimer
+        {
+            private long _due = long.MaxValue;
+            private long _period;
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                _due = dueTime == Timeout.InfiniteTimeSpan ? long.MaxValue : owner._ticks + dueTime.Ticks;
+                _period = period == Timeout.InfiniteTimeSpan ? 0 : period.Ticks;
+                return true;
+            }
+            public void Fire(long now)
+            {
+                if (now < _due) return;
+                _due = _period > 0 ? now + _period : long.MaxValue;
+                callback(state);
+            }
+            public void Dispose() => _due = long.MaxValue;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
+    }
     private static DiagnosticViewModel Create(IDiagnosticSource source) => new(new DiagnosticModule(new DiagnosticSampler(source, TimeProvider.System)), TimeProvider.System);
     private sealed class BlockingSource : IDiagnosticSource
     {
