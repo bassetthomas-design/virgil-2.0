@@ -151,6 +151,33 @@ public sealed class CleanupGroupsTests
         Assert.Equal(0, disk.Calls);
     }
 
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task RecycleBinKeepsReinforcedIrreversibleApiAndCancellationStopsRemainingZones(bool cancel)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var authority = new ConfirmationService(new Clock());
+        var disk = new NoDisk { AllowRecycle = true, OnRecycle = cancel ? cancellation.Cancel : null };
+        var recycle = Preview with { Definition = Preview.Definition with { Id = CleanupZoneId.RecycleBin }, Candidates = [] };
+        var selection = cancel ? new[] { recycle, Preview } : new[] { recycle };
+        var action = new CleanupSelectionAction(new CleanupExecutionService(disk, authority, () => Now), selection);
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        Assert.Equal(cancel ? Reversibility.Partial : Reversibility.None, preview.Reversibility);
+        Assert.Equal(RiskLevel.Sensitive, preview.RiskLevel);
+        Assert.Throws<ConfirmationRefusedException>(() => authority.Issue(preview, new(ConfirmationLevel.Simple, null)));
+        Assert.Equal(0, disk.Calls);
+        var plan = authority.Issue(preview, new(ConfirmationLevel.Reinforced, null));
+        var result = Assert.IsType<CleanupSelectionActionResult>(await action.ExecuteAsync(plan, cancellation.Token));
+        Assert.False(result.WasRefused); Assert.Equal(!cancel, result.Succeeded);
+        Assert.Contains(result.Effects, effect => effect.Contains("Corbeille") && effect.Contains("irréversible"));
+        Assert.Equal(1, disk.Calls);
+        Assert.Equal(2, result.Selection.Steps[0].DeletedFiles);
+        Assert.Equal(42, result.Selection.Steps[0].DeletedBytes);
+        if (cancel) Assert.Equal(CleanupStepStatus.Cancelled, result.Selection.Steps[1].Status);
+        var replay = await action.ExecuteAsync(plan, CancellationToken.None);
+        Assert.True(replay.WasRefused); Assert.Empty(replay.Effects); Assert.Equal(1, disk.Calls);
+    }
+
     [Fact]
     public void NewCoreContainsNoFileDirectoryRegistryOrNativeCalls()
     {
@@ -184,16 +211,19 @@ public sealed class CleanupGroupsTests
     private sealed class NoDisk : ICleanupDisk
     {
         public int Calls { get; private set; }
-        public IRecycleBinService RecycleBin => new Recycle();
+        public bool AllowRecycle { get; init; }
+        public Action? OnRecycle { get; init; }
+        public IRecycleBinService RecycleBin => new Recycle(this);
         public CleanupFileState ReadFile(string path) { Calls++; throw new InvalidOperationException(); }
         public void DeleteFile(string path) { Calls++; throw new InvalidOperationException(); }
         public IReadOnlyList<string> GetDirectories(string path) { Calls++; throw new InvalidOperationException(); }
         public bool HasEntries(string path) { Calls++; throw new InvalidOperationException(); }
         public void DeleteEmptyDirectory(string path) { Calls++; throw new InvalidOperationException(); }
-        private sealed class Recycle : IRecycleBinService
+        private sealed class Recycle(NoDisk owner) : IRecycleBinService
         {
             public RecycleBinState Query() => throw new InvalidOperationException();
-            public RecycleBinActionResult Empty() => throw new InvalidOperationException();
+            public RecycleBinActionResult Empty()
+            { owner.Calls++; if (!owner.AllowRecycle) throw new InvalidOperationException(); owner.OnRecycle?.Invoke(); return new(true, 2, 42); }
         }
     }
 }

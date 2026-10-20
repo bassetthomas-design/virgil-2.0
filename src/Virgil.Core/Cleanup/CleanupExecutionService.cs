@@ -66,8 +66,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         var results = new List<CleanupStepResult>();
         foreach (var zone in snapshot)
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            results.Add(ExecuteConfirmedZone(zone, progress, cancellationToken));
+            results.Add(cancellationToken.IsCancellationRequested ? CancelZone(zone)
+                : ExecuteConfirmedZone(zone, progress, cancellationToken));
         }
         return new CleanupSelectionResult(results, null);
     }, CancellationToken.None);
