@@ -29,7 +29,7 @@ public sealed class CompositionRootTests
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer(Array.Empty<string>()));
         EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
-        var module = Assert.Single(provider.GetServices<IMaintenanceModule>());
+        var module = Assert.Single(provider.GetServices<IMaintenanceModule>().OfType<CleanupMaintenanceModule>());
         Assert.IsType<CleanupMaintenanceModule>(module);
         Assert.Equal("cleanup", module.Id);
         Assert.Equal("Nettoyage", module.Title);
@@ -149,6 +149,7 @@ public sealed class CompositionRootTests
         {
             typeof(IProcessRunner), typeof(TimeProvider), typeof(Virgil.Core.Actions.ConfirmationService),
             typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate),
+            typeof(Virgil.Core.Diagnostic.IDiagnosticSource), typeof(Virgil.Core.Diagnostic.DiagnosticSampler),
             typeof(IQuarantineStore) // Un magasin partagé sérialise les déplacements et les manifestes.
         };
         foreach (var descriptor in services)

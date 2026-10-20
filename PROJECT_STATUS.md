@@ -20,3 +20,10 @@ Le consentement au nettoyage ne vaut plus consentement à un effacement ultérie
 ## Livraison 1c (PR #52)
 
 Trois groupes et restes de logiciels désinstallés livrés : ports de lecture Windows, analyse pure, exclusions des programmes installés/actifs/protégés, téléchargements ciblés, garde-fous personnels et sélection individuelle Critical, aperçu global et ConfirmedPlan unique. Registre en lecture seule ; fichiers via quarantaine de 1b. Tests existants conservés et adaptés au parcours récapitulatif ; tests nouveaux de politiques, seuils, sélection et refus sans effet. SDK dotnet absent localement : la CI Windows reste la référence. Base main : 850 tests (Core.Tests 569 + App.Tests 281). La [CI Windows du code final 1c, run 176](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39496186080) valide 915 tests : Core.Tests 625 (569 + 56 nouveaux) et App.Tests 290 (281 + 9 nouveaux), soit 850 + 65 nouveaux ; 0 échec, 0 ignoré, build à 0 warning. Le log confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l’artefact win-x64 est publié. Ce constat concerne le commit de code 77e1fdb ; la dernière mise à jour est documentaire uniquement, avec sa CI suivie dans la PR #52.
+
+
+## Livraison 1d — Diagnostic en lecture seule (PR à renseigner)
+
+Contrats de mesures disponibles/indisponibles, port de lecture Windows, sampler pur et horloge injectée, module sans actions, catalogue français, vue détaillée et tableau triable, rafraîchissement limité à la visibilité et annulé à la réduction. Aucun helper, service de fond, écriture, historique ou fermeture de processus. Ressources et les protections existantes conservées. Objectif <1 % CPU moyen pendant l'affichage, mesure Windows restant à effectuer.
+
+SDK dotnet absent localement ; CI Windows en attente. Référence main b54b56e : 915 tests (Core.Tests 625 + App.Tests 290). Les nouveaux totaux, échecs, ignorés, warnings et la présence de Virgil.ElevatedHelper.exe seront lus dans les logs Windows de la PR ; aucune validation anticipée.

@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private bool _hasPersistentReport;
     private SystemScanReport? _lastReport;
 
+    private readonly DiagnosticView DiagnosticModuleView;
     private readonly CleanupView CleanupModuleView;
     private readonly UpdatesView UpdatesModuleView;
     private readonly InterventionsView InterventionsModuleView;
@@ -46,7 +47,7 @@ public partial class MainWindow : Window
         IReportHistoryService reportHistoryService,
         IReportExportService reportExportService,
         CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
-        ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView)
+        ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView)
     {
         _systemScanService = systemScanService;
         _reportHistoryService = reportHistoryService;
@@ -57,7 +58,10 @@ public partial class MainWindow : Window
         ResourcesModuleView = resourcesView;
         ApplicationsModuleView = applicationsView;
         ReportsModuleView = reportsHistoryView;
+        DiagnosticModuleView = diagnosticView;
         InitializeComponent();
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        ModuleHostGrid.Children.Add(DiagnosticModuleView);
         CleanupModuleView.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(CleanupModuleView, "Module nettoyage securise");
         ModuleHostGrid.Children.Add(CleanupModuleView);
@@ -246,8 +250,21 @@ public partial class MainWindow : Window
         ShowReports();
     }
 
+    private void Diagnostic_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress) return;
+        ShowHome();
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        DiagnosticModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        DiagnosticNavButton.Tag = "Active";
+        StatusText.Text = "DIAGNOSTIC — LECTURE SEULE";
+    }
+
     private void ShowHome()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Visible;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -269,6 +286,8 @@ public partial class MainWindow : Window
 
     private void ShowCleanup()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Visible;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -291,6 +310,8 @@ public partial class MainWindow : Window
 
     private void ShowUpdates()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Visible;
@@ -313,6 +334,8 @@ public partial class MainWindow : Window
 
     private void ShowInterventions()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -335,6 +358,8 @@ public partial class MainWindow : Window
 
     private void ShowResources()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -357,6 +382,8 @@ public partial class MainWindow : Window
 
     private void ShowApplications()
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -379,6 +406,8 @@ public partial class MainWindow : Window
 
     private void ShowReports(bool refresh = true)
     {
+        DiagnosticModuleView.Visibility = Visibility.Collapsed;
+        DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
         CleanupModuleView.Visibility = Visibility.Collapsed;
         UpdatesModuleView.Visibility = Visibility.Collapsed;
@@ -494,6 +523,7 @@ public partial class MainWindow : Window
         if (CleanupModuleView.Visibility == Visibility.Visible ||
             UpdatesModuleView.Visibility == Visibility.Visible ||
             InterventionsModuleView.Visibility == Visibility.Visible ||
+            DiagnosticModuleView.Visibility == Visibility.Visible ||
             ResourcesModuleView.Visibility == Visibility.Visible ||
             ApplicationsModuleView.Visibility == Visibility.Visible ||
             ReportsModuleView.Visibility == Visibility.Visible)
