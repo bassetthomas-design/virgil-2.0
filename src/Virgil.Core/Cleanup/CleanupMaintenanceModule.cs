@@ -27,6 +27,18 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
         return new CleanupFindings(analysis);
     }
 
+    public IReadOnlyList<IMaintenanceAction> GetActions(Findings findings) => GetActions(findings, null);
+
+    public IReadOnlyList<IMaintenanceAction> GetActions(Findings findings, IProgress<CleanupProgress>? progress)
+    {
+        if (findings is not CleanupFindings cleanup)
+            throw new ArgumentException("Les constats ne proviennent pas du module Nettoyage.", nameof(findings));
+        return Array.AsReadOnly(cleanup.Analysis.Zones
+            .Where(zone => zone.Definition.IsExecutable && zone.Definition.Classification is
+                CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable)
+            .Select(zone => (IMaintenanceAction)new CleanupMaintenanceAction(_sessionResults, zone, progress)).ToArray());
+    }
+
     // Ces opérations ne produisent que des résultats/rapports ; aucune exécution de zone ici.
     public CleanupStepResult SkipZone(CleanupZonePreview preview) => _sessionResults.SkipZone(preview);
     public CleanupStepResult CancelZone(CleanupZonePreview preview) => _sessionResults.CancelZone(preview);
@@ -52,7 +64,7 @@ public sealed class CleanupFindings : Findings
 
     private static CleanupAnalysisReport Snapshot(CleanupAnalysisReport analysis) => analysis with
     {
-        Zones = Array.AsReadOnly(analysis.Zones.ToArray()),
+        Zones = Array.AsReadOnly(analysis.Zones.Select(CleanupMaintenanceSnapshot.Copy).ToArray()),
         Storage = analysis.Storage with
         {
             Items = Array.AsReadOnly(analysis.Storage.Items.ToArray()),

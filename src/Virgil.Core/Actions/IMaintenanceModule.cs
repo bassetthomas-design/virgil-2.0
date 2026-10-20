@@ -8,4 +8,5 @@ public interface IMaintenanceModule
     string Title { get; }
     string Category { get; }
     Task<Findings> ScanAsync(CancellationToken cancellationToken);
+    IReadOnlyList<IMaintenanceAction> GetActions(Findings findings);
 }

@@ -122,7 +122,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
         var validation = _gate.TryConsume(plan, CleanupActionPreviewFactory.Create(preview));
         if (!validation.IsAccepted)
-            return CancelZone(preview) with { Errors = new[] { "Nettoyage annule.\n" + validation.Message } };
+            return CancelZone(preview) with
+            {
+                Errors = new[] { "Nettoyage annule.\n" + validation.Message },
+                RefusalReason = validation.Message
+            };
 
         if (preview.Definition.Id == CleanupZoneId.RecycleBin)
         {
@@ -359,7 +363,10 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             preview.EligibleFileCount,
             0,
             duration,
-            new[] { "Previsualisation expiree. Relancer l'analyse." });
+            new[] { "Previsualisation expiree. Relancer l'analyse." })
+        {
+            RefusalReason = "Previsualisation expiree. Relancer l'analyse."
+        };
     }
 
     private static void Report(

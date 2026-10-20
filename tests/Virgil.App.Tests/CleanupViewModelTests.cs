@@ -78,13 +78,13 @@ public sealed class CleanupViewModelTests
         Assert.Equal(9, f.Vm.Entries.Count);
         Assert.Equal("NETTOYAGE SUR", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[0]).Text);
         var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
-        Assert.Same(safeFirst, card.Preview);
+        AssertSnapshot(safeFirst, card.Preview);
         Assert.Equal("USERTEMPORARYFILES", card.Title);
         Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Categorie : nettoyable sur", "Action : guidee apres validation", "Examines : 3 fichiers", "Eligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Anciennete minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
-        Assert.Same(safeLater, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Preview);
+        AssertSnapshot(safeLater, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Preview);
         Assert.Equal("NETTOYAGE AVANCE", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[3]).Text);
-        Assert.Same(advanced, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[4]).Preview);
-        Assert.Same(info, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Preview);
+        AssertSnapshot(advanced, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[4]).Preview);
+        AssertSnapshot(info, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Preview);
         Assert.Contains("Action : information seulement", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Lines);
         Assert.Equal(new[]
         {
@@ -449,6 +449,24 @@ public sealed class CleanupViewModelTests
         finally { directory.Delete(recursive: true); }
     }
 
+    private static void AssertSnapshot(CleanupZonePreview expected, CleanupZonePreview actual)
+    {
+        Assert.NotSame(expected, actual);
+        Assert.NotSame(expected.Definition, actual.Definition);
+        Assert.Equal(expected.Definition with
+        {
+            AllowedExtensions = actual.Definition.AllowedExtensions,
+            RequiredPathFragments = actual.Definition.RequiredPathFragments,
+            ExcludedPathFragments = actual.Definition.ExcludedPathFragments
+        }, actual.Definition);
+        Assert.Equal(expected.Definition.AllowedExtensions, actual.Definition.AllowedExtensions);
+        Assert.Equal(expected.Definition.RequiredPathFragments, actual.Definition.RequiredPathFragments);
+        Assert.Equal(expected.Definition.ExcludedPathFragments, actual.Definition.ExcludedPathFragments);
+        Assert.Equal(expected with { Definition = actual.Definition, Candidates = actual.Candidates, Errors = actual.Errors }, actual);
+        Assert.Equal(expected.Candidates, actual.Candidates);
+        Assert.Equal(expected.Errors, actual.Errors);
+    }
+
     private static async Task NextValidation(CleanupViewModel vm, Action decide, string name)
     {
         var next = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -517,8 +535,7 @@ public sealed class CleanupViewModelTests
             Actions.Authority = Confirmation.Authority;
             var module = new CleanupMaintenanceModule(new CleanupAnalyzer(Previews,
                 analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>())), Actions);
-            var actions = Enum.GetValues<CleanupZoneId>().Select(id => new CleanupMaintenanceAction(Actions, Preview(id)));
-            Vm = new(module, actions, Runner, History, Confirmation);
+            Vm = new(module, Runner, History, Confirmation);
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.ReportPersisted += (_, _) => Persisted++;
         }

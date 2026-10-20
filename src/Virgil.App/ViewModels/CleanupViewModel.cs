@@ -20,7 +20,7 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
-    private readonly IReadOnlyList<CleanupMaintenanceAction> _actions;
+    private IReadOnlyList<IMaintenanceAction> _actions = Array.Empty<IMaintenanceAction>();
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
     private readonly IConfirmationService _confirmationService;
@@ -34,14 +34,12 @@ public partial class CleanupViewModel : ObservableObject
 
     public CleanupViewModel(
         CleanupMaintenanceModule module,
-        IEnumerable<CleanupMaintenanceAction> actions,
         IProcessRunner processRunner,
         IReportHistoryService reportHistoryService,
         IConfirmationService confirmationService)
     {
         _confirmationService = confirmationService;
         _module = module ?? throw new ArgumentNullException(nameof(module));
-        _actions = actions.ToArray();
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
         Entries.Add(new CleanupTextCardItem("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan."));
@@ -156,6 +154,7 @@ public partial class CleanupViewModel : ObservableObject
         try
         {
             _lastPreview.Clear();
+            _actions = Array.Empty<IMaintenanceAction>();
             StatusText = "Analyse en cours.";
             RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
             VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
@@ -163,6 +162,7 @@ public partial class CleanupViewModel : ObservableObject
             var findings = (CleanupFindings)await _module
                 .ScanAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
+            _actions = _module.GetActions(findings, new Progress<CleanupProgress>(HandleProgress));
             _lastStorageAnalysis = findings.Analysis.Storage;
             _lastPreview.AddRange(findings.Analysis.Zones);
             RenderPreviews();
@@ -221,8 +221,7 @@ public partial class CleanupViewModel : ObservableObject
                 var decision = await AskZoneDecisionAsync(preview, _operationCancellation.Token).ConfigureAwait(true);
                 RequestVirgilState(VirgilCoreState.Scanning, "GUIDE");
 
-                var action = _actions.Single(action => action.ZoneId == preview.Definition.Id)
-                    .WithPreview(preview, new Progress<CleanupProgress>(HandleProgress));
+                var action = _actions.Single(action => action.Id == CleanupActionPreviewFactory.Create(preview).ActionId);
                 ConfirmedPlan? plan = null;
                 if (decision == CleanupZoneDecision.Execute)
                 {

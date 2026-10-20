@@ -48,7 +48,16 @@ public sealed class MaintenanceContractTests
         var filesBefore = sandbox.Files();
         var findings = Assert.IsType<CleanupFindings>(await module.ScanAsync(CancellationToken.None));
         var actual = Assert.Single(findings.Analysis.Zones);
-        Assert.Equal(legacy.Definition, actual.Definition);
+        Assert.NotSame(legacy.Definition, actual.Definition);
+        Assert.Equal(legacy.Definition with
+        {
+            AllowedExtensions = actual.Definition.AllowedExtensions,
+            RequiredPathFragments = actual.Definition.RequiredPathFragments,
+            ExcludedPathFragments = actual.Definition.ExcludedPathFragments
+        }, actual.Definition);
+        Assert.Equal(legacy.Definition.AllowedExtensions, actual.Definition.AllowedExtensions);
+        Assert.Equal(legacy.Definition.RequiredPathFragments, actual.Definition.RequiredPathFragments);
+        Assert.Equal(legacy.Definition.ExcludedPathFragments, actual.Definition.ExcludedPathFragments);
         Assert.Equal(legacy.GeneratedAt, actual.GeneratedAt);
         Assert.Equal(legacy.EligibleBytes, actual.EligibleBytes);
         Assert.Equal(legacy.EligibleFileCount, actual.EligibleFileCount);
@@ -196,6 +205,111 @@ public sealed class MaintenanceContractTests
             parameter => parameter.ParameterType == typeof(bool));
     }
 
+    [Fact]
+    [Trait("Category", "Windows")]
+    public async Task ModuleContractReturnsActionsBoundToRealScanAndExecutesWithoutConcreteBinding()
+    {
+        using var sandbox = new Sandbox();
+        var authority = new ConfirmationService(new Clock());
+        var disk = new RecordingDisk(new CleanupDisk());
+        IMaintenanceModule module = new CleanupMaintenanceModule(new CleanupAnalyzer(
+            new CleanupPreviewService(new[] { sandbox.Zone }, () => Now, recycleBinService: disk),
+            new CleanupStorageAnalyzer(Array.Empty<string>())), new CleanupExecutionService(disk, authority, () => Now));
+        Findings findings = await module.ScanAsync(CancellationToken.None);
+        IMaintenanceAction action = Assert.Single(module.GetActions(findings));
+        Assert.Equal(Assert.Single(findings.ProposedActions).Id, action.Id);
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        Assert.Single(preview.Targets);
+        Assert.EndsWith("old.tmp", preview.Targets[0]);
+        Assert.Equal(ActionPreviewHasher.Hash(CleanupActionPreviewFactory.Create(
+            Assert.Single(Assert.IsType<CleanupFindings>(findings).Analysis.Zones))), ActionPreviewHasher.Hash(preview));
+        Assert.Empty(disk.Calls);
+        var result = await action.ExecuteAsync(Issue(authority, preview), CancellationToken.None);
+        Assert.True(result.Succeeded);
+        Assert.False(result.WasRefused);
+        Assert.DoesNotContain("old.tmp", sandbox.Files());
+        Assert.Contains(disk.Calls, call => call.StartsWith("Delete:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task FindingsDeepCopyCandidatesAndEveryRuleListFromScanBeforeActionBinding()
+    {
+        var candidates = new List<CleanupCandidate> { Candidate() };
+        var allowed = new List<string> { ".tmp" };
+        var required = new List<string> { "old" };
+        var excluded = new List<string> { "keep" };
+        var errors = new List<string> { "Lecture partielle." };
+        var source = Preview() with
+        {
+            Candidates = candidates, Errors = errors,
+            Definition = Preview().Definition with
+            {
+                AllowedExtensions = allowed, RequiredPathFragments = required, ExcludedPathFragments = excluded
+            }
+        };
+        var zones = new List<CleanupZonePreview> { source };
+        var disk = new RecordingDisk();
+        IMaintenanceModule module = new CleanupMaintenanceModule(new CleanupAnalyzer(new StaticPreview(zones),
+            new CleanupStorageAnalyzer(Array.Empty<string>())), new CleanupExecutionService(disk,
+                new ConfirmationService(new Clock()), () => Now));
+        var findings = Assert.IsType<CleanupFindings>(await module.ScanAsync(CancellationToken.None));
+        var expectedHash = ActionPreviewHasher.Hash(CleanupActionPreviewFactory.Create(source));
+        candidates.Clear(); allowed.Clear(); required.Clear(); excluded.Clear(); errors.Clear(); zones.Clear();
+        var captured = Assert.Single(findings.Analysis.Zones);
+        Assert.NotSame(source, captured);
+        Assert.NotSame(source.Definition, captured.Definition);
+        Assert.Equal(Candidate(), Assert.Single(captured.Candidates));
+        Assert.Equal(".tmp", Assert.Single(captured.Definition.AllowedExtensions));
+        Assert.Equal("old", Assert.Single(captured.Definition.RequiredPathFragments));
+        Assert.Equal("keep", Assert.Single(captured.Definition.ExcludedPathFragments));
+        Assert.Equal("Lecture partielle.", Assert.Single(captured.Errors));
+        foreach (var collection in new IList[] { (IList)captured.Candidates, (IList)captured.Errors,
+            (IList)captured.Definition.AllowedExtensions, (IList)captured.Definition.RequiredPathFragments,
+            (IList)captured.Definition.ExcludedPathFragments })
+            Assert.Throws<NotSupportedException>(() => collection.Clear());
+        var action = Assert.Single(module.GetActions(findings));
+        Assert.Equal(expectedHash, ActionPreviewHasher.Hash(await action.PreviewAsync(CancellationToken.None)));
+        Assert.Empty(disk.Calls);
+    }
+
+    [Fact]
+    [Trait("Category", "Windows")]
+    public async Task CancellationAfterDeletionErrorIsNotPreEffectRefusal()
+    {
+        using var sandbox = new Sandbox();
+        sandbox.AddOldFile("second.tmp");
+        using var cancellation = new CancellationTokenSource();
+        var authority = new ConfirmationService(new Clock());
+        var disk = new RecordingDisk
+        {
+            OnDelete = _ => { cancellation.Cancel(); throw new IOException("Erreur de suppression simulée."); }
+        };
+        var previews = new CleanupPreviewService(new[] { sandbox.Zone }, () => Now, recycleBinService: disk);
+        var preview = Assert.Single(await previews.PreviewAsync(null, CancellationToken.None));
+        Assert.Equal(2, preview.EligibleFileCount);
+        IMaintenanceAction action = new CleanupMaintenanceAction(new CleanupExecutionService(disk, authority, () => Now), preview);
+        var plan = Issue(authority, await action.PreviewAsync(CancellationToken.None));
+        var result = Assert.IsType<CleanupMaintenanceResult>(await action.ExecuteAsync(plan, cancellation.Token));
+        Assert.Equal(CleanupStepStatus.Cancelled, result.Step.Status);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(1, result.Step.ErrorFiles);
+        Assert.False(result.Succeeded);
+        Assert.False(result.WasRefused);
+        Assert.Null(result.RefusalReason);
+        Assert.Null(result.Step.RefusalReason);
+        Assert.Equal(PlanRejectionReason.AlreadyUsed, authority.Validate(plan,
+            await action.PreviewAsync(CancellationToken.None)).Reason);
+        Assert.Single(disk.Calls, call => call.StartsWith("Delete:", StringComparison.Ordinal));
+        Assert.Contains("old.tmp", sandbox.Files());
+    }
+
+    private sealed class StaticPreview(IReadOnlyList<CleanupZonePreview> zones) : ICleanupPreviewService
+    {
+        public IReadOnlyList<CleanupZoneDefinition> GetZones() => zones.Select(zone => zone.Definition).ToArray();
+        public Task<IReadOnlyList<CleanupZonePreview>> PreviewAsync(IProgress<CleanupProgress>? progress,
+            CancellationToken cancellationToken) => Task.FromResult(zones);
+    }
+
     private static ConfirmedPlan Issue(ConfirmationService authority, ActionPreview preview) => authority.Issue(preview,
         new ConfirmationConsent(RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel), null));
 
@@ -221,13 +335,14 @@ public sealed class MaintenanceContractTests
         private readonly ICleanupDisk? _real;
         public RecordingDisk(ICleanupDisk? real = null) => _real = real;
         public List<string> Calls { get; } = new();
+        public Action<string>? OnDelete { get; init; }
         public IRecycleBinService RecycleBin => this;
         public CleanupFileState ReadFile(string path)
         {
             Calls.Add("Read:" + path);
             return _real?.ReadFile(path) ?? new CleanupFileState(32, Now.AddDays(-2));
         }
-        public void DeleteFile(string path) { Calls.Add("Delete:" + path); _real?.DeleteFile(path); }
+        public void DeleteFile(string path) { Calls.Add("Delete:" + path); OnDelete?.Invoke(path); _real?.DeleteFile(path); }
         public IReadOnlyList<string> GetDirectories(string path)
         {
             Calls.Add("Directories:" + path);
@@ -252,6 +367,7 @@ public sealed class MaintenanceContractTests
             Write("recent.tmp", Now);
             Write("photo.jpg", Now.AddDays(-2));
         }
+        public void AddOldFile(string name) => Write(name, Now.AddDays(-2));
         private void Write(string name, DateTimeOffset date)
         {
             var path = Path.Combine(_root, name);

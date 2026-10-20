@@ -56,3 +56,10 @@ Le correctif P1 de la même PR #49 retire les adaptateurs OS client de Core : `E
 Tests ajoutés pour les refus sans effet fichier/corbeille, le scan sans suppression, l’aperçu déterministe, l’équivalence du parcours en bac à sable, l’architecture et la DI validée. Aucun test existant supprimé ou affaibli. Référence main confirmée dans les logs Windows : 786 tests (Core.Tests 513 + App.Tests 273). La CI Windows du code 1a (run 161, PR #50) passe 803 tests (Core.Tests 529 + App.Tests 274), soit 17 nouveaux, avec 0 échec, 0 ignoré et 0 warning. La cible de publication vérifie explicitement la présence de `Virgil.ElevatedHelper.exe` ; sa validation sur le dernier commit est suivie dans la PR. Le SDK dotnet est absent de l’environnement de travail ; aucune validation locale de build revendiquée.
 
 Suite de Phase 1 : 1b quarantaine de 7 jours réglable avec restauration vérifiée ; 1c trois groupes et restes de logiciels avec garde-fous dossiers personnels ; 1d Diagnostic détaillé en lecture seule ; 1e note, top 3 et actions proposées après validation avec fermeture de processus protégée. Ces capacités ne sont pas livrées par 1a.
+
+
+### Correctifs de revue 1a — PR #50
+
+Les actions liées au scan sont obtenues par `IMaintenanceModule.GetActions(Findings)`, également utilisé par le VM ; aucune action inerte n’est exposée en DI. Le service d’exécution transmet une raison de refus distincte des erreurs opérationnelles : une annulation après erreur n’est pas un refus avant effet. Les zones de `CleanupFindings` sont copiées en profondeur, avec leurs candidats et listes de règles.
+
+Trois tests de régression sont ajoutés sans retirer de cas existant : exécution via les seuls contrats après scan, mutation des listes source sans modification des Findings, annulation après erreur sans WasRefused. Le lot comporte désormais 806 cas (Core.Tests 532 + App.Tests 274), soit 786 + 20 nouveaux ; résultat Windows du dernier commit et logs par projet suivis dans la PR #50. Les dix cas de refus fichier/corbeille restent obligatoires, sans appel disque. SDK dotnet toujours absent localement.
