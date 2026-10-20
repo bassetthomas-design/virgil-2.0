@@ -25,7 +25,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
 | 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 livré (PR #36) ; 0d-5 livré (PR #37) ; 0d-6 livré (PR #38) ; 0d-7 livré (PR #39) ; 0d-8 livré (PR #40) ; 0d-9 livré (PR #41) ; lot 0d terminé ; 0e-1 livré (PR #42) ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé ; 0f livré (PR #47) ; 0g livré (PR #48), sous-lots 0a–0g livrés ; 0f-bis livré (PR #49) : code OS hors de Contracts ; phase 0 non clôturée, dette OS Core existante à migrer vers Infrastructure | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
-| 1 — Diagnostic + Nettoyage | À migrer sur le nouveau contrat | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
+| 1 — Diagnostic + Nettoyage | 1a livré (PR #50) : contrat commun et Nettoyage branché ; 1b–1e à réaliser | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
 | 4 — Monitoring continu | Services existants ; stabilisation à réaliser | Observation continue maîtrisée et budget de ressources validé. |
@@ -47,3 +47,12 @@ Les deux P1 sont livres (PR #46) : execution WinGet epinglee sur la version conf
 0f-bis livré (PR #49) : gardes de chemins purs et inspections injectées dans Contracts ; inspection disque, création des dossiers, ACL et fichiers du protocole client dans Infrastructure.Windows derrière les ports Core injectés par Hosting, validation disque/ACL interne au helper limité à Contracts. Cas de sécurité du protocole partagés entre les deux validations, garde d’architecture des références de Contracts et synchronisation native du test de mutex abandonné. Aucun changement de protocole, d’allowlist ou de comportement applicatif ; Phase 1 hors périmètre.
 
 Le correctif P1 de la même PR #49 retire les adaptateurs OS client de Core : `ElevatedProtocolRoot`, `ElevatedDiskInspector` et les accès aux fichiers du protocole sont dans Infrastructure.Windows ; Core conserve les ports et la logique du magasin. La dette de placement Core est levée pour ce point ; les autres accès OS legacy restent hors lot. Les tests partagés client/helper et le correctif du mutex sont conservés.
+
+
+## Livraison 1a (PR #50)
+
+1a livré (PR #50) : `Findings` en lecture seule dans Contracts/Actions ; `IMaintenanceModule` et `IMaintenanceAction` dans Core/Actions, avec annulation et `ConfirmedPlan`. Nettoyage utilise le module et les actions injectés ; zones, tailles, textes français, confirmations et effets existants sont conservés, sans XAML. Les accès disque du service d’exécution modifié sont derrière `ICleanupDisk` dans Infrastructure.Windows ; gardes et porte à usage unique conservés.
+
+Tests ajoutés pour les refus sans effet fichier/corbeille, le scan sans suppression, l’aperçu déterministe, l’équivalence du parcours en bac à sable, l’architecture et la DI validée. Aucun test existant supprimé ou affaibli. Référence main : 786 tests (Core.Tests 513 + App.Tests 273) ; résultats du lot à confirmer dans la CI Windows. Le SDK dotnet est absent de l’environnement de travail ; aucune validation locale de build revendiquée.
+
+Suite de Phase 1 : 1b quarantaine de 7 jours réglable avec restauration vérifiée ; 1c trois groupes et restes de logiciels avec garde-fous dossiers personnels ; 1d Diagnostic détaillé en lecture seule ; 1e note, top 3 et actions proposées après validation avec fermeture de processus protégée. Ces capacités ne sont pas livrées par 1a.
