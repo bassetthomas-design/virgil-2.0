@@ -168,7 +168,7 @@ public sealed record CleanupStepResult(
     public int QuarantinedFiles { get; init; }
     public long QuarantinedBytes { get; init; }
     public int QuarantineRetentionDays { get; init; } = 7;
-    public string QuarantineSummary => $"{QuarantinedFiles} fichiers mis en quarantaine ({QuarantinedBytes} octets), effacement définitif automatique dans {QuarantineRetentionDays} jours";
+    public string QuarantineSummary => $"{QuarantinedFiles} fichiers mis en quarantaine ({QuarantinedBytes} octets), conservé {QuarantineRetentionDays} jours en quarantaine, puis effacement définitif proposé avec confirmation";
     /// <summary>Renseigné uniquement pour un refus avant effet, jamais pour une erreur d'exécution.</summary>
     public string? RefusalReason { get; init; }
 }

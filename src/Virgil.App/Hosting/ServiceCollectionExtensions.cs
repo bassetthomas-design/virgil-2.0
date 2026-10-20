@@ -107,19 +107,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IQuarantineStore>(sp => new Virgil.Infrastructure.Windows.QuarantineStore(log:
             message => sp.GetService<ILogger<Virgil.Infrastructure.Windows.QuarantineStore>>()?.LogInformation("{QuarantineEvent}", message)));
         services.AddTransient<QuarantineService>(sp => new QuarantineService(sp.GetRequiredService<IQuarantineStore>(),
-            sp.GetRequiredService<IConfirmedPlanGate>(), sp.GetRequiredService<TimeProvider>(),
-            message => sp.GetService<ILogger<QuarantineService>>()?.LogInformation("{QuarantineEvent}", message)));
+            sp.GetRequiredService<IConfirmedPlanGate>(), sp.GetRequiredService<TimeProvider>()));
         services.AddTransient<ICleanupDisk>(_ => new Virgil.Infrastructure.Windows.CleanupDisk());
         services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
             sp.GetRequiredService<ICleanupDisk>(), sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>(),
-            sp.GetRequiredService<IQuarantineStore>(), sp.GetRequiredService<QuarantineService>()));
+            sp.GetRequiredService<IQuarantineStore>()));
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
         services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
         services.AddTransient<CleanupMaintenanceModule>(sp => new CleanupMaintenanceModule(
             sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>(),
-            () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7,
-            sp.GetRequiredService<QuarantineService>()));
+            () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7));
         services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<CleanupMaintenanceModule>());
         services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
 

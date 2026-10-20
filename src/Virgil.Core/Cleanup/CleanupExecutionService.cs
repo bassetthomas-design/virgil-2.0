@@ -20,7 +20,6 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
     private readonly ICleanupDisk _disk;
     private readonly IQuarantineStore? _quarantine;
-    private readonly QuarantineService? _quarantineService;
 
     public CleanupExecutionService(
         ICleanupDisk disk,
@@ -28,11 +27,10 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         Func<DateTimeOffset>? now = null,
         IRecycleBinService? recycleBinService = null,
         CleanupSafetyClassifier? safetyClassifier = null,
-        IQuarantineStore? quarantine = null, QuarantineService? quarantineService = null)
+        IQuarantineStore? quarantine = null)
     {
         _disk = disk;
         _quarantine = quarantine;
-        _quarantineService = quarantineService;
         _gate = gate;
         _now = now ?? (() => DateTimeOffset.Now);
         _recycleBinService = recycleBinService ?? disk.RecycleBin;
@@ -186,8 +184,6 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
 
         // Conserver les dossiers pour permettre une restauration à leur emplacement exact.
-        try { _quarantineService?.PurgeExpired(); }
-        catch { errors.Add("Purge des éléments expirés impossible ; éléments conservés."); }
         stopwatch.Stop();
 
         if (status != CleanupStepStatus.Cancelled)

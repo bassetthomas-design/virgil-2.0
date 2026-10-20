@@ -241,8 +241,8 @@ public sealed class CleanupViewModelTests
         Assert.Equal(root, f.Vm.ValidationRoot);
         Assert.Equal($"Zone : {id}\nDescription", f.Vm.ValidationReason);
         Assert.Equal("Taille : 2 Ko\nFichiers : 2\nAge minimal : 2 jours\nRisque : faible", f.Vm.ValidationMetrics);
-        Assert.Equal(id == CleanupZoneId.RecycleBin ? "Effet\nSuppression definitive apres confirmation de cette zone uniquement."
-            : "Mise en quarantaine ; effacement définitif automatique après 7 jours. Restauration vérifiée possible pendant cette durée.", f.Vm.ValidationEffect);
+        Assert.Equal(id == CleanupZoneId.RecycleBin ? "Effet\nSuppression définitive après confirmation de cette zone uniquement."
+            : "Conservé 7 jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible.", f.Vm.ValidationEffect);
         Assert.Equal("Non touche", f.Vm.ValidationNotTouched);
         Assert.Equal("Attention", f.Vm.ValidationWarning);
         Assert.Equal($"Validation requise.\nZone : {id.ToString().ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.", f.Messages.Last());

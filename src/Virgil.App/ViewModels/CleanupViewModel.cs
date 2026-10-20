@@ -22,6 +22,8 @@ public partial class CleanupViewModel : ObservableObject
     private readonly CleanupMaintenanceModule _module;
     private readonly QuarantineService? _quarantine;
     public ObservableCollection<QuarantineItemViewModel> QuarantineItems { get; } = new();
+    [ObservableProperty] private bool hasExpiredQuarantine;
+    [ObservableProperty] private string expiredQuarantineLabel = string.Empty;
     private IReadOnlyList<IMaintenanceAction> _actions = Array.Empty<IMaintenanceAction>();
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
@@ -114,12 +116,7 @@ public partial class CleanupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void InitializeQuarantine()
-    {
-        try { _quarantine?.PurgeExpired(); }
-        catch { StatusText = "Purge des éléments expirés impossible."; }
-        RefreshQuarantine();
-    }
+    private void InitializeQuarantine() => RefreshQuarantine();
 
     [RelayCommand]
     private void RefreshQuarantine()
@@ -128,9 +125,13 @@ public partial class CleanupViewModel : ObservableObject
         try
         {
             QuarantineItems.Clear();
-            foreach (var entry in _quarantine.List()) QuarantineItems.Add(new QuarantineItemViewModel(entry));
+            var now = _quarantine.UtcNow;
+            foreach (var entry in _quarantine.List()) QuarantineItems.Add(new QuarantineItemViewModel(entry, now));
+            var expired = QuarantineItems.Where(item => item.IsExpired).ToArray();
+            HasExpiredQuarantine = expired.Length > 0;
+            ExpiredQuarantineLabel = $"Effacer les éléments expirés ({expired.Length}, {FormatBytes(expired.Sum(item => item.Entry.SizeBytes))})";
         }
-        catch { StatusText = "Lecture ou purge des éléments expirés impossible ; vérifier la quarantaine."; }
+        catch { StatusText = "Lecture de la quarantaine impossible."; }
     }
 
     [RelayCommand]
@@ -139,24 +140,29 @@ public partial class CleanupViewModel : ObservableObject
     [RelayCommand]
     private Task PurgeQuarantineAsync() => RunQuarantineAsync(true);
 
-    private async Task RunQuarantineAsync(bool purge)
+    [RelayCommand]
+    private Task PurgeExpiredQuarantineAsync() => RunQuarantineAsync(true, expiredOnly: true);
+
+    private async Task RunQuarantineAsync(bool purge, bool expiredOnly = false)
     {
         if (_quarantine is null || !BeginOperation("Quarantaine")) return;
         try
         {
             var selection = QuarantineItems.Where(item => item.IsSelected).Select(item => item.Entry).ToArray();
             if (selection.Length == 0 && purge) selection = QuarantineItems.Select(item => item.Entry).ToArray();
-            if (selection.Length == 0) { StatusText = "Sélectionnez les éléments à restaurer."; return; }
-            var action = purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
+            if (!expiredOnly && selection.Length == 0) { StatusText = "Sélectionnez les éléments à restaurer."; return; }
+            var action = expiredOnly ? _quarantine.GetExpiredPurgeAction()
+                : purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
+            if (action is null) { StatusText = "Aucun élément expiré à effacer."; return; }
             var preview = await action.PreviewAsync(_operationCancellation!.Token);
-            ValidationTitle = preview.Title;
+            ValidationTitle = expiredOnly ? "Effacer les éléments expirés" : preview.Title;
             ValidationReason = "Éléments sélectionnés dans la quarantaine";
             ValidationRoot = string.Join("\n", preview.Targets);
-            ValidationMetrics = $"{selection.Length} fichiers ({FormatBytes(selection.Sum(e => e.SizeBytes))})";
+            ValidationMetrics = $"{preview.Parameters["Count"]} fichiers ({FormatBytes(long.Parse(preview.Parameters["Bytes"], System.Globalization.CultureInfo.InvariantCulture))})";
             ValidationEffect = string.Join("\n", preview.Effects);
             ValidationNotTouched = "Les éléments hors sélection restent inchangés. Aucun écrasement.";
             ValidationWarning = purge ? "Cette suppression est irréversible." : "Taille et SHA-256 vérifiés avant et après déplacement.";
-            ExecuteZoneLabel = purge ? "VIDER LA QUARANTAINE MAINTENANT" : "RESTAURER";
+            ExecuteZoneLabel = expiredOnly ? "EFFACER LES ÉLÉMENTS EXPIRÉS" : purge ? "VIDER LA QUARANTAINE MAINTENANT" : "RESTAURER";
             var decision = new TaskCompletionSource<CleanupZoneDecision>();
             _activeDecision = decision;
             IsValidationOpen = true;
@@ -460,7 +466,7 @@ public partial class CleanupViewModel : ObservableObject
             $"Risque : {RiskLabel(preview.Definition.RiskLevel)}"
         });
         ValidationEffect = preview.Definition.Id == CleanupZoneId.RecycleBin
-            ? $"{preview.Definition.Effect}\nSuppression definitive apres confirmation de cette zone uniquement."
+            ? $"{preview.Definition.Effect}\nSuppression définitive après confirmation de cette zone uniquement."
             : string.Join("\n", CleanupActionPreviewFactory.Create(preview).Effects);
         ValidationNotTouched = preview.Definition.NotTouched;
         ValidationWarning = preview.Definition.Warning;

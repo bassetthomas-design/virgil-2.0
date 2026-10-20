@@ -41,6 +41,9 @@ public sealed class QuarantineTests
         Assert.NotEqual(ActionPreviewHasher.Hash(a), ActionPreviewHasher.Hash(b));
         Assert.Equal(Reversibility.Full, a.Reversibility);
         Assert.Contains("7 jours", Assert.Single(a.Effects));
+        Assert.Contains("effacement définitif proposé avec confirmation", Assert.Single(a.Effects));
+        var previous = a with { Effects = ["Mise en quarantaine ; effacement définitif automatique après 7 jours. Restauration vérifiée possible pendant cette durée."] };
+        Assert.NotEqual(ActionPreviewHasher.Hash(previous), ActionPreviewHasher.Hash(a));
         var action = new CleanupMaintenanceAction(new CleanupExecutionService(new Disk(), new ConfirmationService(new Clock())), changed);
         Assert.Equal(ActionPreviewHasher.Hash(b), ActionPreviewHasher.Hash(await action.PreviewAsync(CancellationToken.None)));
     }
@@ -118,16 +121,71 @@ public sealed class QuarantineTests
     }
 
     [Fact]
-    public void ExpirationOnlyPurgesDueEntriesWithTestClock()
+    public async Task ExpirationOnlyPurgesDueEntriesWithTestClock()
     {
-        var store = new Store(); var clock = new Clock(); var expired = Entry() with { QuarantinedAtUtc = Now.AddDays(-8), ExpiresAtUtc = Now.AddSeconds(-1) };
-        var due = Entry() with { QuarantinedAtUtc = Now.AddDays(-7), ExpiresAtUtc = Now }; var future = Entry();
+        var store = new Store(); var clock = new Clock();
+        var expired = Entry() with { QuarantinedAtUtc = Now.AddDays(-8), ExpiresAtUtc = Now.AddSeconds(-1) };
+        var due = Entry() with { QuarantinedAtUtc = Now.AddDays(-7), ExpiresAtUtc = Now };
+        var future = Entry();
         store.Entries.AddRange([expired, due, future]);
-        var service = new QuarantineService(store, new ConfirmationService(clock), clock);
-        service.PurgeExpired();
+        var authority = new ConfirmationService(clock);
+        var service = new QuarantineService(store, authority, clock);
+        var action = Assert.IsType<QuarantineMaintenanceAction>(service.GetExpiredPurgeAction());
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        Assert.Equal("2", preview.Parameters["Count"]);
+        Assert.Equal("8", preview.Parameters["Bytes"]);
+        Assert.Contains(expired.Id.ToString(), preview.Parameters.Keys);
+        Assert.Contains(due.Id.ToString(), preview.Parameters.Keys);
+        Assert.DoesNotContain(future.Id.ToString(), preview.Parameters.Keys);
+        Assert.Equal(RiskLevel.Sensitive, preview.RiskLevel);
+        Assert.Equal(Reversibility.None, preview.Reversibility);
+        Assert.Contains("irréversible", Assert.Single(preview.Effects));
+        Assert.Equal(3, store.Entries.Count);
+        Assert.DoesNotContain(store.Calls, call => call.StartsWith("Purge:", StringComparison.Ordinal));
+        Assert.True((await action.ExecuteAsync(Issue(authority, preview), CancellationToken.None)).Succeeded);
         Assert.Equal(future, Assert.Single(store.Entries));
         Assert.Equal(2, store.Calls.Count(c => c.StartsWith("Purge:", StringComparison.Ordinal)));
-        clock.Advance(TimeSpan.FromDays(7)); service.PurgeExpired(); Assert.Empty(store.Entries);
+        Assert.Null(service.GetExpiredPurgeAction());
+        clock.Advance(TimeSpan.FromDays(7));
+        var next = Assert.IsType<QuarantineMaintenanceAction>(service.GetExpiredPurgeAction());
+        Assert.Single(store.Entries); // Le changement d'horloge ne vaut pas consentement.
+        Assert.True((await next.ExecuteAsync(Issue(authority, await next.PreviewAsync(CancellationToken.None)), CancellationToken.None)).Succeeded);
+        Assert.Empty(store.Entries);
+        Assert.Null(service.GetExpiredPurgeAction());
+    }
+
+    [Theory]
+    [InlineData("absent")] [InlineData("expired")] [InlineData("used")] [InlineData("hash")]
+    public async Task ExpiredEntryPurgeRefusesInvalidPlansWithoutAnyEffect(string kind)
+    {
+        var clock = new Clock(); var authority = new ConfirmationService(clock); var store = new Store();
+        var expired = Entry() with { QuarantinedAtUtc = Now.AddDays(-8), ExpiresAtUtc = Now.AddDays(-1) };
+        var future = Entry(); store.Entries.AddRange([expired, future]);
+        var service = new QuarantineService(store, authority, clock);
+        var action = Assert.IsType<QuarantineMaintenanceAction>(service.GetExpiredPurgeAction());
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        var plan = kind == "absent" ? null : Issue(authority, kind == "hash" ? preview with { Effects = ["Autre sélection"] } : preview);
+        if (kind == "used") Assert.True(authority.TryConsume(plan, preview).IsAccepted);
+        if (kind == "expired") clock.Advance(TimeSpan.FromMinutes(10));
+        store.Calls.Clear();
+        var result = await action.ExecuteAsync(plan, CancellationToken.None);
+        Assert.True(result.WasRefused); Assert.False(result.Succeeded);
+        Assert.Empty(result.Effects); Assert.Empty(store.Calls);
+        Assert.Equal(new[] { expired, future }, store.Entries);
+    }
+
+    [Fact]
+    public async Task ScanWithExpiredEntriesNeverPurges()
+    {
+        var store = new Store(); var expired = Entry() with { ExpiresAtUtc = Now.AddDays(-1) };
+        store.Entries.Add(expired);
+        var authority = new ConfirmationService(new Clock());
+        var execution = new CleanupExecutionService(new Disk(), authority, quarantine: store);
+        var module = new CleanupMaintenanceModule(new CleanupAnalyzer(new Previews(Preview(Zone("zone"), "zone/old.tmp")),
+            new CleanupStorageAnalyzer(Array.Empty<string>())), execution);
+        await module.ScanAsync(CancellationToken.None);
+        Assert.Equal(expired, Assert.Single(store.Entries));
+        Assert.Empty(store.Calls);
     }
 
     [Theory]
@@ -138,6 +196,8 @@ public sealed class QuarantineTests
     public async Task CleanupUsesQuarantinePortAndNeverDeleteEvenWhenMoveFails(CleanupClassification classification, bool fail)
     {
         using var sandbox = new Sandbox(); var disk = new Disk(); var store = new Store { FailMove = fail };
+        var expired = Entry() with { QuarantinedAtUtc = Now.AddDays(-8), ExpiresAtUtc = Now.AddDays(-1) };
+        store.Entries.Add(expired);
         var authority = new ConfirmationService(new Clock());
         var preview = Preview(sandbox.Zone with { Classification = classification }, sandbox.Path);
         var result = await new CleanupExecutionService(disk, authority, () => Now, quarantine: store)
@@ -145,6 +205,8 @@ public sealed class QuarantineTests
         Assert.Equal(0, disk.Deletes); Assert.Equal(0, result.DeletedBytes); Assert.Equal(0, result.DeletedFiles);
         Assert.Equal(fail ? 0 : 1, result.QuarantinedFiles); Assert.Equal(fail ? 1 : 0, result.ErrorFiles);
         Assert.Contains("Move", store.Calls);
+        Assert.Contains(expired, store.Entries);
+        Assert.DoesNotContain(store.Calls, call => call.StartsWith("Purge:", StringComparison.Ordinal));
         if (fail) { Assert.True(File.Exists(sandbox.Path)); Assert.Contains("quarantaine impossible", Assert.Single(result.Errors)); }
     }
 

@@ -40,7 +40,7 @@ public static class CleanupActionPreviewFactory
             risk = RiskLevel.Sensitive;
         return new ActionPreview("cleanup.zone." + definition.Id.ToString().ToLowerInvariant(),
             definition.DisplayName, risk, eligible.Select(candidate => candidate.FullPath).ToArray(),
-            parameters, quarantine ? [$"Mise en quarantaine ; effacement définitif automatique après {preview.QuarantineRetentionDays} jours. Restauration vérifiée possible pendant cette durée."] : [definition.Effect],
+            parameters, quarantine ? [$"Conservé {preview.QuarantineRetentionDays} jours en quarantaine, puis effacement définitif proposé avec confirmation. Restauration vérifiée possible."] : [definition.Effect],
             definition.RequiresElevation, false, quarantine ? Reversibility.Full : Reversibility.None, []);
     }
 }

@@ -156,6 +156,7 @@
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}" />
                                                 <TextBlock Text="{Binding Details}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding ExpirationStatus}" />
                                             </StackPanel>
                                         </CheckBox>
                                     </DataTemplate>
@@ -165,6 +166,8 @@
                                 <Button Content="Actualiser" Command="{Binding RefreshQuarantineCommand}" Margin="4" />
                                 <Button Content="Restaurer" Command="{Binding RestoreQuarantineCommand}" Margin="4" />
                                 <Button Content="Vider la quarantaine maintenant" Command="{Binding PurgeQuarantineCommand}" Margin="4" />
+                                <Button Content="{Binding ExpiredQuarantineLabel}" Command="{Binding PurgeExpiredQuarantineCommand}"
+                                        Visibility="{Binding HasExpiredQuarantine, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="4" />
                             </WrapPanel>
                             <TextBlock Text="Pour vider toute la quarantaine, laissez la sélection vide." TextWrapping="Wrap" />
                         </StackPanel>

@@ -80,21 +80,18 @@ public sealed class QuarantineMaintenanceAction : IMaintenanceAction
     private ActionResult Refuse(string reason) => new(Id, false, true, reason, [], [], []);
 }
 
-public sealed class QuarantineService(IQuarantineStore store, IConfirmedPlanGate gate, TimeProvider clock, Action<string>? journal = null)
+public sealed class QuarantineService(IQuarantineStore store, IConfirmedPlanGate gate, TimeProvider clock)
 {
     public IReadOnlyList<QuarantineEntry> List() => store.List();
     public IMaintenanceAction Restore(IEnumerable<QuarantineEntry> entries) => new QuarantineMaintenanceAction(store, gate, entries, false);
     public IMaintenanceAction Purge(IEnumerable<QuarantineEntry> entries) => new QuarantineMaintenanceAction(store, gate, entries, true);
-    public void PurgeExpired()
+    public DateTimeOffset UtcNow => clock.GetUtcNow();
+
+    /// <summary>Proposition figée ; aucune suppression avant exécution avec ConfirmedPlan.</summary>
+    public QuarantineMaintenanceAction? GetExpiredPurgeAction()
     {
-        foreach (var entry in store.List().Where(e => e.ExpiresAtUtc <= clock.GetUtcNow()))
-        {
-            try
-            {
-                store.Purge(entry);
-                journal?.Invoke("Quarantaine : élément expiré effacé définitivement.");
-            }
-            catch { journal?.Invoke("Quarantaine : échec de purge d'un élément expiré ; entrée conservée."); }
-        }
+        var now = clock.GetUtcNow();
+        var expired = store.List().Where(entry => entry.ExpiresAtUtc <= now).ToArray();
+        return expired.Length == 0 ? null : new QuarantineMaintenanceAction(store, gate, expired, true);
     }
 }
