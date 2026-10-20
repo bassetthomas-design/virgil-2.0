@@ -7,11 +7,16 @@ namespace Virgil.Core.Cleanup;
 public sealed class CleanupMaintenanceModule : IMaintenanceModule
 {
     private readonly CleanupAnalyzer _analyzer;
+    private readonly Func<int> _retention;
+    private readonly QuarantineService? _quarantine;
     private readonly ICleanupExecutionService _sessionResults;
 
-    public CleanupMaintenanceModule(CleanupAnalyzer analyzer, ICleanupExecutionService sessionResults)
+    public CleanupMaintenanceModule(CleanupAnalyzer analyzer, ICleanupExecutionService sessionResults,
+        Func<int>? retention = null, QuarantineService? quarantine = null)
     {
         _analyzer = analyzer;
+        _retention = retention ?? (() => 7);
+        _quarantine = quarantine;
         _sessionResults = sessionResults;
     }
 
@@ -23,8 +28,13 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
 
     public async Task<Findings> ScanAsync(IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        _quarantine?.PurgeExpired();
+        var days = _retention();
+        if (days is < 1 or > 30) days = 7;
         var analysis = await _analyzer.AnalyzeAsync(progress, cancellationToken).ConfigureAwait(false);
-        return new CleanupFindings(analysis);
+        return new CleanupFindings(analysis with
+        { Zones = analysis.Zones.Select(zone => zone with { QuarantineRetentionDays = days }).ToArray() });
     }
 
     public IReadOnlyList<IMaintenanceAction> GetActions(Findings findings) => GetActions(findings, null);

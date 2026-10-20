@@ -162,14 +162,16 @@ public sealed class MaintenanceContractTests
         var clock = new Clock();
         var authority = new ConfirmationService(clock);
         var disk = new RecordingDisk(new CleanupDisk());
-        var service = new CleanupExecutionService(disk, authority, () => Now);
+        var service = new CleanupExecutionService(disk, authority, () => Now, quarantine: disk);
         var previews = new CleanupPreviewService(new[] { sandbox.Zone }, () => Now, recycleBinService: disk);
         var preview = Assert.Single(await previews.PreviewAsync(null, CancellationToken.None));
         var legacy = await service.ExecuteZoneAsync(preview, Issue(authority, CleanupActionPreviewFactory.Create(preview)), null, CancellationToken.None);
         var remaining = sandbox.Files();
         var calls = disk.Calls.ToArray();
-        Assert.Equal(1, legacy.DeletedFiles);
-        Assert.Equal(32, legacy.DeletedBytes);
+        Assert.Equal(1, legacy.QuarantinedFiles);
+        Assert.Equal(0, legacy.DeletedFiles);
+        Assert.Equal(32, legacy.QuarantinedBytes);
+        Assert.Equal(0, legacy.DeletedBytes);
         Assert.DoesNotContain("old.tmp", remaining);
         Assert.Contains("recent.tmp", remaining);
         Assert.Contains("photo.jpg", remaining);
@@ -181,7 +183,9 @@ public sealed class MaintenanceContractTests
         Assert.True(result.Succeeded);
         Assert.False(result.WasRefused);
         Assert.Equal(legacy.Status, result.Step.Status);
+        Assert.Equal(legacy.QuarantinedFiles, result.Step.QuarantinedFiles);
         Assert.Equal(legacy.DeletedFiles, result.Step.DeletedFiles);
+        Assert.Equal(legacy.QuarantinedBytes, result.Step.QuarantinedBytes);
         Assert.Equal(legacy.DeletedBytes, result.Step.DeletedBytes);
         Assert.Equal(legacy.SkippedFiles, result.Step.SkippedFiles);
         Assert.Equal(legacy.ErrorFiles, result.Step.ErrorFiles);
@@ -214,7 +218,7 @@ public sealed class MaintenanceContractTests
         var disk = new RecordingDisk(new CleanupDisk());
         IMaintenanceModule module = new CleanupMaintenanceModule(new CleanupAnalyzer(
             new CleanupPreviewService(new[] { sandbox.Zone }, () => Now, recycleBinService: disk),
-            new CleanupStorageAnalyzer(Array.Empty<string>())), new CleanupExecutionService(disk, authority, () => Now));
+            new CleanupStorageAnalyzer(Array.Empty<string>())), new CleanupExecutionService(disk, authority, () => Now, quarantine: disk));
         Findings findings = await module.ScanAsync(CancellationToken.None);
         IMaintenanceAction action = Assert.Single(module.GetActions(findings));
         Assert.Equal(Assert.Single(findings.ProposedActions).Id, action.Id);
@@ -228,7 +232,7 @@ public sealed class MaintenanceContractTests
         Assert.True(result.Succeeded);
         Assert.False(result.WasRefused);
         Assert.DoesNotContain("old.tmp", sandbox.Files());
-        Assert.Contains(disk.Calls, call => call.StartsWith("Delete:", StringComparison.Ordinal));
+        Assert.Contains(disk.Calls, call => call.StartsWith("Quarantine:", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -287,7 +291,7 @@ public sealed class MaintenanceContractTests
         var previews = new CleanupPreviewService(new[] { sandbox.Zone }, () => Now, recycleBinService: disk);
         var preview = Assert.Single(await previews.PreviewAsync(null, CancellationToken.None));
         Assert.Equal(2, preview.EligibleFileCount);
-        IMaintenanceAction action = new CleanupMaintenanceAction(new CleanupExecutionService(disk, authority, () => Now), preview);
+        IMaintenanceAction action = new CleanupMaintenanceAction(new CleanupExecutionService(disk, authority, () => Now, quarantine: disk), preview);
         var plan = Issue(authority, await action.PreviewAsync(CancellationToken.None));
         var result = Assert.IsType<CleanupMaintenanceResult>(await action.ExecuteAsync(plan, cancellation.Token));
         Assert.Equal(CleanupStepStatus.Cancelled, result.Step.Status);
@@ -299,7 +303,7 @@ public sealed class MaintenanceContractTests
         Assert.Null(result.Step.RefusalReason);
         Assert.Equal(PlanRejectionReason.AlreadyUsed, authority.Validate(plan,
             await action.PreviewAsync(CancellationToken.None)).Reason);
-        Assert.Single(disk.Calls, call => call.StartsWith("Delete:", StringComparison.Ordinal));
+        Assert.Single(disk.Calls, call => call.StartsWith("Quarantine:", StringComparison.Ordinal));
         Assert.Contains("old.tmp", sandbox.Files());
     }
 
@@ -330,7 +334,7 @@ public sealed class MaintenanceContractTests
         public void Advance(TimeSpan elapsed) => _elapsed += elapsed;
     }
 
-    private sealed class RecordingDisk : ICleanupDisk, IRecycleBinService
+    private sealed class RecordingDisk : ICleanupDisk, IRecycleBinService, IQuarantineStore
     {
         private readonly ICleanupDisk? _real;
         public RecordingDisk(ICleanupDisk? real = null) => _real = real;
@@ -342,6 +346,15 @@ public sealed class MaintenanceContractTests
             Calls.Add("Read:" + path);
             return _real?.ReadFile(path) ?? new CleanupFileState(32, Now.AddDays(-2));
         }
+        public QuarantineEntry MoveToQuarantine(string path, CleanupZoneDefinition zone, DateTimeOffset now, int retentionDays)
+        {
+            Calls.Add("Quarantine:" + path); OnDelete?.Invoke(path);
+            return new TestQuarantineStore().MoveToQuarantine(path, zone, now, retentionDays);
+        }
+        public IReadOnlyList<QuarantineEntry> List() => throw new NotSupportedException();
+        public string? ValidateRestore(QuarantineEntry entry) => throw new NotSupportedException();
+        public void Restore(QuarantineEntry entry) => throw new NotSupportedException();
+        public void Purge(QuarantineEntry entry) => throw new NotSupportedException();
         public void DeleteFile(string path) { Calls.Add("Delete:" + path); OnDelete?.Invoke(path); _real?.DeleteFile(path); }
         public IReadOnlyList<string> GetDirectories(string path)
         {

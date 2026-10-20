@@ -20,6 +20,8 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
+    private readonly QuarantineService? _quarantine;
+    public ObservableCollection<QuarantineItemViewModel> QuarantineItems { get; } = new();
     private IReadOnlyList<IMaintenanceAction> _actions = Array.Empty<IMaintenanceAction>();
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
@@ -36,9 +38,10 @@ public partial class CleanupViewModel : ObservableObject
         CleanupMaintenanceModule module,
         IProcessRunner processRunner,
         IReportHistoryService reportHistoryService,
-        IConfirmationService confirmationService)
+        IConfirmationService confirmationService, QuarantineService? quarantine = null)
     {
         _confirmationService = confirmationService;
+        _quarantine = quarantine;
         _module = module ?? throw new ArgumentNullException(nameof(module));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
@@ -108,6 +111,64 @@ public partial class CleanupViewModel : ObservableObject
         }
 
         return false;
+    }
+
+    [RelayCommand]
+    private void InitializeQuarantine()
+    {
+        try { _quarantine?.PurgeExpired(); }
+        catch { StatusText = "Purge des éléments expirés impossible."; }
+        RefreshQuarantine();
+    }
+
+    [RelayCommand]
+    private void RefreshQuarantine()
+    {
+        if (_quarantine is null) return;
+        try
+        {
+            QuarantineItems.Clear();
+            foreach (var entry in _quarantine.List()) QuarantineItems.Add(new QuarantineItemViewModel(entry));
+        }
+        catch { StatusText = "Lecture ou purge des éléments expirés impossible ; vérifier la quarantaine."; }
+    }
+
+    [RelayCommand]
+    private Task RestoreQuarantineAsync() => RunQuarantineAsync(false);
+
+    [RelayCommand]
+    private Task PurgeQuarantineAsync() => RunQuarantineAsync(true);
+
+    private async Task RunQuarantineAsync(bool purge)
+    {
+        if (_quarantine is null || !BeginOperation("Quarantaine")) return;
+        try
+        {
+            var selection = QuarantineItems.Where(item => item.IsSelected).Select(item => item.Entry).ToArray();
+            if (selection.Length == 0 && purge) selection = QuarantineItems.Select(item => item.Entry).ToArray();
+            if (selection.Length == 0) { StatusText = "Sélectionnez les éléments à restaurer."; return; }
+            var action = purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
+            var preview = await action.PreviewAsync(_operationCancellation!.Token);
+            ValidationTitle = preview.Title;
+            ValidationReason = "Éléments sélectionnés dans la quarantaine";
+            ValidationRoot = string.Join("\n", preview.Targets);
+            ValidationMetrics = $"{selection.Length} fichiers ({FormatBytes(selection.Sum(e => e.SizeBytes))})";
+            ValidationEffect = string.Join("\n", preview.Effects);
+            ValidationNotTouched = "Les éléments hors sélection restent inchangés. Aucun écrasement.";
+            ValidationWarning = purge ? "Cette suppression est irréversible." : "Taille et SHA-256 vérifiés avant et après déplacement.";
+            ExecuteZoneLabel = purge ? "VIDER LA QUARANTAINE MAINTENANT" : "RESTAURER";
+            var decision = new TaskCompletionSource<CleanupZoneDecision>();
+            _activeDecision = decision;
+            IsValidationOpen = true;
+            using var registration = _operationCancellation.Token.Register(() => CompleteDecision(CleanupZoneDecision.CancelAll));
+            if (await decision.Task != CleanupZoneDecision.Execute) return;
+            var plan = _confirmationService.Issue(preview, new ConfirmationConsent(ConfirmationLevel.Reinforced, null));
+            var result = await action.ExecuteAsync(plan, _operationCancellation.Token);
+            StatusText = result.WasRefused ? result.RefusalReason! : result.Succeeded ? "Quarantaine : opération terminée et vérifiée." : string.Join("\n", result.Errors);
+        }
+        catch (OperationCanceledException) { StatusText = "Opération annulée."; }
+        catch { StatusText = "Opération de quarantaine impossible."; }
+        finally { EndOperation(); RefreshQuarantine(); }
     }
 
     [RelayCommand]
@@ -358,8 +419,8 @@ public partial class CleanupViewModel : ObservableObject
             StatusText = string.Join(" - ", new[]
             {
                 $"{progress.Message} : {progress.ProcessedFiles}/{progress.TotalFiles} fichiers",
-                $"{progress.DeletedFiles} supprimes",
-                $"{FormatBytes(progress.DeletedBytes)} liberes",
+                $"{progress.DeletedFiles} mis en quarantaine",
+                $"{FormatBytes(progress.DeletedBytes)} en quarantaine",
                 $"{progress.SkippedFiles + progress.ErrorFiles} ignores"
             });
             return;
@@ -398,7 +459,7 @@ public partial class CleanupViewModel : ObservableObject
             $"Age minimal : {FormatAge(preview.Definition.MinimumAge)}",
             $"Risque : {RiskLabel(preview.Definition.RiskLevel)}"
         });
-        ValidationEffect = $"{preview.Definition.Effect}\nSuppression definitive apres confirmation de cette zone uniquement.";
+        ValidationEffect = string.Join("\n", CleanupActionPreviewFactory.Create(preview).Effects);
         ValidationNotTouched = preview.Definition.NotTouched;
         ValidationWarning = preview.Definition.Warning;
         ExecuteZoneLabel = preview.Definition.Id == CleanupZoneId.RecycleBin ? "VIDER LA CORBEILLE" : "NETTOYER";
@@ -495,7 +556,8 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Nettoyage termine.\nEspace libere : {FormatBytes(report.DeletedBytes)}.\nRapport disponible.");
+        VirgilMessageRequested?.Invoke($"Nettoyage termine.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille : {FormatBytes(report.DeletedBytes)} libérés.\nRapport disponible.");
+        RefreshQuarantine();
     }
 
     private void AnnounceZoneResult(CleanupStepResult result)
@@ -506,12 +568,14 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Zone traitee.\n{FormatBytes(result.DeletedBytes)} liberes.\n{result.ErrorFiles} fichiers verrouilles ignores.");
+        VirgilMessageRequested?.Invoke(result.Zone.Id == CleanupZoneId.RecycleBin
+            ? $"Corbeille : {FormatBytes(result.DeletedBytes)} libérés."
+            : $"{result.QuarantineSummary}.\n{result.ErrorFiles} fichiers non traités.");
     }
 
     private void CompleteSessionState(CleanupSessionReport report)
     {
-        StatusText = $"Rapport pret : {report.DeletedFiles} fichiers, {FormatBytes(report.DeletedBytes)}.";
+        StatusText = $"Rapport pret : {report.QuarantinedFiles} fichiers en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
 
         if (IsCancellationReport(report))
         {
@@ -566,7 +630,9 @@ public partial class CleanupViewModel : ObservableObject
         builder.AppendLine($"Zones executees : {CountExecutedZones(report)}");
         builder.AppendLine($"Zones passees : {report.SkippedZones}");
         builder.AppendLine($"Annulation : {(IsCancellationReport(report) ? "oui" : "non")}");
-        builder.AppendLine($"Fichiers supprimes : {report.DeletedFiles}");
+        builder.AppendLine($"Fichiers mis en quarantaine : {report.QuarantinedFiles} ({FormatBytes(report.QuarantinedBytes)})");
+        foreach (var step in report.Results.Where(r => r.QuarantinedFiles > 0)) builder.AppendLine(step.QuarantineSummary);
+        builder.AppendLine($"Fichiers supprimés de la corbeille : {report.DeletedFiles}");
         builder.AppendLine($"Volume libere : {FormatBytes(report.DeletedBytes)}");
         builder.AppendLine($"Volume estime : {FormatBytes(report.EstimatedBytes)}");
         builder.AppendLine($"Elements a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
@@ -583,7 +649,7 @@ public partial class CleanupViewModel : ObservableObject
         foreach (var result in report.Results)
         {
             builder.AppendLine($"{result.Zone.DisplayName} : {StatusLabel(result.Status)}");
-            builder.AppendLine($"  Supprimes : {result.DeletedFiles} - {FormatBytes(result.DeletedBytes)}");
+            builder.AppendLine(result.Zone.Id == CleanupZoneId.RecycleBin ? $"  Corbeille : {result.DeletedFiles} - {FormatBytes(result.DeletedBytes)}" : result.QuarantineSummary);
             builder.AppendLine($"  Ignores : {result.SkippedFiles} - Erreurs : {result.ErrorFiles}");
 
             foreach (var error in result.Errors.Take(3))

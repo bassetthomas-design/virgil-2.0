@@ -40,7 +40,7 @@ Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan
 | Sous-lot | Périmètre |
 | --- | --- |
 | 1a | Contrat commun `Findings` / `IMaintenanceModule` / `IMaintenanceAction` et Nettoyage branché dessus, à comportement identique ; Diagnostic à venir. |
-| 1b | Quarantaine de 7 jours réglable avec restauration vérifiée. |
+| 1b | Livré : quarantaine de 7 jours réglable (1–30), restauration taille/SHA-256 vérifiée, purge distincte confirmée et expiration annoncée. |
 | 1c | Scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
 | 1d | Module Diagnostic : vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
 | 1e | Analyse « ce qui ne va pas » : note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
@@ -122,3 +122,5 @@ Critères de sortie :
 - Le chat transforme les intentions reconnues en propositions du catalogue : aperçu puis ConfirmationService avant toute action.
 - Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
 - Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
+
+1b livré : section Quarantaine minimale dans Nettoyage ; les trois groupes, restes de logiciels et Diagnostic restent à livrer dans les lots suivants. La CI Windows de la PR est la référence de validation.

@@ -74,7 +74,7 @@ public static class ReportMapper
                 Name = result.Zone.DisplayName,
                 Status = MapCleanupStatus(result.Status),
                 Risk = result.Zone.RiskLevel.ToString(),
-                Result = $"{result.DeletedFiles} fichier(s), {ScanRules.FormatBytes(result.DeletedBytes)} liberes, {result.SkippedFiles} ignores.",
+                Result = result.Zone.Id == CleanupZoneId.RecycleBin ? $"{result.DeletedFiles} fichier(s), {ScanRules.FormatBytes(result.DeletedBytes)} liberes, {result.SkippedFiles} ignores." : result.QuarantineSummary,
                 ReadableError = result.Errors.FirstOrDefault(),
                 TechnicalDetails = $"Duree : {result.Duration}. Fichiers en erreur : {result.ErrorFiles}. Racine : {result.Zone.RootPath}"
             })
@@ -95,13 +95,13 @@ public static class ReportMapper
         return Base(
             ReportKind.Cleanup,
             "Rapport nettoyage",
-            $"{report.DeletedFiles} fichier(s) supprimes, {ScanRules.FormatBytes(report.DeletedBytes)} liberes.",
+            $"{report.QuarantinedFiles} fichiers mis en quarantaine ({ScanRules.FormatBytes(report.QuarantinedBytes)}). Corbeille : {ScanRules.FormatBytes(report.DeletedBytes)} libérés.",
             severity == ReportSeverity.Success ? "Termine" : "Termine avec avertissements",
             severity,
             "Nettoyage",
             report.FinishedAt,
             report.Duration,
-            $"Zones analysees : {analyzedZones}\nZones executees : {executed.Count}\nZones passees : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nEspace libere : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements proteges : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
+            $"Zones analysees : {analyzedZones}\nZones executees : {executed.Count}\nZones passees : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements proteges : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
             $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nReparations proposees : {string.Join(" | ", report.PermissionRepairsProposed)}\nReparations executees : {string.Join(" | ", report.PermissionRepairsExecuted)}",
             "CleanupExecutionService") with
         {

@@ -17,6 +17,7 @@ public partial class CleanupView : UserControl
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        Loaded += (_, _) => viewModel.InitializeQuarantineCommand.Execute(null);
         viewModel.VirgilMessageRequested += message => VirgilMessageRequested?.Invoke(message);
         viewModel.VirgilStateRequested += (state, label) => VirgilStateRequested?.Invoke(state, label);
         viewModel.ReturnHomeRequested += (_, args) => ReturnHomeRequested?.Invoke(this, args);

@@ -270,14 +270,14 @@ public sealed class ReportsHistoryTests
             DateTimeOffset.Now.AddSeconds(-2),
             DateTimeOffset.Now,
             TimeSpan.FromSeconds(2),
-            new[] { new CleanupStepResult(zone, CleanupStepStatus.Completed, 3, 1024, 1, 0, TimeSpan.FromSeconds(1), Array.Empty<string>()) },
+            new[] { new CleanupStepResult(zone, CleanupStepStatus.Completed, 0, 0, 1, 0, TimeSpan.FromSeconds(1), Array.Empty<string>()) { QuarantinedFiles = 3, QuarantinedBytes = 1024 } },
             Array.Empty<string>());
 
         var mapped = ReportMapper.FromCleanup(session, analyzedZones: 1);
 
         Assert.Equal(ReportKind.Cleanup, mapped.Kind);
         Assert.Single(mapped.ExecutedActions);
-        Assert.Contains("liberes", mapped.ExecutedActions[0].Result);
+        Assert.Contains("quarantaine", mapped.ExecutedActions[0].Result);
     }
 
     [Fact]

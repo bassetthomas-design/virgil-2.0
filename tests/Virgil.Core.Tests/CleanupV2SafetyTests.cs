@@ -160,7 +160,7 @@ public sealed class CleanupV2SafetyTests
         var previewService = new CleanupPreviewService(new[] { zone }, recycleBinService: fake);
         var preview = Assert.Single(await previewService.PreviewAsync(null, CancellationToken.None));
 
-        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => DateTimeOffset.Now, fake)
+        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, () => DateTimeOffset.Now, fake, quarantine: new TestQuarantineStore())
             .ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         Assert.Equal(3, preview.EligibleFileCount);
@@ -192,7 +192,7 @@ public sealed class CleanupV2SafetyTests
         var candidate = new CleanupCandidate(zone.Id, file, "old.tmp", 4, DateTimeOffset.Now.AddDays(-2), true, null);
         var preview = new CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 4, 0, new[] { candidate }, Array.Empty<string>());
 
-        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
+        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         Assert.Equal(CleanupStepStatus.Skipped, result.Status);
         Assert.True(File.Exists(file));
@@ -207,7 +207,7 @@ public sealed class CleanupV2SafetyTests
         var forged = new CleanupCandidate(zone.Id, file, "family.jpg", 4, DateTimeOffset.Now.AddDays(-3), true, null);
         var preview = new CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 4, 0, new[] { forged }, Array.Empty<string>());
 
-        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
+        var result = await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         Assert.True(File.Exists(file));
         Assert.Equal(0, result.DeletedFiles);
@@ -224,7 +224,7 @@ public sealed class CleanupV2SafetyTests
         var candidate = new CleanupCandidate(zone.Id, technicalFile, "old.tmp", 4, DateTimeOffset.Now.AddDays(-3), true, null);
         var preview = new CleanupZonePreview(zone, DateTimeOffset.Now, 1, 1, 4, 0, new[] { candidate }, Array.Empty<string>());
 
-        await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
+        await new CleanupExecutionService(new CleanupDisk(), TestPlans.Authority, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), null, CancellationToken.None);
 
         Assert.True(Directory.Exists(personal));
     }

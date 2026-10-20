@@ -1,5 +1,6 @@
 using Virgil.Core.Actions;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using Microsoft.Extensions.DependencyInjection;
@@ -103,14 +104,22 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<CleanupSafetyClassifier>(), sp.GetRequiredService<IRecycleBinService>()));
         services.AddTransient<ICleanupService>(sp => sp.GetRequiredService<CleanupPreviewService>());
         services.AddTransient<ICleanupPreviewService>(sp => sp.GetRequiredService<CleanupPreviewService>());
+        services.AddSingleton<IQuarantineStore>(sp => new Virgil.Infrastructure.Windows.QuarantineStore(log:
+            message => sp.GetService<ILogger<Virgil.Infrastructure.Windows.QuarantineStore>>()?.LogInformation("{QuarantineEvent}", message)));
+        services.AddSingleton<QuarantineService>(sp => new QuarantineService(sp.GetRequiredService<IQuarantineStore>(),
+            sp.GetRequiredService<IConfirmedPlanGate>(), sp.GetRequiredService<TimeProvider>(),
+            message => sp.GetService<ILogger<QuarantineService>>()?.LogInformation("{QuarantineEvent}", message)));
         services.AddTransient<ICleanupDisk>(_ => new Virgil.Infrastructure.Windows.CleanupDisk());
         services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
-            sp.GetRequiredService<ICleanupDisk>(), sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
+            sp.GetRequiredService<ICleanupDisk>(), sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>(),
+            sp.GetRequiredService<IQuarantineStore>(), sp.GetRequiredService<QuarantineService>()));
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
         services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
         services.AddTransient<CleanupMaintenanceModule>(sp => new CleanupMaintenanceModule(
-            sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>()));
+            sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>(),
+            () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7,
+            sp.GetRequiredService<QuarantineService>()));
         services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<CleanupMaintenanceModule>());
         services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
 
@@ -130,7 +139,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<CleanupMaintenanceModule>(),
             sp.GetRequiredService<IProcessRunner>(),
-            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>()));
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>(),
+            sp.GetRequiredService<QuarantineService>()));
         services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<CleanupViewModel>()));
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(
             sp.GetRequiredService<IUpdateScanService>(), sp.GetRequiredService<IUpdateExecutionService>(),

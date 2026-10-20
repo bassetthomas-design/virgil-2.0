@@ -196,7 +196,7 @@ public sealed class CleanupViewModelTests
         Assert.Contains("Volume estime : 8 Ko", f.Vm.ReportText);
         Assert.Contains("Zones executees : 1", f.Vm.ReportText);
         Assert.Contains("Zones analysees : 4", f.Vm.ReportText);
-        Assert.Contains("Fichiers supprimes : 1", f.Vm.ReportText);
+        Assert.Contains("Fichiers mis en quarantaine : 1", f.Vm.ReportText);
         Assert.Equal(1, f.Persisted);
     }
 
@@ -241,7 +241,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(root, f.Vm.ValidationRoot);
         Assert.Equal($"Zone : {id}\nDescription", f.Vm.ValidationReason);
         Assert.Equal("Taille : 2 Ko\nFichiers : 2\nAge minimal : 2 jours\nRisque : faible", f.Vm.ValidationMetrics);
-        Assert.Equal("Effet\nSuppression definitive apres confirmation de cette zone uniquement.", f.Vm.ValidationEffect);
+        Assert.Equal("Mise en quarantaine ; effacement définitif automatique après 7 jours. Restauration vérifiée possible pendant cette durée.", f.Vm.ValidationEffect);
         Assert.Equal("Non touche", f.Vm.ValidationNotTouched);
         Assert.Equal("Attention", f.Vm.ValidationWarning);
         Assert.Equal($"Validation requise.\nZone : {id.ToString().ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.", f.Messages.Last());
@@ -567,7 +567,7 @@ public sealed class CleanupViewModelTests
             Assert.True(Authority.TryConsume(plan, CleanupActionPreviewFactory.Create(preview)).IsAccepted);
             Order.Add("Execute:" + preview.Definition.Id);
             Token = cancellationToken;
-            return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed, 1, 1024, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors));
+            return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed, 0, 0, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors) { QuarantinedFiles = 1, QuarantinedBytes = 1024 });
         }
         public CleanupStepResult SkipZone(CleanupZonePreview preview)
         {
