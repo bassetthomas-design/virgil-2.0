@@ -2,7 +2,6 @@ using Virgil.Core.Actions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,31 +18,20 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
     private readonly IRecycleBinService _recycleBinService;
     private readonly CleanupSafetyClassifier _safetyClassifier;
 
-    public CleanupExecutionService(IConfirmedPlanGate gate)
-        : this(gate, () => DateTimeOffset.Now)
-    {
-    }
-
-    public CleanupExecutionService(IConfirmedPlanGate gate, Func<DateTimeOffset>? now)
-        : this(gate, now, new WindowsRecycleBinService())
-    {
-    }
-
-    public CleanupExecutionService(IConfirmedPlanGate gate, Func<DateTimeOffset>? now, IRecycleBinService recycleBinService)
-        : this(gate, now, recycleBinService, new CleanupSafetyClassifier())
-    {
-    }
+    private readonly ICleanupDisk _disk;
 
     public CleanupExecutionService(
+        ICleanupDisk disk,
         IConfirmedPlanGate gate,
-        Func<DateTimeOffset>? now,
-        IRecycleBinService recycleBinService,
-        CleanupSafetyClassifier safetyClassifier)
+        Func<DateTimeOffset>? now = null,
+        IRecycleBinService? recycleBinService = null,
+        CleanupSafetyClassifier? safetyClassifier = null)
     {
+        _disk = disk;
         _gate = gate;
         _now = now ?? (() => DateTimeOffset.Now);
-        _recycleBinService = recycleBinService;
-        _safetyClassifier = safetyClassifier;
+        _recycleBinService = recycleBinService ?? disk.RecycleBin;
+        _safetyClassifier = safetyClassifier ?? new CleanupSafetyClassifier();
     }
 
     public Task<CleanupStepResult> ExecuteZoneAsync(
@@ -243,7 +231,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
         try
         {
-            File.Delete(fullPath);
+            _disk.DeleteFile(fullPath);
             return CandidateDeleteResult.DeletedFile(bytes);
         }
         catch
@@ -263,8 +251,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
 
         try
         {
-            var fileInfo = new FileInfo(fullPath);
-            var lastWrite = new DateTimeOffset(DateTime.SpecifyKind(fileInfo.LastWriteTimeUtc, DateTimeKind.Utc));
+            var fileInfo = _disk.ReadFile(fullPath);
+            var lastWrite = fileInfo.LastWriteTimeUtc;
 
             if (_now() - lastWrite < zone.MinimumAge)
             {
@@ -302,7 +290,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
     }
 
-    private static IReadOnlyList<string> EnumerateDirectoriesDeepestFirst(string rootPath)
+    private IReadOnlyList<string> EnumerateDirectoriesDeepestFirst(string rootPath)
     {
         var directories = new List<string>();
         var pending = new Stack<string>();
@@ -332,11 +320,11 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         return directories.OrderByDescending(path => path.Length).ToList();
     }
 
-    private static IReadOnlyList<string> SafeGetDirectories(string directoryPath)
+    private IReadOnlyList<string> SafeGetDirectories(string directoryPath)
     {
         try
         {
-            return Directory.GetDirectories(directoryPath);
+            return _disk.GetDirectories(directoryPath);
         }
         catch
         {
@@ -344,13 +332,13 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         }
     }
 
-    private static void TryDeleteEmptyDirectory(string directoryPath, ICollection<string> errors)
+    private void TryDeleteEmptyDirectory(string directoryPath, ICollection<string> errors)
     {
         try
         {
-            if (!Directory.EnumerateFileSystemEntries(directoryPath).Any())
+            if (!_disk.HasEntries(directoryPath))
             {
-                Directory.Delete(directoryPath, false);
+                _disk.DeleteEmptyDirectory(directoryPath);
             }
         }
         catch

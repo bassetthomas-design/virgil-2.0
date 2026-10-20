@@ -103,11 +103,26 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<CleanupSafetyClassifier>(), sp.GetRequiredService<IRecycleBinService>()));
         services.AddTransient<ICleanupService>(sp => sp.GetRequiredService<CleanupPreviewService>());
         services.AddTransient<ICleanupPreviewService>(sp => sp.GetRequiredService<CleanupPreviewService>());
+        services.AddTransient<ICleanupDisk>(_ => new Virgil.Infrastructure.Windows.CleanupDisk());
         services.AddTransient<ICleanupExecutionService>(sp => new CleanupExecutionService(
-            sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
+            sp.GetRequiredService<ICleanupDisk>(), sp.GetRequiredService<IConfirmedPlanGate>(), () => DateTimeOffset.Now, sp.GetRequiredService<IRecycleBinService>(), sp.GetRequiredService<CleanupSafetyClassifier>()));
         services.AddTransient<CleanupStorageAnalyzer>(_ => new CleanupStorageAnalyzer());
         services.AddTransient<CleanupAnalyzer>(sp => new CleanupAnalyzer(
             sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<CleanupStorageAnalyzer>()));
+        services.AddTransient<CleanupMaintenanceModule>(sp => new CleanupMaintenanceModule(
+            sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>()));
+        services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<CleanupMaintenanceModule>());
+        foreach (var zone in CleanupZoneCatalog.CreateDefault().Where(zone => zone.IsExecutable &&
+            zone.Classification is Virgil.Contracts.CleanupClassification.Cleanable or Virgil.Contracts.CleanupClassification.AdvancedCleanable))
+        {
+            // Les instances du catalogue sont inertes ; le VM les lie à l'instantané issu du scan.
+            CleanupMaintenanceAction CreateAction(IServiceProvider sp) => new(
+                sp.GetRequiredService<ICleanupExecutionService>(),
+                new Virgil.Contracts.CleanupZonePreview(zone, DateTimeOffset.MinValue, 0, 0, 0, 0,
+                    Array.Empty<Virgil.Contracts.CleanupCandidate>(), Array.Empty<string>()));
+            services.AddTransient<CleanupMaintenanceAction>(CreateAction);
+            services.AddTransient<IMaintenanceAction>(CreateAction);
+        }
         services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
 
         services.AddTransient<IReportSanitizer>(_ => new ReportSanitizer(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
@@ -124,8 +139,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
-            sp.GetRequiredService<ICleanupPreviewService>(), sp.GetRequiredService<ICleanupExecutionService>(),
-            sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<CleanupStorageAnalyzer>(),
+            sp.GetRequiredService<CleanupMaintenanceModule>(), sp.GetServices<CleanupMaintenanceAction>(),
+            sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<CleanupViewModel>()));
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(

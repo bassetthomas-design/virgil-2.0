@@ -38,7 +38,7 @@ App compose les services via `Microsoft.Extensions.Hosting` 8.0.1, sans configur
 
 Les gardes existants incluent `CleanupPathGuard`, `CleanupSafetyClassifier`, `ProcessProtectionPolicy` et `ElevatedActionAllowlist`. Les confirmations restent spécifiques aux modules ; la désinstallation Applications exige désormais un `ConfirmedPlan` et conserve sa politique explicite/renforcée. La surcharge `bool userConfirmed` est supprimée. Le nettoyage vérifie ses aperçus mais utilise encore `File.Delete` pour toutes les zones sauf la corbeille, traitée via l’API Windows : la quarantaine généralisée n’est pas livrée. Les paramètres bool de confirmation, dont `bool reinforcedConfirmation`, sont supprimés de `IProcessActionService` ; les actions destructives exigent un `ConfirmedPlan`. `ReleaseInactiveMemory` (information seule) et `OpenLocation` (non destructif) acceptent un plan null sans nouveau dialogue. `IUpdateExecutionService.ExecuteAsync` exige également un plan, sans surcharge de contournement ; Windows Update reste inchangé. Le port unique `IProcessRunner` (`Core/Processes`) est implémenté dans Infrastructure ; `ShellApplicationProcessLauncher` et `ElevatedProcessLauncher` sont devenus des adaptateurs. `IProcessRunner` est injecté depuis la composition App ; le défaut statique a été supprimé. Tous les lancements de l’application passent par `IProcessRunner` (Infrastructure), avec le test d’architecture `ProcessLaunchArchitectureTests`. `ElevatedCommandRunner` est conservé dans le helper par conception. L’historique stocke déjà des rapports JSON locaux.
 
-`Virgil.Tray` et `installer/` n’existent pas encore. Il n’existe pas encore de contrat commun `IMaintenanceModule`/`IMaintenanceAction`. Le `ConfirmedPlan` commun et le `ConfirmationService` central sont livrés en 0e-1 ; Applications est branché en 0e-2, Ressources et Mises à jour en 0e-3 ; Interventions et Nettoyage sont branchés en 0e-4 (PR #45) ; lot 0e terminé, 0f livré (PR #47) ; 0g livré (PR #48). Les vues de modules ont terminé leur migration MVVM (0d). Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
+`Virgil.Tray` et `installer/` n’existent pas encore. Le contrat commun `IMaintenanceModule`/`IMaintenanceAction` est livré en 1a et Nettoyage est branché dessus ; Diagnostic reste à migrer en 1d/1e. Le `ConfirmedPlan` commun et le `ConfirmationService` central sont livrés en 0e-1 ; Applications est branché en 0e-2, Ressources et Mises à jour en 0e-3 ; Interventions et Nettoyage sont branchés en 0e-4 (PR #45) ; lot 0e terminé, 0f livré (PR #47) ; 0g livré (PR #48). Les vues de modules ont terminé leur migration MVVM (0d). Les points de restauration et sauvegardes du démarrage décrits ci-dessous sont des exigences cibles.
 
 La journalisation Serilog écrit des fichiers quotidiens dans `%LOCALAPPDATA%\Virgil\logs` (14 fichiers, rotation à 10 Mo). Les settings JSON sont dans `%APPDATA%\Virgil\settings.json`, à côté des rapports, chargés avant le logger et enregistrés atomiquement. Un fichier invalide reste intact avec des valeurs par défaut. Les avertissements passent par un callback Infrastructure adapté vers `ILogger` dans App.
 
@@ -54,7 +54,7 @@ Interventions vérifie disponibilité puis prise en charge locale/droits avant T
 
 | Composant | Responsabilité et dépendances |
 | --- | --- |
-| `Virgil.Contracts` | Modèles partagés, contrat de module/action, résultats et DTO du protocole élevé. Aucune dépendance WPF, OS ou aux autres projets Virgil. |
+| `Virgil.Contracts` | Modèles partagés, Findings, aperçus/résultats et DTO du protocole élevé. Les interfaces de module/action sont dans Core pour recevoir ConfirmedPlan. Aucune dépendance WPF, OS ou aux autres projets Virgil. |
 | `Virgil.Core` | Logique des modules, orchestration et politiques de sécurité ; ports nécessaires au métier. Référence Contracts uniquement. Aucun appel OS direct. |
 | `Virgil.Infrastructure` | Adaptateurs Windows, fichiers, registre, réseau et processus ; une seule abstraction `IProcessRunner` et son implémentation centralisée, sans runners concurrents par module. Logs Serilog dans `%LOCALAPPDATA%\Virgil\logs`, settings JSON, stockage des rapports et `ElevationClient`. Référence Core et Contracts, implémente les ports. |
 | `Virgil.App` | WPF MVVM avec CommunityToolkit.Mvvm ; composition DI via Microsoft.Extensions.Hosting. Vues minces, ViewModels injectés, `ConfirmationService` pour les interactions de consentement. Référence Contracts/Core et Infrastructure au point de composition. |
@@ -83,9 +83,9 @@ flowchart TD
 
 Les flèches pleines entre projets représentent les dépendances ; les pointillés représentent les échanges ou la distribution.
 
-## Contrat commun cible
+## Contrat commun livré (1a)
 
-Notation de contrat, à implémenter dans les phases suivantes (les opérations asynchrones acceptent un CancellationToken) :
+Contrat livré : `Findings` et ses constats/propositions de données en lecture seule sont dans `Contracts/Actions`, sans dépendance OS. `IMaintenanceModule` et `IMaintenanceAction` sont dans `Core/Actions`, car l’exécution reçoit le `ConfirmedPlan` de Core. Toutes les opérations asynchrones acceptent un `CancellationToken` :
 
 ```text
 IMaintenanceModule
@@ -99,6 +99,12 @@ IMaintenanceAction
 
 RiskLevel = Info | Low | Sensitive | Critical
 ```
+
+`CleanupMaintenanceModule.ScanAsync` réutilise `CleanupAnalyzer` (aperçus des zones puis analyse du stockage, en lecture seule). `CleanupFindings` conserve les données nécessaires aux cartes existantes. Hosting injecte le module et une `CleanupMaintenanceAction` par zone exécutable. Le VM lie l’action à l’instantané du scan avec `WithPreview` ; `PreviewAsync` réutilise `CleanupActionPreviewFactory`, sans horloge ni nouveau scan. L’instantané d’exécution copie aussi les listes des candidats et des règles. Les overlays, textes français, zones, tailles et rapports restent identiques, sans modification XAML.
+
+`ExecuteAsync` délègue à `CleanupExecutionService` : annulation, zone exécutable, validité de l’aperçu de 10 minutes, puis `TryConsume` avant suppression ou corbeille. `CleanupPathGuard` et `CleanupSafetyClassifier` restent appliqués par fichier après la porte. Les refus (plan absent, expiré, déjà utilisé, hash différent et aperçu périmé) remontent un `ActionResult.WasRefused` avec raison française ; `CleanupMaintenanceResult` ajoute le résultat de zone existant pour conserver toutes les métriques des rapports. `ActionResult` devient extensible par héritage de record, sans changer ses champs. Aucun nouveau booléen de confirmation ni second `RiskLevel` n’est introduit.
+
+Les accès disque du service d’exécution modifié passent par `ICleanupDisk`, implémenté par `Infrastructure.Windows.CleanupDisk` et injecté par Hosting. Les gardes et services legacy non modifiés conservent leur placement actuel ; ce lot ne prétend pas solder la dette OS de Core. La suppression définitive et le vidage de corbeille existants sont conservés ; la quarantaine avec restauration vérifiée sera livrée en 1b. Diagnostic est à venir en 1d/1e.
 
 `Findings` décrit les constats et actions proposées sans modification du système. `ActionPreview` décrit précisément l’action, ses cibles, paramètres, effets, risques, droits, redémarrage, réversibilité et sauvegardes nécessaires. `ActionResult` décrit résultat, erreurs, effets réels et éléments de restauration. Une réversibilité partielle ou impossible doit être annoncée explicitement.
 

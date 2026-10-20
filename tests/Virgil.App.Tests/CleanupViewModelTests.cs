@@ -515,7 +515,10 @@ public sealed class CleanupViewModelTests
         public Fixture(CleanupStorageAnalyzer? analyzer = null)
         {
             Actions.Authority = Confirmation.Authority;
-            Vm = new(Previews, Actions, Runner, analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>()), History, Confirmation);
+            var module = new CleanupMaintenanceModule(new CleanupAnalyzer(Previews,
+                analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>())), Actions);
+            var actions = Enum.GetValues<CleanupZoneId>().Select(id => new CleanupMaintenanceAction(Actions, Preview(id)));
+            Vm = new(module, actions, Runner, History, Confirmation);
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.ReportPersisted += (_, _) => Persisted++;
         }

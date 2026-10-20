@@ -37,6 +37,17 @@ Actions concernées : [Action 1 — Diagnostic](ACTIONS.md#action-1--diagnostic-
 
 Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan en lecture seule, constats, aperçu, confirmation et résultat.
 
+| Sous-lot | Périmètre |
+| --- | --- |
+| 1a | Contrat commun `Findings` / `IMaintenanceModule` / `IMaintenanceAction` et Nettoyage branché dessus, à comportement identique ; Diagnostic à venir. |
+| 1b | Quarantaine de 7 jours réglable avec restauration vérifiée. |
+| 1c | Scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
+| 1d | Module Diagnostic : vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
+| 1e | Analyse « ce qui ne va pas » : note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
+
+1a conserve le parcours existant de suppression/corbeille et les protections ; quarantaine, nouveaux groupes, restes de logiciels, Diagnostic et nouvelle UI restent hors de ce sous-lot.
+
+
 Critères de sortie :
 
 - Les deux modules utilisent le contrat commun et l’unique RiskLevel ; aucune exécution destructive via un simple booléen de confirmation.

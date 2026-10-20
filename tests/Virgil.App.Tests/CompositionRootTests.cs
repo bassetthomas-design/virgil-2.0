@@ -18,6 +18,32 @@ namespace Virgil.Tests;
 public sealed class CompositionRootTests
 {
     [Fact]
+    [Trait("Category", "Windows")]
+    public async Task MaintenanceModuleAndEveryExecutableCleanupActionResolveWithValidatedComposition()
+    {
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var module = Assert.Single(provider.GetServices<Virgil.Core.Actions.IMaintenanceModule>());
+        Assert.IsType<CleanupMaintenanceModule>(module);
+        Assert.Equal("cleanup", module.Id);
+        Assert.Equal("Nettoyage", module.Title);
+        Assert.IsType<Virgil.Infrastructure.Windows.CleanupDisk>(provider.GetRequiredService<ICleanupDisk>());
+        var expected = CleanupZoneCatalog.CreateDefault().Where(zone => zone.IsExecutable &&
+            zone.Classification is Virgil.Contracts.CleanupClassification.Cleanable or Virgil.Contracts.CleanupClassification.AdvancedCleanable)
+            .Select(zone => zone.Id).OrderBy(id => id).ToArray();
+        var actions = provider.GetServices<Virgil.Core.Actions.IMaintenanceAction>().ToArray();
+        Assert.Equal(expected, actions.Cast<CleanupMaintenanceAction>().Select(action => action.ZoneId).OrderBy(id => id));
+        Assert.Equal(expected, provider.GetServices<CleanupMaintenanceAction>().Select(action => action.ZoneId).OrderBy(id => id));
+        Assert.Equal(actions.Length, actions.Select(action => action.Id).Distinct().Count());
+        foreach (var action in actions)
+        {
+            var preview = await action.PreviewAsync(CancellationToken.None);
+            Assert.Equal(action.Id, preview.ActionId);
+            Assert.Equal(action.RiskLevel, preview.RiskLevel);
+        }
+    }
+
+    [Fact]
     public void ServicesResolveWithoutConstructingWpfViews()
     {
         using var provider = BuildProvider();
