@@ -241,7 +241,8 @@ public sealed class CleanupViewModelTests
         Assert.Equal(root, f.Vm.ValidationRoot);
         Assert.Equal($"Zone : {id}\nDescription", f.Vm.ValidationReason);
         Assert.Equal("Taille : 2 Ko\nFichiers : 2\nAge minimal : 2 jours\nRisque : faible", f.Vm.ValidationMetrics);
-        Assert.Equal("Mise en quarantaine ; effacement définitif automatique après 7 jours. Restauration vérifiée possible pendant cette durée.", f.Vm.ValidationEffect);
+        Assert.Equal(id == CleanupZoneId.RecycleBin ? "Effet\nSuppression definitive apres confirmation de cette zone uniquement."
+            : "Mise en quarantaine ; effacement définitif automatique après 7 jours. Restauration vérifiée possible pendant cette durée.", f.Vm.ValidationEffect);
         Assert.Equal("Non touche", f.Vm.ValidationNotTouched);
         Assert.Equal("Attention", f.Vm.ValidationWarning);
         Assert.Equal($"Validation requise.\nZone : {id.ToString().ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.", f.Messages.Last());
@@ -567,7 +568,10 @@ public sealed class CleanupViewModelTests
             Assert.True(Authority.TryConsume(plan, CleanupActionPreviewFactory.Create(preview)).IsAccepted);
             Order.Add("Execute:" + preview.Definition.Id);
             Token = cancellationToken;
-            return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed, 0, 0, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors) { QuarantinedFiles = 1, QuarantinedBytes = 1024 });
+            var recycle = preview.Definition.Id == CleanupZoneId.RecycleBin;
+            return Handler?.Invoke(preview, cancellationToken) ?? Task.FromResult(new CleanupStepResult(preview.Definition, CleanupStepStatus.Completed,
+                recycle ? 1 : 0, recycle ? 1024 : 0, 0, ErrorFiles, TimeSpan.FromSeconds(1), Errors)
+                { QuarantinedFiles = recycle ? 0 : 1, QuarantinedBytes = recycle ? 0 : 1024 });
         }
         public CleanupStepResult SkipZone(CleanupZonePreview preview)
         {

@@ -113,7 +113,8 @@ public sealed class CleanupServicesTests
             .ExecuteZoneAsync(preview, TestPlans.Cleanup(preview), progress, cancellation.Token);
 
         Assert.True(result.Status is CleanupStepStatus.Cancelled or CleanupStepStatus.Completed);
-        Assert.True(result.DeletedFiles <= 2);
+        Assert.True(result.QuarantinedFiles <= 2);
+        Assert.Equal(0, result.DeletedFiles);
     }
 
     [Fact]
@@ -222,8 +223,10 @@ public sealed class CleanupServicesTests
 
         var report = service.CreateReport(Now, new[] { result }, new[] { "Session partielle." });
 
-        Assert.Equal(1, report.DeletedFiles);
-        Assert.Equal(10, report.DeletedBytes);
+        Assert.Equal(1, report.QuarantinedFiles);
+        Assert.Equal(0, report.DeletedFiles);
+        Assert.Equal(10, report.QuarantinedBytes);
+        Assert.Equal(0, report.DeletedBytes);
         Assert.Equal("Session partielle.", Assert.Single(report.Errors));
     }
 

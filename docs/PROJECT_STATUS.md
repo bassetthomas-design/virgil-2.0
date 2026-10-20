@@ -65,7 +65,7 @@ Les actions liées au scan sont obtenues par `IMaintenanceModule.GetActions(Find
 Trois tests de régression sont ajoutés sans retirer de cas existant : exécution via les seuls contrats après scan, mutation des listes source sans modification des Findings, annulation après erreur sans WasRefused. Le lot comporte désormais 806 cas (Core.Tests 532 + App.Tests 274), soit 786 + 20 nouveaux ; résultat Windows du dernier commit et logs par projet suivis dans la PR #50. Les dix cas de refus fichier/corbeille restent obligatoires, sans appel disque. SDK dotnet toujours absent localement.
 
 
-## Livraison 1b — PR à renseigner après création
+## Livraison 1b — PR #51
 
 1b livré : quarantaine de Nettoyage, port Core IQuarantineStore et stockage Windows injecté, manifeste JSON atomique complet, durée 7 jours réglable (1–30) figée dans l'aperçu, restauration vérifiée taille/SHA-256 sans écrasement, purge manuelle distincte avec ConfirmedPlan Sensitive et expiration UTC avec horloge testable. Section Quarantaine dans la vue existante, sans changement des autres modules ni du helper. Les zones Sûr passent également par la quarantaine. Aucun espace libéré annoncé pour les fichiers déplacés.
 

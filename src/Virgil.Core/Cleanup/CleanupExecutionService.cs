@@ -236,7 +236,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             return CandidateDeleteResult.SkippedFile(reason);
         }
 
-        if (!IsStillEligible(fullPath, zone, out var bytes, out reason))
+        if (!IsStillEligible(fullPath, zone, out _, out reason))
         {
             return CandidateDeleteResult.SkippedFile(reason);
         }
@@ -244,8 +244,8 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         try
         {
             if (_quarantine is null) throw new InvalidOperationException("Stockage de quarantaine indisponible.");
-            _quarantine.MoveToQuarantine(fullPath, zone, _now(), retentionDays);
-            return CandidateDeleteResult.DeletedFile(bytes);
+            var entry = _quarantine.MoveToQuarantine(fullPath, zone, _now(), retentionDays);
+            return CandidateDeleteResult.DeletedFile(entry.SizeBytes);
         }
         catch
         {

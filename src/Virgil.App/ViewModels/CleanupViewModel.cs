@@ -459,7 +459,9 @@ public partial class CleanupViewModel : ObservableObject
             $"Age minimal : {FormatAge(preview.Definition.MinimumAge)}",
             $"Risque : {RiskLabel(preview.Definition.RiskLevel)}"
         });
-        ValidationEffect = string.Join("\n", CleanupActionPreviewFactory.Create(preview).Effects);
+        ValidationEffect = preview.Definition.Id == CleanupZoneId.RecycleBin
+            ? $"{preview.Definition.Effect}\nSuppression definitive apres confirmation de cette zone uniquement."
+            : string.Join("\n", CleanupActionPreviewFactory.Create(preview).Effects);
         ValidationNotTouched = preview.Definition.NotTouched;
         ValidationWarning = preview.Definition.Warning;
         ExecuteZoneLabel = preview.Definition.Id == CleanupZoneId.RecycleBin ? "VIDER LA CORBEILLE" : "NETTOYER";

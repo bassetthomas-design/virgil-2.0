@@ -58,7 +58,7 @@ public sealed class QuarantineViewModelTests
         public IReadOnlyList<QuarantineEntry> List() => _entries.ToArray();
         public QuarantineEntry MoveToQuarantine(string path, CleanupZoneDefinition zone, DateTimeOffset now, int retentionDays) => throw new NotSupportedException();
         public string? ValidateRestore(QuarantineEntry entry) => null;
-        public void Restore(QuarantineEntry entry) { Effects++; _entries.Remove(entry); }
-        public void Purge(QuarantineEntry entry) { Effects++; _entries.Remove(entry); }
+        public void Restore(QuarantineEntry entry) { Effects++; _entries.RemoveAll(e => e.Id == entry.Id); }
+        public void Purge(QuarantineEntry entry) { Effects++; _entries.RemoveAll(e => e.Id == entry.Id); }
     }
 }

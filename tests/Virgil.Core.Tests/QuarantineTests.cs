@@ -45,6 +45,24 @@ public sealed class QuarantineTests
         Assert.Equal(ActionPreviewHasher.Hash(b), ActionPreviewHasher.Hash(await action.PreviewAsync(CancellationToken.None)));
     }
 
+    [Fact]
+    public async Task ModuleCapturesConfiguredRetentionAtScanAndDoesNotChangeExistingActions()
+    {
+        var days = 3;
+        var source = Preview(Zone("zone"), "zone/old.tmp");
+        var module = new CleanupMaintenanceModule(new CleanupAnalyzer(new Previews(source),
+            new CleanupStorageAnalyzer(Array.Empty<string>())), new CleanupExecutionService(new Disk(),
+                new ConfirmationService(new Clock())), () => days);
+        var findings = await module.ScanAsync(CancellationToken.None);
+        days = 30;
+        var frozen = await Assert.Single(module.GetActions(findings)).PreviewAsync(CancellationToken.None);
+        Assert.Equal("3", frozen.Parameters["QuarantineRetentionDays"]);
+        var current = await Assert.Single(module.GetActions(await module.ScanAsync(CancellationToken.None)))
+            .PreviewAsync(CancellationToken.None);
+        Assert.Equal("30", current.Parameters["QuarantineRetentionDays"]);
+        Assert.NotEqual(ActionPreviewHasher.Hash(frozen), ActionPreviewHasher.Hash(current));
+    }
+
     [Theory]
     [InlineData(false, "absent")] [InlineData(true, "absent")]
     [InlineData(false, "expired")] [InlineData(true, "expired")]
@@ -102,8 +120,8 @@ public sealed class QuarantineTests
     [Fact]
     public void ExpirationOnlyPurgesDueEntriesWithTestClock()
     {
-        var store = new Store(); var clock = new Clock(); var expired = Entry() with { ExpiresAtUtc = Now.AddSeconds(-1) };
-        var due = Entry() with { ExpiresAtUtc = Now }; var future = Entry();
+        var store = new Store(); var clock = new Clock(); var expired = Entry() with { QuarantinedAtUtc = Now.AddDays(-8), ExpiresAtUtc = Now.AddSeconds(-1) };
+        var due = Entry() with { QuarantinedAtUtc = Now.AddDays(-7), ExpiresAtUtc = Now }; var future = Entry();
         store.Entries.AddRange([expired, due, future]);
         var service = new QuarantineService(store, new ConfirmationService(clock), clock);
         service.PurgeExpired();
@@ -136,7 +154,7 @@ public sealed class QuarantineTests
     {
         using var sandbox = new Sandbox(); var logs = new List<string>(); var store = new QuarantineStore(sandbox.Quarantine, logs.Add);
         var entry = store.MoveToQuarantine(sandbox.Path, sandbox.Zone, Now, 7);
-        Assert.False(File.Exists(sandbox.Path)); Assert.Equal(4, entry.SizeBytes); Assert.Equal(64, entry.Sha256.Length);
+        Assert.False(File.Exists(sandbox.Path)); Assert.Equal(4, entry.SizeBytes); Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(new byte[] { 1, 2, 3, 4 })), entry.Sha256);
         Assert.Equal(Now, entry.QuarantinedAtUtc); Assert.Equal(Now.AddDays(7), entry.ExpiresAtUtc);
         Assert.Equal(sandbox.Path, entry.OriginalPath); Assert.Equal(sandbox.Zone.Id, entry.Zone.Id);
         Assert.Single(Directory.GetFiles(sandbox.Quarantine, "*.json")); Assert.Empty(Directory.GetFiles(sandbox.Quarantine, "*.tmp"));
@@ -207,6 +225,13 @@ public sealed class QuarantineTests
         }
     }
 
+    private sealed class Previews(CleanupZonePreview preview) : ICleanupPreviewService
+    {
+        public IReadOnlyList<CleanupZoneDefinition> GetZones() => [preview.Definition];
+        public Task<IReadOnlyList<CleanupZonePreview>> PreviewAsync(IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<CleanupZonePreview>>([preview]);
+    }
+
     private sealed class Clock : TimeProvider
     {
         private TimeSpan _elapsed;
@@ -228,8 +253,8 @@ public sealed class QuarantineTests
             var entry = Entry(retentionDays) with { OriginalPath = path, Zone = zone }; Entries.Add(entry); return entry;
         }
         public string? ValidateRestore(QuarantineEntry entry) { Calls.Add("Validate:" + entry.Id); return Reason; }
-        public void Restore(QuarantineEntry entry) { Calls.Add("Restore:" + entry.Id); Entries.Remove(entry); }
-        public void Purge(QuarantineEntry entry) { Calls.Add("Purge:" + entry.Id); Entries.Remove(entry); }
+        public void Restore(QuarantineEntry entry) { Calls.Add("Restore:" + entry.Id); Entries.RemoveAll(e => e.Id == entry.Id); }
+        public void Purge(QuarantineEntry entry) { Calls.Add("Purge:" + entry.Id); Entries.RemoveAll(e => e.Id == entry.Id); }
     }
     private sealed class Disk : ICleanupDisk
     {

@@ -106,7 +106,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ICleanupPreviewService>(sp => sp.GetRequiredService<CleanupPreviewService>());
         services.AddSingleton<IQuarantineStore>(sp => new Virgil.Infrastructure.Windows.QuarantineStore(log:
             message => sp.GetService<ILogger<Virgil.Infrastructure.Windows.QuarantineStore>>()?.LogInformation("{QuarantineEvent}", message)));
-        services.AddSingleton<QuarantineService>(sp => new QuarantineService(sp.GetRequiredService<IQuarantineStore>(),
+        services.AddTransient<QuarantineService>(sp => new QuarantineService(sp.GetRequiredService<IQuarantineStore>(),
             sp.GetRequiredService<IConfirmedPlanGate>(), sp.GetRequiredService<TimeProvider>(),
             message => sp.GetService<ILogger<QuarantineService>>()?.LogInformation("{QuarantineEvent}", message)));
         services.AddTransient<ICleanupDisk>(_ => new Virgil.Infrastructure.Windows.CleanupDisk());
