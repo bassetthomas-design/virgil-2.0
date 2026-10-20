@@ -52,13 +52,14 @@ public sealed class CleanupGroupsTests
     }
 
     [Theory]
-    [InlineData("installed")] [InlineData("installPath")] [InlineData("childPath")] [InlineData("process")] [InlineData("service")]
+    [InlineData("installed")] [InlineData("publisher")] [InlineData("installPath")] [InlineData("childPath")] [InlineData("process")] [InlineData("service")]
     public void InstalledNamesAndReferencedParentOrChildPathsAreExcluded(string kind)
     {
         var snapshot = Snapshot;
         snapshot = kind switch
         {
             "installed" => snapshot with { Installed = [new("Dofus", [])] },
+            "publisher" => snapshot with { Installed = [new("Dofus Inc.", [])] },
             "installPath" => snapshot with { Installed = [new("Autre nom", [Root])] },
             "childPath" => snapshot with { Installed = [new("Autre nom", [FileItem.Path])] },
             _ => snapshot with { ActivePaths = [FileItem.Path] }

@@ -13,7 +13,7 @@ public sealed class LeftoverAnalyzer
     {
         var references = snapshot.Installed.SelectMany(s => s.ReferencedPaths).Concat(snapshot.ActivePaths).ToArray();
         var accepted = snapshot.Candidates.Where(c => !IsProtected(c.Name) &&
-            !snapshot.Installed.Any(i => Matches(c.Name, i.Name)) &&
+            !snapshot.Installed.Any(i => MatchesInstalledName(c.Name, i.Name)) &&
             (c.Path.Length == 0 || !references.Any(p => Overlaps(c.Path, p)))).ToArray();
         var result = new List<CleanupZonePreview>();
         foreach (var group in accepted.GroupBy(c => Normalize(c.Name), StringComparer.OrdinalIgnoreCase))
@@ -37,7 +37,7 @@ public sealed class LeftoverAnalyzer
                     CleanupRiskLevel.Medium, "Vérifiez l'identification du logiciel avant toute sélection.", "Mise en quarantaine des fichiers uniquement.", "Clés de registre : lecture seule.", 500)
                 {
                     Classification = CleanupClassification.AdvancedCleanable, RequiresReinforcedConfirmation = true,
-                    IsExecutable = validRoot && files.Length > 0, NeedsReview = uncertain,
+                    IsExecutable = validRoot && files.Length > 0, NeedsReview = uncertain, SoftwareName = group.First().Name,
                     ValidatedRemnantRoot = validRoot ? c.Path : null, RemnantAllowedRoot = validRoot ? c.AllowedRoot : null,
                     RegistryKeys = keys, LastUsedUtc = last
                 };
@@ -48,8 +48,15 @@ public sealed class LeftoverAnalyzer
     }
 
     public static bool IsProtected(string name) => Normalize(name) is "net" or "vc" || Protected.Any(p => Normalize(name).Contains(p, StringComparison.OrdinalIgnoreCase));
-    private static bool Matches(string a, string b) => Normalize(a) == Normalize(b);
-    private static string Normalize(string name) => new(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    public static bool MatchesInstalledName(string a, string b) => Normalize(a) == Normalize(b);
+    private static string Normalize(string name)
+    {
+        var value = new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+        foreach (var suffix in new[] { "incorporated", "corporation", "company", "limited", "gmbh", "llc", "corp", "sarl", "ltd", "inc", "sas" })
+            if (value.Length > suffix.Length + 2 && value.EndsWith(suffix, StringComparison.Ordinal))
+                return value[..^suffix.Length];
+        return value;
+    }
     private static bool Overlaps(string a, string b) => !string.IsNullOrWhiteSpace(b) &&
         (string.Equals(a.TrimEnd('\\', '/'), b.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase) ||
          CleanupPathGuard.IsStrictlyUnderRoot(a, b) || CleanupPathGuard.IsStrictlyUnderRoot(b, a));

@@ -97,13 +97,17 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ResourceReportBuilder>(_ => new ResourceReportBuilder());
         services.AddTransient<IMonitoringService>(_ => new MonitoringService());
 
-        services.AddSingleton<IKnownFoldersProvider, Virgil.Infrastructure.Windows.KnownFoldersProvider>();
-        services.AddTransient<PersonalFolderPolicy>();
-        services.AddTransient<IDownloadsSource, Virgil.Infrastructure.Windows.DownloadsSource>();
-        services.AddTransient<ISoftwareFootprintSource, Virgil.Infrastructure.Windows.SoftwareFootprintSource>();
-        services.AddTransient<IWindowsOldSource, Virgil.Infrastructure.Windows.WindowsOldSource>();
-        services.AddTransient<LeftoverAnalyzer>();
-        services.AddTransient<AdditionalCleanupScanner>();
+        services.AddTransient<IKnownFoldersProvider>(_ => new Virgil.Infrastructure.Windows.KnownFoldersProvider());
+        services.AddTransient<PersonalFolderPolicy>(sp => new PersonalFolderPolicy(sp.GetRequiredService<IKnownFoldersProvider>()));
+        services.AddTransient<IDownloadsSource>(_ => new Virgil.Infrastructure.Windows.DownloadsSource());
+        services.AddTransient<ISoftwareFootprintSource>(sp => new Virgil.Infrastructure.Windows.SoftwareFootprintSource(
+            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<IWindowsOldSource>(_ => new Virgil.Infrastructure.Windows.WindowsOldSource());
+        services.AddTransient<LeftoverAnalyzer>(_ => new LeftoverAnalyzer());
+        services.AddTransient<AdditionalCleanupScanner>(sp => new AdditionalCleanupScanner(
+            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IDownloadsSource>(),
+            sp.GetRequiredService<ISoftwareFootprintSource>(), sp.GetRequiredService<LeftoverAnalyzer>(),
+            sp.GetRequiredService<PersonalFolderPolicy>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IWindowsOldSource>()));
         services.AddTransient<CleanupSafetyClassifier>(_ => new CleanupSafetyClassifier());
         services.AddTransient<IRecycleBinService>(_ => new WindowsRecycleBinService());
         services.AddTransient<CleanupPreviewService>(sp => new CleanupPreviewService(

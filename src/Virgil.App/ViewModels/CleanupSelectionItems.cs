@@ -11,7 +11,8 @@ public sealed partial class CleanupSelectionRow : ObservableObject
         isSelected = CanSelect && CanGroupSelect && preview.Definition.Group == CleanupGroup.Sur;
     }
     public CleanupZonePreview Preview { get; }
-    public string Title => Preview.Definition.DisplayName;
+    public string Title => Preview.Definition.SoftwareName is null ? Preview.Definition.DisplayName
+        : Preview.Definition.IsPersonalFolder ? Preview.Candidates.FirstOrDefault()?.FullPath ?? Preview.Definition.RootPath : Preview.Definition.RootPath;
     public string Details => $"{Preview.Definition.Description}\n{Preview.EligibleBytes} octets, {Preview.EligibleFileCount} fichiers\n" +
         (Preview.Definition.IsPersonalFolder ? "Dossier personnel — sélection ligne par ligne, confirmation Critical, quarantaine uniquement.\n" : "") +
         (Preview.Definition.NeedsReview ? "À confirmer — sélection ligne par ligne uniquement.\n" : "") +
@@ -30,12 +31,15 @@ public sealed class CleanupGroupItem : ObservableObject
     {
         Group = group;
         Rows = previews.SelectMany(Split).Select(p => new CleanupSelectionRow(p)).ToArray();
+        Sections = Rows.GroupBy(r => r.Preview.Definition.SoftwareName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new CleanupRowSection(g.Key.Length == 0 ? string.Empty : g.First().Preview.Definition.DisplayName, g.ToArray())).ToArray();
         foreach (var row in Rows) row.PropertyChanged += (_, e) =>
         { if (e.PropertyName == nameof(CleanupSelectionRow.IsSelected)) OnPropertyChanged(nameof(IsSelected)); };
     }
     public CleanupGroup Group { get; }
     public string Title => Group switch { CleanupGroup.Sur => "Sûr", CleanupGroup.AVerifier => "À vérifier", _ => "Restes de logiciels désinstallés" };
     public IReadOnlyList<CleanupSelectionRow> Rows { get; }
+    public IReadOnlyList<CleanupRowSection> Sections { get; }
     public bool? IsSelected
     {
         get
@@ -52,7 +56,7 @@ public sealed class CleanupGroupItem : ObservableObject
     private static IEnumerable<CleanupZonePreview> Split(CleanupZonePreview p)
     {
         if (p.Definition.IsExecutable && p.Candidates.Count > 0 &&
-            (p.Definition.IsPersonalFolder || p.Definition.Id is CleanupZoneId.OldDownloads or CleanupZoneId.SoftwareLeftovers))
+            (p.Definition.IsPersonalFolder || p.Definition.Id == CleanupZoneId.OldDownloads))
         {
             foreach (var c in p.Candidates)
                 yield return p with
@@ -65,3 +69,5 @@ public sealed class CleanupGroupItem : ObservableObject
         else yield return p;
     }
 }
+
+public sealed record CleanupRowSection(string Title, IReadOnlyList<CleanupSelectionRow> Rows);

@@ -79,7 +79,6 @@ public sealed class CompositionRootTests
         var services = new ServiceCollection().AddVirgilServices();
         services.AddTransient<IElevatedProtocolRoot>(_ => root);
         services.AddTransient<IElevatedProtocolFiles>(_ => files);
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var store = provider.GetRequiredService<ElevatedHelperRequestStore>();
         var fields = typeof(ElevatedHelperRequestStore).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -93,7 +92,6 @@ public sealed class CompositionRootTests
     public void ApplicationsServiceUsesTheSharedConfirmationGate()
     {
         var services = new ServiceCollection().AddVirgilServices();
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var service = provider.GetRequiredService<ApplicationUninstallService>();
         var field = typeof(ApplicationUninstallService).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
@@ -136,7 +134,6 @@ public sealed class CompositionRootTests
         var services = new ServiceCollection().AddVirgilServices();
         var registration = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(IProcessRunner));
         Assert.Equal(ServiceLifetime.Singleton, registration.Lifetime);
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var runner = provider.GetRequiredService<IProcessRunner>();
         Assert.IsType<ProcessRunner>(runner);
@@ -147,7 +144,6 @@ public sealed class CompositionRootTests
     public void CoreServicesExceptConfirmationAuthorityAreTransientAndHaveExplicitFactories()
     {
         var services = new ServiceCollection().AddVirgilServices();
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var singletonTypes = new[]
         {
@@ -176,7 +172,6 @@ public sealed class CompositionRootTests
     public void CleanupViewModelResolvesAsExplicitSingletonWithValidatedComposition()
     {
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var registration = Assert.Single(services, d => d.ServiceType == typeof(CleanupViewModel));
         Assert.Equal(ServiceLifetime.Singleton, registration.Lifetime);
@@ -193,7 +188,6 @@ public sealed class CompositionRootTests
     public void UpdatesSingletonCompositionUsesExplicitFactories()
     {
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var descriptor = Assert.Single(services, d => d.ServiceType == typeof(UpdatesViewModel));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
@@ -208,7 +202,6 @@ public sealed class CompositionRootTests
     public void ApplicationsViewModelAndDialogResolveAsExplicitSingletons()
     {
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
-        EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         foreach (var type in new[] { typeof(ApplicationsViewModel), typeof(Virgil.App.Services.IApplicationUninstallConfirmationDialog), typeof(Virgil.App.Views.ApplicationsView) })
         {

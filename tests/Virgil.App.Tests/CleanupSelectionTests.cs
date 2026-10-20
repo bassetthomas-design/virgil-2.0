@@ -43,6 +43,22 @@ public sealed class CleanupSelectionTests
     }
 
     [Fact]
+    public void SoftwareIsGroupedAcrossRootsWhilePersonalFilesKeepIndividualChoices()
+    {
+        var preview = Preview(CleanupClassification.AdvancedCleanable);
+        var zone = preview.Definition with { Id = CleanupZoneId.SoftwareLeftovers, SoftwareName = "Dofus", DisplayName = "Dofus (désinstallé) : 20 octets, 2 fichiers, 1 clé" };
+        var first = preview with { Definition = zone };
+        var second = preview with { Definition = zone with { RootPath = Path.GetFullPath("other") } };
+        var group = new CleanupGroupItem(CleanupGroup.RestesLogiciels, [first, second]);
+        var section = Assert.Single(group.Sections);
+        Assert.Contains("Dofus (désinstallé)", section.Title);
+        Assert.Equal(2, section.Rows.Count);
+        Assert.All(section.Rows, row => Assert.False(row.IsSelected));
+        group.IsSelected = true;
+        Assert.All(section.Rows, row => Assert.True(row.IsSelected));
+    }
+
+    [Fact]
     public void NewPortsAndPolicyResolveWithValidateOnBuild()
     {
         using var provider = new ServiceCollection().AddVirgilServices().BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });

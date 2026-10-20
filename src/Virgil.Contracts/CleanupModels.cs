@@ -77,6 +77,7 @@ public sealed record CleanupZoneDefinition(
         : Id == CleanupZoneId.RecycleBin || Classification == CleanupClassification.Cleanable ? CleanupGroup.Sur : CleanupGroup.AVerifier;
     public bool IsPersonalFolder { get; init; }
     public bool NeedsReview { get; init; }
+    public string? SoftwareName { get; init; }
     public string? ValidatedRemnantRoot { get; init; }
     public string? RemnantAllowedRoot { get; init; }
     public IReadOnlyList<string> RegistryKeys { get; init; } = Array.Empty<string>();

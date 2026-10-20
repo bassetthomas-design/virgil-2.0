@@ -18,6 +18,7 @@ public static class CleanupActionPreviewFactory
             ["Group"] = definition.Group.ToString(),
             ["Personal"] = definition.IsPersonalFolder.ToString(),
             ["NeedsReview"] = definition.NeedsReview.ToString(),
+            ["SoftwareName"] = definition.SoftwareName ?? "",
             ["RemnantRoot"] = definition.ValidatedRemnantRoot ?? "",
             ["AllowedRoot"] = definition.RemnantAllowedRoot ?? "",
             ["RegistryReadOnly"] = string.Join("\n", definition.RegistryKeys),

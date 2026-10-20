@@ -77,7 +77,9 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
             try
             {
                 using var root = RegistryKey.OpenBaseKey(hive, view);
-                using var software = root.OpenSubKey("SOFTWARE", false);
+                var softwarePath = hive == RegistryHive.CurrentUser && view == RegistryView.Registry32
+                    ? @"SOFTWARE\WOW6432Node" : "SOFTWARE";
+                using var software = root.OpenSubKey(softwarePath, false);
                 if (software is null) continue;
                 foreach (var publisher in software.GetSubKeyNames().Where(n => !LeftoverAnalyzer.IsProtected(n) && n != "WOW6432Node"))
                 {
@@ -107,7 +109,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
                     if (HasReparseAncestor(directory) || !CleanupPathGuard.IsStrictlyUnderRoot(directory, root)) continue;
                     var name = Path.GetFileName(directory);
                     // Exclure avant de parcourir les fichiers d'un logiciel encore référencé.
-                    if (installed.Any(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase)) ||
+                    if (installed.Any(i => LeftoverAnalyzer.MatchesInstalledName(name, i.Name)) ||
                         installed.SelectMany(i => i.ReferencedPaths).Concat(active).Any(p => Overlaps(directory, p))) continue;
                     var keys = registry.Where(k => string.Equals(k.Name, name, StringComparison.OrdinalIgnoreCase)).Select(k => k.Key).Distinct().ToArray();
                     IReadOnlyList<FootprintFile> files;
