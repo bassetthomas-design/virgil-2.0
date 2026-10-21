@@ -105,7 +105,7 @@ public sealed class DiagnosticTests
         var result = Assert.IsType<DiagnosticFindings>(await scan);
         Assert.Equal(100, result.Snapshot.Disks[0].ReadBytesPerSecond.Value);
         Assert.Empty(module.GetActions(result));
-        Assert.Empty(result.ProposedActions);
+        Assert.Equal("Nettoyer", Assert.Single(result.ProposedActions).Title);
         Assert.NotEmpty(result.Observations);
         Assert.Equal(2, source.Reads);
     }

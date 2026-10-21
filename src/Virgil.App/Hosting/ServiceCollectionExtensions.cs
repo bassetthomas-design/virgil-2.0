@@ -42,7 +42,9 @@ public static class ServiceCollectionExtensions
         services.AddVirgilConfirmation();
         services.AddSingleton<IDiagnosticSource>(_ => new WindowsDiagnosticSource());
         services.AddSingleton<DiagnosticSampler>(sp => new DiagnosticSampler(sp.GetRequiredService<IDiagnosticSource>(), sp.GetRequiredService<TimeProvider>()));
-        services.AddTransient<DiagnosticModule>(sp => new DiagnosticModule(sp.GetRequiredService<DiagnosticSampler>()));
+        services.AddTransient<IDiagnosticSignalSource>(sp => new WindowsDiagnosticSignals(sp.GetRequiredService<ProcessProtectionPolicy>()));
+        services.AddTransient<DiagnosticModule>(sp => new DiagnosticModule(sp.GetRequiredService<DiagnosticSampler>(),
+            sp.GetRequiredService<IDiagnosticSignalSource>(), sp.GetRequiredService<IProcessActionService>(), sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<DiagnosticModule>());
         services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
 
@@ -152,7 +154,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
-        services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<DiagnosticView>(sp => new DiagnosticView(sp.GetRequiredService<DiagnosticViewModel>()));
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<CleanupMaintenanceModule>(),

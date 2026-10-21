@@ -9,11 +9,19 @@ public partial class DiagnosticView : UserControl
 {
     private readonly DiagnosticViewModel _viewModel;
     private Window? _window;
+    public event Action<DiagnosticSuggestion>? NavigationRequested;
+    public bool TryCloseOverlay()
+    {
+        if (!_viewModel.IsValidationOpen) return false;
+        _viewModel.CancelConfirmation();
+        return true;
+    }
     public DiagnosticView(DiagnosticViewModel viewModel)
     {
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.NavigationRequested += destination => NavigationRequested?.Invoke(destination);
     }
     private void View_Loaded(object sender, RoutedEventArgs e)
     {

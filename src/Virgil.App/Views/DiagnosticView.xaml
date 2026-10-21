@@ -3,6 +3,7 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Loaded="View_Loaded" Unloaded="View_Unloaded" IsVisibleChanged="View_IsVisibleChanged">
  <UserControl.Resources>
+  <BooleanToVisibilityConverter x:Key="DiagnosticBoolToVisibility"/>
   <DataTemplate DataType="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2"/>
   </DataTemplate>
@@ -11,12 +12,27 @@
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <StackPanel>
    <TextBlock Text="Diagnostic" FontSize="26" FontWeight="Bold"/>
-   <TextBlock Text="Lecture seule : aucune action dans cet écran" Margin="0,8"/>
+   <TextBlock Text="Aucune action sans votre validation" Margin="0,8"/>
+   <TextBlock Text="{Binding Health}" FontSize="22" FontWeight="Bold" Margin="0,8"/>
+   <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
+   <ItemsControl ItemsSource="{Binding Top3}"/>
    <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
    <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
   </StackPanel>
   <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
    <StackPanel>
+    <TextBlock Text="Tous les constats" FontSize="18" Margin="0,8"/>
+    <ItemsControl ItemsSource="{Binding Findings}">
+     <ItemsControl.ItemTemplate><DataTemplate><Border BorderThickness="1" BorderBrush="Gray" Padding="10" Margin="0,4"><StackPanel>
+      <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" FontStyle="Italic" Margin="0,4"/>
+      <ItemsControl ItemsSource="{Binding Actions}"><ItemsControl.ItemTemplate><DataTemplate>
+       <Button Content="{Binding Title}" Command="{Binding PrepareCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4"/>
+      </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+     </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <Expander Header="Signaux indisponibles — sans pénalité"><ItemsControl ItemsSource="{Binding Unavailable}"/></Expander>
     <Expander Header="Processeur" IsExpanded="True"><ItemsControl ItemsSource="{Binding CpuDetails}"/></Expander>
     <Expander Header="Mémoire" IsExpanded="True"><ItemsControl ItemsSource="{Binding MemoryDetails}"/></Expander>
     <Expander Header="Disques" IsExpanded="True"><ItemsControl ItemsSource="{Binding DiskDetails}"/></Expander>
@@ -45,5 +61,20 @@
     </DataGrid>
    </StackPanel>
   </ScrollViewer>
+  <Grid Grid.RowSpan="2" Panel.ZIndex="20" Background="#CC06090D"
+        Visibility="{Binding IsValidationOpen, Converter={StaticResource DiagnosticBoolToVisibility}}"
+        FocusManager.IsFocusScope="True" KeyboardNavigation.TabNavigation="Cycle">
+   <Border Style="{StaticResource VirgilOverlayCard}" MaxWidth="760" MaxHeight="680" Margin="12" VerticalAlignment="Center">
+    <StackPanel>
+     <TextBlock Text="{Binding ValidationTitle}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/>
+     <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding ValidationDetails}" TextWrapping="Wrap" Margin="0,12"/></ScrollViewer>
+     <TextBlock Text="{Binding ValidationSafety}" TextWrapping="Wrap" Margin="0,12"/>
+     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="EXÉCUTER" Command="{Binding ExecuteDecisionCommand}" Style="{StaticResource VirgilPrimaryButton}"/>
+      <Button Content="ANNULER" Command="{Binding CancelConfirmationCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="10,0,0,0"/>
+     </StackPanel>
+    </StackPanel>
+   </Border>
+  </Grid>
  </Grid>
 </UserControl>

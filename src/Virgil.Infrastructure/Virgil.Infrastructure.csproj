@@ -4,6 +4,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
     <ProjectReference Include="../Virgil.Core/Virgil.Core.csproj" />
     <ProjectReference Include="../Virgil.Contracts/Virgil.Contracts.csproj" />
   </ItemGroup>

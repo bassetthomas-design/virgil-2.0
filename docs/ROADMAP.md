@@ -43,7 +43,7 @@ Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan
 | 1b | Livré : quarantaine de 7 jours réglable (1–30), restauration taille/SHA-256 vérifiée, purge distincte confirmée ; expiration = proposition de purge confirmée, jamais effacement silencieux. |
 | 1c | Livré (PR #52) : scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
 | 1d | Livré (PR #53) : module Diagnostic en lecture seule ; CI Windows suivie dans la PR. Vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
-| 1e | Analyse « ce qui ne va pas » : note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
+| 1e | Livré (PR #54), validation Windows suivie dans la PR : analyse « ce qui ne va pas », note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
 
 1a conserve le parcours existant de suppression/corbeille et les protections ; quarantaine, nouveaux groupes, restes de logiciels, Diagnostic et nouvelle UI restent hors de ce sous-lot.
 
@@ -123,7 +123,7 @@ Critères de sortie :
 - Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
 - Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
 
-1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic en lecture seule livré en 1d ; analyse et actions à livrer en 1e. La CI Windows de la PR est la référence de validation.
+1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic en lecture seule livré en 1d ; analyse et actions livrées en 1e (PR #54). La CI Windows de la PR est la référence de validation.
 
 
 ### 1c — livré (PR #52)
@@ -134,3 +134,10 @@ Trois groupes de Nettoyage, sélection par groupe/ligne et confirmation récapit
 ### 1d — livré (PR #53)
 
 Diagnostic détaillé en lecture seule, sampler et port Windows injectés, indisponibilités explicites, catalogue de processus et tri. Actualisation visible toutes les 2 s, sans chevauchement, annulation à la navigation/réduction ; objectif documenté <1 % CPU moyen à mesurer sur Windows. Aucune action, note, fermeture ni histoire ; 1e et Phase 4 restent ouverts. La [CI Windows du code final, run 180](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39515664167) valide 953 tests (Core 655 + App 298), soit 915 + 38 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Dernière CI documentaire suivie dans la PR #53.
+
+### 1e — analyse et actions proposées
+
+Livré dans la PR #54 : signaux ponctuels en lecture seule, analyse pure, note partielle sans pénalité pour les absences, top 3 et propositions validées ; fermeture via le port existant et ses gardes, navigation vers Nettoyage/Mises à jour, démarrage informatif sans écriture. Les sous-lots 1a–1e sont implémentés. Phase 1 terminée : les deux modules utilisent les contrats communs, les plans invalides sont refusés sans effet, la quarantaine et sa restauration sont testées, les résultats français et la CI Windows sont validés. Aucune action de changement système n’est ajoutée dans ce lot. Objectif de performance 1d restant à mesurer sur une session Windows représentative, sans mesure CPU revendiquée. Aucun travail des Phases 2–6 ajouté.
+
+
+La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.
