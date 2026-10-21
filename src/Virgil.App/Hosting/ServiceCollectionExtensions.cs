@@ -1,3 +1,5 @@
+using Virgil.Core.Releases;
+using Virgil.Infrastructure.Releases;
 using Virgil.Core.Diagnostic;
 using Virgil.Infrastructure.Windows.Diagnostic;
 using Virgil.Core.Actions;
@@ -28,6 +30,9 @@ public static class ServiceCollectionExtensions
         System.Windows.Threading.Dispatcher dispatcher, ExceptionReporter? reporter = null)
     {
         services.AddLogging();
+        services.AddSingleton<VirgilReleaseChecker>(sp => new VirgilReleaseChecker(sp.GetRequiredService<IVirgilReleaseSource>(),
+            sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<Virgil.Core.Settings.ISettingsService>(), sp.GetRequiredService<TimeProvider>()));
+
         services.AddSingleton(paths);
         services.AddSingleton<Virgil.Core.Settings.ISettingsService>(settings);
         services.AddSingleton<IUserNotifier>(sp => new MessageBoxUserNotifier(
@@ -40,6 +45,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
         services.AddVirgilConfirmation();
+        services.AddSingleton<System.Net.Http.HttpClient>(_ => new System.Net.Http.HttpClient(
+            new System.Net.Http.SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, ActivityHeadersPropagator = null })
+            { Timeout = TimeSpan.FromSeconds(8) });
+        services.AddSingleton<IVirgilReleaseSource>(sp => new GitHubVirgilReleaseSource(sp.GetRequiredService<System.Net.Http.HttpClient>()));
+        services.AddSingleton<IApplicationVersionSource>(_ => new AssemblyApplicationVersionSource(typeof(App).Assembly));
+        services.AddSingleton<ApplicationVersionService>(sp => new ApplicationVersionService(sp.GetRequiredService<IApplicationVersionSource>()));
         services.AddSingleton<IDiagnosticSource>(_ => new WindowsDiagnosticSource());
         services.AddSingleton<DiagnosticSampler>(sp => new DiagnosticSampler(sp.GetRequiredService<IDiagnosticSource>(), sp.GetRequiredService<TimeProvider>()));
         services.AddTransient<IDiagnosticSignalSource>(sp => new WindowsDiagnosticSignals(sp.GetRequiredService<ProcessProtectionPolicy>()));
@@ -154,6 +165,9 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddSingleton<VirgilReleaseViewModel>(sp => new VirgilReleaseViewModel(sp.GetRequiredService<VirgilReleaseChecker>(),
+            sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<Virgil.Core.Settings.ISettingsService>(), sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<VirgilReleaseView>(sp => new VirgilReleaseView(sp.GetRequiredService<VirgilReleaseViewModel>()));
         services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IConfirmationService>()));
         services.AddSingleton<DiagnosticView>(sp => new DiagnosticView(sp.GetRequiredService<DiagnosticViewModel>()));
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
@@ -194,7 +208,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
-            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>()));
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>()));
         return services;
     }
 

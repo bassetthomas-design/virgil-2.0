@@ -32,7 +32,7 @@ jobs:
         run: dotnet test Virgil.sln --configuration Release --no-build
 
       - name: Publish app
-        run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
+        run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2 -p:Version=0.0.0-dev -p:InformationalVersion=0.0.0-dev -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6

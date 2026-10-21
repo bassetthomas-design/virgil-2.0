@@ -150,6 +150,8 @@ public sealed class CompositionRootTests
             typeof(IProcessRunner), typeof(TimeProvider), typeof(Virgil.Core.Actions.ConfirmationService),
             typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate),
             typeof(Virgil.Core.Diagnostic.IDiagnosticSource), typeof(Virgil.Core.Diagnostic.DiagnosticSampler),
+            typeof(System.Net.Http.HttpClient), typeof(Virgil.Core.Releases.IVirgilReleaseSource),
+            typeof(Virgil.Core.Releases.IApplicationVersionSource), typeof(Virgil.Core.Releases.ApplicationVersionService),
             typeof(IQuarantineStore) // Un magasin partagé sérialise les déplacements et les manifestes.
         };
         foreach (var descriptor in services)

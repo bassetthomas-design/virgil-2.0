@@ -85,7 +85,7 @@ public sealed class LegacyEffectArchitectureTests
         var app = Sources("Virgil.App").Where(p => Regex.IsMatch(File.ReadAllText(p), @"\bIProcessRunner\b"))
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(new[] { "ApplicationsViewModel.cs", "CleanupEntryItems.cs", "CleanupViewModel.cs",
-            "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs" }, app);
+            "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);
     }
 
     [Fact]

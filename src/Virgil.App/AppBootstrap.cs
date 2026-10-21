@@ -14,6 +14,7 @@ namespace Virgil.App;
 
 public partial class App : System.Windows.Application
 {
+    private Virgil.Core.Releases.IUpdateSessionGuard? _updateSession;
     private SingleInstanceGuard? _instance;
     private bool _mainWindowClosed;
     private IHost? _host;
@@ -41,6 +42,8 @@ public partial class App : System.Windows.Application
             var settings = new JsonSettingsService(paths, warnings.Add);
             Log.Logger = VirgilLogging.CreateLogger(paths, settings.Current);
             loggerCreated = true;
+            _updateSession = new UpdateSessionGuard();
+            _updateSession.TryCreate(message => Log.Warning("{UpdateMutexWarning}", message));
             _bootstrapLogging = new SerilogLoggerFactory(Log.Logger, dispose: false);
             var settingsLogger = _bootstrapLogging.CreateLogger<JsonSettingsService>();
             foreach (var warning in warnings) settingsLogger.LogWarning("{SettingsWarning}", warning);
@@ -151,7 +154,7 @@ public partial class App : System.Windows.Application
                     try { Log.CloseAndFlush(); }
                     finally
                     {
-                        try { _instance?.Dispose(); }
+                        try { _updateSession?.Dispose(); _instance?.Dispose(); }
                         finally { base.OnExit(e); }
                     }
                 }

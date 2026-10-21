@@ -1,4 +1,4 @@
-; Inno Setup 6. Binaires exclusivement dans Program Files.
+﻿; Inno Setup 6. Binaires exclusivement dans Program Files.
 #ifndef AppVersion
   #define AppVersion "0.0.0-dev"
 #endif
@@ -26,7 +26,7 @@ OutputBaseFilename=Virgil-{#AppVersion}-win-x64-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-AppMutex=Local\Virgil.SingleInstance.v2
+AppMutex=Local\Virgil.SingleInstance.v2,Global\Virgil.Update.v2
 CloseApplications=no
 RestartApplications=no
 UninstallDisplayIcon={app}\Virgil.App.exe

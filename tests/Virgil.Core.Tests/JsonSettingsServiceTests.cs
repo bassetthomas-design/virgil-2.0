@@ -71,5 +71,15 @@ public sealed class JsonSettingsServiceTests : IDisposable
         Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(Paths.SettingsFile)!, "*.tmp"));
     }
 
+    [Fact]
+    public async Task UpdateCheckTimestampAndOptOutSurviveReloadWithOtherSettings()
+    {
+        var service = new JsonSettingsService(Paths);
+        var expected = service.Current with { CheckVirgilUpdatesAtStartup = false,
+            LastVirgilUpdateCheckUtc = new DateTimeOffset(2026, 10, 21, 12, 0, 0, TimeSpan.Zero), MinimumLogLevel = "Warning" };
+        await service.SaveAsync(expected, CancellationToken.None);
+        Assert.Equal(expected, new JsonSettingsService(Paths).Current);
+    }
+
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }
 }
