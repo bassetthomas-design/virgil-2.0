@@ -39,3 +39,14 @@ jobs:
         with:
           name: Virgil-2.0-win-x64
           path: artifacts/Virgil2
+
+      - name: Build installer
+        shell: pwsh
+        run: ./installer/Build-Installer.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: Virgil-win-x64-setup
+          path: artifacts/installer/*-setup.exe
+          if-no-files-found: error

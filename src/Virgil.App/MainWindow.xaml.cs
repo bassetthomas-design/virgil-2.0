@@ -440,8 +440,8 @@ public partial class MainWindow : Window
 
     private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
     {
-        StatusText.Text = "MODULE PRET";
-        AppendVirgilMessage("Module en preparation.");
+        StatusText.Text = "MODULE INDISPONIBLE";
+        AppendVirgilMessage("Action indisponible dans cette alpha : parcours sécurisé de confirmation non livré.");
     }
 
     private void WireCleanupModule()
