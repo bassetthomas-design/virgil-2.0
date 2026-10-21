@@ -38,6 +38,6 @@ La [CI Windows du correctif, run 182](https://github.com/bassetthomas-design/vir
 
 ## Livraison 1e — analyse Diagnostic
 
-Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR du lot en cours de publication. Les critères de clôture de Phase 1 restent soumis à la CI Windows et à leur revue.
+Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR #54 : https://github.com/bassetthomas-design/virgil-2.0/pull/54. Les critères de clôture de Phase 1 restent soumis à la CI Windows et à leur revue.
 
 Base main vérifiée par le connecteur GitHub : 7d6ef05, 958 tests (Core.Tests 659 + App.Tests 299). SDK dotnet absent localement ; aucune compilation locale revendiquée. Tests ajoutés d'analyse, seuils, refus sans effet, confirmation/présentation, cache et lecteurs Windows. Résultat Windows, nombres lus dans chaque log et présence du helper à consigner après exécution de la CI.

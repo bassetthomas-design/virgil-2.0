@@ -25,7 +25,7 @@ Périmètre des points de restauration précisé, critères de distribution alph
 | Phase | État | Condition de clôture |
 | --- | --- | --- |
 | 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 livré (PR #36) ; 0d-5 livré (PR #37) ; 0d-6 livré (PR #38) ; 0d-7 livré (PR #39) ; 0d-8 livré (PR #40) ; 0d-9 livré (PR #41) ; lot 0d terminé ; 0e-1 livré (PR #42) ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé ; 0f livré (PR #47) ; 0g livré (PR #48), sous-lots 0a–0g livrés ; 0f-bis livré (PR #49) : code OS hors de Contracts ; phase 0 non clôturée, dette OS Core existante à migrer vers Infrastructure | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
-| 1 — Diagnostic + Nettoyage | 1a livré (PR #50) : contrat commun et Nettoyage branché ; 1b livré (PR #51) ; 1c livré (PR #52) ; 1d livré (PR #53), 1e à réaliser | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
+| 1 — Diagnostic + Nettoyage | 1a livré (PR #50) : contrat commun et Nettoyage branché ; 1b livré (PR #51) ; 1c livré (PR #52) ; 1d livré (PR #53), 1e livré (PR #54), validation Windows en cours | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
 | 2 — Installateur Inno Setup + v2.0.0-alpha | À réaliser | Installation Windows vérifiée et release alpha publiée. |
 | 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
 | 4 — Monitoring continu | Services existants ; stabilisation à réaliser | Observation continue maîtrisée et budget de ressources validé. |
@@ -98,6 +98,6 @@ La [CI Windows du correctif, run 182](https://github.com/bassetthomas-design/vir
 
 ## Livraison 1e — analyse Diagnostic
 
-Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR du lot en cours de publication. Les critères de clôture de Phase 1 restent soumis à la CI Windows et à leur revue.
+Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR #54 : https://github.com/bassetthomas-design/virgil-2.0/pull/54. Les critères de clôture de Phase 1 restent soumis à la CI Windows et à leur revue.
 
 Base main vérifiée par le connecteur GitHub : 7d6ef05, 958 tests (Core.Tests 659 + App.Tests 299). SDK dotnet absent localement ; aucune compilation locale revendiquée. Tests ajoutés d'analyse, seuils, refus sans effet, confirmation/présentation, cache et lecteurs Windows. Résultat Windows, nombres lus dans chaque log et présence du helper à consigner après exécution de la CI.

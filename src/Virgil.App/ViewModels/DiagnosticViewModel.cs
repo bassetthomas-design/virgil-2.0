@@ -138,6 +138,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     [ObservableProperty] private string validationSafety = string.Empty;
     public string Health => _health;
     public IReadOnlyList<string> Top3 => _top3;
+    public string Top3Caption => _top3.Count == 0 ? "Aucun problème détecté dans les signaux disponibles." : "Top 3 des problèmes";
     public IReadOnlyList<string> Unavailable => _unavailable;
     public IReadOnlyList<DiagnosticFindingRow> Findings => _findings;
     public event Action<DiagnosticSuggestion>? NavigationRequested;
@@ -150,7 +151,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         _findings = findings.Issues.Select(issue => new DiagnosticFindingRow(issue, actions.Where(a =>
             a is DiagnosticCloseAction close && issue.Process?.ProcessId == close.ProcessId ||
             a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync)).ToArray();
-        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Unavailable), nameof(Findings) }) OnPropertyChanged(name);
+        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable), nameof(Findings) }) OnPropertyChanged(name);
     }
     public async Task PrepareActionAsync(IMaintenanceAction action)
     {
@@ -242,10 +243,18 @@ public sealed class DiagnosticFindingRow
     {
         Title = issue.Title;
         Description = issue.Description;
+        Recommendation = issue.Suggestion switch
+        {
+            DiagnosticSuggestion.None when issue.Category == "disk" => "Action proposée : sauvegardez vos fichiers et faites contrôler le disque.",
+            DiagnosticSuggestion.None => "Action proposée : vérifiez la ventilation et réduisez la charge.",
+            DiagnosticSuggestion.StartupLater => "Modification du démarrage disponible plus tard (sauvegarde et point de restauration requis)",
+            _ => "Choisissez une proposition ci-dessous, puis validez son aperçu."
+        };
         Actions = actions.Select(a => new DiagnosticActionRow(a, prepare)).ToArray();
     }
     public string Title { get; }
     public string Description { get; }
+    public string Recommendation { get; }
     public IReadOnlyList<DiagnosticActionRow> Actions { get; }
 }
 public sealed class DiagnosticActionRow(IMaintenanceAction action, Func<IMaintenanceAction, Task> prepare)

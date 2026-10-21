@@ -71,6 +71,27 @@ public sealed class DiagnosticActionTests
         Assert.DoesNotContain(typeof(DiagnosticNavigationAction).GetConstructors().SelectMany(c => c.GetParameters()),
             p => p.ParameterType.Name.Contains("Execution", StringComparison.Ordinal));
     }
+    [Fact]
+    public async Task ModuleReturnsRealActionsBoundToItsFindings()
+    {
+        var authority = new ConfirmationService(TimeProvider.System); var runtime = new Runtime();
+        var service = new ProcessActionService(runtime, new ProcessProtectionPolicy(Path.Combine(Path.GetTempPath(), "Windows", "System32"), 999),
+            new Restarter(), new InterventionCatalog(), () => DateTimeOffset.UnixEpoch, authority);
+        var module = new DiagnosticModule(new DiagnosticSampler(new UnusedSource(), TimeProvider.System), processes: service, gate: authority);
+        var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
+        var actions = module.GetActions(DiagnosticAnalyzer.Analyze(snapshot, signals));
+        Assert.Equal(2, actions.Count);
+        var action = Assert.Single(actions.OfType<DiagnosticCloseAction>().Where(a => !a.IsForced));
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        Assert.True((await action.ExecuteAsync(authority.Issue(preview, new(ConfirmationLevel.Simple, null)), CancellationToken.None)).Succeeded);
+        Assert.Equal(1, runtime.Close);
+        var (space, healthy) = DiagnosticAnalysisTests.Problem("space");
+        Assert.IsType<DiagnosticNavigationAction>(Assert.Single(module.GetActions(DiagnosticAnalyzer.Analyze(space, healthy))));
+    }
+    private sealed class UnusedSource : IDiagnosticSource
+    {
+        public Task<DiagnosticReading> ReadAsync(CancellationToken token) => throw new InvalidOperationException();
+    }
     [Fact] public void DiagnosticCoreContainsNoOsAccessAndStartupAdapterContainsNoWrites()
     {
         var root = TestRepositoryRoot.FindRepositoryRoot();

@@ -14,6 +14,7 @@
    <TextBlock Text="Diagnostic" FontSize="26" FontWeight="Bold"/>
    <TextBlock Text="Aucune action sans votre validation" Margin="0,8"/>
    <TextBlock Text="{Binding Health}" FontSize="22" FontWeight="Bold" Margin="0,8"/>
+   <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
    <ItemsControl ItemsSource="{Binding Top3}"/>
    <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
    <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
@@ -25,6 +26,7 @@
      <ItemsControl.ItemTemplate><DataTemplate><Border BorderThickness="1" BorderBrush="Gray" Padding="10" Margin="0,4"><StackPanel>
       <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap"/>
       <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" FontStyle="Italic" Margin="0,4"/>
       <ItemsControl ItemsSource="{Binding Actions}"><ItemsControl.ItemTemplate><DataTemplate>
        <Button Content="{Binding Title}" Command="{Binding PrepareCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4"/>
       </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>

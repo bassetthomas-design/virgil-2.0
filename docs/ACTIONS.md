@@ -37,7 +37,7 @@ Vue en direct, facon Gestionnaire des taches tres detaille :
 
 1d livré : écran Diagnostic distinct en lecture seule, instantané CPU/RAM/disques/réseau/GPU/processus, tri et explications françaises, actualisation visible toutes les 2 s et manuelle. Les valeurs non exposées restent explicitement indisponibles. Réseau par programme : connexions TCP établies et points UDP liés uniquement, aucun débit attribué ; E/S disque par programme indisponibles si elles ne peuvent pas être isolées. Ressources reste inchangée dans ce lot. Aucune action, note ou fermeture de processus.
 
-Reste en 1e — analyse "ce qui ne va pas" :
+1e livré (PR #54, validation Windows suivie dans la PR) — analyse "ce qui ne va pas" :
 
 - Note de sante globale + top 3 des problemes.
 - Programmes gourmands inutilement (ex : launcher en fond).
@@ -126,4 +126,4 @@ Avatar : en attente, a revoir plus tard.
 
 ### Action 1 — livraison 1e
 
-L'analyse « ce qui ne va pas » affiche note 0–100 (partielle si une source manque), top 3 et constats français. Sources, seuils et poids : voir ARCHITECTURE.md, section Analyse et propositions Diagnostic (1e). Fermetures propre/forcée distinctes via le service Ressources existant et ConfirmedPlan ; processus protégés et Virgil exclus. Nettoyer et Mettre à jour ouvrent seulement leurs écrans après validation. Démarrage : inventaire Run et dossiers, impact indisponible sans mesure ; modification reportée à la Phase 3 avec sauvegarde et restauration. La mention devient « Aucune action sans votre validation ». Le « Reste en 1e » ci-dessus décrit désormais les exigences implémentées, dont la validation Windows est suivie dans la PR du lot. Historique et monitoring continu restent en Phase 4.
+L'analyse « ce qui ne va pas » affiche note 0–100 (partielle si une source manque), top 3 et constats français. Sources, seuils et poids : voir ARCHITECTURE.md, section Analyse et propositions Diagnostic (1e). Fermetures propre/forcée distinctes via le service Ressources existant et ConfirmedPlan ; processus protégés et Virgil exclus. Nettoyer et Mettre à jour ouvrent seulement leurs écrans après validation. Démarrage : inventaire Run et dossiers, impact indisponible sans mesure ; modification reportée à la Phase 3 avec sauvegarde et restauration. La mention devient « Aucune action sans votre validation ». La validation Windows de la PR #54 fait foi pour cette livraison. Historique et monitoring continu restent en Phase 4.

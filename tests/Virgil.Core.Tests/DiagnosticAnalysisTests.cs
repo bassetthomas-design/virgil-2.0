@@ -82,6 +82,29 @@ public sealed class DiagnosticAnalysisTests
         s = s with { Disks = [s.Disks[0], s.Disks[1] with { FreeBytes = V(freeGiB * gib), TotalBytes = V(totalGiB * gib) }] };
         Assert.Equal(freeGiB / totalGiB < .1 || freeGiB < 10, DiagnosticAnalyzer.Analyze(s, Signals()).Issues.Any());
     }
+    [Theory]
+    [InlineData("cpu")] [InlineData("gpu")] [InlineData("disk")] [InlineData("space")]
+    [InlineData("errors")] [InlineData("devices")] [InlineData("process")] [InlineData("startup")]
+    public void EachUnavailableSignalMakesScorePartialWithoutPenalty(string missing)
+    {
+        var s = Healthy(); var signals = Signals();
+        var number = DiagnosticValue<double>.Unavailable("Lecture indisponible");
+        switch (missing)
+        {
+            case "cpu": s = s with { Cpu = s.Cpu with { TemperatureCelsius = number } }; break;
+            case "gpu": s = s with { Gpu = [s.Gpu[0] with { TemperatureCelsius = number }] }; break;
+            case "disk": s = s with { Disks = [s.Disks[0] with { Health = DiagnosticValue<string>.Unavailable("SMART indisponible") }, s.Disks[1]] }; break;
+            case "space": s = s with { Disks = [s.Disks[0], s.Disks[1] with { FreeBytes = number }] }; break;
+            case "errors": signals = signals with { Errors = DiagnosticSignals.Unavailable.Errors }; break;
+            case "devices": signals = signals with { Devices = DiagnosticSignals.Unavailable.Devices }; break;
+            case "process": signals = signals with { Processes = DiagnosticSignals.Unavailable.Processes }; break;
+            case "startup": signals = signals with { Startup = DiagnosticSignals.Unavailable.Startup }; break;
+        }
+        var result = DiagnosticAnalyzer.Analyze(s, signals);
+        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Empty(result.Issues);
+        Assert.NotEmpty(result.Unavailable);
+    }
     [Fact] public void StartupImpactIsUnavailableAndDoesNotPenalizeOrOfferModification()
     {
         var signals = Signals() with { Startup = V<IReadOnlyList<StartupEntry>>([new("Launcher", "HKCU/Run", DiagnosticValue<string>.Unavailable("Impact non mesuré"))]) };
