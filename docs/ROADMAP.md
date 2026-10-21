@@ -141,3 +141,8 @@ Livré dans la PR #54 : signaux ponctuels en lecture seule, analyse pure, note p
 
 
 La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.
+
+
+### Correctif du démarrage après la PR #54
+
+Sur la branche feature/1e-analyse-diagnostic : HKCU Run lu une fois en vue par défaut, HKLM conservé en deux vues avec dédoublonnage par ruche et nom ; impact du démarrage hors du caractère partiel de la note, notice globale unique ; Échap traité après fermeture de l’overlay Diagnostic. Trois tests de régression ajoutés, aucun cas retiré : total attendu 1 013 (Core 709 + App 304), à confirmer dans les logs Windows. La PR #54 a été fusionnée pendant la préparation du correctif ; sa CI ne se déclenche plus sur cette branche. Les 1 010 tests validés ci-dessus concernent la version antérieure au correctif. SDK dotnet absent localement ; validation Windows du correctif en attente.
