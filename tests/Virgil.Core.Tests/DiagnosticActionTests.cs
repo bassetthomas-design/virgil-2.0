@@ -95,7 +95,7 @@ public sealed class DiagnosticActionTests
         var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
         var actions = module.GetActions(DiagnosticAnalyzer.Analyze(snapshot, signals));
         Assert.Equal(2, actions.Count);
-        var action = Assert.Single(actions.OfType<DiagnosticCloseAction>().Where(a => !a.IsForced));
+        var action = Assert.Single(actions.OfType<DiagnosticCloseAction>(), a => !a.IsForced);
         var preview = await action.PreviewAsync(CancellationToken.None);
         Assert.True((await action.ExecuteAsync(authority.Issue(preview, new(ConfirmationLevel.Simple, null)), CancellationToken.None)).Succeeded);
         Assert.Equal(1, runtime.Close);

@@ -136,7 +136,7 @@ public sealed class DiagnosticPresentationTests
         var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), clock)), clock);
         vm.SetPresentation(true, false);
         clock.Advance(TimeSpan.FromSeconds(1));
-        await WaitUntilAsync(() => vm.Snapshot is not null);
+        await WaitUntilAsync(() => vm.Snapshot is not null && !vm.IsRefreshing);
         Assert.Contains("partielle", vm.Health);
         Assert.Contains("80/100", vm.Health);
         Assert.Single(vm.Top3);
