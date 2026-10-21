@@ -129,7 +129,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (DiagnosticModuleView.Visibility == Visibility.Visible && DiagnosticModuleView.TryCloseOverlay()) return;
+        if (DiagnosticModuleView.Visibility == Visibility.Visible && DiagnosticModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
         if (CleanupModuleView.Visibility == Visibility.Visible && CleanupModuleView.TryCloseOverlay())
         {
             e.Handled = true;

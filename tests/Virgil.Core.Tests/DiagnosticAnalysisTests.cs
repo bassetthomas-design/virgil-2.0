@@ -85,7 +85,7 @@ public sealed class DiagnosticAnalysisTests
     [Theory]
     [InlineData("cpu")] [InlineData("gpu")] [InlineData("disk")] [InlineData("space")]
     [InlineData("errors")] [InlineData("devices")] [InlineData("process")] [InlineData("startup")]
-    public void EachUnavailableSignalMakesScorePartialWithoutPenalty(string missing)
+    public void EachUnavailableSignalOnlyMakesScorePartialWhenItContributesToTheScore(string missing)
     {
         var s = Healthy(); var signals = Signals();
         var number = DiagnosticValue<double>.Unavailable("Lecture indisponible");
@@ -101,7 +101,7 @@ public sealed class DiagnosticAnalysisTests
             case "startup": signals = signals with { Startup = DiagnosticSignals.Unavailable.Startup }; break;
         }
         var result = DiagnosticAnalyzer.Analyze(s, signals);
-        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Equal(new HealthScore(100, missing != "startup"), result.Score);
         Assert.Empty(result.Issues);
         Assert.NotEmpty(result.Unavailable);
     }
@@ -109,10 +109,29 @@ public sealed class DiagnosticAnalysisTests
     {
         var signals = Signals() with { Startup = V<IReadOnlyList<StartupEntry>>([new("Launcher", "HKCU/Run", DiagnosticValue<string>.Unavailable("Impact non mesuré"))]) };
         var result = DiagnosticAnalyzer.Analyze(Healthy(), signals);
-        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Equal(new HealthScore(100, false), result.Score);
+        Assert.Contains("Impact non mesuré", Assert.Single(result.Issues).Description);
+        Assert.Contains("sans effet sur la note", Assert.Single(result.Unavailable));
         Assert.Contains("sauvegarde et point de restauration requis", Assert.Single(result.Issues).Description);
         Assert.Empty(result.ProposedActions);
         Assert.Empty(result.Top3);
+    }
+    [Fact]
+    public void UnmeasuredStartupImpactsUseOneNoticeAndDoNotHideMissingScoredSignals()
+    {
+        var unknown = DiagnosticValue<string>.Unavailable("Impact non mesuré");
+        var signals = Signals() with { Startup = V<IReadOnlyList<StartupEntry>>([
+            new("Premier", "HKCU/Run", unknown), new("Second", "HKLM/Run", unknown)]) };
+        var result = DiagnosticAnalyzer.Analyze(Healthy(), signals);
+        Assert.Equal(new HealthScore(100, false), result.Score);
+        Assert.Equal(2, result.Issues.Count);
+        Assert.All(result.Issues, issue => Assert.Contains("Impact non mesuré", issue.Description));
+        Assert.Contains("sans effet sur la note", Assert.Single(result.Unavailable));
+        Assert.DoesNotContain(result.Unavailable, line => line.Contains("Premier", StringComparison.Ordinal) || line.Contains("Second", StringComparison.Ordinal));
+        var snapshot = Healthy();
+        result = DiagnosticAnalyzer.Analyze(snapshot with { Cpu = snapshot.Cpu with { TemperatureCelsius = DiagnosticValue<double>.Unavailable("Capteur absent") } }, signals);
+        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Equal(2, result.Unavailable.Count);
     }
     [Theory] [InlineData("chrome")] [InlineData("Virgil")] [InlineData("svchost")]
     public void NonLauncherIsNeverProposed(string name)

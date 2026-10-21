@@ -130,3 +130,6 @@ L'analyse « ce qui ne va pas » affiche note 0–100 (partielle si une source m
 
 
 Validation 1e (PR #54) : CI Windows du lot, run 188, 1 010 tests (Core 706 + App 304), soit 958 + 52 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Phase 1 terminée ; objectif CPU à mesurer sur Windows, sans mesure de performance revendiquée.
+
+
+Correctif PR #54 : une entrée Run utilisateur est lue une seule fois (HKCU, vue par défaut) ; HKLM conserve ses deux vues, dédoublonnées par ruche et nom. L’impact du démarrage reste non mesuré et affiché, sans rendre la note partielle (poids nul) ; une seule mention globale suffit. Échap ferme l’overlay Diagnostic et marque l’événement clavier traité.

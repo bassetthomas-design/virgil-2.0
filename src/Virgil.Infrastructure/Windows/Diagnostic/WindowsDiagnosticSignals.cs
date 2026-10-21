@@ -71,39 +71,69 @@ public sealed class WindowsDiagnosticSignals(ProcessProtectionPolicy policy) : I
         catch { return Missing<IReadOnlyList<DeviceProblem>>("lecture SetupAPI/CfgMgr32 impossible."); }
         finally { if (set != IntPtr.Zero && set != new IntPtr(-1)) SetupDiDestroyDeviceInfoList(set); }
     }
-    public static DiagnosticValue<IReadOnlyList<StartupEntry>> ReadStartup(CancellationToken token)
+    public static DiagnosticValue<IReadOnlyList<StartupEntry>> ReadStartup(CancellationToken token) =>
+        ReadStartup(token, ReadRunNames, ReadStartupFolderNames);
+
+    // Lecteurs injectables pour vérifier les vues et les doublons sans modifier le registre.
+    public static DiagnosticValue<IReadOnlyList<StartupEntry>> ReadStartup(CancellationToken token,
+        Func<RegistryHive, RegistryView, CancellationToken, IReadOnlyList<string>> readRunNames,
+        Func<Environment.SpecialFolder, CancellationToken, IReadOnlyList<string>> readFolderNames)
     {
         try
         {
             var entries = new List<StartupEntry>();
+            var registryEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var impact = Missing<string>("impact au démarrage non mesuré");
             foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
-            foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
             {
-                token.ThrowIfCancellationRequested();
-                using var root = RegistryKey.OpenBaseKey(hive, view);
-                using var run = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: false);
-                if (run is null) continue;
-                foreach (var name in run.GetValueNames())
+                // HKCU\Software est partagé entre les vues ; HKLM conserve ses deux vues.
+                var views = hive == RegistryHive.CurrentUser
+                    ? new[] { RegistryView.Default }
+                    : new[] { RegistryView.Registry64, RegistryView.Registry32 };
+                foreach (var view in views)
                 {
-                    // Vérifier la lisibilité sans conserver la commande ou ses arguments personnels.
-                    if (run.GetValue(name) is null) return Missing<IReadOnlyList<StartupEntry>>("entrée Run illisible.");
-                    entries.Add(new(name, hive + "/" + view + "/Run", impact));
+                    token.ThrowIfCancellationRequested();
+                    foreach (var name in readRunNames(hive, view, token))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (registryEntries.Add(hive + "/" + name))
+                            entries.Add(new(name, hive + "/" + view + "/Run", impact));
+                    }
                 }
             }
             foreach (var folder in new[] { Environment.SpecialFolder.Startup, Environment.SpecialFolder.CommonStartup })
             {
                 token.ThrowIfCancellationRequested();
-                var path = Environment.GetFolderPath(folder);
-                if (string.IsNullOrWhiteSpace(path)) return Missing<IReadOnlyList<StartupEntry>>("dossier Démarrage non résolu.");
-                if (!Directory.Exists(path)) continue;
-                foreach (var file in Directory.EnumerateFiles(path).Where(f => !string.Equals(Path.GetFileName(f), "desktop.ini", StringComparison.OrdinalIgnoreCase)))
-                    entries.Add(new(Path.GetFileName(file), folder.ToString(), impact));
+                foreach (var name in readFolderNames(folder, token))
+                    entries.Add(new(name, folder.ToString(), impact));
             }
             return DiagnosticValue<IReadOnlyList<StartupEntry>>.Available(entries.AsReadOnly());
         }
         catch (OperationCanceledException) { throw; }
         catch { return Missing<IReadOnlyList<StartupEntry>>("clés Run ou dossiers Démarrage inaccessibles."); }
+    }
+    private static IReadOnlyList<string> ReadRunNames(RegistryHive hive, RegistryView view, CancellationToken token)
+    {
+        using var root = RegistryKey.OpenBaseKey(hive, view);
+        using var run = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: false);
+        if (run is null) return Array.Empty<string>();
+        var names = run.GetValueNames();
+        foreach (var name in names)
+        {
+            token.ThrowIfCancellationRequested();
+            // Vérifier la lisibilité sans conserver la commande ou ses arguments personnels.
+            if (run.GetValue(name) is null) throw new InvalidOperationException("Entrée Run illisible.");
+        }
+        return names;
+    }
+    private static IReadOnlyList<string> ReadStartupFolderNames(Environment.SpecialFolder folder, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var path = Environment.GetFolderPath(folder);
+        if (string.IsNullOrWhiteSpace(path)) throw new InvalidOperationException("Dossier Démarrage non résolu.");
+        if (!Directory.Exists(path)) return Array.Empty<string>();
+        return Directory.EnumerateFiles(path).Where(f => !string.Equals(Path.GetFileName(f), "desktop.ini", StringComparison.OrdinalIgnoreCase))
+            .Select(file => { token.ThrowIfCancellationRequested(); return Path.GetFileName(file); }).ToArray();
     }
     private DiagnosticValue<IReadOnlyList<ProcessResourceInfo>> ReadProcesses(CancellationToken token)
     {
