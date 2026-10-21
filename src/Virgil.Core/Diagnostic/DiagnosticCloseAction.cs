@@ -27,8 +27,8 @@ public sealed class DiagnosticCloseAction(IProcessActionService service, Process
         if (target.StartedAt is null || string.IsNullOrWhiteSpace(target.Path) || target.Name.Contains("virgil", StringComparison.OrdinalIgnoreCase))
             return new(Id, false, true, "Processus protégé ou identité incomplète.", [], [], []);
         var result = await service.ExecuteAsync(Kind, target, plan, cancellationToken).ConfigureAwait(false);
-        return new(Id, result.Status == ProcessActionStatus.Completed, result.Status == ProcessActionStatus.Failed,
-            result.Status == ProcessActionStatus.Failed ? result.ReadableError : null,
+        return new(Id, result.Status == ProcessActionStatus.Completed, result.WasRefused,
+            result.WasRefused ? result.ReadableError : null,
             result.ReadableError is null ? [] : [result.ReadableError], [result.Summary], []);
     }
 }

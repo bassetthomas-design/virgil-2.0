@@ -61,7 +61,7 @@ public sealed class ProcessActionService : IProcessActionService
 
         if (target is null)
         {
-            return Failure(action, "N/A", "Processus cible absent.");
+            return Refusal(action, "N/A", "Processus cible absent.");
         }
 
         if (action == ProcessActionKind.OpenLocation)
@@ -72,15 +72,15 @@ public sealed class ProcessActionService : IProcessActionService
         var identity = ValidateIdentity(target);
         if (identity.Error is not null)
         {
-            return Failure(action, TargetName(target), identity.Error);
+            return Refusal(action, TargetName(target), identity.Error);
         }
 
         if (action == ProcessActionKind.CloseMainWindow && (!target.CanCloseGracefully || !identity.Value!.HasMainWindow))
-            return Failure(action, TargetName(target), "Fermeture propre non autorisee.");
+            return Refusal(action, TargetName(target), "Fermeture propre non autorisee.");
         if (action == ProcessActionKind.KillProcess && !target.CanForceClose)
-            return Failure(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
+            return Refusal(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
         if (action is not (ProcessActionKind.CloseMainWindow or ProcessActionKind.KillProcess))
-            return Failure(action, TargetName(target), "Action non prise en charge.");
+            return Refusal(action, TargetName(target), "Action non prise en charge.");
 
         var rejected = Consume(action, target, plan);
         if (rejected is not null) return rejected;
@@ -99,9 +99,9 @@ public sealed class ProcessActionService : IProcessActionService
     {
         var validation = _gate.TryConsume(plan, ProcessActionPreviewFactory.Create(action, target));
         if (!validation.IsAccepted)
-            return Failure(action, TargetName(target), "Action annulee.\n" + validation.Message);
+            return Refusal(action, TargetName(target), "Action annulee.\n" + validation.Message);
         if (action == ProcessActionKind.KillProcess && plan?.ConfirmationLevel != ConfirmationLevel.Reinforced)
-            return Failure(action, TargetName(target), "Action annulee.\nConsentement insuffisant pour cette action.");
+            return Refusal(action, TargetName(target), "Action annulee.\nConsentement insuffisant pour cette action.");
         return null;
     }
 
@@ -248,6 +248,11 @@ public sealed class ProcessActionService : IProcessActionService
         return protection.IsCritical
             ? IdentityValidation.Failed("Processus protege lors de la reverification.")
             : IdentityValidation.Success(current);
+    }
+
+    private ProcessActionResult Refusal(ProcessActionKind action, string target, string message)
+    {
+        return Failure(action, target, message) with { WasRefused = true };
     }
 
     private ProcessActionResult Failure(ProcessActionKind action, string target, string message)

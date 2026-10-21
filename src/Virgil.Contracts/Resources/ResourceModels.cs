@@ -161,6 +161,9 @@ public sealed record ResourceAnalysisReport
 
 public sealed record ProcessActionResult
 {
+    /// <summary>Refus des préconditions ou du plan avant tout effet, distinct d’un échec opérationnel.</summary>
+    public bool WasRefused { get; init; }
+
     public ProcessActionKind Action { get; init; }
 
     public string Target { get; init; } = string.Empty;

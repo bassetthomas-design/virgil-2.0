@@ -55,6 +55,20 @@ public sealed class DiagnosticActionTests
         Assert.True((await action.ExecuteAsync(plan, CancellationToken.None)).WasRefused);
         Assert.Equal(1, runtime.Close + runtime.KillCount);
     }
+    [Fact]
+    public async Task OperationalFailureAfterKillAttemptIsNotReportedAsRefusalBeforeEffect()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var runtime = new Runtime { FailKill = true };
+        var action = Action(runtime, authority, force: true);
+        var preview = await action.PreviewAsync(CancellationToken.None);
+        var plan = authority.Issue(preview, new(ConfirmationLevel.Reinforced, null));
+        var result = await action.ExecuteAsync(plan, CancellationToken.None);
+        Assert.False(result.Succeeded);
+        Assert.False(result.WasRefused);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(1, runtime.KillCount);
+    }
     [Theory] [InlineData(DiagnosticSuggestion.Cleanup)] [InlineData(DiagnosticSuggestion.Updates)]
     public async Task NavigationOnlyReportsAnOpeningAndRequiresConsent(DiagnosticSuggestion destination)
     {
@@ -129,9 +143,10 @@ public sealed class DiagnosticActionTests
     {
         public ProcessRuntimeIdentity? Identity { get; set; } = new(42, "steam", Target().Path, Target().StartedAt, true, false);
         public int Close, KillCount;
+        public bool FailKill { get; init; }
         public ProcessRuntimeIdentity? ReadIdentity(int id) => Identity;
         public bool CloseMainWindow(int id) { Close++; return true; }
-        public void Kill(int id) => KillCount++;
+        public void Kill(int id) { KillCount++; if (FailKill) throw new InvalidOperationException(); }
         public Task<bool> WaitForExitAsync(int id, TimeSpan timeout, CancellationToken token) => Task.FromResult(true);
         public bool FileExists(string path) => throw new InvalidOperationException();
         public bool OpenLocation(string path) => throw new InvalidOperationException();
