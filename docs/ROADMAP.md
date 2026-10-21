@@ -123,7 +123,7 @@ Critères de sortie :
 - Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
 - Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
 
-1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic en lecture seule livré en 1d ; analyse et actions à livrer en 1e. La CI Windows de la PR est la référence de validation.
+1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic en lecture seule livré en 1d ; analyse et actions livrées en 1e (PR #54). La CI Windows de la PR est la référence de validation.
 
 
 ### 1c — livré (PR #52)
@@ -137,4 +137,7 @@ Diagnostic détaillé en lecture seule, sampler et port Windows injectés, indis
 
 ### 1e — analyse et actions proposées
 
-Implémentation livrée dans la PR du lot 1e : signaux ponctuels en lecture seule, analyse pure, note partielle sans pénalité pour les absences, top 3 et propositions validées ; fermeture via le port existant et ses gardes, navigation vers Nettoyage/Mises à jour, démarrage informatif sans écriture. Les sous-lots 1a–1e sont implémentés. Phase 1 non clôturée tant que la CI Windows de ce lot (tests, zéro warning, helper publié) et la vérification des critères de sortie ne sont pas confirmées. Mesure du budget CPU sur une session Windows représentative restant à faire. Aucun travail des Phases 2–6 ajouté.
+Livré dans la PR #54 : signaux ponctuels en lecture seule, analyse pure, note partielle sans pénalité pour les absences, top 3 et propositions validées ; fermeture via le port existant et ses gardes, navigation vers Nettoyage/Mises à jour, démarrage informatif sans écriture. Les sous-lots 1a–1e sont implémentés. Phase 1 terminée : les deux modules utilisent les contrats communs, les plans invalides sont refusés sans effet, la quarantaine et sa restauration sont testées, les résultats français et la CI Windows sont validés. Aucune action de changement système n’est ajoutée dans ce lot. Objectif de performance 1d restant à mesurer sur une session Windows représentative, sans mesure CPU revendiquée. Aucun travail des Phases 2–6 ajouté.
+
+
+La [CI Windows du code final 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.

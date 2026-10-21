@@ -127,3 +127,6 @@ Avatar : en attente, a revoir plus tard.
 ### Action 1 — livraison 1e
 
 L'analyse « ce qui ne va pas » affiche note 0–100 (partielle si une source manque), top 3 et constats français. Sources, seuils et poids : voir ARCHITECTURE.md, section Analyse et propositions Diagnostic (1e). Fermetures propre/forcée distinctes via le service Ressources existant et ConfirmedPlan ; processus protégés et Virgil exclus. Nettoyer et Mettre à jour ouvrent seulement leurs écrans après validation. Démarrage : inventaire Run et dossiers, impact indisponible sans mesure ; modification reportée à la Phase 3 avec sauvegarde et restauration. La mention devient « Aucune action sans votre validation ». La validation Windows de la PR #54 fait foi pour cette livraison. Historique et monitoring continu restent en Phase 4.
+
+
+Validation 1e (PR #54) : CI Windows du code final, run 188, 1 010 tests (Core 706 + App 304), soit 958 + 52 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Phase 1 terminée ; objectif CPU à mesurer sur Windows, sans mesure de performance revendiquée.
