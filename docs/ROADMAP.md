@@ -134,3 +134,7 @@ Trois groupes de Nettoyage, sélection par groupe/ligne et confirmation récapit
 ### 1d — livré (PR #53)
 
 Diagnostic détaillé en lecture seule, sampler et port Windows injectés, indisponibilités explicites, catalogue de processus et tri. Actualisation visible toutes les 2 s, sans chevauchement, annulation à la navigation/réduction ; objectif documenté <1 % CPU moyen à mesurer sur Windows. Aucune action, note, fermeture ni histoire ; 1e et Phase 4 restent ouverts. La [CI Windows du code final, run 180](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39515664167) valide 953 tests (Core 655 + App 298), soit 915 + 38 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Dernière CI documentaire suivie dans la PR #53.
+
+### 1e — analyse et actions proposées
+
+Implémentation livrée dans la PR du lot 1e : signaux ponctuels en lecture seule, analyse pure, note partielle sans pénalité pour les absences, top 3 et propositions validées ; fermeture via le port existant et ses gardes, navigation vers Nettoyage/Mises à jour, démarrage informatif sans écriture. Les sous-lots 1a–1e sont implémentés. Phase 1 non clôturée tant que la CI Windows de ce lot (tests, zéro warning, helper publié) et la vérification des critères de sortie ne sont pas confirmées. Mesure du budget CPU sur une session Windows représentative restant à faire. Aucun travail des Phases 2–6 ajouté.

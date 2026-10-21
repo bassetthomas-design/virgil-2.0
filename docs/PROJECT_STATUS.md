@@ -94,3 +94,10 @@ SDK dotnet absent localement ; aucun build local revendiqué. La [CI Windows du 
 `ProcessorInstanceOrdering` analyse les identités groupe/index et trie numériquement par groupe puis index ; les totaux machine et de groupe sont exclus. Une instance invalide ou une identité numérique dupliquée rend la charge par cœur indisponible avec raison française, sans libellé de cœur deviné. Les compteurs conservent leur identité entre deux mesures. Cinq tests ajoutés : ordre numérique, totaux exclus, instances invalides, doublons et affichage sans numéro inventé. Aucun autre périmètre modifié ni test supprimé ou affaibli.
 
 La [CI Windows du correctif, run 182](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39547143412), commit 7362e80, valide 958 tests : Core.Tests 659 (655 + 4 nouveaux), App.Tests 299 (298 + 1 nouveau), soit 953 + 5 nouveaux, ou 915 + 43 depuis main. Logs par projet : 0 échec, 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et artefact win-x64 publié. SDK dotnet toujours absent localement. Le commit suivant est documentaire uniquement ; dernière CI suivie dans la PR #53.
+
+
+## Livraison 1e — analyse Diagnostic
+
+Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR du lot en cours de publication. Les critères de clôture de Phase 1 restent soumis à la CI Windows et à leur revue.
+
+Base main vérifiée par le connecteur GitHub : 7d6ef05, 958 tests (Core.Tests 659 + App.Tests 299). SDK dotnet absent localement ; aucune compilation locale revendiquée. Tests ajoutés d'analyse, seuils, refus sans effet, confirmation/présentation, cache et lecteurs Windows. Résultat Windows, nombres lus dans chaque log et présence du helper à consigner après exécution de la CI.

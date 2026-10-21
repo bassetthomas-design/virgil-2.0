@@ -2,11 +2,13 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Virgil.Contracts.Diagnostic;
+using Virgil.Contracts.Actions;
+using Virgil.Core.Actions;
 using Virgil.Core.Diagnostic;
 
 namespace Virgil.App.ViewModels;
 
-public sealed class DiagnosticViewModel : ObservableObject
+public sealed partial class DiagnosticViewModel : ObservableObject
 {
     private readonly DiagnosticModule _module;
     private readonly TimeProvider _clock;
@@ -18,11 +20,12 @@ public sealed class DiagnosticViewModel : ObservableObject
     private DiagnosticProcessSort _sort = DiagnosticProcessSort.Cpu;
     private bool _descending = true;
     private IReadOnlyList<DiagnosticProcessRow> _processes = Array.Empty<DiagnosticProcessRow>();
-    public DiagnosticViewModel(DiagnosticModule module, TimeProvider clock)
+    public DiagnosticViewModel(DiagnosticModule module, TimeProvider clock, IConfirmationService? confirmation = null)
     {
         _module = module;
         _clock = clock;
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync);
+        _confirmation = confirmation;
+        RefreshCommand = new AsyncRelayCommand(() => { _module.InvalidateSignals(); return RefreshAsync(); });
     }
     public IAsyncRelayCommand RefreshCommand { get; }
     public Task PresentationTask { get; private set; } = Task.CompletedTask;
@@ -67,12 +70,14 @@ public sealed class DiagnosticViewModel : ObservableObject
         _minimized = minimized;
         if (!_visible || _minimized)
         {
+            CancelConfirmation();
             _presentation?.Cancel();
             _presentation = null;
             return;
         }
         if (_presentation is not null) return;
         var session = new CancellationTokenSource();
+        _module.InvalidateSignals();
         _presentation = session;
         PresentationTask = RunPresentationAsync(session, PresentationTask);
     }
@@ -104,7 +109,8 @@ public sealed class DiagnosticViewModel : ObservableObject
             token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(session, _presentation)) return;
             _snapshot = findings.Snapshot;
-            Status = $"Mesuré à {_snapshot.CapturedAtUtc.ToLocalTime():HH:mm:ss} — lecture seule";
+            ApplyFindings(findings);
+            Status = $"Mesuré à {_snapshot.CapturedAtUtc.ToLocalTime():HH:mm:ss} — aucune action sans votre validation";
             foreach (var name in new[] { nameof(Snapshot), nameof(CpuDetails), nameof(MemoryDetails), nameof(DiskDetails), nameof(NetworkDetails), nameof(GpuDetails) })
                 OnPropertyChanged(name);
             ApplySort();
@@ -117,6 +123,82 @@ public sealed class DiagnosticViewModel : ObservableObject
             OnPropertyChanged(nameof(IsRefreshing));
             _refreshGate.Release();
         }
+    }
+    private readonly IConfirmationService? _confirmation;
+    private IReadOnlyList<DiagnosticFindingRow> _findings = Array.Empty<DiagnosticFindingRow>();
+    private IReadOnlyList<string> _top3 = Array.Empty<string>();
+    private IReadOnlyList<string> _unavailable = Array.Empty<string>();
+    private string _health = "Note non calculée";
+    private IMaintenanceAction? _pending;
+    private ActionPreview? _preview;
+    private CancellationTokenSource? _actionCancellation;
+    [ObservableProperty] private bool isValidationOpen;
+    [ObservableProperty] private string validationTitle = string.Empty;
+    [ObservableProperty] private string validationDetails = string.Empty;
+    [ObservableProperty] private string validationSafety = string.Empty;
+    public string Health => _health;
+    public IReadOnlyList<string> Top3 => _top3;
+    public IReadOnlyList<string> Unavailable => _unavailable;
+    public IReadOnlyList<DiagnosticFindingRow> Findings => _findings;
+    public event Action<DiagnosticSuggestion>? NavigationRequested;
+    public void ApplyFindings(DiagnosticFindings findings)
+    {
+        _health = $"Note de santé : {findings.Score.Value}/100" + (findings.Score.IsPartial ? " — partielle" : "");
+        _top3 = findings.Top3.Select(i => i.Title + " : " + i.Description).ToArray();
+        _unavailable = findings.Unavailable;
+        var actions = _module.GetActions(findings);
+        _findings = findings.Issues.Select(issue => new DiagnosticFindingRow(issue, actions.Where(a =>
+            a is DiagnosticCloseAction close && issue.Process?.ProcessId == close.ProcessId ||
+            a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync)).ToArray();
+        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Unavailable), nameof(Findings) }) OnPropertyChanged(name);
+    }
+    public async Task PrepareActionAsync(IMaintenanceAction action)
+    {
+        if (IsValidationOpen || _actionCancellation is not null) return;
+        try
+        {
+            _preview = await action.PreviewAsync(CancellationToken.None);
+            _pending = action;
+            ValidationTitle = _preview.Title;
+            ValidationDetails = string.Join("\n", _preview.Targets.Concat(_preview.Parameters.Select(p => p.Key + " : " + p.Value)).Concat(_preview.Effects));
+            ValidationSafety = action.RiskLevel == RiskLevel.Sensitive
+                ? "Confirmation renforcée : fermeture forcée, perte possible de données non sauvegardées. Aucun autre processus ne sera fermé."
+                : "Validation simple. Aucune fermeture forcée automatique. Aucun point de restauration requis pour un processus.";
+            IsValidationOpen = true;
+        }
+        catch { Status = "Impossible de préparer cette action. Aucune action effectuée."; }
+    }
+    [RelayCommand]
+    private async Task ExecuteDecisionAsync()
+    {
+        var action = _pending;
+        var preview = _preview;
+        if (!IsValidationOpen || action is null || preview is null || _confirmation is null) return;
+        IsValidationOpen = false;
+        _pending = null;
+        using var cancellation = new CancellationTokenSource();
+        _actionCancellation = cancellation;
+        try
+        {
+            var plan = _confirmation.Issue(preview, new ConfirmationConsent(RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel), null));
+            var result = await action.ExecuteAsync(plan, cancellation.Token);
+            Status = result.WasRefused ? "Action refusée : " + result.RefusalReason
+                : !result.Succeeded ? "Action incomplète : " + string.Join(" ; ", result.Errors.Concat(result.Effects))
+                : string.Join(" ; ", result.Effects);
+            if (result.Succeeded && action is DiagnosticNavigationAction navigation) NavigationRequested?.Invoke(navigation.Destination);
+        }
+        catch (OperationCanceledException) { Status = "Action annulée."; }
+        catch (ConfirmationRefusedException) { Status = "Validation insuffisante. Aucune action effectuée."; }
+        catch { Status = "Action impossible. Vérifiez l'état du programme puis actualisez."; }
+        finally { _actionCancellation = null; _preview = null; }
+    }
+    [RelayCommand]
+    public void CancelConfirmation()
+    {
+        IsValidationOpen = false;
+        _pending = null;
+        _preview = null;
+        _actionCancellation?.Cancel();
     }
     public void Sort(DiagnosticProcessSort sort)
     {
@@ -152,4 +234,23 @@ public static class DiagnosticDisplay
         : value.Value >= 1024 * 1024 * 1024 ? Number(value, "Go", 1024 * 1024 * 1024)
         : Number(value, "Mo", 1024 * 1024);
     public static string Text(DiagnosticValue<string> value) => value.IsAvailable ? value.Value : value.Reason!;
+}
+
+public sealed class DiagnosticFindingRow
+{
+    public DiagnosticFindingRow(DiagnosticIssue issue, IReadOnlyList<IMaintenanceAction> actions, Func<IMaintenanceAction, Task> prepare)
+    {
+        Title = issue.Title;
+        Description = issue.Description;
+        Actions = actions.Select(a => new DiagnosticActionRow(a, prepare)).ToArray();
+    }
+    public string Title { get; }
+    public string Description { get; }
+    public IReadOnlyList<DiagnosticActionRow> Actions { get; }
+}
+public sealed class DiagnosticActionRow(IMaintenanceAction action, Func<IMaintenanceAction, Task> prepare)
+{
+    public string Title => action is DiagnosticCloseAction close ? close.IsForced ? "Fermer de force…" : "Fermer proprement…"
+        : action is DiagnosticNavigationAction nav && nav.Destination == DiagnosticSuggestion.Cleanup ? "Nettoyer…" : "Mettre à jour…";
+    public IAsyncRelayCommand PrepareCommand { get; } = new AsyncRelayCommand(() => prepare(action));
 }

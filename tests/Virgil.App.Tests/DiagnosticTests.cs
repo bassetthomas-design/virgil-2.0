@@ -3,6 +3,7 @@ using Virgil.App.Hosting;
 using Virgil.App.ViewModels;
 using Virgil.Contracts.Diagnostic;
 using Virgil.Core.Actions;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Diagnostic;
 using Virgil.Infrastructure.Windows.Diagnostic;
 using Xunit;
@@ -69,6 +70,7 @@ public sealed class DiagnosticPresentationTests
         Assert.Single(modules.OfType<DiagnosticModule>());
         Assert.Single(modules.OfType<Virgil.Core.Cleanup.CleanupMaintenanceModule>());
         Assert.IsType<WindowsDiagnosticSource>(provider.GetRequiredService<IDiagnosticSource>());
+        Assert.IsType<WindowsDiagnosticSignals>(provider.GetRequiredService<IDiagnosticSignalSource>());
     }
     [Fact]
     public void DisplayDoesNotTurnMissingValuesIntoZero()
@@ -126,6 +128,107 @@ public sealed class DiagnosticPresentationTests
         Assert.DoesNotContain(vm.CpuDetails, text => text.StartsWith("Cœur logique", StringComparison.Ordinal));
         vm.SetPresentation(false, false);
         await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+    [Fact]
+    public async Task NoteAndTopThreeArePublishedWithPartialSignalReasons()
+    {
+        var clock = new PresentationClock();
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), clock)), clock);
+        vm.SetPresentation(true, false);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await WaitUntilAsync(() => vm.Snapshot is not null);
+        Assert.Contains("partielle", vm.Health);
+        Assert.Contains("80/100", vm.Health);
+        Assert.Single(vm.Top3);
+        Assert.NotEmpty(vm.Findings);
+        Assert.NotEmpty(vm.Unavailable);
+        vm.SetPresentation(false, false);
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+    [Fact]
+    public async Task ConfirmationIsExplicitAndCancelHasNoExecutionEffect()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), TimeProvider.System)), TimeProvider.System, authority);
+        var action = new RecordingAction(authority);
+        await vm.PrepareActionAsync(action);
+        Assert.True(vm.IsValidationOpen);
+        Assert.Contains("renforcée", vm.ValidationSafety);
+        Assert.Equal(0, action.Effects);
+        vm.CancelConfirmation();
+        await vm.ExecuteDecisionCommand.ExecuteAsync(null);
+        Assert.Equal(0, action.Effects);
+        await vm.PrepareActionAsync(action);
+        await vm.ExecuteDecisionCommand.ExecuteAsync(null);
+        Assert.False(vm.IsValidationOpen);
+        Assert.Equal(1, action.Effects);
+        Assert.Equal(ConfirmationLevel.Reinforced, action.Level);
+    }
+    [Fact]
+    public async Task NavigationRequiresDecisionAndNeverRunsAnUpdateOrCleanup()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), TimeProvider.System)), TimeProvider.System, authority);
+        var navigations = new List<DiagnosticSuggestion>();
+        vm.NavigationRequested += navigations.Add;
+        await vm.PrepareActionAsync(new DiagnosticNavigationAction(authority, DiagnosticSuggestion.Cleanup));
+        Assert.Empty(navigations);
+        await vm.ExecuteDecisionCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { DiagnosticSuggestion.Cleanup }, navigations);
+    }
+    [Fact]
+    public async Task HidingPresentationCancelsPendingConfirmation()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), TimeProvider.System)), TimeProvider.System, authority);
+        var action = new RecordingAction(authority);
+        await vm.PrepareActionAsync(action);
+        vm.SetPresentation(false, false);
+        await vm.ExecuteDecisionCommand.ExecuteAsync(null);
+        Assert.False(vm.IsValidationOpen);
+        Assert.Equal(0, action.Effects);
+    }
+    [Fact]
+    public async Task SlowSignalsAreCachedUntilManualRefreshOrNewOpening()
+    {
+        var clock = new PresentationClock();
+        var signals = new CountingSignals();
+        var module = new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), clock), signals);
+        async Task Scan()
+        {
+            var task = module.ScanAsync(CancellationToken.None);
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await task;
+        }
+        await Scan(); await Scan();
+        Assert.Equal(1, signals.Reads);
+        module.InvalidateSignals();
+        await Scan();
+        Assert.Equal(2, signals.Reads);
+    }
+    private sealed class CountingSignals : IDiagnosticSignalSource
+    {
+        public int Reads;
+        public Task<DiagnosticSignals> ReadAsync(CancellationToken token) { Reads++; return Task.FromResult(DiagnosticSignals.Unavailable); }
+    }
+    private sealed class RecordingAction(IConfirmedPlanGate gate) : IMaintenanceAction
+    {
+        public int Effects;
+        public ConfirmationLevel? Level;
+        public string Id => "test.close";
+        public RiskLevel RiskLevel => RiskLevel.Sensitive;
+        public bool RequiresAdmin => false;
+        public bool RebootRequired => false;
+        public Reversibility Reversibility => Reversibility.None;
+        public Task<ActionPreview> PreviewAsync(CancellationToken token) => Task.FromResult(new ActionPreview(Id, "Fermeture forcée", RiskLevel, ["steam"], new Dictionary<string, string>(), ["Perte possible de données"], false, false, Reversibility, []));
+        public async Task<ActionResult> ExecuteAsync(ConfirmedPlan? plan, CancellationToken token)
+        {
+            var validation = gate.TryConsume(plan, await PreviewAsync(token));
+            if (!validation.IsAccepted) return new(Id, false, true, validation.Message, [], [], []);
+            Level = plan!.ConfirmationLevel;
+            Effects++;
+            return new(Id, true, false, null, [], ["Application fermée."], []);
+        }
     }
     private static async Task WaitUntilAsync(Func<bool> condition)
     {

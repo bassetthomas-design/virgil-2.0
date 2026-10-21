@@ -59,6 +59,11 @@ public partial class MainWindow : Window
         ApplicationsModuleView = applicationsView;
         ReportsModuleView = reportsHistoryView;
         DiagnosticModuleView = diagnosticView;
+        DiagnosticModuleView.NavigationRequested += destination =>
+        {
+            if (destination == Virgil.Core.Diagnostic.DiagnosticSuggestion.Cleanup) ShowCleanup();
+            else if (destination == Virgil.Core.Diagnostic.DiagnosticSuggestion.Updates) ShowUpdates();
+        };
         InitializeComponent();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(DiagnosticModuleView);
@@ -124,6 +129,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (DiagnosticModuleView.Visibility == Visibility.Visible && DiagnosticModuleView.TryCloseOverlay()) return;
         if (CleanupModuleView.Visibility == Visibility.Visible && CleanupModuleView.TryCloseOverlay())
         {
             e.Handled = true;
@@ -258,7 +264,7 @@ public partial class MainWindow : Window
         DiagnosticModuleView.Visibility = Visibility.Visible;
         HomeNavButton.Tag = null;
         DiagnosticNavButton.Tag = "Active";
-        StatusText.Text = "DIAGNOSTIC — LECTURE SEULE";
+        StatusText.Text = "DIAGNOSTIC — AUCUNE ACTION SANS VOTRE VALIDATION";
     }
 
     private void ShowHome()
