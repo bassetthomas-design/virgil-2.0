@@ -35,7 +35,9 @@ Vue en direct, facon Gestionnaire des taches tres detaille :
 - GPU : charge, VRAM, temperature.
 - Processus : tri par conso, editeur, emplacement, explication en francais de chaque programme.
 
-Analyse "ce qui ne va pas" :
+1d livré : écran Diagnostic distinct en lecture seule, instantané CPU/RAM/disques/réseau/GPU/processus, tri et explications françaises, actualisation visible toutes les 2 s et manuelle. Les valeurs non exposées restent explicitement indisponibles. Réseau par programme : connexions TCP établies et points UDP liés uniquement, aucun débit attribué ; E/S disque par programme indisponibles si elles ne peuvent pas être isolées. Ressources reste inchangée dans ce lot. Aucune action, note ou fermeture de processus.
+
+Reste en 1e — analyse "ce qui ne va pas" :
 
 - Note de sante globale + top 3 des problemes.
 - Programmes gourmands inutilement (ex : launcher en fond).
@@ -43,7 +45,7 @@ Analyse "ce qui ne va pas" :
 - Signaux d'alerte : surchauffe, disque malade, erreurs Windows recentes, pilotes en echec, espace disque qui fond.
 - Pour chaque probleme, une action proposee (fermer, desactiver au demarrage, nettoyer, mettre a jour), toujours apres validation.
 
-Bonus : historique pour comparer l'etat du PC dans le temps.
+Phase 4 : monitoring continu et historique pour comparer l'état du PC dans le temps.
 
 ## Action 2 : Nettoyage (VALIDEE 2026-10-18)
 
@@ -88,7 +90,7 @@ Reparations a ajouter : Windows Update bloque, Microsoft Store, son, imprimante.
 
 Phase roadmap : fusionnee dans l'Action 1 (Phase 1).
 
-Pas d'ecran separe : observation CPU/RAM, processus gourmands et fermeture confirmee (avec protection des processus Windows/securite/VPN/materiel) font partie du Diagnostic. Pas de mode jeu ni de boost.
+Cible après 1e (la vue Ressources legacy reste inchangée en 1d) : observation CPU/RAM, processus gourmands et fermeture confirmee (avec protection des processus Windows/securite/VPN/materiel) font partie du Diagnostic. Pas de mode jeu ni de boost.
 
 ## Action 7 : Demarrage (VALIDEE 2026-10-18)
 

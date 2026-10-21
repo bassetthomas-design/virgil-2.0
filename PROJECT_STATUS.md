@@ -20,3 +20,17 @@ Le consentement au nettoyage ne vaut plus consentement à un effacement ultérie
 ## Livraison 1c (PR #52)
 
 Trois groupes et restes de logiciels désinstallés livrés : ports de lecture Windows, analyse pure, exclusions des programmes installés/actifs/protégés, téléchargements ciblés, garde-fous personnels et sélection individuelle Critical, aperçu global et ConfirmedPlan unique. Registre en lecture seule ; fichiers via quarantaine de 1b. Tests existants conservés et adaptés au parcours récapitulatif ; tests nouveaux de politiques, seuils, sélection et refus sans effet. SDK dotnet absent localement : la CI Windows reste la référence. Base main : 850 tests (Core.Tests 569 + App.Tests 281). La [CI Windows du code final 1c, run 176](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39496186080) valide 915 tests : Core.Tests 625 (569 + 56 nouveaux) et App.Tests 290 (281 + 9 nouveaux), soit 850 + 65 nouveaux ; 0 échec, 0 ignoré, build à 0 warning. Le log confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l’artefact win-x64 est publié. Ce constat concerne le commit de code 77e1fdb ; la dernière mise à jour est documentaire uniquement, avec sa CI suivie dans la PR #52.
+
+
+## Livraison 1d — Diagnostic en lecture seule (PR #53)
+
+Contrats de mesures disponibles/indisponibles, port de lecture Windows, sampler pur et horloge injectée, module sans actions, catalogue français, vue détaillée et tableau triable, rafraîchissement limité à la visibilité et annulé à la réduction. Aucun helper, service de fond, écriture, historique ou fermeture de processus. Ressources et les protections existantes conservées. Objectif <1 % CPU moyen pendant l'affichage, mesure Windows restant à effectuer.
+
+SDK dotnet absent localement ; aucun build local revendiqué. La [CI Windows du code final 1d, run 180](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39515664167), commit cf2f29e, valide 953 tests : Core.Tests 655 (625 + 30 nouveaux), App.Tests 298 (290 + 8 nouveaux), soit 915 + 38 nouveaux ; 0 échec, 0 ignoré, build à 0 warning et 0 erreur. Le log confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l'artefact win-x64 est publié. La mise à jour suivante est documentaire uniquement ; sa CI reste suivie dans la PR #53.
+
+
+### Correctif P2 — ordre des cœurs PDH (PR #53)
+
+`ProcessorInstanceOrdering` analyse les identités groupe/index et trie numériquement par groupe puis index ; les totaux machine et de groupe sont exclus. Une instance invalide ou une identité numérique dupliquée rend la charge par cœur indisponible avec raison française, sans libellé de cœur deviné. Les compteurs conservent leur identité entre deux mesures. Cinq tests ajoutés : ordre numérique, totaux exclus, instances invalides, doublons et affichage sans numéro inventé. Aucun autre périmètre modifié ni test supprimé ou affaibli.
+
+La [CI Windows du correctif, run 182](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39547143412), commit 7362e80, valide 958 tests : Core.Tests 659 (655 + 4 nouveaux), App.Tests 299 (298 + 1 nouveau), soit 953 + 5 nouveaux, ou 915 + 43 depuis main. Logs par projet : 0 échec, 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et artefact win-x64 publié. SDK dotnet toujours absent localement. Le commit suivant est documentaire uniquement ; dernière CI suivie dans la PR #53.

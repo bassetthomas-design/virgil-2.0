@@ -1,3 +1,5 @@
+using Virgil.Core.Diagnostic;
+using Virgil.Infrastructure.Windows.Diagnostic;
 using Virgil.Core.Actions;
 using System.IO;
 using Microsoft.Extensions.Logging;
@@ -38,6 +40,10 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
         services.AddVirgilConfirmation();
+        services.AddSingleton<IDiagnosticSource>(_ => new WindowsDiagnosticSource());
+        services.AddSingleton<DiagnosticSampler>(sp => new DiagnosticSampler(sp.GetRequiredService<IDiagnosticSource>(), sp.GetRequiredService<TimeProvider>()));
+        services.AddTransient<DiagnosticModule>(sp => new DiagnosticModule(sp.GetRequiredService<DiagnosticSampler>()));
+        services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<DiagnosticModule>());
         services.AddSingleton<IProcessRunner>(_ => new Virgil.Infrastructure.Processes.ProcessRunner());
 
         services.AddTransient<IInterventionCatalog>(_ => new InterventionCatalog());
@@ -146,6 +152,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<DiagnosticView>(sp => new DiagnosticView(sp.GetRequiredService<DiagnosticViewModel>()));
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<CleanupMaintenanceModule>(),
             sp.GetRequiredService<IProcessRunner>(),
@@ -184,7 +192,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
-            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>()));
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>()));
         return services;
     }
 
