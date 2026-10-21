@@ -36,7 +36,9 @@ public sealed class DiagnosticViewModel : ObservableObject
         "Fréquence actuelle : " + DiagnosticDisplay.Number(_snapshot.Cpu.CurrentMhz, "MHz"),
         "Fréquence nominale : " + DiagnosticDisplay.Number(_snapshot.Cpu.NominalMhz, "MHz"),
         "Température : " + DiagnosticDisplay.Number(_snapshot.Cpu.TemperatureCelsius, "°C")
-    }.Concat(_snapshot.Cpu.CorePercent.Select((v, i) => $"Cœur logique {i + 1} : {DiagnosticDisplay.Percent(v)}")).ToArray();
+    }.Concat(_snapshot.Cpu.CorePercent.Select((v, i) => v.IsAvailable
+        ? $"Cœur logique {i + 1} : {DiagnosticDisplay.Percent(v)}"
+        : "Charge par cœur : " + v.Reason).Distinct()).ToArray();
     public IReadOnlyList<string> MemoryDetails => _snapshot is null ? Array.Empty<string>() : new[]
     {
         "Totale : " + DiagnosticDisplay.Bytes(_snapshot.Memory.TotalBytes),

@@ -26,9 +26,8 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
         token.ThrowIfCancellationRequested();
         using var pdh = new PdhReader();
         foreach (var path in new[] { Idle, Current, Cache, Compressed }) pdh.Add(path);
-        var cores = pdh.Expand(@"\Processor Information(*)\% Idle Time")
-            .Where(p => !PdhReader.Instance(p).Contains("_Total", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(p => PdhReader.Instance(p), StringComparer.Ordinal).ToArray();
+        var corePaths = pdh.Expand(@"\Processor Information(*)\% Idle Time");
+        var cores = ProcessorInstanceOrdering.Sort(corePaths.Select(PdhReader.Instance));
         var diskRead = pdh.Expand(@"\PhysicalDisk(*)\Disk Read Bytes/sec");
         var diskWrite = pdh.Expand(@"\PhysicalDisk(*)\Disk Write Bytes/sec");
         var diskResponse = pdh.Expand(@"\PhysicalDisk(*)\Avg. Disk sec/Transfer");
@@ -43,10 +42,17 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
         var memory = ReadMemory(pdh);
         var idle = pdh.Counter(Idle, DiagnosticCounterKind.IdleTime);
         if (!idle.Numerator.IsAvailable) idle = SystemIdle();
-        var coreCounters = cores.Select(p => pdh.Counter(p, DiagnosticCounterKind.IdleTime)).ToArray();
-        if (coreCounters.Length != Environment.ProcessorCount)
+        var coreCounters = cores.IsAvailable
+            ? cores.Value.Select(instance => pdh.Counter(corePaths.First(p => PdhReader.Instance(p) == instance),
+                DiagnosticCounterKind.IdleTime) with { Identity = "ProcessorInformation:" + instance }).ToArray()
+            : Array.Empty<DiagnosticCounter>();
+        if (!cores.IsAvailable || coreCounters.Length != Environment.ProcessorCount)
+        {
+            var reason = cores.IsAvailable ? "Indisponible : charge par cœur non exposée par Windows" : cores.Reason!;
             coreCounters = Enumerable.Range(0, Environment.ProcessorCount)
-                .Select(_ => AbsentCounter("charge par cœur non exposée par Windows")).ToArray();
+                .Select(_ => new DiagnosticCounter(DiagnosticValue<double>.Unavailable(reason),
+                    DiagnosticValue<double>.Unavailable(reason), DiagnosticCounterKind.IdleTime)).ToArray();
+        }
         var cpu = new RawCpu(idle, Array.AsReadOnly(coreCounters),
             pdh.Gauge(Current), Missing<double>("fréquence nominale non exposée par les compteurs Windows"), Missing<double>());
         var disks = new List<RawDisk>();

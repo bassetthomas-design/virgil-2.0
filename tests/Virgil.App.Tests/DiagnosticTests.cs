@@ -113,6 +113,20 @@ public sealed class DiagnosticPresentationTests
         clock.Advance(TimeSpan.FromSeconds(20));
         Assert.Equal(3, source.Reads);
     }
+    [Fact]
+    public async Task UnknownCoreIdentityShowsReasonWithoutGuessingALogicalCoreLabel()
+    {
+        var clock = new PresentationClock();
+        var source = new ImmediateSource { UnknownCoreIdentity = true };
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(source, clock)), clock);
+        vm.SetPresentation(true, false);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await WaitUntilAsync(() => vm.Snapshot is not null);
+        Assert.Contains("Charge par cœur : Indisponible : identité des cœurs PDH non interprétable ou ambiguë", vm.CpuDetails);
+        Assert.DoesNotContain(vm.CpuDetails, text => text.StartsWith("Cœur logique", StringComparison.Ordinal));
+        vm.SetPresentation(false, false);
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -121,6 +135,7 @@ public sealed class DiagnosticPresentationTests
     private sealed class ImmediateSource : IDiagnosticSource
     {
         public int Reads;
+        public bool UnknownCoreIdentity { get; init; }
         public TaskCompletionSource SecondRead { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<DiagnosticReading> ReadAsync(CancellationToken cancellationToken)
         {
@@ -128,7 +143,11 @@ public sealed class DiagnosticPresentationTests
             Reads++;
             var v = DiagnosticValue<double>.Available(100);
             var gauge = new DiagnosticCounter(v, v, DiagnosticCounterKind.Gauge);
-            var result = new DiagnosticReading(new(gauge, new[] { gauge }, v, v, v), new(v, v, v, v, v, v),
+            var core = UnknownCoreIdentity
+                ? new DiagnosticCounter(DiagnosticValue<double>.Unavailable("Indisponible : identité des cœurs PDH non interprétable ou ambiguë"),
+                    v, DiagnosticCounterKind.IdleTime)
+                : gauge;
+            var result = new DiagnosticReading(new(gauge, new[] { core }, v, v, v), new(v, v, v, v, v, v),
                 Array.Empty<RawDisk>(), Array.Empty<RawNetwork>(), Array.Empty<RawGpu>(), Array.Empty<RawProcess>());
             if (Reads == 2) SecondRead.TrySetResult();
             return Task.FromResult(result);
