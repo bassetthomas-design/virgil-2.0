@@ -161,7 +161,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
             _preview = await action.PreviewAsync(CancellationToken.None);
             _pending = action;
             ValidationTitle = _preview.Title;
-            ValidationDetails = string.Join("\n", _preview.Targets.Concat(_preview.Parameters.Select(p => p.Key + " : " + p.Value)).Concat(_preview.Effects));
+            ValidationDetails = string.Join("\n", _preview.Targets.Concat(_preview.Parameters.Select(p => (p.Key switch { "ProcessId" => "PID", "Name" => "Nom", "Path" => "Emplacement", "StartedAt" => "Démarrage (UTC)", _ => "Paramètre" }) + " : " + p.Value)).Concat(_preview.Effects));
             ValidationSafety = action.RiskLevel == RiskLevel.Sensitive
                 ? "Confirmation renforcée : fermeture forcée, perte possible de données non sauvegardées. Aucun autre processus ne sera fermé."
                 : "Validation simple. Aucune fermeture forcée automatique. Aucun point de restauration requis pour un processus.";
