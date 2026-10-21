@@ -70,8 +70,8 @@ public sealed class LegacyEffectArchitectureTests
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected.Split('|').Order(StringComparer.Ordinal).ToArray(), consumers);
         // WPF ne reçoit aucun de ces adaptateurs bruts ; la composition est leur seule référence.
-        Assert.Empty(Sources("Virgil.App").Where(p => !p.EndsWith("ServiceCollectionExtensions.cs", StringComparison.Ordinal))
-            .Where(p => Regex.IsMatch(File.ReadAllText(p), @"\b" + port + @"\b")));
+        Assert.DoesNotContain(Sources("Virgil.App").Where(p => !p.EndsWith("ServiceCollectionExtensions.cs", StringComparison.Ordinal)),
+            p => Regex.IsMatch(File.ReadAllText(p), @"\b" + port + @"\b"));
     }
 
     [Fact]
