@@ -59,6 +59,31 @@ public sealed class InstallerArchitectureTests
     }
 
     [Fact]
+    [Trait("Category", "Windows")]
+    public async Task ReleaseVersionPureFunctionAcceptsTagsAndRejectsUnsafeInput()
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("pwsh")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-File",
+            Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "installer", "Test-ReleaseVersion.ps1") })
+            start.ArgumentList.Add(argument);
+        using var process = System.Diagnostics.Process.Start(start);
+        Assert.NotNull(process);
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await process.WaitForExitAsync(timeout.Token);
+        Assert.Equal(0, process.ExitCode);
+        Assert.Empty(await error);
+        Assert.Contains("3 cas valides et 8 refus validés", await output);
+    }
+
+    [Fact]
     public void BothWorkflowsBuildSameInstallerAndReleasePermissionsAreJobScoped()
     {
         var build = Read(".github/workflows/build.yml");

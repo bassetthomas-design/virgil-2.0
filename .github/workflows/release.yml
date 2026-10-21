@@ -31,10 +31,6 @@ jobs:
       - name: Test
         run: dotnet test Virgil.sln --configuration Release --no-build
 
-      - name: Test release version
-        shell: pwsh
-        run: ./installer/Test-ReleaseVersion.ps1
-
       - name: Publish app
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
 
