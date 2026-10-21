@@ -23,6 +23,7 @@ namespace Virgil.App;
 
 public partial class MainWindow : Window
 {
+    private readonly Virgil.App.ViewModels.VirgilReleaseViewModel _virgilRelease;
     private readonly ISystemScanService _systemScanService;
     private readonly IReportHistoryService _reportHistoryService;
     private readonly IReportExportService _reportExportService;
@@ -47,8 +48,10 @@ public partial class MainWindow : Window
         IReportHistoryService reportHistoryService,
         IReportExportService reportExportService,
         CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
-        ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView)
+        ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView,
+        VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease)
     {
+        _virgilRelease = virgilRelease;
         _systemScanService = systemScanService;
         _reportHistoryService = reportHistoryService;
         _reportExportService = reportExportService;
@@ -65,6 +68,7 @@ public partial class MainWindow : Window
             else if (destination == Virgil.Core.Diagnostic.DiagnosticSuggestion.Updates) ShowUpdates();
         };
         InitializeComponent();
+        ReleasePanelHost.Children.Add(releaseView);
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(DiagnosticModuleView);
         CleanupModuleView.Visibility = Visibility.Collapsed;
@@ -112,6 +116,7 @@ public partial class MainWindow : Window
     private async void Window_ContentRendered(object? sender, EventArgs e)
     {
         PlayStartupAnimation();
+        await _virgilRelease.StartAsync();
         await RefreshPersistentReportStateAsync();
     }
 
@@ -175,6 +180,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        _virgilRelease.Dispose();
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
         UpdatesModuleView.CancelActiveOperation();

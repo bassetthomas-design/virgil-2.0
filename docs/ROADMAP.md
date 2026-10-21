@@ -146,4 +146,11 @@ La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgi
 
 Installateur Inno Setup par machine avec helper dans Program Files, désinstallation conservatrice, production CI et artefact distinct, prerelease sur tags v* avec version et SHA-256, notes alpha non signée et verrou d'architecture des actions legacy. Les parcours non livrés restent bloqués en français ; aucune entrée de chat ou tray active. Base : 1 010 tests (Core 706 + App 304) ; tests Windows du lot : 1 033 (Core 724 + App 309), soit 23 nouveaux, 0 échec, 0 ignoré, 0 warning. Validation complète ISCC et artefact du dernier commit suivis dans la PR #55 ; aucune validation locale revendiquée.
 
-Phase 2 reste ouverte : 2b, vérification des mises à jour de Virgil via GitHub Releases ; tests manuels sur Windows sans SDK (installation, compte standard, lancement, élévation du helper, redémarrage, mise à jour avec Virgil ouvert et désinstallation avec/sans suppression des données, quarantaine toujours conservée) ; création du tag v2.0.0-alpha et vérification de sa prerelease. Signature de code hors lot, exception alpha non signée documentée.
+Phase 2 reste ouverte : 2b livré, vérification des mises à jour de Virgil via GitHub Releases ; restent les tests manuels sur Windows sans SDK (installation, compte standard, lancement, élévation du helper, redémarrage, mise à jour avec Virgil ouvert et désinstallation avec/sans suppression des données, quarantaine toujours conservée) ; création du tag v2.0.0-alpha et vérification de sa prerelease. Signature de code hors lot, exception alpha non signée documentée.
+
+
+### 2b — livré, validation Windows suivie dans la PR
+
+Version issue du tag dans l’assembly et le setup, comparaison SemVer 2.0, API publique GitHub derrière un port Core, contrôle manuel et au démarrage au plus une fois par 24 h désactivable, résultats explicites français dans l’application uniquement. Ouverture manuelle de la page, aucun téléchargement ni installation automatique. Notes alpha finalisées, publication stable refusée sans notes stables, mutex global multi-session et BOM UTF-8 testés. Base main : 1 033 tests (Core 724 + App 309) ; nouveaux cas et résultat Windows consignés dans PROJECT_STATUS et la PR.
+
+Restent pour clore la Phase 2 : tests manuels Windows sans SDK (dont deux sessions ouvertes et indisponibilité réseau), puis création du tag v2.0.0-alpha et contrôle de sa release, du setup et du SHA-256. Aucun tag créé par 2b. Signature, tray, notifications, service, démarrage et registre hors lot.

@@ -1,21 +1,40 @@
-# Virgil 2.0.0-alpha — notes de version
+# Virgil 2.0.0-alpha
 
-Première distribution alpha installable Windows 10/11 x64. Diagnostic détaillé, analyse et propositions après validation ; Nettoyage avec aperçu récapitulatif, quarantaine, restauration vérifiée et purge confirmée. Les parcours existants Applications, Ressources, Mises à jour et Interventions conservent leurs portes ConfirmedPlan et leurs protections.
+Première alpha installable pour Windows 10/11 x64. L’application et son helper sont autonomes : aucun SDK ni runtime .NET à installer. Cette note décrit le contenu préparé ; le tag et la release seront publiés après les essais manuels Windows sans SDK.
 
-L'installateur inclut l'application et Virgil.ElevatedHelper.exe ainsi que le runtime .NET 8 self-contained. Aucun SDK ni installation .NET séparée n'est requis. Installation administrateur par machine dans Program Files\Virgil, interface française, menu Démarrer et bureau optionnel décoché. L'application s'exécute sans élévation ; seul le helper demande l'élévation pour les commandes autorisées. Fermer Virgil proprement avant une mise à jour : le mutex bloque l'installation tant qu'il est ouvert, y compris en mode silencieux ; aucun kill automatique.
+## Contenu
 
-## Alpha non signée
+- Diagnostic en lecture seule : CPU, RAM, disques, réseau, GPU et processus, valeurs indisponibles expliquées, note partielle et trois priorités déterministes.
+- Propositions de nettoyage, de mises à jour et de fermeture de processus : aperçu et validation explicite, identité et protections des processus revérifiées avant action.
+- Nettoyage en trois groupes : Sûr, À vérifier et Restes de logiciels. Dossiers personnels exclus des sélections automatiques ; confirmation critique individuelle si admissible.
+- Quarantaine locale : conservation réglable de 1 à 30 jours (7 par défaut), restauration vérifiée par taille et SHA-256 sans écrasement. L’expiration propose un effacement confirmé ; elle ne supprime rien seule.
+- Historique et rapports locaux ; installateur par machine dans Program Files, helper distinct et élevé seulement pour ses commandes autorisées.
+- Vérification des versions de Virgil sur GitHub Releases, y compris les prereleases du canal alpha, sans jeton, télémétrie ni identifiant utilisateur.
 
-Exception de distribution explicitement retenue pour cette alpha : aucun certificat ni signature de code. Microsoft Defender SmartScreen peut afficher « Windows a protégé votre ordinateur » ou un éditeur inconnu. Télécharger uniquement depuis la GitHub Release officielle et vérifier le SHA-256 avec le fichier `.sha256`. Le hash vérifie l'intégrité du téléchargement ; il ne remplace pas une signature de l'éditeur. La signature reste à prévoir pour une distribution ultérieure.
+## Vérifier et mettre à jour Virgil
 
-## Données et désinstallation
+Le panneau en haut de l’application affiche la version issue du tag. Cliquez sur **Vérifier les mises à jour de Virgil**. Le résultat indique **À jour**, **Nouvelle version disponible** avec version et date, ou **Vérification impossible** avec motif : hors ligne/délai dépassé, limite GitHub 403/429, réponse invalide ou aucune release publiée.
 
-Les binaires de Program Files sont retirés. Paramètres `%APPDATA%\Virgil\settings.json`, rapports `%APPDATA%\Virgil\reports` et logs `%LOCALAPPDATA%\Virgil\logs` restent présents par défaut. Une case française décochée permet leur suppression explicite pour le seul compte exécutant le désinstalleur. Avec des identifiants administrateur distincts, il s'agit du compte administrateur : aucune recherche ni suppression dans les autres profils. En mode silencieux, toutes ces données sont conservées.
+Une vérification discrète au démarrage est activée par défaut, au plus une tentative par 24 heures, échecs compris. Décochez **Vérifier au démarrage** puis cliquez sur **Enregistrer ce réglage** pour la désactiver. Le bouton manuel reste disponible. Aucun son, notification système, popup ou prise de focus.
 
-La quarantaine `%LOCALAPPDATA%\Virgil\Quarantine` de chaque compte contient des fichiers de l'utilisateur : elle n'est JAMAIS supprimée par le désinstalleur, même avec l'option de suppression. Restaurer ou purger explicitement depuis Virgil avant désinstallation si souhaité.
+Une nouvelle version propose uniquement **Ouvrir la page de release** dans votre navigateur. Téléchargez vous-même l’installateur depuis cette page, vérifiez son SHA-256 puis fermez Virgil dans toutes les sessions Windows avant de lancer le setup. Aucun téléchargement ni installation automatique. En cas d’indisponibilité du mutex global, un avertissement est journalisé ; la fermeture dans toutes les sessions reste indispensable. Aucun tag n’est créé par l’application.
 
-## Limites connues et actions non incluses
+## SHA-256, signature et SmartScreen
 
-Alpha : pas de garantie de stabilité ou de mesure de performance sur une session Windows représentative. Capteurs, SMART, éditeurs ou compteurs indisponibles sont signalés ; la note peut être partielle. Un processus inaccessible ou protégé n'est pas fermé. Pas de fermeture forcée automatique après un échec de fermeture propre.
+L’installateur officiel et son fichier `.sha256` sont joints à la même release GitHub de `bassetthomas-design/virgil-2.0`. Vérifiez le fichier téléchargé avec PowerShell :
 
-La vérification des mises à jour de Virgil via GitHub Releases reste au lot 2b. Pas de modification du démarrage, du registre ou des services, de suppression des restes de registre, de tray, de notifications, de service de fond ou d'entrée de chat active. Les entrées Démarrage/Réseau non livrées affichent un refus français et n'exécutent aucune action. La vérification manuelle installation/lancement/élévation/mise à jour/désinstallation sur Windows sans SDK et en compte standard reste nécessaire avant création du tag alpha. Le workflow sur tags `v*` crée une prerelease avec le setup et son SHA-256 ; le lot 2a ne crée aucun tag.
+```powershell
+Get-FileHash .\Virgil-2.0.0-alpha-win-x64-setup.exe -Algorithm SHA256
+```
+
+Comparez intégralement le résultat avec le fichier `.sha256`. En cas de différence, ne lancez pas le setup. Le hash détecte une différence de fichier ; il ne remplace pas une signature d’éditeur.
+
+**Exception alpha non signée explicitement acceptée pour cette distribution.** Aucun certificat de signature n’est livré. Windows SmartScreen peut afficher « éditeur inconnu » ou bloquer le lancement faute de réputation. Vérifiez la provenance GitHub et le hash avant de décider de poursuivre ; ne désactivez pas globalement SmartScreen ou l’antivirus. La signature de code sera traitée séparément.
+
+## Limites connues
+
+- Alpha : sauvegardez vos données importantes. Les essais manuels d’installation, compte standard, élévation, redémarrage, mise à jour multi-session et désinstallation sur Windows sans SDK restent nécessaires avant le tag.
+- Températures, SMART complet, VRAM totale et débits par programme peuvent être indisponibles selon Windows et le matériel. Une note partielle de 100 n’atteste pas la santé des éléments non observés. Objectif CPU du Diagnostic restant à mesurer sur Windows.
+- Le périmètre complet Windows/pilotes/Store/jeux, les modifications du démarrage et du registre, les sauvegardes et points de restauration associés relèvent de la Phase 3. Les entrées non livrées restent bloquées ; aucune commande libre du chat, tray ou service de fond.
+- L’API publique GitHub peut être hors ligne ou limitée ; Virgil affiche cette impossibilité et conserve sa version actuelle. Le canal alpha inclut aussi les versions stables, comparées selon SemVer 2.0.
+- Désinstallation : paramètres, rapports et logs conservés par défaut. Leur suppression exige une case décochée, limitée au compte exécutant le désinstalleur. La quarantaine `%LOCALAPPDATA%\Virgil\Quarantine` est toujours conservée, même après ce choix ; restaurez vos fichiers avant de retirer l’application si nécessaire. Aucun autre profil Windows n’est parcouru.

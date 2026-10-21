@@ -100,8 +100,11 @@ public sealed class InstallerArchitectureTests
         Assert.Contains("permissions: {}", release);
         Assert.Contains("    permissions:\n      contents: write", release.Replace("\r\n", "\n"));
         Assert.Contains("- 'v*'", release);
-        Assert.Contains("--verify-tag --prerelease", release);
+        Assert.Contains("'--verify-tag'", release);
+        Assert.Contains("if ($publication.IsPrerelease) { $releaseArgs += '--prerelease' }", release);
         Assert.Contains("Get-FileHash $setup -Algorithm SHA256", release);
-        Assert.Contains("--notes-file docs/RELEASE_NOTES_2.0.0-alpha.md", release);
+        Assert.Contains("'--notes-file', $publication.NotesFile", release);
+        Assert.Contains("Get-ReleasePublication $env:RELEASE_TAG", release);
+        Assert.Contains("aucune note stable", Read("installer/Get-ReleaseVersion.ps1"));
     }
 }
