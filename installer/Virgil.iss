@@ -72,11 +72,9 @@ begin
   Result := True;
   DeleteUserData := False;
   if UninstallSilent then exit;
-  Form := CreateCustomForm;
+  Form := CreateCustomForm(540, 220, False, True);
   try
     Form.Caption := 'Désinstallation de Virgil';
-    Form.ClientWidth := ScaleX(540);
-    Form.ClientHeight := ScaleY(220);
     Info := TNewStaticText.Create(Form);
     Info.Parent := Form;
     Info.SetBounds(ScaleX(16), ScaleY(16), ScaleX(508), ScaleY(100));
