@@ -78,7 +78,7 @@ public sealed class InstallerArchitectureTests
         var error = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await process.WaitForExitAsync(timeout.Token);
-        Assert.Equal(0, process.ExitCode);
+        Assert.True(process.ExitCode == 0, $"PowerShell : {await output}\n{await error}");
         Assert.Empty(await error);
         Assert.Contains("3 cas valides et 8 refus validés", await output);
     }

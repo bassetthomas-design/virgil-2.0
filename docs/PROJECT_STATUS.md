@@ -109,7 +109,7 @@ La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgi
 Base main 8d30f375 : 1 010 tests (Core 706 + App 304). Les logs Windows du [run 194](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39552385525) valident 1 033 tests : Core 724 (706 + 18 nouveaux), App 309 (304 + 5 nouveaux), soit 1 010 + 23, avec 0 échec, 0 ignoré, build à 0 warning et helper publié. Ce run a révélé une erreur de signature CreateCustomForm, corrigée ensuite dans le script Inno Setup ; la validation complète ISCC et l’artefact setup du dernier commit sont suivis dans la PR #55. SDK dotnet, ISCC et PowerShell absents localement ; aucun résultat de build local revendiqué. Aucun test existant retiré ou affaibli. Phase 2 ouverte : 2b GitHub Releases, tests manuels Windows sans SDK, tag v2.0.0-alpha ; aucun tag créé par 2a.
 
 
-## Livraison 2b — PR à renseigner
+## Livraison 2b — PR #56
 
 2b livré : version du tag commune à Version/InformationalVersion et au setup ; version courante lue depuis l’assembly via port Core, comparateur SemVer 2.0 pur. Releases GitHub publiques anonymes avec prereleases, brouillons/tags invalides ignorés, états français explicites, contrôle manuel et démarrage discret au plus une tentative par 24 h, désactivable dans les settings existants. Ouverture de page seulement ; aucun téléchargement/installation automatique, notification, son ou prise de focus. Publication stable refusée sans notes stables, mutex Global\Virgil.Update.v2 ajouté sans modifier l’instance unique Local, création globale refusée non bloquante et journalisée, BOM UTF-8 du script Inno Setup garanti. Notes alpha finalisées ; verrou legacy et tests existants conservés.
 

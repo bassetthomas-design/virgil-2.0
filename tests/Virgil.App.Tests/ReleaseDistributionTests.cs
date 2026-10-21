@@ -66,5 +66,6 @@ public sealed class ReleaseDistributionTests
         var composition = Read("src/Virgil.App/Hosting/ServiceCollectionExtensions.cs");
         Assert.Contains("AllowAutoRedirect = false, UseCookies = false", composition);
         Assert.Contains("Timeout = TimeSpan.FromSeconds(8)", composition);
+        Assert.Contains("ActivityHeadersPropagator = null", composition);
     }
 }

@@ -10,7 +10,7 @@ function Get-ReleaseVersion([string] $Tag) {
 function Get-ReleasePublication([string] $Tag) {
     $version = Get-ReleaseVersion $Tag
     $prerelease = $version.Contains('-')
-    if (!$prerelease) { throw 'Publication stable refusée : aucune note stable n’est disponible.' }
+    if (!$prerelease) { throw "Publication stable refusée : aucune note stable n'est disponible." }
     return [pscustomobject]@{
         Version = $version
         IsPrerelease = $prerelease

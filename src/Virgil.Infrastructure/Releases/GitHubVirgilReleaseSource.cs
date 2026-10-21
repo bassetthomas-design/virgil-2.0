@@ -30,7 +30,9 @@ public sealed class GitHubVirgilReleaseSource(HttpClient client) : IVirgilReleas
                 using var response = await client.SendAsync(request, deadline.Token).ConfigureAwait(false);
                 if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
                     return new ReleaseSourceResult.Unavailable(ReleaseFailure.ApiLimit);
-                if (!response.IsSuccessStatusCode) return new ReleaseSourceResult.Unavailable(ReleaseFailure.OfflineOrTimeout);
+                if (!response.IsSuccessStatusCode) return new ReleaseSourceResult.Unavailable(
+                    response.StatusCode == HttpStatusCode.RequestTimeout || (int)response.StatusCode >= 500
+                        ? ReleaseFailure.OfflineOrTimeout : ReleaseFailure.InvalidResponse);
                 var json = await response.Content.ReadAsStringAsync(deadline.Token).ConfigureAwait(false);
                 var parsed = ParsePage(json, out var count);
                 if (parsed is ReleaseSourceResult.Unavailable) return parsed;

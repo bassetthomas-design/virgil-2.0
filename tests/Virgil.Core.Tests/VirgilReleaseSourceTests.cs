@@ -44,7 +44,9 @@ public sealed class VirgilReleaseSourceTests
     [Theory]
     [InlineData(403, ReleaseFailure.ApiLimit)][InlineData(429, ReleaseFailure.ApiLimit)]
     [InlineData(500, ReleaseFailure.OfflineOrTimeout)][InlineData(503, ReleaseFailure.OfflineOrTimeout)]
-    [InlineData(404, ReleaseFailure.OfflineOrTimeout)]
+    [InlineData(404, ReleaseFailure.InvalidResponse)]
+    [InlineData(401, ReleaseFailure.InvalidResponse)]
+    [InlineData(408, ReleaseFailure.OfflineOrTimeout)]
     public async Task HttpFailuresAreExplicit(int status, ReleaseFailure expected)
     {
         using var client = new HttpClient(new Handler((_, _) => Task.FromResult(Response("", (HttpStatusCode)status))));

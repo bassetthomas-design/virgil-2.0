@@ -30,6 +30,9 @@ public static class ServiceCollectionExtensions
         System.Windows.Threading.Dispatcher dispatcher, ExceptionReporter? reporter = null)
     {
         services.AddLogging();
+        services.AddSingleton<VirgilReleaseChecker>(sp => new VirgilReleaseChecker(sp.GetRequiredService<IVirgilReleaseSource>(),
+            sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<Virgil.Core.Settings.ISettingsService>(), sp.GetRequiredService<TimeProvider>()));
+
         services.AddSingleton(paths);
         services.AddSingleton<Virgil.Core.Settings.ISettingsService>(settings);
         services.AddSingleton<IUserNotifier>(sp => new MessageBoxUserNotifier(
@@ -43,13 +46,11 @@ public static class ServiceCollectionExtensions
     {
         services.AddVirgilConfirmation();
         services.AddSingleton<System.Net.Http.HttpClient>(_ => new System.Net.Http.HttpClient(
-            new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            new System.Net.Http.SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, ActivityHeadersPropagator = null })
             { Timeout = TimeSpan.FromSeconds(8) });
         services.AddSingleton<IVirgilReleaseSource>(sp => new GitHubVirgilReleaseSource(sp.GetRequiredService<System.Net.Http.HttpClient>()));
         services.AddSingleton<IApplicationVersionSource>(_ => new AssemblyApplicationVersionSource(typeof(App).Assembly));
         services.AddSingleton<ApplicationVersionService>(sp => new ApplicationVersionService(sp.GetRequiredService<IApplicationVersionSource>()));
-        services.AddSingleton<VirgilReleaseChecker>(sp => new VirgilReleaseChecker(sp.GetRequiredService<IVirgilReleaseSource>(),
-            sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<Virgil.Core.Settings.ISettingsService>(), sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<IDiagnosticSource>(_ => new WindowsDiagnosticSource());
         services.AddSingleton<DiagnosticSampler>(sp => new DiagnosticSampler(sp.GetRequiredService<IDiagnosticSource>(), sp.GetRequiredService<TimeProvider>()));
         services.AddTransient<IDiagnosticSignalSource>(sp => new WindowsDiagnosticSignals(sp.GetRequiredService<ProcessProtectionPolicy>()));
