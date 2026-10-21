@@ -1,0 +1,68 @@
+name: Release Virgil
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore Virgil.sln
+
+      - name: Build
+        run: dotnet build Virgil.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Virgil.sln --configuration Release --no-build
+
+      - name: Test release version
+        shell: pwsh
+        run: ./installer/Test-ReleaseVersion.ps1
+
+      - name: Publish app
+        run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
+
+      - name: Release version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          . ./installer/Get-ReleaseVersion.ps1
+          $version = Get-ReleaseVersion $env:RELEASE_TAG
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build installer
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: ./installer/Build-Installer.ps1 -AppVersion $env:APP_VERSION
+
+      - name: SHA-256 and prerelease
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $setup = "artifacts/installer/Virgil-$env:APP_VERSION-win-x64-setup.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $setup -Leaf)" | Set-Content "$setup.sha256" -Encoding ascii
+          gh release create $env:RELEASE_TAG $setup "$setup.sha256" --verify-tag --prerelease --title "Virgil $env:APP_VERSION" --notes-file docs/RELEASE_NOTES_2.0.0-alpha.md
+          if ($LASTEXITCODE -ne 0) { throw 'Création de la release en échec.' }

@@ -141,3 +141,9 @@ Livré dans la PR #54 : signaux ponctuels en lecture seule, analyse pure, note p
 
 
 La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.
+
+### 2a — livré, validation Windows suivie dans la PR
+
+Installateur Inno Setup par machine avec helper dans Program Files, désinstallation conservatrice, production CI et artefact distinct, prerelease sur tags v* avec version et SHA-256, notes alpha non signée et verrou d'architecture des actions legacy. Les parcours non livrés restent bloqués en français ; aucune entrée de chat ou tray active. Base : 1 010 tests (Core 706 + App 304) ; résultat du lot à relever dans les logs Windows, sans validation locale revendiquée.
+
+Phase 2 reste ouverte : 2b, vérification des mises à jour de Virgil via GitHub Releases ; tests manuels sur Windows sans SDK (installation, compte standard, lancement, élévation du helper, redémarrage, mise à jour avec Virgil ouvert et désinstallation avec/sans suppression des données, quarantaine toujours conservée) ; création du tag v2.0.0-alpha et vérification de sa prerelease. Signature de code hors lot, exception alpha non signée documentée.

@@ -31,6 +31,10 @@ jobs:
       - name: Test
         run: dotnet test Virgil.sln --configuration Release --no-build
 
+      - name: Test release version
+        shell: pwsh
+        run: ./installer/Test-ReleaseVersion.ps1
+
       - name: Publish app
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2
 
@@ -39,3 +43,14 @@ jobs:
         with:
           name: Virgil-2.0-win-x64
           path: artifacts/Virgil2
+
+      - name: Build installer
+        shell: pwsh
+        run: ./installer/Build-Installer.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: Virgil-win-x64-setup
+          path: artifacts/installer/*-setup.exe
+          if-no-files-found: error
