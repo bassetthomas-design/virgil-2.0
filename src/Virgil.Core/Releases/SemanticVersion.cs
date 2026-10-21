@@ -41,8 +41,8 @@ public sealed class SemanticVersion : IComparable<SemanticVersion>
             return (_pre.Length == 0 ? 1 : 0).CompareTo(other._pre.Length == 0 ? 1 : 0);
         for (var i = 0; i < Math.Min(_pre.Length, other._pre.Length); i++)
         {
-            var aNumeric = BigInteger.TryParse(_pre[i], out var a);
-            var bNumeric = BigInteger.TryParse(other._pre[i], out var b);
+            var aNumeric = BigInteger.TryParse(_pre[i], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var a);
+            var bNumeric = BigInteger.TryParse(other._pre[i], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var b);
             var result = aNumeric && bNumeric ? a.CompareTo(b) : aNumeric ? -1 : bNumeric ? 1
                 : StringComparer.Ordinal.Compare(_pre[i], other._pre[i]);
             if (result != 0) return result;

@@ -34,6 +34,15 @@ public sealed class SemanticVersionTests
     [InlineData("v2.0.0+build", false)][InlineData("v02.0.0", false)]
     [InlineData("v2.0.0-alpha.01", false)][InlineData("v2.0.0\n", false)]
     public void DistributionTagsMatchPowerShellRules(string tag, bool valid) => Assert.Equal(valid, SemanticVersion.ParseTag(tag) is not null);
+    [Theory]
+    [InlineData("1.0.0-1", "1.0.0--1")]
+    [InlineData("1.0.0-0", "1.0.0--2")]
+    public void LeadingHyphenIsAlphanumericRatherThanNegativeNumericIdentifier(string numeric, string alpha)
+    {
+        Assert.True(SemanticVersion.Parse(numeric)!.CompareTo(SemanticVersion.Parse(alpha)) < 0);
+        Assert.True(SemanticVersion.Parse(alpha)!.CompareTo(SemanticVersion.Parse(numeric)) > 0);
+    }
+
     [Fact]
     public void NumbersHaveNoMachineIntegerLimitAndIdentifiersAreOrdinal()
     {
