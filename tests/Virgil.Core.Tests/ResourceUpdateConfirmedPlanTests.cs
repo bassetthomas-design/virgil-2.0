@@ -264,7 +264,7 @@ public sealed class ResourceUpdateConfirmedPlanTests
         public void Kill(int processId) => Effects++;
         public Task<bool> WaitForExitAsync(int processId, TimeSpan timeout, CancellationToken cancellationToken) => Task.FromResult(true);
         public bool FileExists(string path) => true;
-        public bool OpenLocation(string path) { Effects++; return true; }
+        public Task<bool> OpenLocationAsync(string path, CancellationToken cancellationToken) { Effects++; return Task.FromResult(true); }
     }
     private sealed class Restarter : IExplorerRestarter
     {

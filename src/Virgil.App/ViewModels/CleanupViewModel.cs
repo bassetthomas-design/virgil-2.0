@@ -1,4 +1,5 @@
 using Virgil.Core.Actions;
+using Virgil.Core.Operations;
 using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
@@ -20,6 +21,11 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
+    public LongOperationViewModel Operation { get; }
+    public ObservableCollection<CleanupCategoryItem> Categories { get; } = new();
+    public string Summary => $"{FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleBytes))} récupérables · {Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleFileCount)} fichiers";
+    public string SafetySummary => $"Sans risque : {FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect && r.CanGroupSelect && r.Preview.Definition.Group == CleanupGroup.Sur).Sum(r => r.Preview.EligibleBytes))} · À vérifier : {FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect && (!r.CanGroupSelect || r.Preview.Definition.Group != CleanupGroup.Sur)).Sum(r => r.Preview.EligibleBytes))}";
+
     public ObservableCollection<CleanupGroupItem> Groups { get; } = new();
     [ObservableProperty] private string criticalConfirmationText = string.Empty;
     [ObservableProperty] private string expectedCriticalConfirmation = string.Empty;
@@ -37,6 +43,7 @@ public partial class CleanupViewModel : ObservableObject
     private TaskCompletionSource<CleanupZoneDecision>? _activeDecision;
     private CleanupSessionReport? _lastReport;
     private bool _operationInProgress;
+    private int _operationGeneration;
 
     private readonly IProcessRunner _processRunner;
 
@@ -46,6 +53,7 @@ public partial class CleanupViewModel : ObservableObject
         IReportHistoryService reportHistoryService,
         IConfirmationService confirmationService, QuarantineService? quarantine = null)
     {
+        Operation = new LongOperationViewModel(CancelActiveOperation);
         _confirmationService = confirmationService;
         _quarantine = quarantine;
         _module = module ?? throw new ArgumentNullException(nameof(module));
@@ -176,7 +184,7 @@ public partial class CleanupViewModel : ObservableObject
             using var registration = _operationCancellation.Token.Register(() => CompleteDecision(CleanupZoneDecision.CancelAll));
             if (await decision.Task != CleanupZoneDecision.Execute) return;
             var plan = _confirmationService.Issue(preview, new ConfirmationConsent(ConfirmationLevel.Reinforced, null));
-            var result = await action.ExecuteAsync(plan, _operationCancellation.Token);
+            var result = await Task.Run(() => action.ExecuteAsync(plan, _operationCancellation.Token), _operationCancellation.Token);
             StatusText = result.WasRefused ? result.RefusalReason! : result.Succeeded ? "Quarantaine : opération terminée et vérifiée." : string.Join("\n", result.Errors);
         }
         catch (OperationCanceledException) { StatusText = "Opération annulée."; }
@@ -232,14 +240,21 @@ public partial class CleanupViewModel : ObservableObject
             RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
             VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
 
-            var findings = (CleanupFindings)await _module
-                .ScanAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
-                .ConfigureAwait(true);
+            var progress = CreateProgress();
+            var token = _operationCancellation!.Token;
+            var findings = (CleanupFindings)await Task.Run(() => _module.ScanAsync(progress, token), token);
+            var groups = await Task.Run(() => Enum.GetValues<CleanupGroup>()
+                .Select(group => new CleanupGroupItem(group, findings.Analysis.Zones.Where(p => p.Definition.Group == group))).ToArray(), token);
             _lastStorageAnalysis = findings.Analysis.Storage;
             _lastPreview.AddRange(findings.Analysis.Zones);
             Groups.Clear();
-            foreach (var group in Enum.GetValues<CleanupGroup>())
-                Groups.Add(new CleanupGroupItem(group, _lastPreview.Where(p => p.Definition.Group == group)));
+            foreach (var group in groups) Groups.Add(group);
+            var categories = await Task.Run(() => groups.SelectMany(g => g.Rows).GroupBy(r => CategoryLabel(r.Preview.Definition.Id))
+                .Select(g => new CleanupCategoryItem(g.Key, g)).OrderByDescending(c => c.Bytes).ToArray(), token);
+            Categories.Clear();
+            foreach (var category in categories) Categories.Add(category);
+            OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(SafetySummary));
             RenderPreviews();
             UpdateCommandState();
             StatusText = "Previsualisation disponible. Validation par zone requise.";
@@ -278,7 +293,7 @@ public partial class CleanupViewModel : ObservableObject
         var sessionErrors = new List<string>();
         try
         {
-            var action = _module.Select(selected, new Progress<CleanupProgress>(HandleProgress));
+            var action = _module.Select(selected, CreateProgress());
             var preview = await action.PreviewAsync(_operationCancellation!.Token);
             ValidationTitle = preview.Title;
             ValidationReason = "Sélection complète — " + string.Join(", ", selected.Select(p => p.Definition.DisplayName).Distinct());
@@ -308,7 +323,7 @@ public partial class CleanupViewModel : ObservableObject
                 {
                     var level = RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel);
                     var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, RequiresCriticalConfirmation ? CriticalConfirmationText : null));
-                    var outcome = (CleanupSelectionActionResult)await action.ExecuteAsync(plan, _operationCancellation.Token);
+                    var outcome = (CleanupSelectionActionResult)await Task.Run(() => action.ExecuteAsync(plan, _operationCancellation.Token), _operationCancellation.Token);
                     results.AddRange(outcome.Selection.Steps);
                     if (outcome.WasRefused) sessionErrors.Add(outcome.RefusalReason!);
                 }
@@ -369,19 +384,23 @@ public partial class CleanupViewModel : ObservableObject
         }
 
         _operationInProgress = true;
+        _operationGeneration++;
         _operationCancellation = new CancellationTokenSource();
         StatusText = status;
         SetButtonsEnabled(false);
         IsBusy = true;
+        Operation.Start(status);
         return true;
     }
 
     private void EndOperation()
     {
         _operationInProgress = false;
+        _operationGeneration++;
         _operationCancellation?.Dispose();
         _operationCancellation = null;
         IsBusy = false;
+        Operation.Complete(StatusText);
         SetButtonsEnabled(true);
         UpdateCommandState();
     }
@@ -393,7 +412,7 @@ public partial class CleanupViewModel : ObservableObject
         IsAdvancedCleanupEnabled = enabled && HasSelection();
         IsReviewManualEnabled = enabled && (_lastStorageAnalysis?.Items.Count ?? 0) > 0;
         IsReportButtonEnabled = enabled && _lastReport is not null;
-        IsReturnHomeEnabled = enabled;
+        IsReturnHomeEnabled = true;
     }
 
     private void UpdateCommandState()
@@ -404,23 +423,27 @@ public partial class CleanupViewModel : ObservableObject
         IsReportButtonEnabled = !_operationInProgress && _lastReport is not null;
     }
 
-    private void HandleProgress(CleanupProgress progress)
+    private IProgress<CleanupProgress> CreateProgress()
     {
-        if (progress.TotalFiles > 0)
+        var generation = _operationGeneration;
+        var operation = new ThrottledOperationProgress(new Progress<OperationProgress>(progress =>
         {
-            StatusText = string.Join(" - ", new[]
-            {
-                $"{progress.Message} : {progress.ProcessedFiles}/{progress.TotalFiles} fichiers",
-                $"{progress.DeletedFiles} mis en quarantaine",
-                $"{FormatBytes(progress.DeletedBytes)} en quarantaine",
-                $"{progress.SkippedFiles + progress.ErrorFiles} ignores"
-            });
-            return;
-        }
+            if (!_operationInProgress || generation != _operationGeneration) return;
+            Operation.Report(progress);
+            StatusText = progress.Message ?? progress.Step;
+        }));
+        return new CleanupProgressAdapter(operation);
+    }
 
-        StatusText = progress.Percent.HasValue
-            ? $"{progress.Step} - {progress.Percent.Value}%"
-            : progress.Step;
+    private sealed class CleanupProgressAdapter(IOperationProgress target) : IProgress<CleanupProgress>
+    {
+        public void Report(CleanupProgress progress)
+        {
+            var message = progress.TotalFiles > 0
+                ? $"{progress.Message} : {progress.ProcessedFiles}/{progress.TotalFiles} fichiers — {progress.DeletedFiles} mis en quarantaine, {FormatBytes(progress.DeletedBytes)} en quarantaine, {progress.SkippedFiles + progress.ErrorFiles} ignorés"
+                : progress.Percent.HasValue ? $"{progress.Step} — {progress.Percent.Value}%" : progress.Step;
+            target.Report(new OperationProgress(progress.Step, progress.ProcessedFiles, progress.TotalFiles, progress.Percent, message));
+        }
     }
 
     private async Task<CleanupZoneDecision> AskZoneDecisionAsync(
@@ -716,6 +739,18 @@ public partial class CleanupViewModel : ObservableObject
             _ => "Zone autorisee"
         };
     }
+
+    private static string CategoryLabel(CleanupZoneId id) => id switch
+    {
+        CleanupZoneId.BrowserEdgeCache or CleanupZoneId.BrowserChromeCache or CleanupZoneId.BrowserFirefoxCache or CleanupZoneId.BrowserBraveCache or CleanupZoneId.BrowserOperaCache or CleanupZoneId.InternetCache => "Caches navigateurs",
+        CleanupZoneId.DirectXShaderCache or CleanupZoneId.BattleNetCache => "Caches jeux / launchers",
+        CleanupZoneId.SoftwareLeftovers => "Restes de logiciels désinstallés",
+        CleanupZoneId.WindowsUpdateCache or CleanupZoneId.DeliveryOptimizationCache => "Windows Update (cache de téléchargement)",
+        CleanupZoneId.RecycleBin => "Corbeille",
+        CleanupZoneId.OldDownloads => "Téléchargements anciens ou volumineux",
+        CleanupZoneId.WindowsOld => "Ancienne installation Windows (info)",
+        _ => "Fichiers temporaires"
+    };
 
     private bool HasSelection() => Groups.SelectMany(g => g.Rows).Any(r => r.CanSelect);
 

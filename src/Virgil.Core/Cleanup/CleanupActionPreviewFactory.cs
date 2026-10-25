@@ -21,6 +21,7 @@ public static class CleanupActionPreviewFactory
             ["SoftwareName"] = definition.SoftwareName ?? "",
             ["RemnantRoot"] = definition.ValidatedRemnantRoot ?? "",
             ["AllowedRoot"] = definition.RemnantAllowedRoot ?? "",
+            ["RemnantZones"] = System.Text.Json.JsonSerializer.Serialize(definition.RemnantZones),
             ["RegistryReadOnly"] = string.Join("\n", definition.RegistryKeys),
             ["GeneratedAt"] = preview.GeneratedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)
         };

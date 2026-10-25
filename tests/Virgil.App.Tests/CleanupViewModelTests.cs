@@ -537,7 +537,7 @@ public sealed class CleanupViewModelTests
         Assert.False(vm.IsAdvancedCleanupEnabled);
         Assert.False(vm.IsReviewManualEnabled);
         Assert.False(vm.IsReportButtonEnabled);
-        Assert.False(vm.IsReturnHomeEnabled);
+        Assert.True(vm.IsReturnHomeEnabled);
     }
 
     private static void Decide(CleanupViewModel vm, string decision)

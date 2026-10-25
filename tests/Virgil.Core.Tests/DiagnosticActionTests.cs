@@ -149,7 +149,7 @@ public sealed class DiagnosticActionTests
         public void Kill(int id) { KillCount++; if (FailKill) throw new InvalidOperationException(); }
         public Task<bool> WaitForExitAsync(int id, TimeSpan timeout, CancellationToken token) => Task.FromResult(true);
         public bool FileExists(string path) => throw new InvalidOperationException();
-        public bool OpenLocation(string path) => throw new InvalidOperationException();
+        public Task<bool> OpenLocationAsync(string path, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
     private sealed class Restarter : IExplorerRestarter
     {

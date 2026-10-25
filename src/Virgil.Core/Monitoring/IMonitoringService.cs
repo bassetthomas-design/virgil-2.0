@@ -4,5 +4,5 @@ namespace Virgil.Core.Monitoring;
 
 public interface IMonitoringService
 {
-    SystemHealthSnapshot CaptureSnapshot();
+    Task<SystemHealthSnapshot> CaptureSnapshotAsync(CancellationToken cancellationToken);
 }

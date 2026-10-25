@@ -9,7 +9,10 @@ namespace Virgil.Core.Monitoring;
 
 public sealed class MonitoringService : IMonitoringService
 {
-    public SystemHealthSnapshot CaptureSnapshot()
+    public Task<SystemHealthSnapshot> CaptureSnapshotAsync(CancellationToken cancellationToken) =>
+        Task.Run(() => CaptureCoreAsync(cancellationToken), cancellationToken);
+
+    private async Task<SystemHealthSnapshot> CaptureCoreAsync(CancellationToken cancellationToken)
     {
         var memory = ReadMemory();
         var drives = ReadFixedDrives();
@@ -18,19 +21,20 @@ public sealed class MonitoringService : IMonitoringService
 
         return new SystemHealthSnapshot(
             DateTimeOffset.Now,
-            ReadCpuUsagePercent(),
+            await ReadCpuUsagePercentAsync(cancellationToken).ConfigureAwait(false),
             memory,
             drives,
             overallStatus,
             recommendations);
     }
 
-    private static double ReadCpuUsagePercent()
+    private static async Task<double> ReadCpuUsagePercentAsync(CancellationToken cancellationToken)
     {
         try
         {
-            return ProcessorReader.MeasureUsageBlocking();
+            return await ProcessorReader.MeasureUsageAsync(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             return 0;

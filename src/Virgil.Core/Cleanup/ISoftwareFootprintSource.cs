@@ -1,11 +1,15 @@
 namespace Virgil.Core.Cleanup;
 
 public sealed record InstalledSoftwareFootprint(string Name, IReadOnlyList<string> ReferencedPaths);
+public sealed record InstalledEvidence(string Name, IReadOnlyList<string> Paths, string Source, IReadOnlyList<string>? RegistryKeys = null);
 public sealed record FootprintFile(string Path, long SizeBytes, DateTimeOffset LastWriteUtc);
 public sealed record SoftwareFootprintCandidate(string Name, string Path, string AllowedRoot,
     IReadOnlyList<FootprintFile> Files, IReadOnlyList<string> RegistryKeys, DateTimeOffset? LastUsedUtc, bool IsUncertain = false);
 public sealed record SoftwareFootprintSnapshot(IReadOnlyList<InstalledSoftwareFootprint> Installed,
-    IReadOnlyList<string> ActivePaths, IReadOnlyList<SoftwareFootprintCandidate> Candidates, bool IsComplete = true);
+    IReadOnlyList<string> ActivePaths, IReadOnlyList<SoftwareFootprintCandidate> Candidates, bool IsComplete = true)
+{
+    public IReadOnlyList<InstalledEvidence> Evidence { get; init; } = [];
+}
 
 /// <summary>Lecture seule : aucune primitive d'écriture du registre.</summary>
 public interface ISoftwareFootprintSource

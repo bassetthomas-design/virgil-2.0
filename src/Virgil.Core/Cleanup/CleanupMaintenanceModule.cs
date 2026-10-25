@@ -99,17 +99,20 @@ public sealed class CleanupFindings : Findings
 
 internal static class CleanupMaintenanceSnapshot
 {
+    private static CleanupZoneDefinition CopyDefinition(CleanupZoneDefinition definition) => definition with
+    {
+        RemnantZones = Array.AsReadOnly(definition.RemnantZones.Select(CopyDefinition).ToArray()),
+        RegistryKeys = Array.AsReadOnly(definition.RegistryKeys.ToArray()),
+        AllowedExtensions = Array.AsReadOnly(definition.AllowedExtensions.ToArray()),
+        RequiredPathFragments = Array.AsReadOnly(definition.RequiredPathFragments.ToArray()),
+        ExcludedPathFragments = Array.AsReadOnly(definition.ExcludedPathFragments.ToArray())
+    };
+
     internal static CleanupZonePreview Copy(CleanupZonePreview preview)
     {
         return preview with
         {
-            Definition = preview.Definition with
-            {
-                RegistryKeys = preview.Definition.RegistryKeys.Count == 0 ? preview.Definition.RegistryKeys : Array.AsReadOnly(preview.Definition.RegistryKeys.ToArray()),
-                AllowedExtensions = Array.AsReadOnly(preview.Definition.AllowedExtensions.ToArray()),
-                RequiredPathFragments = Array.AsReadOnly(preview.Definition.RequiredPathFragments.ToArray()),
-                ExcludedPathFragments = Array.AsReadOnly(preview.Definition.ExcludedPathFragments.ToArray())
-            },
+            Definition = CopyDefinition(preview.Definition),
             Candidates = Array.AsReadOnly(preview.Candidates.ToArray()),
             Errors = Array.AsReadOnly(preview.Errors.ToArray())
         };
