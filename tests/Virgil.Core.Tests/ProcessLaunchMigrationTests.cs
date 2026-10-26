@@ -13,13 +13,13 @@ public sealed class ProcessLaunchMigrationTests
     [InlineData(true, null, true)]
     [InlineData(false, null, true)]
     [InlineData(false, "Erreur de lancement", false)]
-    public void OpenLocation_ForwardsRequestAndMapsOnlyLaunchError(bool started, string? error, bool expected)
+    public async Task OpenLocation_ForwardsRequestAndMapsOnlyLaunchError(bool started, string? error, bool expected)
     {
         var path = Path.GetTempFileName();
         try
         {
             var runner = new FakeProcessRunner { Result = new(started, null, error) };
-            Assert.Equal(expected, new ProcessRuntime(runner).OpenLocation(path));
+            Assert.Equal(expected, await new ProcessRuntime(runner).OpenLocationAsync(path, CancellationToken.None));
             var request = Assert.Single(runner.Requests);
             Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), request.FileName);
             Assert.Equal(new[] { "/select,", path }, request.Arguments);
@@ -35,28 +35,57 @@ public sealed class ProcessLaunchMigrationTests
     }
 
     [Fact]
-    public void OpenLocation_MissingFileDoesNotLaunch()
+    public async Task OpenLocation_MissingFileDoesNotLaunch()
     {
         var runner = new FakeProcessRunner();
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Assert.False(new ProcessRuntime(runner).OpenLocation(path));
+        Assert.False(await new ProcessRuntime(runner).OpenLocationAsync(path, CancellationToken.None));
         Assert.Empty(runner.Requests);
     }
 
     [Fact]
-    public void OpenLocation_RunnerExceptionReturnsFalse()
+    public async Task OpenLocation_RunnerExceptionReturnsFalse()
     {
         var path = Path.GetTempFileName();
         try
         {
             var runner = new FakeProcessRunner { Exception = new InvalidOperationException("test") };
-            Assert.False(new ProcessRuntime(runner).OpenLocation(path));
+            Assert.False(await new ProcessRuntime(runner).OpenLocationAsync(path, CancellationToken.None));
             Assert.Single(runner.Requests);
         }
         finally
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public async Task OpenLocation_CancellationDoesNotLaunch()
+    {
+        var runner = new FakeProcessRunner();
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new ProcessRuntime(runner).OpenLocationAsync("unused", source.Token));
+        Assert.Empty(runner.Requests);
+    }
+
+    [Fact]
+    public async Task OpenLocation_ForwardsCancellationAndAwaitsAsynchronousRunner()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            using var source = new CancellationTokenSource();
+            var completion = new TaskCompletionSource<ProcessLaunchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runner = new FakeProcessRunner { Pending = completion.Task };
+            var operation = new ProcessRuntime(runner).OpenLocationAsync(path, source.Token);
+            Assert.False(operation.IsCompleted);
+            Assert.Equal(source.Token, Assert.Single(runner.Tokens));
+            completion.SetResult(new(true, null));
+            Assert.True(await operation);
+        }
+        finally { File.Delete(path); }
     }
 
     [Theory]
@@ -116,6 +145,7 @@ public sealed class ProcessLaunchMigrationTests
         public List<CancellationToken> Tokens { get; } = new();
         public ProcessLaunchResult Result { get; init; } = new(true, null);
         public Exception? Exception { get; init; }
+        public Task<ProcessLaunchResult>? Pending { get; init; }
 
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -124,7 +154,7 @@ public sealed class ProcessLaunchMigrationTests
         {
             Requests.Add(request);
             Tokens.Add(cancellationToken);
-            return Exception is null ? Task.FromResult(Result) : Task.FromException<ProcessLaunchResult>(Exception);
+            return Pending ?? (Exception is null ? Task.FromResult(Result) : Task.FromException<ProcessLaunchResult>(Exception));
         }
     }
 }

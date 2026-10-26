@@ -32,10 +32,11 @@ public sealed class SystemScanService : ISystemScanService
         _applicationInventoryService = applicationInventoryService;
     }
 
-    public async Task<SystemScanReport> RunAsync(
-        ScanMode mode,
-        IProgress<ScanProgress>? progress,
-        CancellationToken cancellationToken)
+    public Task<SystemScanReport> RunAsync(ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken) =>
+        Task.Run(() => RunCoreAsync(mode, progress, cancellationToken), cancellationToken);
+
+    private async Task<SystemScanReport> RunCoreAsync(
+        ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken)
     {
         var scanDate = DateTimeOffset.Now;
         var stopwatch = Stopwatch.StartNew();
@@ -54,7 +55,7 @@ public sealed class SystemScanService : ISystemScanService
             ? ReadProcesses(progress, errors, findings)
             : Array.Empty<ProcessScanInfo>();
         var cleanup = mode == ScanMode.Deep
-            ? ReadCleanup(progress, errors, findings)
+            ? await ReadCleanupAsync(progress, errors, findings, cancellationToken).ConfigureAwait(false)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
         var resources = await ReadResourcesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
@@ -498,10 +499,11 @@ public sealed class SystemScanService : ISystemScanService
         return result.Value;
     }
 
-    private CleanupScanInfo ReadCleanup(
+    private async Task<CleanupScanInfo> ReadCleanupAsync(
         IProgress<ScanProgress>? progress,
         ICollection<string> errors,
-        ICollection<ScanFinding> findings)
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
     {
         Report(progress, "Nettoyage potentiel", "Estimation lecture seule des fichiers temporaires.", "Nettoyage", 84);
 
@@ -509,8 +511,8 @@ public sealed class SystemScanService : ISystemScanService
         {
             if (_cleanupService is ICleanupPreviewService detailedPreview)
             {
-                var previews = detailedPreview.PreviewAsync(null, CancellationToken.None).GetAwaiter().GetResult();
-                var storage = new CleanupStorageAnalyzer().AnalyzeAsync(CancellationToken.None).GetAwaiter().GetResult();
+                var previews = await detailedPreview.PreviewAsync(null, cancellationToken).ConfigureAwait(false);
+                var storage = await new CleanupStorageAnalyzer().AnalyzeAsync(cancellationToken).ConfigureAwait(false);
                 var safe = previews.Where(item => item.Definition.Classification == CleanupClassification.Cleanable).Sum(item => item.EligibleBytes);
                 var advanced = previews.Where(item => item.Definition.Classification == CleanupClassification.AdvancedCleanable).Sum(item => item.EligibleBytes);
                 var detailedZones = previews.Select(item => item.Definition.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -567,6 +569,7 @@ public sealed class SystemScanService : ISystemScanService
 
             return cleanup;
         }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             var cleanupErrors = new[] { "Analyse nettoyage indisponible." };
