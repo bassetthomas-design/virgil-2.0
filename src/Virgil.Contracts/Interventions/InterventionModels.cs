@@ -20,6 +20,9 @@ public enum InterventionId
     RestartAudio,
     ResetPrintQueue,
     VerifyHealthDeep,
+    InstallWindowsUpdates,
+    InstallDriverUpdate,
+    UpdateDefenderSignatures,
     CreateStartupRestorePoint,
     SetStartupApproval
 }
@@ -206,6 +209,10 @@ public sealed record ElevatedInterventionRequest
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public string ResultPath { get; init; } = string.Empty;
+
+    public string UpdateIdentity { get; init; } = string.Empty;
+
+    public string RestoreSessionId { get; init; } = string.Empty;
 }
 
 public sealed record ElevatedInterventionResult

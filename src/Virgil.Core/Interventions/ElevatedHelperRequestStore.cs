@@ -34,11 +34,16 @@ public sealed class ElevatedHelperRequestStore
 
     public string RootDirectory => _pathGuard.GetProtocolRoot(_localAppDataProvider());
 
-    public Task<ElevatedInterventionRequestFile> CreateAsync(InterventionId actionId, CancellationToken cancellationToken)
-        => CreateAsync(actionId, null, cancellationToken);
+    public Task<ElevatedInterventionRequestFile> CreateAsync(InterventionId actionId,
+        CancellationToken cancellationToken, string updateIdentity = "", string restoreSessionId = "")
+        => CreateCoreAsync(actionId, null, cancellationToken, updateIdentity, restoreSessionId);
 
-    public async Task<ElevatedInterventionRequestFile> CreateAsync(
-        InterventionId actionId, StartupApprovalWrite? payload, CancellationToken cancellationToken)
+    public Task<ElevatedInterventionRequestFile> CreateAsync(InterventionId actionId,
+        StartupApprovalWrite? payload, CancellationToken cancellationToken)
+        => CreateCoreAsync(actionId, payload, cancellationToken, "", "");
+
+    private async Task<ElevatedInterventionRequestFile> CreateCoreAsync(InterventionId actionId,
+        StartupApprovalWrite? payload, CancellationToken cancellationToken, string updateIdentity, string restoreSessionId)
     {
         if ((actionId == InterventionId.SetStartupApproval) != (payload is not null) || (payload is not null && !payload.IsValid()))
             throw new ArgumentException("Demande de démarrage invalide.");
@@ -61,6 +66,8 @@ public sealed class ElevatedHelperRequestStore
             ActionId = actionId,
             Nonce = nonce,
             CreatedAt = createdAt,
+            UpdateIdentity = updateIdentity,
+            RestoreSessionId = restoreSessionId,
             ResultPath = resultPath
         };
 

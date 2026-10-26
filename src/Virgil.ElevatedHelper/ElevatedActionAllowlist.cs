@@ -22,6 +22,8 @@ public sealed class ElevatedActionAllowlist
         if(-not ($found.Description -contains $description)){exit 2}
         Write-Output 'VIRGIL_RESTORE_POINT_VERIFIED'
         """;
+    public bool IsMaintenanceAllowed(InterventionId id, string identity) =>
+        UpdateMaintenanceRunner.Handles(id) && UpdateMaintenanceRunner.ValidIdentity(id, identity);
 
     public bool TryGet(InterventionId actionId, string systemDrive, out ElevatedActionSpec spec)
     {

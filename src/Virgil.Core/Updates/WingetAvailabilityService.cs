@@ -92,7 +92,9 @@ public sealed class WingetAvailabilityService
         {
             SupportsAcceptSourceAgreements = parsed.Major >= 1,
             SupportsAcceptPackageAgreements = supportsModernOptions,
-            SupportsDisableInteractivity = supportsModernOptions
+            SupportsDisableInteractivity = supportsModernOptions,
+            SupportsIncludeUnknown = parsed.Major >= 1,
+            SupportsIncludePinned = parsed.Major > 1 || parsed.Major == 1 && parsed.Minor >= 5
         };
     }
 

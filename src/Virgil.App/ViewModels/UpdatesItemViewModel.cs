@@ -18,7 +18,7 @@ public partial class UpdateItemViewModel : ObservableObject
         var lines = new List<string>
         {
             $"ID : {item.Id}",
-            $"Version installee : {item.InstalledVersion}",
+            $"Version installée : {item.InstalledVersion}",
             $"Version disponible : {item.AvailableVersion}",
             $"Source : {UpdatesViewModel.SourceLabel(item.Source)}",
             $"Risque : {UpdatesViewModel.RiskLabel(item.RiskLevel)} - {item.RiskReason}",

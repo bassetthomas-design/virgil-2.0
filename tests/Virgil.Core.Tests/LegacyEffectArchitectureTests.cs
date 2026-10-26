@@ -67,6 +67,8 @@ public sealed class LegacyEffectArchitectureTests
     [InlineData("IInterventionElevatedHelperClient", "ElevatedHelperClient.cs|IInterventionElevatedHelperClient.cs|InterventionExecutionService.cs")]
     [InlineData("IExplorerRestarter", "ExplorerRestarter.cs|IExplorerRestarter.cs|InterventionExecutionService.cs|ProcessActionService.cs")]
     [InlineData("IApplicationProcessLauncher", "ApplicationContracts.cs|ApplicationUninstallService.cs")]
+    [InlineData("IUpdateSequenceBackend", "UpdateSequenceService.cs")]
+    [InlineData("IWingetClientModuleInstaller", "IWingetClientModuleInstaller.cs|WingetClientModuleService.cs")]
     public void OnlyReviewedCoreConsumersMayAccessEffectAdapters(string port, string expected)
     {
         var consumers = Sources("Virgil.Core").Where(p => Regex.IsMatch(File.ReadAllText(p), @"\b" + port + @"\b"))
@@ -89,6 +91,26 @@ public sealed class LegacyEffectArchitectureTests
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(new[] { "ApplicationsViewModel.cs", "CleanupEntryItems.cs", "CleanupViewModel.cs",
             "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);
+    }
+
+    [Fact]
+    public void UpdateSequenceConsumesOneSelectionPlanBeforeCallingItsEffectAdapter()
+    {
+        var source = Read("Virgil.Core/Updates/UpdateSequenceService.cs");
+        var gate = source.IndexOf("gate.TryConsume(", StringComparison.Ordinal);
+        var effect = source.IndexOf("backend.ExecuteAsync(", StringComparison.Ordinal);
+        Assert.True(gate >= 0 && effect > gate);
+        Assert.Contains("if (!validation.IsAccepted) return", source[gate..effect]);
+        Assert.Single(Regex.Matches(source, @"gate\.TryConsume\("));
+        Assert.Contains("CreatePreview(snapshot)", source);
+
+        var module = Read("Virgil.Core/Updates/WingetClientModuleService.cs");
+        var moduleGate = module.IndexOf("gate.TryConsume(", StringComparison.Ordinal);
+        var moduleEffect = module.IndexOf("installer.InstallAsync(", StringComparison.Ordinal);
+        Assert.True(moduleGate >= 0 && moduleEffect > moduleGate);
+        Assert.Contains("IsAccepted) return false", module[moduleGate..moduleEffect]);
+        Assert.DoesNotContain("IProcessRunner", module);
+        Assert.DoesNotContain("powershell.exe", module);
     }
 
     [Fact]
