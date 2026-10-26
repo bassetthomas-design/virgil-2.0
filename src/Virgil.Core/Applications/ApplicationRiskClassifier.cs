@@ -29,7 +29,7 @@ public sealed class ApplicationRiskClassifier
     {
         var text = $"{application.DisplayName} {application.Publisher} {application.WingetId}".ToLowerInvariant();
 
-        if (application.Source == ApplicationInventorySource.Store && ContainsAny(text, "microsoft", "windows", "framework"))
+        if (application.IsSystemComponent || application.RiskLevel == ApplicationRiskLevel.Protected)
         {
             return WithRisk(application, ApplicationRiskLevel.Protected, "Package Store ou composant Windows protege en V1.", false);
         }
@@ -41,7 +41,9 @@ public sealed class ApplicationRiskClassifier
 
         if (application.Source == ApplicationInventorySource.Store)
         {
-            return WithRisk(application, ApplicationRiskLevel.Unknown, "Application Store en lecture seule en V1. Ouvrir les parametres Windows.", false);
+            return application.UninstallKind == ApplicationUninstallKind.StorePackage && !string.IsNullOrWhiteSpace(application.StorePackageFullName)
+                ? WithRisk(application, ApplicationRiskLevel.Caution, "Application Store du compte actuel ; l’assistant peut retirer ses données locales.", true)
+                : WithRisk(application, ApplicationRiskLevel.Unknown, "Identité Store insuffisante ; ouverture des paramètres Windows uniquement.", false);
         }
 
         if (application.UninstallKind == ApplicationUninstallKind.None || string.IsNullOrWhiteSpace(application.UninstallCommand) && string.IsNullOrWhiteSpace(application.WingetId))

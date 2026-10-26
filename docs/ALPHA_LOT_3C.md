@@ -1,0 +1,15 @@
+# Lot 3c — Réparation et Applications
+
+Base : v2.0.0-alpha, f69b3bb. Ce lot n’altère ni les règles de quarantaine ni les dossiers personnels, ni la cible de publication du helper, ni les workflows.
+
+Réparation propose une vérification élevée confirmée séparément : SFC verifyonly, DISM CheckHealth en anglais pour interpréter le résultat, CHKDSK scan, services, redémarrage en attente, passerelle/DNS, audio avec sortie par défaut et tâches d’impression. Un contrôle non interprétable reste « indisponible » et ne permet pas d’annoncer que tout est sain. Les services Store et Windows Update à démarrage à la demande ne sont pas signalés en panne parce qu’ils sont arrêtés.
+
+Le mode Scanner et réparer vérifie d’abord, puis propose seulement les réparations associées aux constats. Chaque réparation conserve sa validation explicite et son plan à usage unique ; le point de restauration est créé et vérifié avant tout changement système. Son échec bloque la réparation. La dérogation « aucun point de restauration » exige un nouvel aperçu Critical, un nouveau plan et la recopie exacte du texte demandé. Après réparation, une nouvelle vérification confirmée est proposée ; les rapports restent dans l’historique.
+
+Le helper utilise un instantané de progression atomique et un fichier d’annulation, dérivés du nonce dans la racine protégée existante. Le client contrôle les chemins et le nonce. L’annulation est observée entre les commandes et par le processus enfant ; les délais sont SFC 45 min, DISM 60 min, autres 5 min. L’affichage conserve Annuler et Retour accueil. Sorties SFC UTF-16, autres outils en page OEM. Aucun chemin ni argument de commande libre n’est accepté.
+
+Applications lit les manifestes Store avec les API Windows de résolution des ressources depuis PowerShell, sans changement de TFM. Packages ressources, système et non amovibles exclus ; frameworks et composants Win32 protégés regroupés. Icônes chargées hors du thread UI, quatre lectures simultanées et cache borné ; glyphe de secours si inaccessible. Jeux classés sur preuves de chemin d’installation ou de commande, pas sur le seul titre.
+
+Sélection multiple : l’aperçu global lie toutes les identités et tous les aperçus individuels dans leur ordre, avec risque maximal. Un seul plan est consommé avant tout lancement du lot ; commandes validées et protégés refusés avant consommation. Assistants officiels séquentiels, option de passer le prochain élément et annulation du parcours. Un assistant externe peut rester ouvert après annulation ; aucun suivant n’est lancé quand l’état final est inconnu. Les restes sont seulement examinés et jamais effacés automatiquement. Les confirmations sont intégrées à la page, sans MessageBox.
+
+Validation : la CI Windows build.yml reste la référence. Tests de délais, lecture seule, correspondance constats/réparations, refus sans point de restauration, dérogation Critical liée au hash, métadonnées Store et injection, sélection globale manquante/modifiée/réutilisée/protégée, passage d’un élément. Les tests existants sont conservés et adaptés aux confirmations intégrées et à l’annulation.

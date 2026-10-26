@@ -11,6 +11,11 @@ public interface IElevatedProtocolFiles
     Task<ElevatedInterventionResult?> ReadResultAsync(string path,
         JsonSerializerOptions options, CancellationToken cancellationToken);
 
+    Task<InterventionProgress?> ReadProgressAsync(string path, CancellationToken cancellationToken)
+        => Task.FromResult<InterventionProgress?>(null);
+
+    void RequestCancel(string path) { }
+
     bool Exists(string path);
 
     void Delete(string path);

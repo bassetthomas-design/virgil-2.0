@@ -23,7 +23,12 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
         InterventionDiagnostic diagnostic,
         ConfirmedPlan? plan,
         CancellationToken cancellationToken)
+        => await ExecuteAsync(diagnostic, plan, null, cancellationToken).ConfigureAwait(false);
+
+    public async Task<InterventionExecutionResult> ExecuteAsync(InterventionDiagnostic diagnostic,
+        ConfirmedPlan? plan, IProgress<InterventionProgress>? progress, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!diagnostic.IsAvailable)
         {
             return Failure(diagnostic, "Action indisponible selon le diagnostic.");
@@ -42,8 +47,17 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
         if (restartExplorer)
             return await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
 
+        if (InterventionSafety.RequiresRestorePoint(diagnostic.Definition.Id) && !diagnostic.Definition.AllowWithoutRestorePoint)
+        {
+            progress?.Report(new InterventionProgress { Step = "Création et vérification du point de restauration" });
+            var protection = await _helperClient.ExecuteAsync(new InterventionCatalog().Get(InterventionId.CreateRestorePoint),
+                progress, cancellationToken).ConfigureAwait(false);
+            if (protection.Status != InterventionStatus.Completed)
+                return Failure(diagnostic, "Réparation bloquée : point de restauration non créé ou non vérifié. " + protection.ReadableError + "\nActivez la protection du système dans Windows, ou demandez explicitement de continuer sans point de restauration.");
+        }
+        cancellationToken.ThrowIfCancellationRequested();
         var result = await _helperClient
-            .ExecuteAsync(diagnostic.Definition, cancellationToken)
+            .ExecuteAsync(diagnostic.Definition, progress, cancellationToken)
             .ConfigureAwait(false);
 
         return new InterventionExecutionResult

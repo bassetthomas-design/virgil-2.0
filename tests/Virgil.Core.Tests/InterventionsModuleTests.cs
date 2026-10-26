@@ -21,7 +21,8 @@ public sealed class InterventionsModuleTests
         var catalog = new InterventionCatalog();
         var definitions = catalog.GetAll();
 
-        Assert.Equal(9, definitions.Count);
+        Assert.Equal(Enum.GetValues<InterventionId>().Where(id => !UpdateMaintenanceRunner.Handles(id)).Order(),
+            definitions.Select(definition => definition.Id).Order());
         Assert.DoesNotContain(definitions, definition =>
             definition.Title.Contains("ownership", StringComparison.OrdinalIgnoreCase) ||
             definition.CommandPreviews.Any(command =>

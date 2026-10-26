@@ -27,3 +27,19 @@ public static class ApplicationActionPreviewFactory
             false, false, Reversibility.None, []);
     }
 }
+
+public static class ApplicationBatchPreviewFactory
+{
+    public static ActionPreview Create(IReadOnlyList<ApplicationUninstallPlan> plans)
+    {
+        var previews = plans.Select(ApplicationActionPreviewFactory.Create).ToArray();
+        return new ActionPreview("applications.uninstall-batch", "Désinstaller la sélection",
+            previews.Length == 0 ? RiskLevel.Critical : previews.Max(item => item.RiskLevel),
+            plans.Select(item => item.Application.Id).ToArray(),
+            previews.Select((preview, index) => new KeyValuePair<string, string>(index.ToString(CultureInfo.InvariantCulture),
+                ActionPreviewHasher.Hash(preview))).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal),
+            plans.Select(item => item.Application.DisplayName + " : " + item.Validation.Executable + " " + string.Join(" ", item.Validation.Arguments))
+                .Append("Désinstalleurs officiels séquentiels ; aucune suppression directe de dossier ni de reste.").ToArray(),
+            false, false, Reversibility.None, []);
+    }
+}
