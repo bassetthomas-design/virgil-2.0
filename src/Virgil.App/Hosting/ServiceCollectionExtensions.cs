@@ -88,8 +88,10 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<UpdateRiskClassifier>(), sp.GetRequiredService<WindowsUpdateStatusService>(),
             sp.GetRequiredService<DriverInformationService>()));
+        services.AddTransient<IWingetClientModuleInstaller>(sp => new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(
+            sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<WingetClientModuleService>(sp => new WingetClientModuleService(
-            sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<IConfirmedPlanGate>()));
+            sp.GetRequiredService<IWingetClientModuleInstaller>(), sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<IUpdateSequenceBackend>(sp => new Virgil.Infrastructure.Windows.WindowsUpdateSequenceBackend(
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<ElevatedHelperRequestStore>(),
             sp.GetRequiredService<IElevatedProcessLauncher>(), () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));

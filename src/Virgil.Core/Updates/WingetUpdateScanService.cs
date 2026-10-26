@@ -178,12 +178,18 @@ public sealed class WingetUpdateScanService : IUpdateScanService
 
     private async Task<(IReadOnlyList<UpdateItem>? Items, bool Missing)> ReadClientModuleAsync(CancellationToken cancellationToken)
     {
-        const string script = "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ErrorActionPreference='Stop'; if (!(Get-Module -ListAvailable Microsoft.WinGet.Client)) { Write-Output 'VIRGIL_MODULE_MISSING'; exit 0 }; Import-Module Microsoft.WinGet.Client; ConvertTo-Json -Compress -InputObject @(Get-WinGetPackage | Where-Object IsUpdateAvailable | Select-Object Id,Name,InstalledVersion,@{n='Available';e={$_.AvailableVersions[0]}},@{n='Source';e={if($_.Source.Name){$_.Source.Name}else{[string]$_.Source}}})";
+        const string script = "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $ErrorActionPreference='Stop'; if (!(Get-Module -ListAvailable Microsoft.WinGet.Client)) { Write-Output 'VIRGIL_MODULE_MISSING'; exit 0 }; Import-Module Microsoft.WinGet.Client; ConvertTo-Json -Compress -InputObject @(Get-WinGetPackage | Where-Object IsUpdateAvailable | Select-Object Id,Name,InstalledVersion,@{n='Source';e={if($_.Source.Name){$_.Source.Name}else{[string]$_.Source}}})";
         var result = await _processRunner.RunAsync(new ProcessRunRequest("powershell.exe", new[] { "-NoProfile", "-NonInteractive", "-Command", script }, TimeSpan.FromSeconds(120)), cancellationToken).ConfigureAwait(false);
         if (result.Cancelled) throw new OperationCanceledException(cancellationToken);
         if (result.StandardOutput.Trim() == "VIRGIL_MODULE_MISSING") return (null, true);
         if (result.ExitCode != 0 || result.TimedOut || !string.IsNullOrWhiteSpace(result.LaunchError)) return (null, false);
-        try { return (WingetUpgradeParser.ParseJson(result.StandardOutput).Items, false); }
+        try
+        {
+            var items = WingetUpgradeParser.ParseJson(result.StandardOutput).Items;
+            // Get-WinGetPackage exposes catalog versions, not the applicable upgrade version.
+            // Never pin the catalog maximum: ask the CLI to resolve applicability for nonempty inventories.
+            return (items.Count == 0 ? items : null, false);
+        }
         catch (JsonException) { return (null, false); }
     }
 

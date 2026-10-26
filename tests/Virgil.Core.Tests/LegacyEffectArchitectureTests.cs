@@ -65,6 +65,7 @@ public sealed class LegacyEffectArchitectureTests
     [InlineData("IExplorerRestarter", "ExplorerRestarter.cs|IExplorerRestarter.cs|InterventionExecutionService.cs|ProcessActionService.cs")]
     [InlineData("IApplicationProcessLauncher", "ApplicationContracts.cs|ApplicationUninstallService.cs")]
     [InlineData("IUpdateSequenceBackend", "UpdateSequenceService.cs")]
+    [InlineData("IWingetClientModuleInstaller", "IWingetClientModuleInstaller.cs|WingetClientModuleService.cs")]
     public void OnlyReviewedCoreConsumersMayAccessEffectAdapters(string port, string expected)
     {
         var consumers = Sources("Virgil.Core").Where(p => Regex.IsMatch(File.ReadAllText(p), @"\b" + port + @"\b"))
@@ -82,7 +83,7 @@ public sealed class LegacyEffectArchitectureTests
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(new[] { "ApplicationStoreReader.cs", "ApplicationUninstallService.cs", "ApplicationWingetReader.cs",
             "DriverInformationService.cs", "ElevatedHelperClient.cs", "ExplorerRestarter.cs", "IProcessRunner.cs",
-            "ProcessRuntime.cs", "WingetAvailabilityService.cs", "WingetClientModuleService.cs", "WingetUpdateExecutionService.cs", "WingetUpdateScanService.cs" }, core);
+            "ProcessRuntime.cs", "WingetAvailabilityService.cs", "WingetUpdateExecutionService.cs", "WingetUpdateScanService.cs" }, core);
         var app = Sources("Virgil.App").Where(p => Regex.IsMatch(File.ReadAllText(p), @"\bIProcessRunner\b"))
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(new[] { "ApplicationsViewModel.cs", "CleanupEntryItems.cs", "CleanupViewModel.cs",
@@ -102,9 +103,11 @@ public sealed class LegacyEffectArchitectureTests
 
         var module = Read("Virgil.Core/Updates/WingetClientModuleService.cs");
         var moduleGate = module.IndexOf("gate.TryConsume(", StringComparison.Ordinal);
-        var moduleEffect = module.IndexOf("runner.RunAsync(", StringComparison.Ordinal);
+        var moduleEffect = module.IndexOf("installer.InstallAsync(", StringComparison.Ordinal);
         Assert.True(moduleGate >= 0 && moduleEffect > moduleGate);
         Assert.Contains("IsAccepted) return false", module[moduleGate..moduleEffect]);
+        Assert.DoesNotContain("IProcessRunner", module);
+        Assert.DoesNotContain("powershell.exe", module);
     }
 
     [Fact]

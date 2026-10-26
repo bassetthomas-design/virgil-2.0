@@ -1,11 +1,10 @@
 using Virgil.Contracts.Actions;
 using Virgil.Core.Actions;
-using Virgil.Core.Processes;
 
 namespace Virgil.Core.Updates;
 
 /// <summary>Optional module installation, strictly after an explicit preview-bound consent.</summary>
-public sealed class WingetClientModuleService(IProcessRunner runner, IConfirmedPlanGate gate)
+public sealed class WingetClientModuleService(IWingetClientModuleInstaller installer, IConfirmedPlanGate gate)
 {
     public static ActionPreview CreatePreview() => new("updates.install-winget-client", "Installer le module WinGet", RiskLevel.Sensitive,
         ["Microsoft.WinGet.Client"], new Dictionary<string, string> { ["Scope"] = "CurrentUser", ["Repository"] = "PSGallery" },
@@ -15,9 +14,6 @@ public sealed class WingetClientModuleService(IProcessRunner runner, IConfirmedP
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!gate.TryConsume(plan, CreatePreview()).IsAccepted) return false;
-        var result = await runner.RunAsync(new ProcessRunRequest("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-            "$ErrorActionPreference='Stop'; Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Scope CurrentUser -Force"], TimeSpan.FromMinutes(5)), cancellationToken).ConfigureAwait(false);
-        if (result.Cancelled) throw new OperationCanceledException(cancellationToken);
-        return result.ExitCode == 0 && !result.TimedOut && string.IsNullOrWhiteSpace(result.LaunchError);
+        return await installer.InstallAsync(cancellationToken).ConfigureAwait(false);
     }
 }

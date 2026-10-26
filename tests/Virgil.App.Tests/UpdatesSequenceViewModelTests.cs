@@ -104,7 +104,7 @@ public sealed class UpdatesSequenceViewModelTests
         {
             Vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
                 new WindowsUpdateStatusService(), Runner, History, Confirmation, new UpdateSequenceService(Backend, Confirmation.Authority),
-                new WingetClientModuleService(Runner, Confirmation.Authority));
+                new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));
         }
     }
     private sealed class Backend : IUpdateSequenceBackend
