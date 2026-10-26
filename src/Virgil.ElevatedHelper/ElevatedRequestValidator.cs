@@ -142,6 +142,9 @@ public sealed class ElevatedRequestValidator
         string rootDirectory,
         string localAppData)
     {
+        if (!Enum.IsDefined(request.ActionId) || request.ActionId == InterventionId.RestartExplorer)
+            throw new InvalidOperationException("Action élevée inconnue ou locale refusée.");
+
         if (request.ProtocolVersion != 1)
         {
             throw new InvalidOperationException("Version protocole refusee.");

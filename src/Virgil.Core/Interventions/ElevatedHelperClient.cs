@@ -20,17 +20,25 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
     }
 
     public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
-        => ExecuteAsync(definition, null, cancellationToken);
+        => ExecuteCoreAsync(definition, null, null, cancellationToken);
 
-    public async Task<ElevatedInterventionResult> ExecuteAsync(
-        InterventionDefinition definition, StartupApprovalWrite? payload, CancellationToken cancellationToken)
+    public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition,
+        StartupApprovalWrite payload, CancellationToken cancellationToken)
+        => ExecuteCoreAsync(definition, payload, null, cancellationToken);
+
+    public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition,
+        IProgress<InterventionProgress>? progress, CancellationToken cancellationToken)
+        => ExecuteCoreAsync(definition, null, progress, cancellationToken);
+
+    private async Task<ElevatedInterventionResult> ExecuteCoreAsync(InterventionDefinition definition,
+        StartupApprovalWrite? payload, IProgress<InterventionProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var helperPath = _helperPathProvider();
         if (!File.Exists(helperPath))
         {
-            return Failure(definition, "Assistant eleve introuvable.");
+            return Failure(definition, "Assistant élevé introuvable.");
         }
 
         ElevatedInterventionRequestFile requestFile;
@@ -43,26 +51,43 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
             return Failure(definition, "Dossier temporaire Virgil inaccessible.");
         }
 
+        var helperFinished = false;
         try
         {
-            var helperExitCode = await _processLauncher
-                .RunElevatedAsync(helperPath, requestFile.RequestPath, cancellationToken)
-                .ConfigureAwait(false);
-            var result = await _requestStore.ReadResultAsync(requestFile, cancellationToken).ConfigureAwait(false);
+            // Keep the protocol alive until the helper has acknowledged cancellation and exited.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
+            var launch = _processLauncher.RunElevatedAsync(helperPath, requestFile.RequestPath, timeout.Token);
+            while (!launch.IsCompleted)
+            {
+                if (cancellationToken.IsCancellationRequested) _requestStore.RequestCancel(requestFile);
+                var update = await _requestStore.ReadProgressAsync(requestFile, timeout.Token).ConfigureAwait(false);
+                progress?.Report(update ?? new InterventionProgress
+                {
+                    Nonce = requestFile.Nonce,
+                    Step = cancellationToken.IsCancellationRequested ? "Annulation demandée, arrêt en cours…" : "Élévation ou vérification en cours…",
+                    Elapsed = DateTimeOffset.UtcNow - requestFile.CreatedAt
+                });
+                await Task.WhenAny(launch, Task.Delay(500, timeout.Token)).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+            }
+            var helperExitCode = await launch.ConfigureAwait(false);
+            helperFinished = true;
+            var result = await _requestStore.ReadResultAsync(requestFile, CancellationToken.None).ConfigureAwait(false);
 
-            return result ?? Failure(definition, $"Assistant eleve termine sans resultat ({helperExitCode}).");
+            return result ?? Failure(definition, $"Assistant élevé terminé sans fichier de résultat ({helperExitCode}).");
         }
         catch (OperationCanceledException)
         {
-            throw;
+            _requestStore.RequestCancel(requestFile);
+            return Failure(definition, "Délai maximal de l’assistant élevé dépassé ; arrêt demandé.");
         }
-        catch
+        catch (Exception ex)
         {
-            return Failure(definition, "Assistant eleve indisponible ou refuse.");
+            return Failure(definition, "Assistant élevé indisponible : " + ex.Message);
         }
         finally
         {
-            _requestStore.Cleanup(requestFile);
+            if (helperFinished) _requestStore.Cleanup(requestFile);
         }
     }
 

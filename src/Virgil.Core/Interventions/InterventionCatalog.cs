@@ -141,7 +141,56 @@ public sealed class InterventionCatalog : IInterventionCatalog
             9,
             interruptible: false,
             Commands(true, "chkdsk.exe", "<system-drive>", "/scan"))
-    };
+    }.Concat(new[]
+    {
+        ReadOnly(InterventionId.VerifyHealth, "Vérifier Windows et les services", "virgil-services", 0) with
+        {
+            CommandPreviews = new[]
+            {
+                new InterventionCommandPreview { Executable = "sfc.exe", Arguments = ["/verifyonly"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "dism.exe", Arguments = ["/Online", "/Cleanup-Image", "/CheckHealth", "/English"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "chkdsk.exe", Arguments = ["<system-drive>", "/scan"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "virgil-services", RunsElevated = true }
+            }
+        },
+        ReadOnly(InterventionId.SfcVerifyOnly, "Vérifier les fichiers système sans réparation", "sfc.exe", 10, "/verifyonly"),
+        ReadOnly(InterventionId.DismCheckHealth, "Vérifier l’image Windows", "dism.exe", 11, "/Online", "/Cleanup-Image", "/CheckHealth", "/English"),
+        ReadOnly(InterventionId.CheckServices, "Vérifier les services et les connexions", "virgil-services", 12),
+        ReadOnly(InterventionId.CreateRestorePoint, "Créer et vérifier un point de restauration", "virgil-restore-point", 13),
+        Repair(InterventionId.RestartWindowsUpdate, "Redémarrer le service Windows Update", "virgil-update", 14),
+        Repair(InterventionId.RestartAudio, "Redémarrer les services audio", "virgil-audio", 15),
+        Repair(InterventionId.ResetPrintQueue, "Réinitialiser les tâches d’impression bloquées", "virgil-print", 16)
+    }).Concat(new[]
+    {
+        ReadOnly(InterventionId.VerifyHealthDeep, "Vérifier Windows avec analyse approfondie de l’image", "virgil-services", 17) with
+        {
+            CommandPreviews = new[]
+            {
+                new InterventionCommandPreview { Executable = "sfc.exe", Arguments = ["/verifyonly"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "dism.exe", Arguments = ["/Online", "/Cleanup-Image", "/CheckHealth", "/English"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "dism.exe", Arguments = ["/Online", "/Cleanup-Image", "/ScanHealth", "/English"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "chkdsk.exe", Arguments = ["<system-drive>", "/scan"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "virgil-services", RunsElevated = true }
+            }
+        }
+    }).Select(definition => InterventionSafety.RequiresRestorePoint(definition.Id)
+        ? definition with { RiskLevel = InterventionRiskLevel.Sensitive } : definition).ToArray();
+
+    private static InterventionDefinition ReadOnly(InterventionId id, string title, string executable, int order, params string[] args)
+        => Define(id, title, InterventionCategory.System, "Vérification en lecture seule, sauf création du point de restauration explicitement annoncée.",
+            id == InterventionId.CreateRestorePoint ? "Créer un point de restauration et vérifier sa présence." : "Rapport des contrôles et des éléments indisponibles, sans réparation.",
+            "Vos fichiers personnels et vos paramètres.", InterventionRiskLevel.Low, true, false,
+            "Jusqu’à 45 minutes pour SFC, 60 minutes pour DISM", "Outils Windows disponibles", order, true, Commands(true, executable, args));
+
+    private static InterventionDefinition Repair(InterventionId id, string title, string executable, int order)
+        => ReadOnly(id, title, executable, order) with
+        {
+            RiskLevel = InterventionRiskLevel.Sensitive,
+            Description = "Changement système après création et vérification d’un point de restauration.",
+            ExpectedEffect = id == InterventionId.ResetPrintQueue
+                ? "Annuler les tâches bloquées depuis plus d’une heure ou en erreur, puis redémarrer le service d’impression."
+                : "Redémarrer uniquement les services concernés."
+        };
 
     public IReadOnlyList<InterventionDefinition> GetAll()
     {

@@ -73,7 +73,8 @@ public sealed class ElevatedActionDispatcher
 
         try
         {
-            var result = await ExecuteValidatedAsync(validated.Request).ConfigureAwait(false);
+            using var channel = new ElevatedProgressChannel(_validator, validated);
+            var result = await ExecuteValidatedAsync(validated.Request, channel, channel.Token).ConfigureAwait(false);
             await _resultWriter.WriteAsync(validated, result).ConfigureAwait(false);
             return result.Status is InterventionStatus.Failed or InterventionStatus.PartialFailure ? 20 : 0;
         }
@@ -87,19 +88,21 @@ public sealed class ElevatedActionDispatcher
         }
     }
 
-    public async Task<ElevatedInterventionResult> ExecuteValidatedAsync(ElevatedInterventionRequest request)
+    public async Task<ElevatedInterventionResult> ExecuteValidatedAsync(ElevatedInterventionRequest request,
+        IProgress<InterventionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
         if (request.ActionId == InterventionId.SetStartupApproval)
         {
-            if (!_securityContext.IsAdministrator || request.StartupApproval is null || !request.StartupApproval.IsValid())
+            if (!_securityContext.IsAdministrator || request.StartupApproval is null || !_allowlist.AllowsStartupApproval(request))
                 return Result(request, startedAt, -1, InterventionStatus.Failed, "Demande de démarrage refusée.", false);
-            var restore = await ExecuteValidatedAsync(request with { ActionId = InterventionId.CreateStartupRestorePoint, StartupApproval = null }).ConfigureAwait(false);
+            var restore = await ExecuteValidatedAsync(request with { ActionId = InterventionId.CreateStartupRestorePoint, StartupApproval = null }, progress, cancellationToken).ConfigureAwait(false);
             if (restore.Status != InterventionStatus.Completed || restore.ExitCode != 0 ||
-                !restore.SummaryOutput.Contains("VIRGIL_RESTORE_POINT_VERIFIED", StringComparison.Ordinal))
+                !restore.SummaryOutput.Split('\n').Any(line => line.Trim() == "VIRGIL_RESTORE_POINT_VERIFIED"))
                 return Result(request, startedAt, -1, InterventionStatus.Failed, "Point de restauration non vérifié : modification bloquée.", false);
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 StartupApprovalHandler.Execute(request.StartupApproval);
                 return Result(request, startedAt, 0, InterventionStatus.Completed, "État de démarrage sauvegardé et modifié.", false);
             }
@@ -122,14 +125,24 @@ public sealed class ElevatedActionDispatcher
 
         var outputs = new List<string>();
         var exitCode = 0;
+        var checkFailed = false;
 
         foreach (var command in spec.Commands)
         {
-            var commandResult = await _commandRunner.RunAsync(command).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested)
+                return Result(request, startedAt, -1, InterventionStatus.Cancelled, "Parcours annulé entre deux commandes.", false);
+            progress?.Report(new InterventionProgress { Step = command.FileName });
+            var commandResult = await _commandRunner.RunAsync(command,
+                new CommandProgress(value => progress?.Report(new InterventionProgress { Step = command.FileName, Percent = value })),
+                cancellationToken).ConfigureAwait(false);
             exitCode = commandResult.ExitCode;
-            outputs.Add(Summarize(commandResult));
+            checkFailed |= commandResult.ExitCode != 0;
+            if (request.ActionId is InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep) outputs.Add(IntegrityFinding(command, commandResult));
+            outputs.Add("Étape : " + command.FileName + " " + string.Join(" ", command.Arguments) + "\n" + Summarize(commandResult));
 
-            if (commandResult.ExitCode != 0)
+            if (commandResult.Cancelled)
+                return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs), false);
+            if (commandResult.ExitCode != 0 && request.ActionId is not (InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep))
             {
                 return Result(request, startedAt, commandResult.ExitCode,
                     InterventionStatus.PartialFailure,
@@ -138,10 +151,47 @@ public sealed class ElevatedActionDispatcher
             }
         }
 
+        if (request.ActionId is InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep)
+        {
+            var text = string.Join("\n", outputs);
+            var incomplete = checkFailed || text.Contains("|UNKNOWN|", StringComparison.Ordinal);
+            var finding = text.Contains("|FINDING|", StringComparison.Ordinal);
+            outputs.Add(incomplete ? "Vérification incomplète : certains contrôles sont indisponibles. Consultez les détails."
+                : finding ? "Des éléments demandent votre attention. Consultez les constats ci-dessus." : "Tout est sain.");
+            return Result(request, startedAt, checkFailed ? -1 : 0,
+                checkFailed ? InterventionStatus.PartialFailure : InterventionStatus.Completed,
+                string.Join("\n", outputs), false);
+        }
         var status = spec.RebootRequiredOnSuccess
             ? InterventionStatus.RebootRequired
             : InterventionStatus.Completed;
         return Result(request, startedAt, exitCode, status, string.Join("\n", outputs), spec.RebootRequiredOnSuccess);
+    }
+
+    internal static string IntegrityFinding(ElevatedCommandSpec command, ElevatedCommandResult result)
+    {
+        var output = result.StandardOutput;
+        var key = command.FileName switch { "sfc.exe" => "SFC", "dism.exe" => "DISM", "chkdsk.exe" => "CHKDSK", _ => "Services" };
+        if (key == "Services") return result.ExitCode == 0 ? "" : "VIRGIL|Services|UNKNOWN|Contrôles des services indisponibles";
+        if (result.ExitCode != 0) return $"VIRGIL|{key}|UNKNOWN|Contrôle non terminé : {result.StandardError}";
+        var healthy = key switch
+        {
+            "SFC" => output.Contains("did not find any integrity violations", StringComparison.OrdinalIgnoreCase) ||
+                output.Contains("aucune violation d’intégrité", StringComparison.OrdinalIgnoreCase) || output.Contains("aucune violation d'intégrité", StringComparison.OrdinalIgnoreCase),
+            "DISM" => output.Contains("No component store corruption detected", StringComparison.OrdinalIgnoreCase),
+            "CHKDSK" => true, // The documented CHKDSK exit code 0 means no errors were found.
+            _ => false
+        };
+        var damaged = key == "DISM" && output.Contains("component store is repairable", StringComparison.OrdinalIgnoreCase) ||
+            key == "SFC" && (output.Contains("found integrity violations", StringComparison.OrdinalIgnoreCase) ||
+                output.Contains("a trouvé des violations d’intégrité", StringComparison.OrdinalIgnoreCase) || output.Contains("a trouvé des violations d'intégrité", StringComparison.OrdinalIgnoreCase));
+        return $"VIRGIL|{key}|{(healthy ? "OK" : damaged ? "FINDING" : "UNKNOWN")}|" +
+            (healthy ? "Aucune anomalie détectée" : damaged ? "Corruption détectée" : "Résultat non interprétable ; consultez la sortie de l’outil");
+    }
+
+    private sealed class CommandProgress(Action<int?> report) : IProgress<int?>
+    {
+        public void Report(int? value) => report(value);
     }
 
     private string GetSystemDrive()
@@ -179,7 +229,7 @@ public sealed class ElevatedActionDispatcher
             .Replace("\r\n", "\n")
             .Replace('\r', '\n')
             .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Take(8);
+            .Take(200);
         var text = string.Join("\n", lines);
         return string.IsNullOrWhiteSpace(text)
             ? $"Code sortie : {result.ExitCode}."

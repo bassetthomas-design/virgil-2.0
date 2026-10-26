@@ -13,7 +13,7 @@ public sealed class NetworkViewModel : ObservableObject
     public NetworkViewModel(INetworkStatusReader reader)
     {
         _reader = reader;
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync);
+        RefreshCommand = new AsyncRelayCommand(RefreshAsync, AsyncRelayCommandOptions.AllowConcurrentExecutions);
         OpenRepairCommand = new RelayCommand(() => RepairRequested?.Invoke(this, EventArgs.Empty));
     }
     public event EventHandler? RepairRequested;

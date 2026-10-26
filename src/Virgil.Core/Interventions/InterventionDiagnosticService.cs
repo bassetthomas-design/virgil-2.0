@@ -125,6 +125,7 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     {
         foreach (var command in definition.CommandPreviews)
         {
+            if (command.Executable.StartsWith("virgil-", StringComparison.Ordinal)) continue;
             if (string.Equals(command.Executable, "<system-drive>", StringComparison.OrdinalIgnoreCase))
             {
                 continue;

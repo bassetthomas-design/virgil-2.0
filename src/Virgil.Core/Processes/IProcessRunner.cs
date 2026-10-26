@@ -4,7 +4,7 @@ public interface IProcessRunner
 {
     Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken);
 
-    /// <summary>Lance un processus sans capture, avec attente optionnelle non annulable.</summary>
+    /// <summary>Lance un processus sans capture, avec attente optionnelle annulable.</summary>
     Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken);
 }
 
@@ -48,7 +48,7 @@ public enum ProcessWindowMode
 /// <param name="Verb">Verbe du shell, par exemple runas ; aucune valeur imposée si null.</param>
 /// <param name="WindowMode">Affichage normal ou fenêtre masquée ; ne force pas CreateNoWindow.</param>
 /// <param name="RawArguments">Chaîne d'arguments déjà formatée, utilisée à la place d'ArgumentList si non null.</param>
-/// <param name="WaitForExit">Attend la sortie sans token d'annulation si vrai ; sinon renvoie immédiatement.</param>
+/// <param name="WaitForExit">Attend la sortie avec le token d'annulation si vrai ; sinon renvoie immédiatement.</param>
 public sealed record ProcessLaunchRequest(
     string FileName,
     IReadOnlyList<string> Arguments,

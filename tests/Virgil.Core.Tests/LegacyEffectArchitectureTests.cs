@@ -114,6 +114,13 @@ public sealed class LegacyEffectArchitectureTests
         Assert.Contains("Startup_Click", xaml);
         Assert.Contains("Network_Click", xaml);
         Assert.DoesNotContain("IProcessRunner", Read("Virgil.App/ViewModels/NetworkViewModel.cs"));
+        var repairs = Read("Virgil.App/Views/InterventionsView.xaml");
+        Assert.Contains("{Binding VerifyHealthCommand}", repairs);
+        Assert.Contains("{Binding ScanRepairCommand}", repairs);
+        var applications = Read("Virgil.App/ViewModels/ApplicationsViewModel.cs");
+        Assert.Contains("ApplicationBatchPreviewFactory.Create", applications);
+        Assert.Contains("_confirmationService.Issue(preview", applications);
+        Assert.DoesNotContain("MessageBox", Read("Virgil.App/Services/ApplicationUninstallConfirmationDialogService.cs"));
         var sources = Sources("Virgil.App").Select(File.ReadAllText);
         foreach (var text in sources)
         {

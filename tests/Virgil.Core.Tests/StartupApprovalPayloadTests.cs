@@ -59,6 +59,20 @@ public sealed class StartupApprovalPayloadTests
         Assert.Contains("restauration", result.ReadableError);
     }
 
+    [Fact]
+    public void TypedAllowlistAcceptsOnlyStartupApprovalActionWithKnownPayload()
+    {
+        var allowlist = new ElevatedActionAllowlist();
+        var request = new ElevatedInterventionRequest
+        {
+            ActionId = InterventionId.SetStartupApproval,
+            StartupApproval = new(StartupApprovalKind.Run, "App", "020000000000000000000000", "030000000000000000000000")
+        };
+        Assert.True(allowlist.AllowsStartupApproval(request));
+        Assert.False(allowlist.AllowsStartupApproval(request with { ActionId = InterventionId.FlushDns }));
+        Assert.False(allowlist.AllowsStartupApproval(request with { StartupApproval = null }));
+    }
+
     private sealed class Security(bool administrator) : IElevatedSecurityContext
     {
         public bool IsAdministrator => administrator;

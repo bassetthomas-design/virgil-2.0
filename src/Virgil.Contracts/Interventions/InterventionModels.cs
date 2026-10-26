@@ -11,6 +11,15 @@ public enum InterventionId
     DismScanHealth,
     DismRestoreHealth,
     ChkdskOnlineScan,
+    VerifyHealth,
+    SfcVerifyOnly,
+    DismCheckHealth,
+    CheckServices,
+    CreateRestorePoint,
+    RestartWindowsUpdate,
+    RestartAudio,
+    ResetPrintQueue,
+    VerifyHealthDeep,
     CreateStartupRestorePoint,
     SetStartupApproval
 }
@@ -55,6 +64,8 @@ public sealed record InterventionCommandPreview
 
 public sealed record InterventionDefinition
 {
+    public bool AllowWithoutRestorePoint { get; init; }
+
     public InterventionId Id { get; init; }
 
     public string Title { get; init; } = string.Empty;
@@ -218,4 +229,12 @@ public sealed record ElevatedInterventionResult
     public string? ReadableError { get; init; }
 
     public bool RebootRequired { get; init; }
+}
+
+public sealed record InterventionProgress
+{
+    public string Nonce { get; init; } = string.Empty;
+    public string Step { get; init; } = string.Empty;
+    public int? Percent { get; init; }
+    public TimeSpan Elapsed { get; init; }
 }

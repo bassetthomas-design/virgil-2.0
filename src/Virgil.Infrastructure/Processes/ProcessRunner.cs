@@ -96,7 +96,7 @@ public sealed class ProcessRunner : IProcessRunner
             }
             if (request.WaitForExit)
             {
-                await process.WaitForExitAsync().ConfigureAwait(false);
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
                 return new ProcessLaunchResult(true, process.ExitCode);
             }
             return new ProcessLaunchResult(true, process.HasExited ? process.ExitCode : null);
@@ -107,7 +107,8 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (Exception ex)
         {
-            return new ProcessLaunchResult(false, null, ex.Message);
+            return new ProcessLaunchResult(false, null, ex is System.ComponentModel.Win32Exception { NativeErrorCode: 1223 }
+                ? "Élévation refusée par l’utilisateur (UAC 1223)." : ex.Message);
         }
     }
 
