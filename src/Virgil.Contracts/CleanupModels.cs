@@ -80,6 +80,8 @@ public sealed record CleanupZoneDefinition(
     public string? SoftwareName { get; init; }
     public string? ValidatedRemnantRoot { get; init; }
     public string? RemnantAllowedRoot { get; init; }
+    // Un logiciel peut laisser plusieurs racines : chacune conserve ses propres gardes.
+    public IReadOnlyList<CleanupZoneDefinition> RemnantZones { get; init; } = Array.Empty<CleanupZoneDefinition>();
     public IReadOnlyList<string> RegistryKeys { get; init; } = Array.Empty<string>();
     public DateTimeOffset? LastUsedUtc { get; init; }
 

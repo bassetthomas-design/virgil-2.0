@@ -81,7 +81,8 @@ public sealed class CleanupGroupsTests
         var result = Assert.Single(new LeftoverAnalyzer().Analyze(Snapshot with
         { IsComplete = !incomplete, Candidates = [Dofus with { IsUncertain = !incomplete }] }, Now));
         Assert.True(result.Definition.NeedsReview);
-        Assert.Contains("à confirmer", result.Definition.DisplayName);
+        Assert.Contains("Reste possible — à vérifier", result.Definition.DisplayName);
+        Assert.DoesNotContain("(désinstallé)", result.Definition.DisplayName);
     }
 
     [Theory]
@@ -111,14 +112,17 @@ public sealed class CleanupGroupsTests
     }
 
     [Fact]
-    public async Task OnlyTheResolvedDownloadsFolderIsRequestedAndEachFileGetsOneLine()
+    public async Task OnlyTheResolvedDownloadsFolderIsRequestedAndFilesAreAggregated()
     {
         var source = new Downloads { Files = [FileItem, FileItem with { Path = Path.Combine(Remnant, "second.tmp") }, FileItem with { LastWriteUtc = Now, SizeBytes = 1 }] };
         var folders = new Folders([new(KnownFolder.Downloads, Root), new(KnownFolder.Desktop, Path.GetFullPath("desktop"))]);
         var scanner = new AdditionalCleanupScanner(folders, source, new Source(new([], [], [])), new LeftoverAnalyzer(), new PersonalFolderPolicy(folders), new Clock());
         var result = await scanner.ScanAsync(CancellationToken.None);
-        Assert.Equal(new[] { Root }, source.Requests); Assert.Equal(2, result.Count);
-        Assert.All(result, p => { Assert.Single(p.Candidates); Assert.Equal(CleanupGroup.AVerifier, p.Definition.Group); });
+        Assert.Equal(new[] { Root }, source.Requests);
+        var zone = Assert.Single(result);
+        Assert.Equal(2, zone.Candidates.Count);
+        Assert.Equal(CleanupGroup.AVerifier, zone.Definition.Group);
+        Assert.All(zone.Candidates, c => Assert.True(CleanupPathGuard.IsStrictlyUnderRoot(c.FullPath, Root)));
     }
 
     [Fact]
@@ -187,6 +191,74 @@ public sealed class CleanupGroupsTests
             Assert.DoesNotContain("Microsoft.Win32", text); Assert.DoesNotContain("DllImport", text);
             Assert.DoesNotMatch(new Regex(@"\b(?:System\.IO\.)?(?:File|Directory|FileInfo|DirectoryInfo)\s*(?:\.|\()"), text);
         }
+    }
+
+    private static CleanupZonePreview CompositePreview()
+    {
+        var root = Path.GetFullPath("second-sandbox");
+        var path = Path.Combine(root, "Dofus");
+        var second = Dofus with { Path = path, AllowedRoot = root,
+            Files = [FileItem with { Path = Path.Combine(path, "other.tmp") }] };
+        return Assert.Single(new LeftoverAnalyzer().Analyze(Snapshot with { Candidates = [Dofus, second] }, Now));
+    }
+
+    [Fact]
+    public void OneSoftwareZoneRetainsSeparateValidatedRootsAndAllFiles()
+    {
+        var preview = CompositePreview();
+        Assert.Equal(2, preview.Definition.RemnantZones.Count);
+        Assert.Equal(2, preview.Candidates.Count);
+        Assert.Equal(246, preview.EligibleBytes);
+        Assert.Empty(preview.Definition.RootPath);
+        Assert.All(preview.Definition.RemnantZones, z => Assert.Equal(z.RootPath, z.ValidatedRemnantRoot));
+        var policy = new PersonalFolderPolicy(new Folders([]));
+        Assert.All(preview.Candidates, c => Assert.True(policy.CanQuarantine(preview.Definition, c.FullPath)));
+        Assert.False(policy.CanQuarantine(preview.Definition, Path.Combine(Root, "outside.tmp")));
+        var duplicate = preview.Definition with { RemnantZones = [preview.Definition.RemnantZones[0], preview.Definition.RemnantZones[0]] };
+        Assert.False(policy.CanQuarantine(duplicate, FileItem.Path));
+    }
+
+    [Fact]
+    public async Task CompositeSelectionCopiesChildMetadataBeforeConfirmation()
+    {
+        var preview = CompositePreview();
+        var mutableKeys = new List<string> { @"HKCU\Software\Dofus" };
+        var mutableChildren = new List<CleanupZoneDefinition>
+        {
+            preview.Definition.RemnantZones[0] with { RegistryKeys = mutableKeys }, preview.Definition.RemnantZones[1]
+        };
+        preview = preview with { Definition = preview.Definition with { RemnantZones = mutableChildren } };
+        var authority = new ConfirmationService(new Clock());
+        var action = new CleanupSelectionAction(new CleanupExecutionService(new NoDisk(), authority, () => Now), [preview]);
+        var hash = ActionPreviewHasher.Hash(await action.PreviewAsync(CancellationToken.None));
+        mutableKeys.Add(@"HKCU\Software\Other");
+        mutableChildren.Clear();
+        Assert.Equal(hash, ActionPreviewHasher.Hash(await action.PreviewAsync(CancellationToken.None)));
+    }
+
+    [Theory]
+    [InlineData("root")] [InlineData("allowed")] [InlineData("keys")] [InlineData("classification")]
+    public async Task CompositeRootTamperingRefusesBeforeAnyDiskEffect(string changed)
+    {
+        var preview = CompositePreview();
+        var authority = new ConfirmationService(new Clock());
+        var actionPreview = CleanupActionPreviewFactory.Create(preview);
+        var plan = authority.Issue(actionPreview, new(ConfirmationLevel.Reinforced, null));
+        var child = preview.Definition.RemnantZones[0];
+        child = changed switch
+        {
+            "root" => child with { RootPath = Root, ValidatedRemnantRoot = Root },
+            "allowed" => child with { RemnantAllowedRoot = Path.GetFullPath("another-root") },
+            "keys" => child with { RegistryKeys = [@"HKCU\Software\Another"] },
+            _ => child with { Classification = CleanupClassification.Cleanable }
+        };
+        var altered = preview with { Definition = preview.Definition with { RemnantZones = [child, preview.Definition.RemnantZones[1]] } };
+        Assert.NotEqual(ActionPreviewHasher.Hash(actionPreview), ActionPreviewHasher.Hash(CleanupActionPreviewFactory.Create(altered)));
+        var disk = new NoDisk();
+        var service = new CleanupExecutionService(disk, authority, () => Now);
+        var result = await service.ExecuteZoneAsync(altered, plan, null, CancellationToken.None);
+        Assert.NotNull(result.RefusalReason);
+        Assert.Equal(0, disk.Calls);
     }
 
     private sealed class Folders(IReadOnlyList<KnownFolderPath> paths) : IKnownFoldersProvider

@@ -39,7 +39,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
 
     public CleanupPreview PreviewTemporaryFiles()
     {
-        var previews = PreviewAsync(null, CancellationToken.None).GetAwaiter().GetResult();
+        var previews = PreviewZones(null, CancellationToken.None);
         var targets = previews
             .Where(preview => preview.EligibleFileCount > 0 || preview.Errors.Count == 0)
             .Select(ToLegacyTarget)

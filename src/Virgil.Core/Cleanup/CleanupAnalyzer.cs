@@ -16,6 +16,7 @@ public sealed class CleanupAnalyzer
     public async Task<CleanupAnalysisReport> AnalyzeAsync(IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
     {
         var zones = await _previewService.PreviewAsync(progress, cancellationToken).ConfigureAwait(false);
+        progress?.Report(new(null, "Analyse du stockage", null, "Repérage des éléments à vérifier, sans modification."));
         var storage = await _storageAnalyzer.AnalyzeAsync(cancellationToken).ConfigureAwait(false);
         var technicalBlocks = zones
             .Where(zone => zone.Errors.Count > 0 || (zone.Definition.RequiresElevation && zone.EligibleFileCount == 0))

@@ -66,7 +66,7 @@ public sealed class ProcessActionService : IProcessActionService
 
         if (action == ProcessActionKind.OpenLocation)
         {
-            return OpenLocation(target);
+            return await OpenLocationAsync(target, cancellationToken).ConfigureAwait(false);
         }
 
         var identity = ValidateIdentity(target);
@@ -169,11 +169,11 @@ public sealed class ProcessActionService : IProcessActionService
         }
     }
 
-    private ProcessActionResult OpenLocation(ProcessResourceInfo target)
+    private async Task<ProcessActionResult> OpenLocationAsync(ProcessResourceInfo target, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(target.Path) ||
             !_runtime.FileExists(target.Path) ||
-            !_runtime.OpenLocation(target.Path))
+            !await _runtime.OpenLocationAsync(target.Path, cancellationToken).ConfigureAwait(false))
         {
             return Failure(ProcessActionKind.OpenLocation, TargetName(target), "Emplacement inaccessible.");
         }
