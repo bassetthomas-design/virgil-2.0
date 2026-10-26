@@ -187,22 +187,58 @@ public partial class InterventionsViewModel : ObservableObject
         _verificationResult = null;
         await VerifyHealthAsync().ConfigureAwait(true);
         if (_verificationResult?.Status != InterventionStatus.Completed || !GuidedCandidates().Any()) return;
+        var candidates = GuidedCandidates().OrderBy(item => item.Definition.DisplayOrder).ToArray();
+        var started = DateTimeOffset.Now;
+        var results = new List<InterventionExecutionResult> { _verificationResult };
+        var errors = new List<string>();
         IsReportOpen = false;
-        await RunGuidedAsync().ConfigureAwait(true);
-        // A fresh, separately confirmed read-only check reports the actual post-repair state.
-        if (_lastReport?.Results.Any(result => result.WasConfirmed && result.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired) == true)
+        if (!BeginOperation("Réparations proposées en attente de confirmation.")) return;
+        try
         {
-            var repairReport = _lastReport;
-            IsReportOpen = false;
-            await VerifyHealthAsync().ConfigureAwait(true);
-            if (repairReport is not null && _lastReport is not null)
+            var selection = new InterventionRepairSelection(candidates);
+            var preview = InterventionRepairPreviewFactory.Create(selection);
+            if (await AskRepairSelectionAsync(preview).ConfigureAwait(true) != InterventionDecision.Execute) return;
+            var plan = _confirmationService.Issue(preview, new ConfirmationConsent(ConfirmationLevel.Reinforced, null));
+            var repaired = await _executionService.ExecuteRepairsAsync(selection, plan, CreateProgress(), _operationCancellation!.Token).ConfigureAwait(true);
+            results.AddRange(repaired);
+            if (repaired.Any(result => result.ReadableError?.StartsWith("Réparation bloquée : point de restauration", StringComparison.Ordinal) == true))
             {
-                _lastReport = _executionService.CreateReport(repairReport.StartedAt, repairReport.ProposedActions,
-                    repairReport.Results.Concat(_lastReport.Results).ToArray(), repairReport.Errors.Concat(_lastReport.Errors).ToArray());
-                await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
-                ShowReport();
+                selection = selection with { AllowWithoutRestorePoint = true };
+                preview = InterventionRepairPreviewFactory.Create(selection);
+                if (await AskRepairSelectionAsync(preview).ConfigureAwait(true) == InterventionDecision.Execute)
+                {
+                    var critical = _confirmationService.Issue(preview, new ConfirmationConsent(ConfirmationLevel.Critical, TypedConfirmation));
+                    results.AddRange(await _executionService.ExecuteRepairsAsync(selection, critical, CreateProgress(), _operationCancellation.Token).ConfigureAwait(true));
+                }
             }
         }
+        catch (OperationCanceledException) { errors.Add("Parcours de réparation annulé."); }
+        catch (ConfirmationRefusedException) { errors.Add("Confirmation incorrecte : aucune réparation supplémentaire effectuée."); }
+        catch (Exception ex) { errors.Add("Réparation indisponible : " + ex.Message); }
+        finally
+        {
+            _lastReport = _executionService.CreateReport(started, candidates, results, errors);
+            await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
+            EndOperation();
+            CompleteSessionState(_lastReport);
+            VirgilMessageRequested?.Invoke(StatusText);
+            ShowReport();
+        }
+    }
+
+    private Task<InterventionDecision> AskRepairSelectionAsync(ActionPreview preview)
+    {
+        _activeDecision = new TaskCompletionSource<InterventionDecision>();
+        TypedConfirmation = string.Empty;
+        CriticalConfirmationPrompt = preview.RiskLevel == RiskLevel.Critical
+            ? "Aucun point de restauration. Recopiez : " + ConfirmationService.ExpectedCriticalText(preview) : string.Empty;
+        ValidationTitle = preview.RiskLevel == RiskLevel.Critical ? "Aucun point de restauration" : "Valider les réparations proposées";
+        ValidationDetails = string.Join("\n", preview.Effects);
+        ValidationCommand = string.Join("\n", _diagnostics.Select(FormatCommands));
+        ValidationSafety = "Vos fichiers personnels sont protégés. Aucun redémarrage automatique. Les tâches d’impression bloquées seront annulées si cette réparation figure dans la sélection.";
+        ExecuteActionLabel = "Je confirme";
+        IsValidationOpen = true;
+        return _activeDecision.Task;
     }
 
     private IProgress<InterventionProgress> CreateProgress() => new Progress<InterventionProgress>(item =>

@@ -197,7 +197,9 @@ public sealed class ApplicationUninstallService
                     WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed, WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
                     Result = launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
                         : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé."),
-                    Errors = launch.ReadableError is null ? remnants.Errors : [launch.ReadableError], Remnants = remnants
+                    Errors = launch.ReadableError is not null ? [launch.ReadableError]
+                        : launch.ExitCode is not (null or 0 or 3010) ? [$"Le désinstalleur a renvoyé le code {launch.ExitCode}."] : remnants.Errors,
+                    Remnants = remnants
                 });
                 // Never overlap installers when an external bootstrapper's final state is unknown.
                 if (launch.Started && launch.ExitCode is null) break;

@@ -394,7 +394,7 @@ public sealed class ApplicationsViewModelTests
         await launch;
         Assert.Equal(0, f.Runner.Started);
         Assert.Equal("Desinstallation annulee.", f.Vm.StatusText);
-        Assert.Contains("Desinstallation annulee.\nAucun desinstallateur lance.", f.Messages);
+        Assert.Contains("Attente annulée.\nAucun autre désinstalleur ne sera lancé ; l’assistant officiel peut rester ouvert.", f.Messages);
         Assert.Single(f.History.Reports);
         Idle(f.Vm);
     }

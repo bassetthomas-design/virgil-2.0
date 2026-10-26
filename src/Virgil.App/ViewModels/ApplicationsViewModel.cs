@@ -30,7 +30,7 @@ public partial class ApplicationsViewModel : ObservableObject
     private readonly HashSet<string> _selectedIds = new(StringComparer.Ordinal);
     private IReadOnlyList<ApplicationUninstallResult>? _batchResults;
     private TaskCompletionSource<bool>? _confirmationDecision;
-    private bool _skipNext;
+    private int _skipNext;
     private DateTimeOffset _operationStarted;
     private CancellationTokenSource? _operationCancellation;
     private ApplicationInventoryReport? _lastInventoryReport;
@@ -68,7 +68,7 @@ public partial class ApplicationsViewModel : ObservableObject
     [RelayCommand] private void AcceptConfirmation() => _confirmationDecision?.TrySetResult(true);
     [RelayCommand] private void RefuseConfirmation() => _confirmationDecision?.TrySetResult(false);
     [RelayCommand] private void CancelOperation() { RefuseConfirmation(); CancelActiveOperation(); }
-    [RelayCommand] private void SkipNext() { _skipNext = true; StatusText = "Le prochain élément sera passé."; }
+    [RelayCommand] private void SkipNext() { Interlocked.Exchange(ref _skipNext, 1); StatusText = "Le prochain élément sera passé."; }
 
     public ObservableCollection<object> Entries { get; } = new();
     public ObservableCollection<ApplicationTextCardViewModel> Remnants { get; } = new();
@@ -299,7 +299,7 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             StatusText = "Desinstallation annulee.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Desinstallation annulee.\nAucun desinstallateur lance.");
+            VirgilMessageRequested?.Invoke("Attente annulée.\nAucun autre désinstalleur ne sera lancé ; l’assistant officiel peut rester ouvert.");
         }
         catch (Exception exception)
         {
@@ -396,7 +396,7 @@ public partial class ApplicationsViewModel : ObservableObject
         if (!BeginOperation("Désinstallation de la sélection en cours.")) return;
         try
         {
-            _skipNext = false;
+            Interlocked.Exchange(ref _skipNext, 0);
             var progress = new Progress<ApplicationUninstallProgress>(item =>
             {
                 Progress = item.Percent ?? 0;
@@ -406,7 +406,7 @@ public partial class ApplicationsViewModel : ObservableObject
             });
             _batchResults = await _uninstallService.LaunchBatchAsync(selected, plan, new ApplicationUninstallConfirmation
             { ExplicitlyConfirmed = true, ReinforcedConfirmed = reinforced, Source = "ApplicationsBatchPreview" },
-                progress, _operationCancellation!.Token, _ => { var skip = _skipNext; _skipNext = false; return skip; }).ConfigureAwait(true);
+                progress, _operationCancellation!.Token, _ => Interlocked.Exchange(ref _skipNext, 0) != 0).ConfigureAwait(true);
             foreach (var result in _batchResults) await PersistReportAsync(ApplicationReportMapper.FromUninstall(result));
             StatusText = "Parcours de désinstallation terminé. Rapport disponible.";
             VirgilMessageRequested?.Invoke(StatusText);

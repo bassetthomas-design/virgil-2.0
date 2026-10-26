@@ -29,7 +29,7 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
         var script = command.FileName switch
         {
             "virgil-update" => "$ErrorActionPreference='Stop'; Restart-Service -Name wuauserv -ErrorAction Stop; Get-Service wuauserv",
-            "virgil-audio" => "$ErrorActionPreference='Stop'; Restart-Service -Name Audiosrv -ErrorAction Stop; Get-Service Audiosrv,AudioEndpointBuilder",
+            "virgil-audio" => "$ErrorActionPreference='Stop'; Start-Service -Name AudioEndpointBuilder -ErrorAction Stop; Restart-Service -Name Audiosrv -ErrorAction Stop; Get-Service Audiosrv,AudioEndpointBuilder",
             "virgil-print" => RepairScripts.PrintQueue,
             "virgil-services" => RepairScripts.Services,
             "virgil-restore-point" => RepairScripts.RestorePoint,
@@ -60,7 +60,9 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
         else foreach (var argument in command.Arguments) startInfo.ArgumentList.Add(argument);
 
         using var timeout = new CancellationTokenSource(TimeoutFor(command.FileName));
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        var interruptible = !command.Arguments.Contains("/scannow", StringComparer.OrdinalIgnoreCase) &&
+            !command.Arguments.Contains("/RestoreHealth", StringComparer.OrdinalIgnoreCase) && command.FileName != "netsh.exe";
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(interruptible ? cancellationToken : CancellationToken.None, timeout.Token);
         using var process = new Process { StartInfo = startInfo };
         try
         {

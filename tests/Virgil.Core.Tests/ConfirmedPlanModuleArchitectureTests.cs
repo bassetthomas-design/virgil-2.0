@@ -20,6 +20,7 @@ public sealed class ConfirmedPlanModuleArchitectureTests
             (typeof(ApplicationUninstallService), "LaunchBatchAsync"),
             (typeof(IProcessActionService), "ExecuteAsync"), (typeof(ProcessActionService), "ExecuteAsync"),
             (typeof(IUpdateExecutionService), "ExecuteAsync"), (typeof(WingetUpdateExecutionService), "ExecuteAsync"),
+            (typeof(IInterventionExecutionService), "ExecuteRepairsAsync"), (typeof(InterventionExecutionService), "ExecuteRepairsAsync"),
             (typeof(IInterventionExecutionService), "ExecuteAsync"), (typeof(InterventionExecutionService), "ExecuteAsync"),
             (typeof(ICleanupExecutionService), "ExecuteZoneAsync"), (typeof(CleanupExecutionService), "ExecuteZoneAsync")
         };
@@ -28,7 +29,7 @@ public sealed class ConfirmedPlanModuleArchitectureTests
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
             var executions = methods.Where(method => method.Name == name).ToArray();
             Assert.NotEmpty(executions);
-            Assert.Equal(type == typeof(IInterventionExecutionService) || type == typeof(InterventionExecutionService) ? 2 : 1, executions.Length);
+            Assert.Equal(name == "ExecuteAsync" && (type == typeof(IInterventionExecutionService) || type == typeof(InterventionExecutionService)) ? 2 : 1, executions.Length);
             Assert.All(executions, execution => Assert.Contains(execution.GetParameters(), p => p.ParameterType == typeof(ConfirmedPlan)));
             Assert.All(methods, m => Assert.DoesNotContain(m.GetParameters(), p => p.ParameterType == typeof(bool)));
         }

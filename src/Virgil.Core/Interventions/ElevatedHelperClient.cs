@@ -49,12 +49,14 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         try
         {
             // Keep the protocol alive until the helper has acknowledged cancellation and exited.
-            using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromHours(4));
             var launch = _processLauncher.RunElevatedAsync(helperPath, requestFile.RequestPath, timeout.Token);
             while (!launch.IsCompleted)
             {
                 if (cancellationToken.IsCancellationRequested) _requestStore.RequestCancel(requestFile);
                 var update = await _requestStore.ReadProgressAsync(requestFile, timeout.Token).ConfigureAwait(false);
+                if (update is not null && cancellationToken.IsCancellationRequested)
+                    update = update with { Step = "Annulation demandée ; fin de l’étape en cours : " + update.Step };
                 progress?.Report(update ?? new InterventionProgress
                 {
                     Nonce = requestFile.Nonce,

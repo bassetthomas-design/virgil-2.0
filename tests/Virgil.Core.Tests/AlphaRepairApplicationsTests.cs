@@ -144,6 +144,65 @@ public sealed class AlphaRepairApplicationsTests
         Assert.Equal(InterventionId.SfcScan, helper.Calls.Last());
     }
 
+    [Fact]
+    public async Task RepairSelectionConsumesOnePlanThenCreatesOneRestorePointBeforeAllRepairsAndRecheck()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var helper = new SuccessfulHelper();
+        var service = new InterventionExecutionService(helper, new Explorer(), authority);
+        var catalog = new InterventionCatalog();
+        var selection = new InterventionRepairSelection(new[] { InterventionId.FlushDns, InterventionId.SfcScan }
+            .Select(id => new InterventionDiagnostic { Definition = catalog.Get(id), IsAvailable = true }).ToArray());
+        var preview = InterventionRepairPreviewFactory.Create(selection);
+        var plan = authority.Issue(preview, new(ConfirmationLevel.Reinforced, null));
+        await service.ExecuteRepairsAsync(selection, null, null, CancellationToken.None);
+        Assert.Empty(helper.Calls);
+        var results = await service.ExecuteRepairsAsync(selection, plan, null, CancellationToken.None);
+        Assert.Equal(new[] { InterventionId.CreateRestorePoint, InterventionId.FlushDns, InterventionId.SfcScan, InterventionId.VerifyHealth }, helper.Calls);
+        Assert.Equal(4, results.Count);
+        await service.ExecuteRepairsAsync(selection, plan, null, CancellationToken.None);
+        Assert.Equal(4, helper.Calls.Count);
+    }
+
+    [Fact]
+    public async Task RepairSelectionHashBindsItemsAndRestoreException()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var helper = new SuccessfulHelper();
+        var service = new InterventionExecutionService(helper, new Explorer(), authority);
+        var catalog = new InterventionCatalog();
+        var selection = new InterventionRepairSelection([new InterventionDiagnostic { Definition = catalog.Get(InterventionId.FlushDns), IsAvailable = true }]);
+        var preview = InterventionRepairPreviewFactory.Create(selection);
+        var plan = authority.Issue(preview, new(ConfirmationLevel.Reinforced, null));
+        await service.ExecuteRepairsAsync(selection with { AllowWithoutRestorePoint = true }, plan, null, CancellationToken.None);
+        await service.ExecuteRepairsAsync(selection with { Diagnostics = [new InterventionDiagnostic { Definition = catalog.Get(InterventionId.SfcScan), IsAvailable = true }] }, plan, null, CancellationToken.None);
+        Assert.Empty(helper.Calls);
+        var criticalPreview = InterventionRepairPreviewFactory.Create(selection with { AllowWithoutRestorePoint = true });
+        Assert.Equal(RiskLevel.Critical, criticalPreview.RiskLevel);
+        Assert.Contains("aucun point de restauration", criticalPreview.Targets);
+        Assert.Throws<ConfirmationRefusedException>(() => authority.Issue(criticalPreview, new(ConfirmationLevel.Reinforced, null)));
+    }
+
+    [Fact]
+    public async Task RepairSelectionRestoreFailurePreventsEveryRepairAndRecheck()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var helper = new Helper();
+        var service = new InterventionExecutionService(helper, new Explorer(), authority);
+        var selection = new InterventionRepairSelection([new InterventionDiagnostic { Definition = new InterventionCatalog().Get(InterventionId.SfcScan), IsAvailable = true }]);
+        var plan = authority.Issue(InterventionRepairPreviewFactory.Create(selection), new(ConfirmationLevel.Reinforced, null));
+        var results = await service.ExecuteRepairsAsync(selection, plan, null, CancellationToken.None);
+        Assert.Equal(InterventionId.CreateRestorePoint, Assert.Single(helper.Calls));
+        Assert.Contains(results, result => result.ReadableError?.StartsWith("Réparation bloquée", StringComparison.Ordinal) == true);
+    }
+
+    private sealed class SuccessfulHelper : IInterventionElevatedHelperClient
+    {
+        public List<InterventionId> Calls { get; } = new();
+        public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken token)
+        { Calls.Add(definition.Id); return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed }); }
+    }
+
     private static InstalledApplication Safe(string id) => new() { Id = id, DisplayName = id, CanUninstall = true,
         WingetId = "Example." + id, RiskLevel = ApplicationRiskLevel.SafeToUninstall, UninstallKind = ApplicationUninstallKind.Winget };
     private sealed class Launcher : IApplicationProcessLauncher

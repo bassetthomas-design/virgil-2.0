@@ -22,7 +22,8 @@ public static class ApplicationActionPreviewFactory
             parameters["Argument:" + i.ToString(CultureInfo.InvariantCulture)] = plan.Validation.Arguments[i];
 
         return new ActionPreview("applications.uninstall", application.DisplayName,
-            application.RiskLevel.ToRiskLevel(), [application.Id, application.DisplayName], parameters,
+            plan.RequiresReinforcedConfirmation && application.RiskLevel.ToRiskLevel() < RiskLevel.Sensitive
+                ? RiskLevel.Sensitive : application.RiskLevel.ToRiskLevel(), [application.Id, application.DisplayName], parameters,
             ["Lancement du desinstalleur officiel valide.", "Analyse lecture seule des restes."],
             false, false, Reversibility.None, []);
     }

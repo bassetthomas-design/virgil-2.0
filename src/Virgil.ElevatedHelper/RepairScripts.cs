@@ -38,6 +38,7 @@ internal static class RepairScripts
 
     internal const string PrintQueue = """
         $ErrorActionPreference='Stop'
+        Start-Service -Name Spooler -ErrorAction Stop
         foreach($p in Get-Printer -ErrorAction Stop) {
           foreach($job in Get-PrintJob -PrinterName $p.Name -ErrorAction Stop) {
             if($job.JobStatus -match 'Error|Blocked|Offline|PaperOut|UserIntervention' -or $job.SubmittedTime -lt (Get-Date).AddHours(-1)) {

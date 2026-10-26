@@ -77,6 +77,53 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
         };
     }
 
+    public async Task<IReadOnlyList<InterventionExecutionResult>> ExecuteRepairsAsync(InterventionRepairSelection selection,
+        ConfirmedPlan? plan, IProgress<InterventionProgress>? progress, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var diagnostics = selection.Diagnostics.ToArray();
+        selection = selection with { Diagnostics = diagnostics };
+        if (diagnostics.Length == 0 || diagnostics.Any(item => !item.IsAvailable || !InterventionSafety.RequiresRestorePoint(item.Definition.Id)) ||
+            diagnostics.Select(item => item.Definition.Id).Distinct().Count() != diagnostics.Length)
+            return [Failure(diagnostics.FirstOrDefault() ?? new(), "Sélection de réparations invalide.")];
+        var validation = _gate.TryConsume(plan, InterventionRepairPreviewFactory.Create(selection));
+        if (!validation.IsAccepted) return [Failure(diagnostics[0], validation.Message)];
+
+        var results = new List<InterventionExecutionResult>();
+        if (!selection.AllowWithoutRestorePoint)
+        {
+            var restore = new InterventionCatalog().Get(InterventionId.CreateRestorePoint);
+            var protection = await _helperClient.ExecuteAsync(restore, progress, cancellationToken).ConfigureAwait(false);
+            results.Add(MapResult(new InterventionDiagnostic { Definition = restore, IsAvailable = true }, protection));
+            if (protection.Status != InterventionStatus.Completed)
+                return results.Append(Failure(diagnostics[0], "Réparation bloquée : point de restauration non créé ou non vérifié. " +
+                    protection.ReadableError + " Activez la protection du système dans Windows ou confirmez explicitement « aucun point de restauration ».")).ToArray();
+        }
+        foreach (var diagnostic in diagnostics)
+        {
+            if (cancellationToken.IsCancellationRequested) { results.Add(Cancel(diagnostic)); continue; }
+            var result = await _helperClient.ExecuteAsync(diagnostic.Definition, progress, cancellationToken).ConfigureAwait(false);
+            results.Add(MapResult(diagnostic, result));
+            if (result.Status == InterventionStatus.Cancelled) break;
+        }
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            var verify = new InterventionCatalog().Get(InterventionId.VerifyHealth);
+            var check = await _helperClient.ExecuteAsync(verify, progress, cancellationToken).ConfigureAwait(false);
+            results.Add(MapResult(new InterventionDiagnostic { Definition = verify, IsAvailable = true }, check));
+        }
+        return results;
+    }
+
+    private static InterventionExecutionResult MapResult(InterventionDiagnostic diagnostic, ElevatedInterventionResult result)
+        => new()
+        {
+            Action = diagnostic.Definition, StartedAt = result.StartedAt, FinishedAt = result.FinishedAt,
+            Status = result.Status, ExitCode = result.ExitCode, SummaryOutput = result.SummaryOutput,
+            ReadableError = result.ReadableError, RebootRequired = result.RebootRequired,
+            StateBefore = diagnostic.StateBefore, StateAfter = StateAfter(result), WasConfirmed = true, WasElevated = true
+        };
+
     public InterventionExecutionResult Skip(InterventionDiagnostic diagnostic)
     {
         return new InterventionExecutionResult
