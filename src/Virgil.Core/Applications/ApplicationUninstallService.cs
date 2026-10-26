@@ -43,7 +43,7 @@ public sealed class ApplicationUninstallService
             Application = application,
             Method = application.UninstallKind,
             Validation = validation,
-            RequiresCautionConfirmation = application.RiskLevel == ApplicationRiskLevel.Caution
+            RequiresCautionConfirmation = application.RiskLevel == ApplicationRiskLevel.Caution || application.UninstallKind == ApplicationUninstallKind.StorePackage
         };
     }
 
@@ -124,6 +124,7 @@ public sealed class ApplicationUninstallService
             };
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var launch = await _launcher
             .LaunchAsync(executable, arguments, useShellExecute: true, cancellationToken)
             .ConfigureAwait(false);
@@ -148,6 +149,75 @@ public sealed class ApplicationUninstallService
             Errors = string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
             Remnants = remnants
         };
+    }
+
+    public async Task<IReadOnlyList<ApplicationUninstallResult>> LaunchBatchAsync(
+        IReadOnlyList<InstalledApplication> applications, ConfirmedPlan? confirmedPlan,
+        ApplicationUninstallConfirmation confirmation, IProgress<ApplicationUninstallProgress>? progress,
+        CancellationToken cancellationToken, Func<InstalledApplication, bool>? skip = null)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Freeze the selection and exact commands before consuming the one-use batch plan.
+        var plans = applications.Select(BuildPlan).Select(plan => plan with
+        {
+            Validation = plan.Validation with { Arguments = plan.Validation.Arguments.ToArray() }
+        }).ToArray();
+        var invalid = plans.Length == 0 || plans.Select(plan => plan.Application.Id).Distinct(StringComparer.Ordinal).Count() != plans.Length ||
+            plans.Any(plan => !plan.Application.CanUninstall || plan.Application.IsSystemComponent ||
+                plan.Application.RiskLevel == ApplicationRiskLevel.Protected || !plan.CanLaunch ||
+                !_confirmationPolicy.Validate(plan, confirmation).CanProceed);
+        if (invalid) return [new ApplicationUninstallResult { WasCancelled = true, Result = "Sélection refusée : élément protégé, commande invalide ou confirmation absente." }];
+        var validation = _gate.TryConsume(confirmedPlan, ApplicationBatchPreviewFactory.Create(plans));
+        if (!validation.IsAccepted)
+            return [new ApplicationUninstallResult { WasCancelled = true, Result = validation.Message, Errors = [validation.Message] }];
+
+        var results = new List<ApplicationUninstallResult>();
+        for (var index = 0; index < plans.Length; index++)
+        {
+            var plan = plans[index];
+            if (cancellationToken.IsCancellationRequested) break;
+            if (skip?.Invoke(plan.Application) == true)
+            {
+                results.Add(new ApplicationUninstallResult { Application = plan.Application, WasCancelled = true, Result = "Élément passé par l’utilisateur." });
+                continue;
+            }
+            Report(progress, index + 1, plans.Length, index * 100 / plans.Length,
+                plan.Application.DisplayName, $"Désinstallation {index + 1}/{plans.Length} : {plan.Application.DisplayName}");
+            try
+            {
+                var launch = await _launcher.LaunchAsync(plan.Validation.Executable!, plan.Validation.Arguments,
+                    useShellExecute: true, cancellationToken).ConfigureAwait(false);
+                var remnants = launch.Started && launch.ExitCode is 0 or 3010
+                    ? await _remnantScanner.ScanAsync(plan.Application, cancellationToken).ConfigureAwait(false)
+                    : new ApplicationRemnantScanReport { Application = plan.Application };
+                results.Add(new ApplicationUninstallResult
+                {
+                    Application = plan.Application, Method = plan.Method, WasLaunched = launch.Started,
+                    ExitCode = launch.ExitCode, StatusUnknown = launch.Started && launch.ExitCode is null,
+                    WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed, WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
+                    Result = launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
+                        : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé."),
+                    Errors = launch.ReadableError is null ? remnants.Errors : [launch.ReadableError], Remnants = remnants
+                });
+                // Never overlap installers when an external bootstrapper's final state is unknown.
+                if (launch.Started && launch.ExitCode is null) break;
+            }
+            catch (OperationCanceledException)
+            {
+                results.Add(new ApplicationUninstallResult { Application = plan.Application, WasCancelled = true,
+                    StatusUnknown = true, Result = "Attente annulée. L’assistant officiel peut rester ouvert ; aucune autre application ne sera lancée." });
+                break;
+            }
+            catch (Exception ex)
+            {
+                results.Add(new ApplicationUninstallResult { Application = plan.Application, Result = "Désinstallation indisponible.", Errors = [ex.Message] });
+            }
+        }
+        if (results.Count < plans.Length)
+            results.AddRange(plans.Skip(results.Count).Select(plan => new ApplicationUninstallResult
+            { Application = plan.Application, WasCancelled = true, Result = "Non lancée : parcours interrompu." }));
+        Report(progress, plans.Length, plans.Length, 100, "Rapport", "Parcours terminé ; consultez le rapport.");
+        return results;
     }
 
     private static void Report(
@@ -188,7 +258,7 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         {
             cancellationToken.ThrowIfCancellationRequested();
             var result = await _runner.LaunchAsync(
-                new ProcessLaunchRequest(executable, arguments, useShellExecute), cancellationToken)
+                new ProcessLaunchRequest(executable, arguments, useShellExecute, WaitForExit: true), cancellationToken)
                 .ConfigureAwait(false);
             return result.LaunchError is not null
                 ? new ApplicationLaunchResult(false, null, "Desinstalleur officiel impossible a lancer.")

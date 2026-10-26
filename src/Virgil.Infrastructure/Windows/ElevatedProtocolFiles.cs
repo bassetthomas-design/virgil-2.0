@@ -36,6 +36,19 @@ public sealed class ElevatedProtocolFiles : IElevatedProtocolFiles
             stream, options, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<InterventionProgress?> ReadProgressAsync(string path, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return await JsonSerializer.DeserializeAsync<InterventionProgress>(stream, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public void RequestCancel(string path)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+        stream.Flush(true);
+    }
+
     public bool Exists(string path) => File.Exists(path);
 
     public void Delete(string path) => File.Delete(path);

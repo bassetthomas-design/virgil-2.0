@@ -108,7 +108,8 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (Exception ex)
         {
-            return new ProcessLaunchResult(false, null, ex.Message);
+            return new ProcessLaunchResult(false, null, ex is System.ComponentModel.Win32Exception { NativeErrorCode: 1223 }
+                ? "Élévation refusée par l’utilisateur (UAC 1223)." : ex.Message);
         }
     }
 

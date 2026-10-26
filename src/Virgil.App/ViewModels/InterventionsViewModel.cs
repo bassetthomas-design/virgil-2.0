@@ -28,7 +28,9 @@ public partial class InterventionsViewModel : ObservableObject
     private TaskCompletionSource<InterventionDecision>? _activeDecision;
     private InterventionSessionReport? _lastReport;
     private bool _operationInProgress;
-    private bool _criticalActionStarted;
+    private InterventionExecutionResult? _verificationResult;
+    private string _lastProgressMessage = string.Empty;
+    private DateTimeOffset _lastProgressAt;
 
     public InterventionsViewModel(
         IInterventionDiagnosticService diagnosticService,
@@ -58,6 +60,13 @@ public partial class InterventionsViewModel : ObservableObject
     public ObservableCollection<InterventionItemViewModel> StorageItems { get; } = new();
     public ObservableCollection<InterventionItemViewModel> InterfaceItems { get; } = new();
 
+    [ObservableProperty] private bool includeDeepScan;
+    [ObservableProperty] private double progress;
+    [ObservableProperty] private string elapsedText = string.Empty;
+    [ObservableProperty] private string typedConfirmation = string.Empty;
+    [ObservableProperty] private string criticalConfirmationPrompt = string.Empty;
+    [RelayCommand] private void CancelOperation() => CancelActiveOperation();
+
     [ObservableProperty] private string statusText = "DIAGNOSTIC, VALIDATION ET EXECUTION";
     [ObservableProperty] private string overallText = "NON ANALYSE";
     [ObservableProperty] private string recommendedCountText = "0";
@@ -84,12 +93,6 @@ public partial class InterventionsViewModel : ObservableObject
 
     public void CancelActiveOperation()
     {
-        if (_criticalActionStarted)
-        {
-            VirgilMessageRequested?.Invoke("Action critique deja lancee.\nVirgil attend la fin sans tuer le processus.");
-            return;
-        }
-
         _operationCancellation?.Cancel();
         CompleteDecision(InterventionDecision.CancelAll);
     }
@@ -131,6 +134,89 @@ public partial class InterventionsViewModel : ObservableObject
 
     [RelayCommand]
     private void CancelDecision() => CompleteDecision(InterventionDecision.CancelAll);
+
+    [RelayCommand]
+    private async Task VerifyHealthAsync()
+    {
+        if (!BeginOperation("Vérification en attente de confirmation de l’élévation.")) return;
+        var started = DateTimeOffset.Now;
+        var results = new List<InterventionExecutionResult>();
+        var errors = new List<string>();
+        var checks = new InterventionDiagnostic
+        {
+            Definition = new InterventionCatalog().Get(IncludeDeepScan ? InterventionId.VerifyHealthDeep : InterventionId.VerifyHealth),
+            IsAvailable = true, StateBefore = "Non vérifié"
+        };
+        try
+        {
+            var decision = await AskDecisionAsync(checks).ConfigureAwait(true);
+            if (decision != InterventionDecision.Execute)
+            {
+                results.Add(decision == InterventionDecision.Skip ? _executionService.Skip(checks) : _executionService.Cancel(checks));
+                return;
+            }
+            var plan = _confirmationService.Issue(InterventionActionPreviewFactory.Create(checks.Definition),
+                new ConfirmationConsent(ConfirmationLevel.Simple, null));
+            _verificationResult = await _executionService.ExecuteAsync(checks, plan, CreateProgress(), _operationCancellation!.Token).ConfigureAwait(true);
+            results.Add(_verificationResult);
+            StatusText = _verificationResult.ReadableError ?? "Vérification terminée. Consultez le rapport détaillé.";
+            VirgilMessageRequested?.Invoke(StatusText);
+            var available = await _diagnosticService.DiagnoseAllAsync(_operationCancellation.Token).ConfigureAwait(true);
+            var repairs = InterventionSafety.RepairsFor(_verificationResult.SummaryOutput);
+            _diagnostics.Clear();
+            _diagnostics.AddRange(available.Where(item => repairs.Contains(item.Definition.Id))
+                .Select(item => item with { Status = InterventionStatus.Recommended, StateBefore = "Constat issu de la vérification ; voir le rapport." }));
+            RenderDiagnostics();
+        }
+        catch (OperationCanceledException) { errors.Add("Vérification annulée."); }
+        catch (Exception ex) { errors.Add("Vérification indisponible : " + ex.Message); }
+        finally
+        {
+            _lastReport = _executionService.CreateReport(started, [checks], results, errors);
+            await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
+            EndOperation();
+            if (errors.Count > 0) { StatusText = string.Join("\n", errors); VirgilMessageRequested?.Invoke(StatusText); }
+            ShowReport();
+        }
+    }
+
+    [RelayCommand]
+    private async Task ScanRepairAsync()
+    {
+        if (_operationInProgress) return;
+        _verificationResult = null;
+        await VerifyHealthAsync().ConfigureAwait(true);
+        if (_verificationResult?.Status != InterventionStatus.Completed || !GuidedCandidates().Any()) return;
+        IsReportOpen = false;
+        await RunGuidedAsync().ConfigureAwait(true);
+        // A fresh, separately confirmed read-only check reports the actual post-repair state.
+        if (_lastReport?.Results.Any(result => result.WasConfirmed && result.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired) == true)
+        {
+            var repairReport = _lastReport;
+            IsReportOpen = false;
+            await VerifyHealthAsync().ConfigureAwait(true);
+            if (repairReport is not null && _lastReport is not null)
+            {
+                _lastReport = _executionService.CreateReport(repairReport.StartedAt, repairReport.ProposedActions,
+                    repairReport.Results.Concat(_lastReport.Results).ToArray(), repairReport.Errors.Concat(_lastReport.Errors).ToArray());
+                await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
+                ShowReport();
+            }
+        }
+    }
+
+    private IProgress<InterventionProgress> CreateProgress() => new Progress<InterventionProgress>(item =>
+    {
+        Progress = item.Percent ?? 0;
+        ElapsedText = $"Temps écoulé : {item.Elapsed:hh\\:mm\\:ss}";
+        StatusText = item.Step + (item.Percent.HasValue ? $" — {item.Percent} %" : " — en cours…");
+        if (StatusText != _lastProgressMessage || DateTimeOffset.Now - _lastProgressAt >= TimeSpan.FromSeconds(10))
+        {
+            _lastProgressMessage = StatusText;
+            _lastProgressAt = DateTimeOffset.Now;
+            VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
+        }
+    });
 
     [RelayCommand]
     private async Task AnalyzeAsync()
@@ -234,16 +320,34 @@ public partial class InterventionsViewModel : ObservableObject
                 }
 
                 RequestVirgilState(VirgilCoreState.Executing, "EXECUTION");
-                _criticalActionStarted = !diagnostic.Definition.CanBeInterruptedAfterStart;
                 SetButtonsEnabled(false);
 
                 var result = await _executionService
-                    .ExecuteAsync(diagnostic, plan, _operationCancellation.Token)
+                    .ExecuteAsync(diagnostic, plan, CreateProgress(), _operationCancellation.Token)
                     .ConfigureAwait(true);
 
-                _criticalActionStarted = false;
                 results.Add(result);
-                VirgilMessageRequested?.Invoke(ResultMessage(result));
+                StatusText = result.ReadableError ?? ResultMessage(result);
+                VirgilMessageRequested?.Invoke(StatusText);
+                if (result.ReadableError?.StartsWith("Réparation bloquée : point de restauration", StringComparison.Ordinal) == true)
+                {
+                    var unprotected = diagnostic with { Definition = diagnostic.Definition with { AllowWithoutRestorePoint = true } };
+                    var retry = await AskDecisionAsync(unprotected).ConfigureAwait(true);
+                    if (retry == InterventionDecision.Execute)
+                    {
+                        try
+                        {
+                            var overridePlan = _confirmationService.Issue(InterventionActionPreviewFactory.Create(unprotected.Definition),
+                                new ConfirmationConsent(ConfirmationLevel.Critical, TypedConfirmation));
+                            var retried = await _executionService.ExecuteAsync(unprotected, overridePlan, CreateProgress(), _operationCancellation.Token).ConfigureAwait(true);
+                            results.Add(retried);
+                            StatusText = retried.ReadableError ?? ResultMessage(retried);
+                            VirgilMessageRequested?.Invoke(StatusText);
+                        }
+                        catch (ConfirmationRefusedException) { errors.Add("Confirmation Critique incorrecte : réparation sans point de restauration refusée."); }
+                    }
+                    else if (retry == InterventionDecision.CancelAll) break;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -258,7 +362,6 @@ public partial class InterventionsViewModel : ObservableObject
         }
         finally
         {
-            _criticalActionStarted = false;
             _lastReport = _executionService.CreateReport(startedAt, candidates, results, errors);
             await PersistReportAsync(ReportMapper.FromInterventions(_lastReport));
             EndOperation();
@@ -329,6 +432,10 @@ public partial class InterventionsViewModel : ObservableObject
     private void ShowValidation(InterventionDiagnostic diagnostic)
     {
         var definition = diagnostic.Definition;
+        TypedConfirmation = string.Empty;
+        CriticalConfirmationPrompt = definition.AllowWithoutRestorePoint
+            ? "Aucun point de restauration. Pour continuer sans cette protection, recopiez : " +
+                ConfirmationService.ExpectedCriticalText(InterventionActionPreviewFactory.Create(definition)) : string.Empty;
         ValidationTitle = definition.RiskLevel == InterventionRiskLevel.Sensitive
             ? "ACTION SENSIBLE"
             : "VALIDATION REQUISE";
@@ -460,9 +567,10 @@ public partial class InterventionsViewModel : ObservableObject
             return;
         }
 
-        if (report.Failures > 0)
+        if (report.Failures > 0 || report.Errors.Count > 0)
         {
-            StatusText = "Parcours termine avec erreurs.";
+            StatusText = report.Results.LastOrDefault(result => !string.IsNullOrWhiteSpace(result.ReadableError))?.ReadableError
+                ?? string.Join("\n", report.Errors.DefaultIfEmpty("Parcours terminé avec erreurs."));
             RequestVirgilState(VirgilCoreState.Warning, "ATTENTION");
             return;
         }

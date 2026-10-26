@@ -193,12 +193,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ResourcesView>(sp => new ResourcesView(sp.GetRequiredService<ResourcesViewModel>()));
         services.AddTransient<IInstallationLocationService>(sp =>
             new Virgil.Infrastructure.Applications.InstallationLocationService(sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<IApplicationIconLoader, Virgil.Infrastructure.Applications.ApplicationIconLoader>();
         services.AddSingleton<IApplicationUninstallConfirmationDialog>(_ => new ApplicationUninstallConfirmationDialogService());
         services.AddSingleton<ApplicationsViewModel>(sp => new ApplicationsViewModel(
             sp.GetRequiredService<IApplicationInventoryService>(), sp.GetRequiredService<ApplicationUninstallService>(),
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<IReportHistoryService>(),
             sp.GetRequiredService<IApplicationUninstallConfirmationDialog>(), sp.GetRequiredService<IConfirmationService>(),
-            sp.GetRequiredService<IInstallationLocationService>()));
+            sp.GetRequiredService<IInstallationLocationService>(), sp.GetRequiredService<IApplicationIconLoader>()));
         services.AddSingleton<ApplicationsView>(sp => new ApplicationsView(sp.GetRequiredService<ApplicationsViewModel>()));
         services.AddSingleton<IFileSaveDialog>(_ => new SaveFileDialogService());
         services.AddSingleton<ReportsHistoryViewModel>(sp => new ReportsHistoryViewModel(

@@ -107,6 +107,13 @@ public sealed class LegacyEffectArchitectureTests
         Assert.DoesNotContain("SendCommand", xaml);
         Assert.DoesNotContain("ChatInput", window);
         Assert.Contains("Action indisponible dans cette alpha : parcours sécurisé de confirmation non livré.", window);
+        var repairs = Read("Virgil.App/Views/InterventionsView.xaml");
+        Assert.Contains("{Binding VerifyHealthCommand}", repairs);
+        Assert.Contains("{Binding ScanRepairCommand}", repairs);
+        var applications = Read("Virgil.App/ViewModels/ApplicationsViewModel.cs");
+        Assert.Contains("ApplicationBatchPreviewFactory.Create", applications);
+        Assert.Contains("_confirmationService.Issue(preview", applications);
+        Assert.DoesNotContain("MessageBox", Read("Virgil.App/Services/ApplicationUninstallConfirmationDialogService.cs"));
         var sources = Sources("Virgil.App").Select(File.ReadAllText);
         foreach (var text in sources)
         {

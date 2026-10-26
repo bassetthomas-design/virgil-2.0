@@ -17,6 +17,7 @@ public sealed class ConfirmedPlanModuleArchitectureTests
         var modules = new[]
         {
             (typeof(ApplicationUninstallService), "LaunchOfficialUninstallAsync"),
+            (typeof(ApplicationUninstallService), "LaunchBatchAsync"),
             (typeof(IProcessActionService), "ExecuteAsync"), (typeof(ProcessActionService), "ExecuteAsync"),
             (typeof(IUpdateExecutionService), "ExecuteAsync"), (typeof(WingetUpdateExecutionService), "ExecuteAsync"),
             (typeof(IInterventionExecutionService), "ExecuteAsync"), (typeof(InterventionExecutionService), "ExecuteAsync"),
@@ -25,8 +26,10 @@ public sealed class ConfirmedPlanModuleArchitectureTests
         foreach (var (type, name) in modules)
         {
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            var execution = Assert.Single(methods, m => m.Name == name);
-            Assert.Contains(execution.GetParameters(), p => p.ParameterType == typeof(ConfirmedPlan));
+            var executions = methods.Where(method => method.Name == name).ToArray();
+            Assert.NotEmpty(executions);
+            Assert.Equal(type == typeof(IInterventionExecutionService) || type == typeof(InterventionExecutionService) ? 2 : 1, executions.Length);
+            Assert.All(executions, execution => Assert.Contains(execution.GetParameters(), p => p.ParameterType == typeof(ConfirmedPlan)));
             Assert.All(methods, m => Assert.DoesNotContain(m.GetParameters(), p => p.ParameterType == typeof(bool)));
         }
     }
