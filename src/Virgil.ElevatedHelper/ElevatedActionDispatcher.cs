@@ -92,6 +92,17 @@ public sealed class ElevatedActionDispatcher
         IProgress<InterventionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
+        if (UpdateMaintenanceRunner.Handles(request.ActionId))
+        {
+            if (!_securityContext.IsAdministrator || !_allowlist.IsMaintenanceAllowed(request.ActionId, request.UpdateIdentity))
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Action de mise à jour refusée.", false);
+            var maintenance = await UpdateMaintenanceRunner.ExecuteAsync(request, _commandRunner).ConfigureAwait(false);
+            return Result(request, startedAt, maintenance.Success ? 0 : -1,
+                maintenance.Success ? (maintenance.Reboot ? InterventionStatus.RebootRequired : InterventionStatus.Completed) : InterventionStatus.Failed,
+                maintenance.Message, maintenance.Reboot);
+        }
+        if (!string.IsNullOrEmpty(request.UpdateIdentity))
+            return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètre de mise à jour inattendu.", false);
         if (!_allowlist.TryGet(request.ActionId, GetSystemDrive(), out var spec))
         {
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Action refusee par la liste blanche.", false);

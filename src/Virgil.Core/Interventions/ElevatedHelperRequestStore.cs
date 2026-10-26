@@ -36,7 +36,9 @@ public sealed class ElevatedHelperRequestStore
 
     public async Task<ElevatedInterventionRequestFile> CreateAsync(
         InterventionId actionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string updateIdentity = "",
+        string restoreSessionId = "")
     {
         var localAppData = _pathGuard.NormalizeLocalAppData(_localAppDataProvider());
         var rootDirectory = _protocolRoot.EnsureCreated(localAppData);
@@ -56,6 +58,8 @@ public sealed class ElevatedHelperRequestStore
             ActionId = actionId,
             Nonce = nonce,
             CreatedAt = createdAt,
+            UpdateIdentity = updateIdentity,
+            RestoreSessionId = restoreSessionId,
             ResultPath = resultPath
         };
 

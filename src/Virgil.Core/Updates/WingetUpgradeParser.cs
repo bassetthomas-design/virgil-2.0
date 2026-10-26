@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Virgil.Contracts;
 
@@ -5,128 +6,73 @@ namespace Virgil.Core.Updates;
 
 public static class WingetUpgradeParser
 {
-    private static readonly Regex ColumnSplitter = new(@"\s{2,}|\t+", RegexOptions.Compiled);
-
     public static WingetParseResult Parse(string output)
     {
         var items = new List<UpdateItem>();
-        var warnings = new List<string>();
-        var headerSeen = false;
-
-        foreach (var rawLine in SplitLines(output))
+        var lines = output.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        int[]? starts = null;
+        var table = 0;
+        for (var i = 0; i < lines.Length; i++)
         {
-            var line = rawLine.Trim();
-            if (string.IsNullOrWhiteSpace(line) || IsSummaryLine(line))
+            var line = lines[i];
+            if (i + 1 < lines.Length && IsSeparator(lines[i + 1]))
             {
+                var tokens = Regex.Matches(line, @"\S+");
+                starts = tokens.Count == 5 ? tokens.Select(token => token.Index).ToArray() : null;
+                table++;
+                i++;
                 continue;
             }
-
-            if (IsHeaderLine(line))
+            if (starts is null) continue;
+            if (string.IsNullOrWhiteSpace(line) || line.Length <= starts[4])
             {
-                headerSeen = true;
+                starts = null;
                 continue;
             }
-
-            if (IsSeparator(line))
+            var parts = starts.Select((start, column) => line[start..(column + 1 < starts.Length ? Math.Min(starts[column + 1], line.Length) : line.Length)].Trim()).ToArray();
+            // A row must occupy every column and identify a package source. Prose is never a warning.
+            if (parts.Any(string.IsNullOrWhiteSpace) || parts[1].Any(char.IsWhiteSpace) || parts[3].Any(char.IsWhiteSpace) || parts[4].Any(char.IsWhiteSpace))
             {
+                starts = null;
                 continue;
             }
-
-            if (!headerSeen && !LooksLikePackageLine(line))
-            {
-                continue;
-            }
-
-            var parts = ColumnSplitter.Split(line).Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
-            if (parts.Count < 5)
-            {
-                warnings.Add($"Ligne WinGet ignoree : {line}");
-                continue;
-            }
-
-            var name = string.Join(" ", parts.Take(parts.Count - 4)).Trim();
-            var id = parts[^4].Trim();
-            var installedVersion = parts[^3].Trim();
-            var availableVersion = parts[^2].Trim();
-            var source = parts[^1].Trim();
-
-            if (string.IsNullOrWhiteSpace(name) ||
-                string.IsNullOrWhiteSpace(id) ||
-                string.Equals(id, "-", StringComparison.OrdinalIgnoreCase) ||
-                !LooksLikePackageId(id))
-            {
-                warnings.Add($"Ligne WinGet ambigue ignoree : {line}");
-                continue;
-            }
-
-            items.Add(new UpdateItem
-            {
-                Id = id,
-                Name = name,
-                InstalledVersion = installedVersion,
-                AvailableVersion = availableVersion,
-                Source = IsMicrosoftStore(source) ? UpdateSource.MicrosoftStore : UpdateSource.Winget,
-                Scope = "Utilisateur ou machine",
-                RequiresExplicitConfirmation = true
-            });
+            items.Add(Create(parts[1], parts[0], parts[2], parts[3], parts[4]) with { RequiresExplicitTarget = table > 1 });
         }
-
-        return new WingetParseResult(items, warnings);
+        return new(items, Array.Empty<string>());
     }
 
-    private static IEnumerable<string> SplitLines(string output)
+    public static WingetParseResult ParseJson(string output)
     {
-        return output.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        using var document = JsonDocument.Parse(output);
+        var root = document.RootElement;
+        if (root.ValueKind == JsonValueKind.Null) return new(Array.Empty<UpdateItem>(), Array.Empty<string>());
+        var rows = root.ValueKind == JsonValueKind.Array ? root.EnumerateArray().ToArray() : new[] { root };
+        var items = new List<UpdateItem>();
+        foreach (var row in rows)
+        {
+            if (row.ValueKind != JsonValueKind.Object) throw new JsonException("Objet WinGet attendu.");
+            var id = Read(row, "Id");
+            var name = Read(row, "Name");
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name)) continue;
+            items.Add(Create(id, name, Read(row, "InstalledVersion"), Read(row, "Available"), Read(row, "Source")));
+        }
+        return new(items, Array.Empty<string>());
     }
 
-    private static bool IsHeaderLine(string line)
+    private static string Read(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : string.Empty;
+    private static bool IsSeparator(string line) => line.Trim().Length > 0 && line.Trim().All(character => character == '-');
+    private static UpdateItem Create(string id, string name, string installed, string available, string source) => new()
     {
-        return ContainsAny(line, "Name", "Nom") &&
-            ContainsAny(line, "Id", "ID") &&
-            ContainsAny(line, "Version") &&
-            ContainsAny(line, "Available", "Disponible", "Dispo");
-    }
-
-    private static bool IsSeparator(string line)
-    {
-        return line.All(character => character is '-' or ' ' or '\t');
-    }
-
-    private static bool IsSummaryLine(string line)
-    {
-        return line.Contains("upgrades available", StringComparison.OrdinalIgnoreCase) ||
-            line.Contains("mise", StringComparison.OrdinalIgnoreCase) &&
-            line.Contains("jour", StringComparison.OrdinalIgnoreCase) &&
-            line.Contains("disponible", StringComparison.OrdinalIgnoreCase) ||
-            line.Contains("No installed package", StringComparison.OrdinalIgnoreCase) ||
-            line.Contains("Aucun package", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool LooksLikePackageLine(string line)
-    {
-        return ColumnSplitter.Split(line).Count(part => !string.IsNullOrWhiteSpace(part)) >= 5;
-    }
-
-    private static bool LooksLikePackageId(string id)
-    {
-        return id.Contains('.') &&
-            id.Any(char.IsLetter) &&
-            id.All(character => char.IsLetterOrDigit(character) ||
-                character is '.' or '-' or '_' or '+');
-    }
-
-    private static bool IsMicrosoftStore(string source)
-    {
-        return source.Contains("msstore", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("store", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool ContainsAny(string value, params string[] terms)
-    {
-        return terms.Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
-    }
+        Id = id,
+        Name = name,
+        InstalledVersion = installed,
+        AvailableVersion = available,
+        IsInstalledVersionUnknown = installed.StartsWith('<') || installed.StartsWith('>') || string.IsNullOrWhiteSpace(installed) || installed.Equals("Unknown", StringComparison.OrdinalIgnoreCase) || installed.Equals("Inconnu", StringComparison.OrdinalIgnoreCase),
+        IsIdTruncated = id.Contains('…'),
+        Source = source.Contains("store", StringComparison.OrdinalIgnoreCase) ? UpdateSource.MicrosoftStore : UpdateSource.Winget,
+        Scope = "Utilisateur ou machine",
+        RequiresExplicitConfirmation = true
+    };
 }
 
-public sealed record WingetParseResult(
-    IReadOnlyList<UpdateItem> Items,
-    IReadOnlyList<string> Warnings);
+public sealed record WingetParseResult(IReadOnlyList<UpdateItem> Items, IReadOnlyList<string> Warnings);

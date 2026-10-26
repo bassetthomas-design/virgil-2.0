@@ -1,0 +1,9 @@
+Nom             ID              Version         Disponible    Source
+--------------------------------------------------------------------
+Ubisoft Connect Ubisoft.Connect < 174.2.0.13389 174.2.0.13389 winget
+2 mises à niveau disponibles.
+
+Les packages suivants ont une mise à niveau disponible, mais nécessitent un ciblage explicite pour la mise à niveau :
+Nom     ID              Version  Disponible Source
+--------------------------------------------------
+Discord Discord.Discord 1.0.9262 1.0.9264   winget

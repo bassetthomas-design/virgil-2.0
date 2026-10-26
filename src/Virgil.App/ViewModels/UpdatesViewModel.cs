@@ -36,25 +36,29 @@ public partial class UpdatesViewModel : ObservableObject
 
     public UpdatesViewModel(IUpdateScanService scanService, IUpdateExecutionService executionService,
         WindowsUpdateStatusService windowsUpdateStatusService, IProcessRunner processRunner,
-        IReportHistoryService reportHistoryService, IConfirmationService confirmationService)
+        IReportHistoryService reportHistoryService, IConfirmationService confirmationService,
+        IUpdateSequenceService? sequenceService = null, WingetClientModuleService? wingetModuleService = null)
     {
+        _sequenceService = sequenceService;
+        _wingetModuleService = wingetModuleService;
         _scanService = scanService ?? throw new ArgumentNullException(nameof(scanService));
         _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
         _windowsUpdateStatusService = windowsUpdateStatusService ?? throw new ArgumentNullException(nameof(windowsUpdateStatusService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _confirmationService = confirmationService;
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
-        Entries.Add(new UpdateTextCardViewModel("Aucun scan lance."));
+        Entries.Add(new UpdateTextCardViewModel("Aucun scan lancé."));
         RenderDrivers(new DriverInventoryReport());
+        UpdateCommandState();
     }
 
     public ObservableCollection<object> Entries { get; } = new();
     public ObservableCollection<string> DriverCards { get; } = new();
-    [ObservableProperty] private string statusText = "Diagnostic pret. Aucune action automatique.";
-    [ObservableProperty] private string overallStatus = "NON ANALYSE";
-    [ObservableProperty] private string wingetStatus = "NON DETECTE";
+    [ObservableProperty] private string statusText = "Diagnostic prêt. Aucune action automatique.";
+    [ObservableProperty] private string overallStatus = "NON ANALYSÉ";
+    [ObservableProperty] private string wingetStatus = "NON DÉTECTÉ";
     [ObservableProperty] private string windowsUpdateStatus = "OUVERTURE MANUELLE UNIQUEMENT";
-    [ObservableProperty] private string driversStatus = "NON INVENTORIE";
+    [ObservableProperty] private string driversStatus = "NON INVENTORIÉ";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     private bool isBusy;
@@ -107,7 +111,7 @@ public partial class UpdatesViewModel : ObservableObject
         if (_operationInProgress)
         {
             CancelActiveOperation();
-            VirgilMessageRequested?.Invoke("Annulation demandee.\nSequence en cours d'arret.");
+            VirgilMessageRequested?.Invoke("Annulation demandée.\nSequence en cours d'arrêt.");
             return true;
         }
 
@@ -118,13 +122,25 @@ public partial class UpdatesViewModel : ObservableObject
     private Task ScanUpdatesAsync() => ScanUpdatesAsync(UpdateScanRequest.DeepPreview);
 
     [RelayCommand]
-    private void InstallDrivers() => VirgilMessageRequested?.Invoke("Installation pilotes indisponible en V1.\nInventaire lecture seule uniquement.");
+    private void InstallDrivers() => VirgilMessageRequested?.Invoke("Les pilotes disponibles sont proposés dans « Tout mettre à jour ».\nIls restent facultatifs et décochés par défaut.");
     [RelayCommand]
     private void ViewReport() => ShowReport();
     [RelayCommand]
     private void ReturnHome() => ReturnHomeRequested?.Invoke(this, EventArgs.Empty);
     [RelayCommand]
-    private void ExecuteDecision() => CompleteDecision(UpdateDecision.Execute);
+    private void ExecuteDecision()
+    {
+        if (IsSequencePreview)
+        {
+            _confirmedSequenceSteps = SequenceChoices.Where(choice => choice.IsSelected).Select(choice => choice.Step).ToArray();
+            if (_confirmedSequenceSteps.Count == 0)
+            {
+                VirgilMessageRequested?.Invoke("Sélectionnez au moins un composant.");
+                return;
+            }
+        }
+        CompleteDecision(UpdateDecision.Execute);
+    }
     [RelayCommand]
     private void SkipDecision() => CompleteDecision(UpdateDecision.Skip);
     [RelayCommand]
@@ -134,15 +150,15 @@ public partial class UpdatesViewModel : ObservableObject
 
     private async Task ScanUpdatesAsync(UpdateScanRequest request)
     {
-        if (!BeginOperation("Scan mises a jour en cours."))
+        if (!BeginOperation("Scan mises à jour en cours."))
         {
             return;
         }
 
         try
         {
-            RequestVirgilState(VirgilCoreState.Scanning, "MISES A JOUR");
-            VirgilMessageRequested?.Invoke("Scan mises a jour lance.\nAucune installation.");
+            RequestVirgilState(VirgilCoreState.Scanning, "MISES À JOUR");
+            VirgilMessageRequested?.Invoke("Scan mises à jour lancé.\nAucune installation.");
 
             var report = await _scanService
                 .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
@@ -154,20 +170,20 @@ public partial class UpdatesViewModel : ObservableObject
             await PersistReportAsync(ReportMapper.FromUpdateScan(report));
 
             RenderScanReport(report);
-            RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PRET");
+            RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PRÊT");
             AnnounceScan(report);
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Scan annule.";
+            StatusText = "Scan annulé.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Scan annule.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Scan annulé.\nAucune action effectuée.");
         }
         catch
         {
-            StatusText = "Scan mises a jour indisponible.";
+            StatusText = "Scan mises à jour indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Scan indisponible.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Scan indisponible.\nAucune action effectuée.");
         }
         finally
         {
@@ -201,19 +217,19 @@ public partial class UpdatesViewModel : ObservableObject
             await PersistReportAsync(ReportMapper.FromUpdateScan(_lastScanReport));
             RenderScanReport(_lastScanReport);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PILOTES");
-            VirgilMessageRequested?.Invoke("Inventaire pilotes termine.\nLecture seule.");
+            VirgilMessageRequested?.Invoke("Inventaire pilotes terminé.\nLecture seule.");
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Inventaire pilotes annule.";
+            StatusText = "Inventaire pilotes annulé.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Inventaire annule.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Inventaire annulé.\nAucune action effectuée.");
         }
         catch
         {
             StatusText = "Inventaire pilotes indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Inventaire indisponible.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Inventaire indisponible.\nAucune action effectuée.");
         }
         finally
         {
@@ -227,11 +243,11 @@ public partial class UpdatesViewModel : ObservableObject
         var selectedItems = SelectedItems().ToList();
         if (selectedItems.Count == 0)
         {
-            VirgilMessageRequested?.Invoke("Aucune application selectionnee.");
+            VirgilMessageRequested?.Invoke("Aucune application sélectionnée.");
             return;
         }
 
-        if (!BeginOperation("Sequence guidee en attente de validation."))
+        if (!BeginOperation("Séquence guidée en attente de validation."))
         {
             return;
         }
@@ -252,7 +268,7 @@ public partial class UpdatesViewModel : ObservableObject
                 if (decision == UpdateDecision.CancelAll)
                 {
                     results.Add(_executionService.Cancel(item));
-                    errors.Add("Sequence annulee par l'utilisateur.");
+                    errors.Add("Séquence annulée par l'utilisateur.");
                     break;
                 }
 
@@ -260,7 +276,7 @@ public partial class UpdatesViewModel : ObservableObject
                 {
                     results.Add(_executionService.Skip(item));
                     SetItemStatus(item.Id, UpdateItemStatus.Skipped);
-                    VirgilMessageRequested?.Invoke("Mise a jour passee.\nAucune action.");
+                    VirgilMessageRequested?.Invoke("Mise à jour passée.\nAucune action.");
                     continue;
                 }
 
@@ -274,7 +290,7 @@ public partial class UpdatesViewModel : ObservableObject
                 catch (ConfirmationRefusedException)
                 {
                     results.Add(_executionService.Cancel(item));
-                    errors.Add("Sequence annulee par l'utilisateur.");
+                    errors.Add("Séquence annulée par l'utilisateur.");
                     break;
                 }
 
@@ -286,18 +302,18 @@ public partial class UpdatesViewModel : ObservableObject
                 results.Add(result);
                 SetItemStatus(item.Id, result.Status);
                 VirgilMessageRequested?.Invoke(result.Status == UpdateItemStatus.Completed
-                    ? "Mise a jour terminee.\nSequence continue."
-                    : "Mise a jour non terminee.\nRapport disponible.");
+                    ? "Mise à jour terminée.\nSequence continue."
+                    : "Mise à jour non terminée.\nRapport disponible.");
             }
         }
         catch (OperationCanceledException)
         {
-            errors.Add("Sequence annulee.");
+            errors.Add("Séquence annulée.");
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
         }
         catch
         {
-            errors.Add("Erreur pendant la sequence guidee.");
+            errors.Add("Erreur pendant la séquence guidée.");
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
         }
         finally
@@ -316,7 +332,7 @@ public partial class UpdatesViewModel : ObservableObject
         var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
-            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conservé en mémoire.");
         }
 
         if (result.Success)
@@ -330,7 +346,7 @@ public partial class UpdatesViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return;
         }
 
@@ -360,7 +376,7 @@ public partial class UpdatesViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return false;
         }
 
@@ -389,6 +405,7 @@ public partial class UpdatesViewModel : ObservableObject
     private void UpdateCommandState()
     {
         IsRunSelectedEnabled = !_operationInProgress && SelectedItems().Any();
+        IsRunAllEnabled = !_operationInProgress && _sequenceService is not null;
         IsReportButtonEnabled = !_operationInProgress && HasAnyReport();
         IsInstallDriversVisible = _lastScanReport?.Drivers.CanInstallDrivers == true;
         IsInstallDriversEnabled = !_operationInProgress && IsInstallDriversVisible;
@@ -431,10 +448,10 @@ public partial class UpdatesViewModel : ObservableObject
             $"Motif : {item.RiskReason}"
         });
         ValidationCommand = item.CommandPreview is null
-            ? "Aucune commande executable preparee."
+            ? "Aucune commande exécutable préparée."
             : FormatCommand(item.CommandPreview);
         ValidationSafety =
-            "Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redemarrage, aucune elevation demandee par Virgil.";
+            "Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandee par Virgil.";
         ExecuteLabel = item.RiskLevel == UpdateRiskLevel.Sensitive ? "JE CONFIRME" : "INSTALLER";
         SkipLabel = "PASSER";
         IsCancelSequenceVisible = true;
@@ -451,12 +468,12 @@ public partial class UpdatesViewModel : ObservableObject
         ValidationDetails = string.Join("\n", new[]
         {
             info.Status,
-            $"Redemarrage en attente : {(info.PendingRebootDetected ? "oui" : "non")}",
+            $"Redémarrage en attente : {(info.PendingRebootDetected ? "oui" : "non")}",
             $"URI : {info.SettingsUri}"
         });
-        ValidationCommand = "Ouverture des Parametres Windows uniquement.";
+        ValidationCommand = "Ouverture des Paramètres Windows uniquement.";
         ValidationSafety =
-            "Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redemarrage n'est declenche.";
+            "Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est déclenché.";
         ExecuteLabel = "OUVRIR";
         SkipLabel = "ANNULER";
         IsCancelSequenceVisible = false;
@@ -480,14 +497,15 @@ public partial class UpdatesViewModel : ObservableObject
 
     private void RenderScanReport(UpdateScanReport report)
     {
+        IsModuleInstallVisible = report.IsWingetClientModuleMissing && _wingetModuleService is not null;
         OverallStatus = report.OverallStatus.ToUpperInvariant();
         WingetStatus = report.Winget.IsAvailable
             ? report.Winget.Message
-            : "WinGet non detecte.";
+            : "WinGet non détecté.";
         WindowsUpdateStatus = report.WindowsUpdate.Status;
         DriversStatus = report.Drivers.WasAnalyzed
-            ? $"{report.Drivers.Drivers.Count} pilotes inventories. Installation masquee."
-            : "Non inventorie.";
+            ? $"{report.Drivers.Drivers.Count} pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour »."
+            : "Non inventorié.";
 
         RenderItems();
         RenderDrivers(report.Drivers);
@@ -500,7 +518,7 @@ public partial class UpdatesViewModel : ObservableObject
         _selectionById.Clear();
         if (_lastItems.Count == 0)
         {
-            Entries.Add(new UpdateTextCardViewModel("Aucune mise a jour applicative previsualisee."));
+            Entries.Add(new UpdateTextCardViewModel("Aucune mise à jour applicative prévisualisée."));
             return;
         }
         foreach (var item in _lastItems.OrderBy(item => item.RiskLevel).ThenBy(item => item.Name))
@@ -517,7 +535,7 @@ public partial class UpdatesViewModel : ObservableObject
 
         if (!drivers.WasAnalyzed)
         {
-            DriverCards.Add("Inventaire disponible apres analyse approfondie ou examen manuel.");
+            DriverCards.Add("Inventaire disponible après analyse approfondie ou examen manuel.");
             return;
         }
 
@@ -562,32 +580,32 @@ public partial class UpdatesViewModel : ObservableObject
     {
         if (!report.Winget.IsAvailable)
         {
-            VirgilMessageRequested?.Invoke("WinGet non detecte.\nWindows Update reste disponible.");
+            VirgilMessageRequested?.Invoke("WinGet non détecté.\nWindows Update reste disponible.");
             return;
         }
 
         VirgilMessageRequested?.Invoke(report.Items.Count == 0
-            ? "Scan termine.\nAucune mise a jour applicative detectee."
-            : $"Scan termine.\n{report.Items.Count} mises a jour a verifier.");
+            ? "Scan terminé.\nAucune mise à jour applicative détectée."
+            : $"Scan terminé.\n{report.Items.Count} mises à jour a verifier.");
     }
 
     private void CompleteSequenceState(UpdateSessionReport report)
     {
         if (report.WasCancelled)
         {
-            StatusText = "Sequence annulee.";
+            StatusText = "Séquence annulée.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
             return;
         }
 
         if (report.FailedCount > 0 || report.Errors.Count > 0)
         {
-            StatusText = "Sequence terminee avec erreurs.";
+            StatusText = "Séquence terminée avec erreurs.";
             RequestVirgilState(VirgilCoreState.Warning, "ATTENTION");
             return;
         }
 
-        StatusText = "Sequence terminee.";
+        StatusText = "Séquence terminée.";
         RequestVirgilState(VirgilCoreState.Success, "TERMINE");
     }
 
@@ -595,11 +613,11 @@ public partial class UpdatesViewModel : ObservableObject
     {
         if (!HasAnyReport())
         {
-            VirgilMessageRequested?.Invoke("Aucun rapport mises a jour disponible.");
+            VirgilMessageRequested?.Invoke("Aucun rapport mises à jour disponible.");
             return;
         }
 
-        ReportText = FormatReport(_lastScanReport, _lastSessionReport);
+        ReportText = FormatReport(_lastScanReport, _lastSessionReport) + (_sequenceReport is null ? string.Empty : "\n" + _sequenceReport);
         IsReportOpen = true;
     }
 
@@ -610,7 +628,7 @@ public partial class UpdatesViewModel : ObservableObject
 
     private bool HasAnyReport()
     {
-        return _lastScanReport is not null || _lastSessionReport is not null;
+        return _lastScanReport is not null || _lastSessionReport is not null || _sequenceReport is not null;
     }
 
     private void RequestVirgilState(VirgilCoreState state, string label)
@@ -642,15 +660,15 @@ public partial class UpdatesViewModel : ObservableObject
         if (scanReport is not null)
         {
             builder.AppendLine($"Date scan : {scanReport.CapturedAt:yyyy-MM-dd HH:mm:ss}");
-            builder.AppendLine($"Etat global : {scanReport.OverallStatus}");
-            builder.AppendLine($"WinGet : {(scanReport.Winget.IsAvailable ? scanReport.Winget.Message : "non detecte")}");
+            builder.AppendLine($"État global : {scanReport.OverallStatus}");
+            builder.AppendLine($"WinGet : {(scanReport.Winget.IsAvailable ? scanReport.Winget.Message : "non détecté")}");
             builder.AppendLine($"Applications : {scanReport.Items.Count}");
             builder.AppendLine($"Faible risque : {scanReport.SafeCount}");
             builder.AppendLine($"Validation : {scanReport.ValidationRequiredCount}");
             builder.AppendLine($"Sensibles : {scanReport.SensitiveCount}");
             builder.AppendLine($"Windows Update : {scanReport.WindowsUpdate.Status}");
-            builder.AppendLine($"Redemarrage en attente : {(scanReport.WindowsUpdate.PendingRebootDetected ? "oui" : "non")}");
-            builder.AppendLine($"Pilotes inventories : {scanReport.Drivers.Drivers.Count}");
+            builder.AppendLine($"Redémarrage en attente : {(scanReport.WindowsUpdate.PendingRebootDetected ? "oui" : "non")}");
+            builder.AppendLine($"Pilotes inventoriés : {scanReport.Drivers.Drivers.Count}");
             builder.AppendLine($"Bouton pilotes : {scanReport.Drivers.InstallButtonVisibilityReason}");
             AppendList(builder, "Recommandations", scanReport.Recommendations);
             AppendList(builder, "Erreurs lisibles", scanReport.Errors);
@@ -659,11 +677,11 @@ public partial class UpdatesViewModel : ObservableObject
 
         if (sessionReport is not null)
         {
-            builder.AppendLine($"Date sequence : {sessionReport.StartedAt:yyyy-MM-dd HH:mm:ss}");
-            builder.AppendLine($"Duree : {sessionReport.Duration.TotalSeconds:0.0} s");
-            builder.AppendLine($"Terminees : {sessionReport.CompletedCount}");
-            builder.AppendLine($"Passees : {sessionReport.SkippedCount}");
-            builder.AppendLine($"Echecs : {sessionReport.FailedCount}");
+            builder.AppendLine($"Date séquence : {sessionReport.StartedAt:yyyy-MM-dd HH:mm:ss}");
+            builder.AppendLine($"Durée : {sessionReport.Duration.TotalSeconds:0.0} s");
+            builder.AppendLine($"Terminées : {sessionReport.CompletedCount}");
+            builder.AppendLine($"Passées : {sessionReport.SkippedCount}");
+            builder.AppendLine($"Échecs : {sessionReport.FailedCount}");
             builder.AppendLine($"Annulation : {(sessionReport.WasCancelled ? "oui" : "non")}");
 
             foreach (var result in sessionReport.Results)
@@ -675,7 +693,7 @@ public partial class UpdatesViewModel : ObservableObject
                 }
             }
 
-            AppendList(builder, "Erreurs sequence", sessionReport.Errors);
+            AppendList(builder, "Erreurs séquence", sessionReport.Errors);
         }
 
         return builder.ToString();
@@ -734,10 +752,10 @@ public partial class UpdatesViewModel : ObservableObject
     {
         return status switch
         {
-            UpdateItemStatus.Completed => "terminee",
-            UpdateItemStatus.Skipped => "passee",
-            UpdateItemStatus.Failed => "echec",
-            UpdateItemStatus.Cancelled => "annulee",
+            UpdateItemStatus.Completed => "terminée",
+            UpdateItemStatus.Skipped => "passée",
+            UpdateItemStatus.Failed => "échec",
+            UpdateItemStatus.Cancelled => "annulée",
             UpdateItemStatus.InformationOnly => "information uniquement",
             _ => "disponible"
         };

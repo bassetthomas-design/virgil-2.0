@@ -87,6 +87,10 @@ public sealed record WingetCapabilities
 
     public bool SupportsDisableInteractivity { get; init; }
 
+    public bool SupportsIncludeUnknown { get; init; }
+
+    public bool SupportsIncludePinned { get; init; }
+
     public static WingetCapabilities Conservative { get; } = new()
     {
         SupportsAcceptSourceAgreements = false,
@@ -113,6 +117,12 @@ public sealed record UpdateItem
     public string InstalledVersion { get; init; } = string.Empty;
 
     public string AvailableVersion { get; init; } = string.Empty;
+
+    public bool IsInstalledVersionUnknown { get; init; }
+
+    public bool RequiresExplicitTarget { get; init; }
+
+    public bool IsIdTruncated { get; init; }
 
     public UpdateSource Source { get; init; }
 
@@ -203,6 +213,8 @@ public sealed record UpdateScanReport
     public IReadOnlyList<string> Recommendations { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+
+    public bool IsWingetClientModuleMissing { get; init; }
 
     public int SafeCount => Items.Count(item => item.RiskLevel == UpdateRiskLevel.Safe);
 

@@ -88,6 +88,15 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<UpdateRiskClassifier>(), sp.GetRequiredService<WindowsUpdateStatusService>(),
             sp.GetRequiredService<DriverInformationService>()));
+        services.AddTransient<IWingetClientModuleInstaller>(sp => new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(
+            sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<WingetClientModuleService>(sp => new WingetClientModuleService(
+            sp.GetRequiredService<IWingetClientModuleInstaller>(), sp.GetRequiredService<IConfirmedPlanGate>()));
+        services.AddTransient<IUpdateSequenceBackend>(sp => new Virgil.Infrastructure.Windows.WindowsUpdateSequenceBackend(
+            sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<ElevatedHelperRequestStore>(),
+            sp.GetRequiredService<IElevatedProcessLauncher>(), () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));
+        services.AddTransient<IUpdateSequenceService>(sp => new UpdateSequenceService(
+            sp.GetRequiredService<IUpdateSequenceBackend>(), sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<IUpdateExecutionService>(sp => new WingetUpdateExecutionService(
             sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<IConfirmedPlanGate>()));
@@ -179,7 +188,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(
             sp.GetRequiredService<IUpdateScanService>(), sp.GetRequiredService<IUpdateExecutionService>(),
             sp.GetRequiredService<WindowsUpdateStatusService>(), sp.GetRequiredService<IProcessRunner>(),
-            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>()));
+            sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>(),
+            sp.GetRequiredService<IUpdateSequenceService>(), sp.GetRequiredService<WingetClientModuleService>()));
         services.AddSingleton<UpdatesView>(sp => new UpdatesView(sp.GetRequiredService<UpdatesViewModel>()));
         services.AddSingleton<InterventionsViewModel>(sp => new InterventionsViewModel(
             sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IInterventionExecutionService>(),

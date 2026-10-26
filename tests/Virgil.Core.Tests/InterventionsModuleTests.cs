@@ -21,7 +21,8 @@ public sealed class InterventionsModuleTests
         var catalog = new InterventionCatalog();
         var definitions = catalog.GetAll();
 
-        Assert.Equal(Enum.GetValues<InterventionId>().Length, definitions.Count);
+        Assert.Equal(Enum.GetValues<InterventionId>().Where(id => !UpdateMaintenanceRunner.Handles(id)).Order(),
+            definitions.Select(definition => definition.Id).Order());
         Assert.DoesNotContain(definitions, definition =>
             definition.Title.Contains("ownership", StringComparison.OrdinalIgnoreCase) ||
             definition.CommandPreviews.Any(command =>
@@ -36,7 +37,7 @@ public sealed class InterventionsModuleTests
     {
         var allowlist = new ElevatedActionAllowlist();
         var elevatedActions = Enum.GetValues<InterventionId>()
-            .Where(id => id != InterventionId.RestartExplorer)
+            .Where(id => id != InterventionId.RestartExplorer && !UpdateMaintenanceRunner.Handles(id))
             .ToList();
 
         foreach (var action in elevatedActions)

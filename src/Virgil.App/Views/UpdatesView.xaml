@@ -54,9 +54,9 @@
                                                 Width="72"
                                                 Height="72"
                                                 AnimationDetailLevel="Compact"
-                                                AutomationProperties.Name="Mini noyau Virgil mises a jour" />
+                                                AutomationProperties.Name="Mini noyau Virgil mises à jour" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="MISES A JOUR V1"
+                        <TextBlock Text="MISES À JOUR"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="UpdatesStatusText"
                                    Text="{Binding StatusText}"
@@ -67,19 +67,19 @@
 
                 <WrapPanel KeyboardNavigation.TabNavigation="Continue">
                     <Button x:Name="ScanUpdatesButton" IsEnabled="{Binding IsIdle}"
-                            Content="SCANNER LES MISES A JOUR"
+                            Content="SCANNER LES MISES À JOUR"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="190"
                             Margin="0,0,8,8"
-                            AutomationProperties.Name="Scanner les mises a jour"
+                            AutomationProperties.Name="Scanner les mises à jour"
                             Command="{Binding ScanUpdatesCommand}" />
-                    <Button x:Name="RunSelectedButton" IsEnabled="{Binding IsRunSelectedEnabled}"
-                            Content="EXECUTER LA SEQUENCE"
+                    <Button x:Name="RunSelectedButton" IsEnabled="{Binding IsRunAllEnabled}"
+                            Content="TOUT METTRE À JOUR"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="170"
                             Margin="0,0,8,8"
-                            AutomationProperties.Name="Executer la sequence guidee"
-                            Command="{Binding RunSelectedCommand}" />
+                            AutomationProperties.Name="Tout mettre à jour"
+                            Command="{Binding RunAllCommand}" />
                     <Button x:Name="OpenWindowsUpdateButton" IsEnabled="{Binding IsIdle}"
                             Content="OUVRIR WINDOWS UPDATE"
                             Style="{StaticResource VirgilSecondaryButton}"
@@ -94,19 +94,12 @@
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Examiner les pilotes"
                             Command="{Binding InspectDriversCommand}" />
-                    <Button x:Name="InstallDriversButton" IsEnabled="{Binding IsInstallDriversEnabled}"
-                            Content="INSTALLER LES PILOTES"
-                            Style="{StaticResource VirgilSecondaryButton}"
-                            MinWidth="165"
-                            Margin="0,0,8,8"
-                            AutomationProperties.Name="Installer les pilotes"
-                            Command="{Binding InstallDriversCommand}" Visibility="{Binding IsInstallDriversVisible, Converter={StaticResource BoolVisibility}}" />
                     <Button x:Name="ViewUpdatesReportButton" IsEnabled="{Binding IsReportButtonEnabled}"
                             Content="VOIR LE RAPPORT"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="145"
                             Margin="0,0,8,8"
-                            AutomationProperties.Name="Voir le rapport mises a jour"
+                            AutomationProperties.Name="Voir le rapport mises à jour"
                             Command="{Binding ViewReportCommand}" />
                     <Button x:Name="ReturnHomeButton" IsEnabled="{Binding IsIdle}"
                             Content="RETOUR"
@@ -117,6 +110,22 @@
                             Command="{Binding ReturnHomeCommand}" />
                 </WrapPanel>
 
+                <Button Content="INSTALLER LE MODULE WINGET" Command="{Binding InstallWingetModuleCommand}"
+                        IsEnabled="{Binding IsIdle}" Visibility="{Binding IsModuleInstallVisible, Converter={StaticResource BoolVisibility}}"
+                        Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SequenceStepText}" TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" />
+                        <TextBlock Text="Redémarrage nécessaire. Enregistrez votre travail avant de redémarrer Windows."
+                                   Visibility="{Binding RebootRequired, Converter={StaticResource BoolVisibility}}"
+                                   TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,8,0,0" />
+                        <ItemsControl ItemsSource="{Binding SequenceProgress}" ItemTemplate="{StaticResource UpdatesTextCardTemplate}" Margin="0,8,0,0" />
+                        <Button Content="ANNULER" Command="{Binding CancelUpdateOperationCommand}"
+                                Visibility="{Binding IsBusy, Converter={StaticResource BoolVisibility}}"
+                                Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                AutomationProperties.Name="Annuler entre les étapes" />
+                    </StackPanel>
+                </Border>
                 <Rectangle Style="{StaticResource VirgilSeparator}" />
 
                 <Grid>
@@ -127,7 +136,7 @@
                     <Border Style="{StaticResource VirgilHudCard}"
                             Margin="0,0,6,8">
                         <StackPanel>
-                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ÉTAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="OverallStatusText"
                                        Text="{Binding OverallStatus}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
@@ -195,7 +204,7 @@
                                                 Height="72"
                                                 AnimationDetailLevel="Compact"
                                                 IsHitTestVisible="False"
-                                                AutomationProperties.Name="Mini noyau validation mise a jour" />
+                                                AutomationProperties.Name="Mini noyau validation mise à jour" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="ValidationTitleText"
@@ -213,13 +222,21 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False">
                         <StackPanel>
-                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <ItemsControl ItemsSource="{Binding SequenceChoices}" Visibility="{Binding IsSequencePreview, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,12">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,5,0,5" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="DÉTAILS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationDetailsText"
                                        Text="{Binding ValidationDetails}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="COMMANDE PREPAREE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ACTIONS PRÉVUES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationCommandText"
                                        Text="{Binding ValidationCommand}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
@@ -241,19 +258,19 @@
                         <Button x:Name="ExecuteUpdateButton"
                                 Content="{Binding ExecuteLabel}"
                                 Style="{StaticResource VirgilPrimaryButton}"
-                                AutomationProperties.Name="Valider cette mise a jour"
+                                AutomationProperties.Name="Valider cette mise à jour"
                                 Command="{Binding ExecuteDecisionCommand}" />
                         <Button x:Name="SkipUpdateButton"
                                 Content="{Binding SkipLabel}"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
-                                AutomationProperties.Name="Passer cette mise a jour"
+                                AutomationProperties.Name="Passer cette mise à jour"
                                 Command="{Binding SkipDecisionCommand}" />
                         <Button x:Name="CancelSequenceButton"
                                 Content="TOUT ANNULER"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
-                                AutomationProperties.Name="Annuler la sequence"
+                                AutomationProperties.Name="Annuler la séquence"
                                 Command="{Binding CancelDecisionCommand}" Visibility="{Binding IsCancelSequenceVisible, Converter={StaticResource BoolVisibility}}" />
                     </StackPanel>
                 </Grid>
@@ -277,7 +294,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="RAPPORT MISES A JOUR"
+                    <TextBlock Text="RAPPORT MISES À JOUR"
                                Style="{StaticResource VirgilHudSectionTitle}" />
                     <ScrollViewer Grid.Row="1"
                                   Margin="0,16,0,16"
@@ -294,7 +311,7 @@
                             Content="FERMER"
                             Style="{StaticResource VirgilSecondaryButton}"
                             HorizontalAlignment="Right"
-                            AutomationProperties.Name="Fermer le rapport mises a jour"
+                            AutomationProperties.Name="Fermer le rapport mises à jour"
                             Command="{Binding CloseReportCommand}" />
                 </Grid>
             </Border>
