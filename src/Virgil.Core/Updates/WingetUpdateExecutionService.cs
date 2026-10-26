@@ -31,7 +31,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         var startedAt = DateTimeOffset.Now;
         var stopwatch = Stopwatch.StartNew();
 
-        if (item.RiskLevel == UpdateRiskLevel.CriticalInformationOnly ||
+        if (item.IsIdTruncated || item.Id.Contains('…') || item.RiskLevel == UpdateRiskLevel.CriticalInformationOnly ||
             item.Source is UpdateSource.Driver or UpdateSource.FirmwareInformation)
         {
             stopwatch.Stop();
@@ -173,6 +173,9 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
             packageId,
             "--exact"
         };
+
+        if (capabilities.SupportsIncludeUnknown) arguments.Add("--include-unknown");
+        if (capabilities.SupportsIncludePinned) arguments.Add("--include-pinned");
 
         if (capabilities.SupportsAcceptPackageAgreements)
         {

@@ -18,12 +18,12 @@ public sealed class UpdatesViewModelTests
     {
         var f = new Fixture();
         Idle(f.Vm);
-        Assert.Equal("Diagnostic pret. Aucune action automatique.", f.Vm.StatusText);
-        Assert.Equal("NON ANALYSE", f.Vm.OverallStatus);
-        Assert.Equal("NON DETECTE", f.Vm.WingetStatus);
+        Assert.Equal("Diagnostic prêt. Aucune action automatique.", f.Vm.StatusText);
+        Assert.Equal("NON ANALYSÉ", f.Vm.OverallStatus);
+        Assert.Equal("NON DÉTECTÉ", f.Vm.WingetStatus);
         Assert.Equal("OUVERTURE MANUELLE UNIQUEMENT", f.Vm.WindowsUpdateStatus);
-        Assert.Equal("NON INVENTORIE", f.Vm.DriversStatus);
-        Assert.Equal("Aucun scan lance.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
+        Assert.Equal("NON INVENTORIÉ", f.Vm.DriversStatus);
+        Assert.Equal("Aucun scan lancé.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Single(f.Vm.DriverCards);
         Assert.False(f.Vm.IsRunSelectedEnabled);
         Assert.False(f.Vm.IsReportButtonEnabled);
@@ -33,9 +33,9 @@ public sealed class UpdatesViewModelTests
         Assert.False(f.Vm.IsReportOpen);
         Assert.False(f.Vm.TryCloseOverlay());
         f.Vm.ViewReportCommand.Execute(null);
-        Assert.Equal("Aucun rapport mises a jour disponible.", f.Messages.Last());
+        Assert.Equal("Aucun rapport mises à jour disponible.", f.Messages.Last());
         f.Vm.InstallDriversCommand.Execute(null);
-        Assert.Equal("Installation pilotes indisponible en V1.\nInventaire lecture seule uniquement.", f.Messages.Last());
+        Assert.Equal("Les pilotes disponibles sont proposés dans « Tout mettre à jour ».\nIls restent facultatifs et décochés par défaut.", f.Messages.Last());
         var returned = false;
         f.Vm.ReturnHomeRequested += (_, _) => returned = true;
         f.Vm.ReturnHomeCommand.Execute(null);
@@ -49,23 +49,23 @@ public sealed class UpdatesViewModelTests
         f.Scan.Report = Report(Item("z", UpdateRiskLevel.Sensitive), Item("b"), Item("a"), Item("critical", UpdateRiskLevel.CriticalInformationOnly), Item("done") with { Status = UpdateItemStatus.Completed });
         await f.Analyze();
         Assert.Equal(UpdateScanRequest.DeepPreview, f.Scan.Request);
-        Assert.Equal("PRET", f.States.Last().Label);
+        Assert.Equal("PRÊT", f.States.Last().Label);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
-        Assert.Equal("Scan termine.\n5 mises a jour a verifier.", f.Messages.Last());
+        Assert.Equal("Scan terminé.\n5 mises à jour a verifier.", f.Messages.Last());
         Assert.Equal(1, f.Persisted);
         Assert.False(f.History.Token.CanBeCanceled);
         Assert.True(f.Vm.IsReportButtonEnabled);
         Assert.Equal(new[] { "a", "b", "done", "z", "critical" }, f.Cards.Select(c => c.Item.Id));
         var card = f.Cards.First();
         Assert.Equal("a - 2", card.Header);
-        Assert.Equal(new[] { "ID : a", "Version installee : 1", "Version disponible : 2", "Source : WinGet", "Risque : validation requise - Motif", "Statut : disponible", "Commande : winget upgrade \"app test\"" }, card.Lines);
+        Assert.Equal(new[] { "ID : a", "Version installée : 1", "Version disponible : 2", "Source : WinGet", "Risque : validation requise - Motif", "Statut : disponible", "Commande : winget upgrade \"app test\"" }, card.Lines);
         card.IsSelected = true;
         Assert.True(f.Vm.IsRunSelectedEnabled);
         card.IsSelected = false;
         Assert.False(f.Vm.IsRunSelectedEnabled);
         Assert.All(f.Cards.Where(c => c.Item.Id is "critical" or "done"), c => Assert.False(c.IsSelectable));
         await f.Run();
-        Assert.Equal("Aucune application selectionnee.", f.Messages.Last());
+        Assert.Equal("Aucune application sélectionnée.", f.Messages.Last());
         Assert.Empty(f.Actions.Order);
         Idle(f.Vm);
     }
@@ -82,8 +82,8 @@ public sealed class UpdatesViewModelTests
             throw new InvalidOperationException();
         };
         await f.Analyze();
-        Assert.Equal(cancelled ? "Scan annule." : "Scan mises a jour indisponible.", f.Vm.StatusText);
-        Assert.Equal(cancelled ? "Scan annule.\nAucune action effectuee." : "Scan indisponible.\nAucune action effectuee.", f.Messages.Last());
+        Assert.Equal(cancelled ? "Scan annulé." : "Scan mises à jour indisponible.", f.Vm.StatusText);
+        Assert.Equal(cancelled ? "Scan annulé.\nAucune action effectuée." : "Scan indisponible.\nAucune action effectuée.", f.Messages.Last());
         Assert.Equal(cancelled ? VirgilCoreState.Idle : VirgilCoreState.Error, f.Vm.MiniCoreState);
         Assert.Equal(0, f.Persisted);
         Assert.False(f.Vm.IsReportButtonEnabled);
@@ -96,13 +96,13 @@ public sealed class UpdatesViewModelTests
         var f = new Fixture();
         f.Scan.Report = new() { Errors = new[] { "Lecture impossible" } };
         await f.Analyze();
-        Assert.Equal("WinGet non detecte.", f.Vm.WingetStatus);
-        Assert.Equal("WinGet non detecte.\nWindows Update reste disponible.", f.Messages.Last());
+        Assert.Equal("WinGet non détecté.", f.Vm.WingetStatus);
+        Assert.Equal("WinGet non détecté.\nWindows Update reste disponible.", f.Messages.Last());
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
-        Assert.Equal("Aucune mise a jour applicative previsualisee.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
+        Assert.Equal("Aucune mise à jour applicative prévisualisée.", Assert.IsType<UpdateTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Equal(1, f.Persisted);
         f.Vm.ViewReportCommand.Execute(null);
-        Assert.Contains("WinGet : non detecte", f.Vm.ReportText);
+        Assert.Contains("WinGet : non détecté", f.Vm.ReportText);
         Assert.Contains("- Lecture impossible", f.Vm.ReportText);
     }
 
@@ -129,7 +129,7 @@ public sealed class UpdatesViewModelTests
         Assert.Contains("Application : app\nID : app\nVersion : 1 -> 2\nSource : WinGet\nRisque :", f.Vm.ValidationDetails);
         Assert.EndsWith("\nMotif : Motif", f.Vm.ValidationDetails);
         Assert.Equal("winget upgrade \"app test\"", f.Vm.ValidationCommand);
-        Assert.Equal("Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redemarrage, aucune elevation demandee par Virgil.", f.Vm.ValidationSafety);
+        Assert.Equal("Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandee par Virgil.", f.Vm.ValidationSafety);
         Assert.Empty(f.Actions.Order);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
@@ -141,7 +141,7 @@ public sealed class UpdatesViewModelTests
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.ValidationCoreState);
         Assert.Equal(UpdateItemStatus.Completed, Assert.Single(f.Actions.Report!.Results).Status);
-        Assert.Equal("Sequence terminee.", f.Vm.StatusText);
+        Assert.Equal("Séquence terminée.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
         Assert.True(f.Vm.IsReportOpen);
         Assert.Equal(2, f.Persisted);
@@ -167,7 +167,7 @@ public sealed class UpdatesViewModelTests
         Assert.False(f.Vm.IsValidationOpen);
         Assert.True(f.Vm.IsReportOpen);
         Assert.Equal(2, f.Persisted);
-        Assert.Equal(decision is "SkipDecision" or "TryCloseOverlay" ? "Sequence terminee." : "Sequence annulee.", f.Vm.StatusText);
+        Assert.Equal(decision is "SkipDecision" or "TryCloseOverlay" ? "Séquence terminée." : "Séquence annulée.", f.Vm.StatusText);
         Idle(f.Vm);
     }
 
@@ -186,10 +186,10 @@ public sealed class UpdatesViewModelTests
         await pending;
         Assert.Equal(new[] { "Skip:z", "Execute:a", "Cancel:b" }, f.Actions.Order);
         Assert.Equal(new[] { UpdateItemStatus.Skipped, UpdateItemStatus.Completed, UpdateItemStatus.Cancelled }, f.Actions.Report!.Results.Select(r => r.Status));
-        Assert.Contains("Sequence annulee par l'utilisateur.", f.Actions.Report.Errors);
+        Assert.Contains("Séquence annulée par l'utilisateur.", f.Actions.Report.Errors);
         Assert.Equal(UpdateItemStatus.Available, f.Cards.Single(c => c.Item.Id == "b").Item.Status);
-        Assert.Contains("Passees : 1", f.Vm.ReportText);
-        Assert.Contains("Terminees : 1", f.Vm.ReportText);
+        Assert.Contains("Passées : 1", f.Vm.ReportText);
+        Assert.Contains("Terminées : 1", f.Vm.ReportText);
         Assert.Contains("Annulation : oui", f.Vm.ReportText);
         Assert.Equal(2, f.Persisted);
         Assert.True(f.Vm.IsReportOpen);
@@ -205,14 +205,14 @@ public sealed class UpdatesViewModelTests
         await f.Analyze(); f.SelectAll(); var pending = f.Run();
         f.Vm.ExecuteDecisionCommand.Execute(null); await executing.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await f.Vm.OpenWindowsUpdateCommand.ExecuteAsync(null);
-        Assert.Equal("Operation deja en cours.", f.Messages.Last());
+        Assert.Equal("Opération déjà en cours.", f.Messages.Last());
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
-        Assert.Equal("Operation deja en cours.", f.Messages.Last());
-        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandee.\nSequence en cours d'arret.", f.Messages); }
+        Assert.Equal("Opération déjà en cours.", f.Messages.Last());
+        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandée.\nSequence en cours d'arrêt.", f.Messages); }
         else f.Vm.CancelActiveOperation();
         await pending;
-        Assert.Contains("Sequence annulee.", f.Actions.Report!.Errors);
-        Assert.Equal("Sequence annulee.", f.Vm.StatusText);
+        Assert.Contains("Séquence annulée.", f.Actions.Report!.Errors);
+        Assert.Equal("Séquence annulée.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.MiniCoreState);
         Assert.Equal(2, f.Persisted);
         Assert.True(f.Vm.IsReportOpen);
@@ -235,15 +235,15 @@ public sealed class UpdatesViewModelTests
         Assert.True(f.Vm.IsValidationOpen);
         Assert.Equal("OUVRIR WINDOWS UPDATE", f.Vm.ValidationTitle);
         Assert.Equal("A jour\nRedemarrage en attente : oui\nURI : ms-settings:windowsupdate", f.Vm.ValidationDetails);
-        Assert.Equal("Ouverture des Parametres Windows uniquement.", f.Vm.ValidationCommand);
-        Assert.Equal("Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redemarrage n'est declenche.", f.Vm.ValidationSafety);
+        Assert.Equal("Ouverture des Paramètres Windows uniquement.", f.Vm.ValidationCommand);
+        Assert.Equal("Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est declenche.", f.Vm.ValidationSafety);
         Assert.Equal("OUVRIR", f.Vm.ExecuteLabel);
         Assert.Equal("ANNULER", f.Vm.SkipLabel);
         Assert.False(f.Vm.IsCancelSequenceVisible);
         Decide(f.Vm, decision); await pending;
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(decision == "ExecuteDecision" ? 1 : 0, f.Runner.Calls);
-        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lance aucune installation.", f.Messages.Last());
+        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lancé aucune installation.", f.Messages.Last());
         if (f.Runner.Calls != 0)
         {
             Assert.Equal("ms-settings:windowsupdate", f.Runner.Request!.FileName);
@@ -268,14 +268,14 @@ public sealed class UpdatesViewModelTests
         Assert.False(f.Cards.Single().IsSelected);
         Assert.True(f.Vm.IsInstallDriversVisible);
         Assert.True(f.Vm.IsInstallDriversEnabled);
-        Assert.Equal("10 pilotes inventories. Installation masquee.", f.Vm.DriversStatus);
+        Assert.Equal("10 pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour ».", f.Vm.DriversStatus);
         Assert.Equal("Pilotes lus", f.Vm.WindowsUpdateStatus);
         Assert.Equal(12, f.Vm.DriverCards.Count);
         Assert.Equal(new[] { "Lecture seule", "Erreur lisible : 1", "Erreur lisible : 2", "Erreur lisible : 3" }, f.Vm.DriverCards.Take(4));
         Assert.Equal("Pilote\nFournisseur : Inconnu\nClasse : Inconnu\nVersion : Inconnu\nSignataire : Inconnu".Replace("Inconnu", "N/A"), f.Vm.DriverCards[4]);
         Assert.Contains("oem8", f.Vm.DriverCards.Last());
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
-        Assert.Equal("Inventaire pilotes termine.\nLecture seule.", f.Messages.Last());
+        Assert.Equal("Inventaire pilotes terminé.\nLecture seule.", f.Messages.Last());
         f.Vm.ViewReportCommand.Execute(null);
         Assert.DoesNotContain("COMMUN", f.Vm.ReportText);
         Assert.Contains("- Commun", f.Vm.ReportText);
@@ -297,8 +297,8 @@ public sealed class UpdatesViewModelTests
             throw new InvalidOperationException();
         };
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
-        Assert.Equal(cancelled ? "Inventaire pilotes annule." : "Inventaire pilotes indisponible.", f.Vm.StatusText);
-        Assert.Equal(cancelled ? "Inventaire annule.\nAucune action effectuee." : "Inventaire indisponible.\nAucune action effectuee.", f.Messages.Last());
+        Assert.Equal(cancelled ? "Inventaire pilotes annulé." : "Inventaire pilotes indisponible.", f.Vm.StatusText);
+        Assert.Equal(cancelled ? "Inventaire annulé.\nAucune action effectuée." : "Inventaire indisponible.\nAucune action effectuée.", f.Messages.Last());
         Assert.Equal(cancelled ? VirgilCoreState.Idle : VirgilCoreState.Error, f.Vm.MiniCoreState);
         Assert.Equal(0, f.Persisted); Idle(f.Vm);
     }
@@ -312,7 +312,7 @@ public sealed class UpdatesViewModelTests
         var f = new Fixture(); await f.Analyze();
         f.History.Result = new() { Success = success, ReadableError = error };
         f.SelectAll(); var pending = f.Run(); f.Vm.SkipDecisionCommand.Execute(null); await pending;
-        Assert.Contains(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Messages);
+        Assert.Contains(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Messages);
         Assert.Equal(success ? 2 : 1, f.Persisted);
         Assert.True(f.Vm.IsReportOpen);
         Assert.True(f.Vm.IsReportButtonEnabled);
@@ -325,10 +325,10 @@ public sealed class UpdatesViewModelTests
     {
         var f = new Fixture(); f.Actions.Handler = (item, _) => throws ? throw new InvalidOperationException() : Task.FromResult(new UpdateExecutionResult { Item = item, Status = UpdateItemStatus.Failed, UserMessage = "Refus" });
         await f.Analyze(); f.SelectAll(); var pending = f.Run(); f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
-        Assert.Equal("Sequence terminee avec erreurs.", f.Vm.StatusText);
+        Assert.Equal("Séquence terminée avec erreurs.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
         Assert.True(f.Vm.IsReportOpen); Assert.Equal(2, f.Persisted);
-        Assert.Contains(throws ? "Erreur pendant la sequence guidee." : "Refus", f.Vm.ReportText);
+        Assert.Contains(throws ? "Erreur pendant la séquence guidée." : "Refus", f.Vm.ReportText);
     }
 
     [Fact]
@@ -445,7 +445,7 @@ public sealed class UpdatesViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(1, f.Confirmation.Calls); Assert.Empty(f.Actions.Plans);
         Assert.Equal(new[] { "Cancel:app" }, f.Actions.Order);
-        Assert.Equal("Sequence annulee.", f.Vm.StatusText);
+        Assert.Equal("Séquence annulée.", f.Vm.StatusText);
     }
 
     private sealed class UpgradeRunner : IProcessRunner

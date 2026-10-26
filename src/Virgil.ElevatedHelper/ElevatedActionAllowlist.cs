@@ -4,6 +4,9 @@ namespace Virgil.ElevatedHelper;
 
 public sealed class ElevatedActionAllowlist
 {
+    public bool IsMaintenanceAllowed(InterventionId id, string identity) =>
+        UpdateMaintenanceRunner.Handles(id) && UpdateMaintenanceRunner.ValidIdentity(id, identity);
+
     public bool TryGet(InterventionId actionId, string systemDrive, out ElevatedActionSpec spec)
     {
         spec = actionId switch

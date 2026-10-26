@@ -1,0 +1,5 @@
+Name      Id                     Version Available Source
+---------------------------------------------------------
+Store app 9NBLGGH4NNS1           1       2         msstore
+ARP app   ARP\\Machine\\X64\\App > 1.0   2.0       winget
+Long app  Publisher.Truncated…   1       2         winget

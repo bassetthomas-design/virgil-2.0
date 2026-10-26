@@ -48,7 +48,7 @@ public sealed class UpdatesModuleTests
         var report = await scan.ScanAsync(UpdateScanRequest.DeepPreview, null, CancellationToken.None);
 
         Assert.Empty(report.Items);
-        Assert.Contains("Scan WinGet interrompu par timeout.", report.Errors);
+        Assert.Contains("Recherche WinGet interrompue : délai de 120 secondes dépassé.", report.Errors);
     }
 
     [Fact]
@@ -64,28 +64,54 @@ public sealed class UpdatesModuleTests
             scan.ScanAsync(UpdateScanRequest.DeepPreview, null, cancellation.Token));
     }
 
-    [Fact]
-    public void Parser_reads_english_and_french_tables_and_ignores_ambiguous_lines()
+    [Theory]
+    [InlineData("winget-fr.txt", 2)]
+    [InlineData("winget-en.txt", 1)]
+    [InlineData("winget-multi.txt", 3)]
+    public void Parser_reads_fixed_width_fixtures_without_localized_warnings(string fixture, int count)
     {
-        const string output = """
-Name             Id                    Version      Available    Source
------------------------------------------------------------------------
-VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
-Broken row without package id
-
-Nom              ID                    Version      Disponible   Source
------------------------------------------------------------------------
-7-Zip            7zip.7zip             23.01        24.09        winget
-Power Toys       Microsoft.PowerToys   0.76.0       0.77.0       winget
-""";
-
+        var output = File.ReadAllText(Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "tests", "Virgil.Core.Tests", "Fixtures", fixture));
         var result = WingetUpgradeParser.Parse(output);
+        Assert.Equal(count, result.Items.Count);
+        Assert.Empty(result.Warnings);
+        if (fixture == "winget-multi.txt")
+        {
+            Assert.Equal("9NBLGGH4NNS1", result.Items[0].Id);
+            Assert.Equal(UpdateSource.MicrosoftStore, result.Items[0].Source);
+            Assert.Contains("\\", result.Items[1].Id);
+            Assert.True(result.Items[1].IsInstalledVersionUnknown);
+            Assert.True(result.Items[2].IsIdTruncated);
+        }
+        if (fixture != "winget-fr.txt") return;
+        Assert.Equal("Ubisoft.Connect", result.Items[0].Id);
+        Assert.Equal("< 174.2.0.13389", result.Items[0].InstalledVersion);
+        Assert.Equal("174.2.0.13389", result.Items[0].AvailableVersion);
+        Assert.True(result.Items[0].IsInstalledVersionUnknown);
+        Assert.Equal("Discord.Discord", result.Items[1].Id);
+        Assert.Equal("1.0.9262", result.Items[1].InstalledVersion);
+        Assert.Equal("1.0.9264", result.Items[1].AvailableVersion);
+        Assert.True(result.Items[1].RequiresExplicitTarget);
+    }
 
-        Assert.Equal(3, result.Items.Count);
-        Assert.Contains(result.Items, item => item.Id == "VideoLAN.VLC" && item.Name == "VLC media player");
-        Assert.Contains(result.Items, item => item.Id == "7zip.7zip" && item.Name == "7-Zip");
-        Assert.Contains(result.Items, item => item.Id == "Microsoft.PowerToys" && item.Name == "Power Toys");
-        Assert.Contains(result.Warnings, warning => warning.Contains("ignoree", StringComparison.OrdinalIgnoreCase));
+    [Theory]
+    [InlineData("null", 0)]
+    [InlineData("[]", 0)]
+    [InlineData("{\"Id\":\"Discord.Discord\",\"Name\":\"Discord\",\"InstalledVersion\":\"1\",\"Available\":\"2\",\"Source\":\"winget\"}", 1)]
+    public void Json_parser_accepts_empty_and_singleton_pipeline(string json, int count)
+    {
+        var result = WingetUpgradeParser.ParseJson(json);
+        Assert.Equal(count, result.Items.Count);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
+    public void Json_parser_preserves_store_source_and_unknown_version()
+    {
+        const string json = """[{"Id":"9NBLGGH4NNS1","Name":"Store app","InstalledVersion":"Unknown","Available":"2","Source":"msstore"}]""";
+        var item = Assert.Single(WingetUpgradeParser.ParseJson(json).Items);
+        Assert.Equal(UpdateSource.MicrosoftStore, item.Source);
+        Assert.Equal("9NBLGGH4NNS1", item.Id);
+        Assert.True(item.IsInstalledVersionUnknown);
     }
 
     [Fact]
@@ -96,7 +122,7 @@ Power Toys       Microsoft.PowerToys   0.76.0       0.77.0       winget
             _ => new ProcessRunResult(0, """
 Name             Id                    Version      Available    Source
 -----------------------------------------------------------------------
-VLC media player  VideoLAN.VLC          3.0.18       3.0.20       winget
+VLC media player VideoLAN.VLC          3.0.18       3.0.20       winget
 """, string.Empty),
             _ => new ProcessRunResult(0, string.Empty, string.Empty));
         var scan = CreateScanService(runner);
@@ -310,6 +336,8 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
             }
 
             Requests.Add(request);
+            if (request.FileName == "powershell.exe")
+                return Task.FromResult(new ProcessRunResult(0, "VIRGIL_MODULE_MISSING", string.Empty));
             return Task.FromResult(_responses.Count == 0
                 ? new ProcessRunResult(0, string.Empty, string.Empty)
                 : _responses.Dequeue()(request));

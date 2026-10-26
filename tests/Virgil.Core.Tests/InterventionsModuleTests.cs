@@ -36,7 +36,7 @@ public sealed class InterventionsModuleTests
     {
         var allowlist = new ElevatedActionAllowlist();
         var elevatedActions = Enum.GetValues<InterventionId>()
-            .Where(id => id != InterventionId.RestartExplorer)
+            .Where(id => id != InterventionId.RestartExplorer && !UpdateMaintenanceRunner.Handles(id))
             .ToList();
 
         foreach (var action in elevatedActions)
