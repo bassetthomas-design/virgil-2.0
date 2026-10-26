@@ -3,6 +3,7 @@ using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Resources;
 using Virgil.Core.Scanning;
+using Virgil.Core.Status;
 using Virgil.Core.Updates;
 using Virgil.Contracts;
 using Virgil.Contracts.Applications;
@@ -152,19 +153,52 @@ public sealed class SystemScanServiceTests
         Assert.Contains(report.Findings, finding => finding.Id == "resources-heavy-processes");
     }
 
+    [Fact]
+    public async Task DeepScanUsesSharedCleanupEstimateAndPublishesItWithoutLegacyPreview()
+    {
+        var cleanup = new CountingCleanupService();
+        var estimate = new CountingCleanupEstimator();
+        var store = new SystemStatusStore();
+        var service = CreateService(cleanup, new CountingUpdateScanService(), cleanupEstimator: estimate, statusStore: store);
+
+        var report = await service.RunAsync(ScanMode.Deep, null, CancellationToken.None);
+
+        Assert.Equal(0, cleanup.PreviewCalls);
+        Assert.Equal(1, estimate.Calls);
+        Assert.Equal(6L * 1024 * 1024 * 1024, report.Cleanup.PotentialBytes);
+        Assert.Contains(report.Findings, f => f.Id == "cleanup-potential-warning");
+        Assert.Equal(report.Cleanup.PotentialBytes, store.LastCleanupEstimate!.Value.PotentialBytes);
+        Assert.False(report.Cleanup.ExecutedAnyAction);
+    }
+
+    private sealed class CountingCleanupEstimator : ICleanupEstimateService
+    {
+        public int Calls { get; private set; }
+        public Task<CleanupFindings> EstimateAsync(IProgress<CleanupProgress>? progress, CancellationToken cancellationToken)
+        {
+            Calls++;
+            var at = DateTimeOffset.UtcNow;
+            var definition = new CleanupZoneDefinition(CleanupZoneId.OldDownloads, "Téléchargements anciens", "À vérifier", "Racine", TimeSpan.Zero,
+                CleanupRiskLevel.High, "", "", "", 0) { Classification = CleanupClassification.AdvancedCleanable };
+            return Task.FromResult(new CleanupFindings(new CleanupAnalysisReport(at,
+                [new(definition, at, 1, 1, 6L * 1024 * 1024 * 1024, 0, [], [])], new(at, [], [], []), [], [])));
+        }
+    }
+
     private static SystemScanService CreateService(
         ICleanupService cleanupService,
         IUpdateScanService updateScanService,
         IInterventionDiagnosticService? interventionDiagnosticService = null,
         IResourceMonitoringService? resourceMonitoringService = null,
-        IApplicationInventoryService? applicationInventoryService = null)
+        IApplicationInventoryService? applicationInventoryService = null,
+        ICleanupEstimateService? cleanupEstimator = null, ISystemStatusStore? statusStore = null)
     {
         return new SystemScanService(
             cleanupService,
             updateScanService,
             interventionDiagnosticService ?? new EmptyInterventionDiagnosticService(),
             resourceMonitoringService ?? new CountingResourceMonitoringService(),
-            applicationInventoryService ?? new CountingApplicationInventoryService());
+            applicationInventoryService ?? new CountingApplicationInventoryService(), cleanupEstimator, statusStore);
     }
 
     private sealed class CountingCleanupService : ICleanupService

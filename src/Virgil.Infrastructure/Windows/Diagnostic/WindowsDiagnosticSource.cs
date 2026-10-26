@@ -73,7 +73,8 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
             disks.Add(new(id, "Volume", Match(volumeRead, id, DiagnosticCounterKind.Rate), Match(volumeWrite, id, DiagnosticCounterKind.Rate),
                 Match(volumeResponse, id, DiagnosticCounterKind.AverageMilliseconds),
                 ReadValue(() => (double)drive.TotalSize), ReadValue(() => (double)drive.TotalFreeSpace),
-                Missing<string>("santé disponible sur le disque physique uniquement")));
+                Missing<string>("santé disponible sur le disque physique uniquement"))
+            { IsSystemVolume = string.Equals(drive.Name.TrimEnd('\\'), Path.GetPathRoot(Environment.SystemDirectory)?.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) });
         }
         var network = new List<RawNetwork>();
         foreach (var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n => n.OperationalStatus == OperationalStatus.Up))

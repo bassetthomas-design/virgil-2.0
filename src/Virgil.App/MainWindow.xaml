@@ -118,7 +118,7 @@
                                         <TextBlock Grid.Column="1" Text="ACCUEIL" />
                                     </Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Scan" Click="ModulePlaceholder_Click">
+                                <Button x:Name="ScanNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Scan" Click="OpenScanProtocol_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Ellipse Width="10" Height="10" Stroke="{DynamicResource App.AccentBrush}" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="SCAN" /></Grid>
                                 </Button>
                                 <Button x:Name="CleanupNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Nettoyage" Click="Cleanup_Click">
@@ -134,11 +134,11 @@
                                 <Button x:Name="UpdatesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises a jour" Click="Updates_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M8,1 L13,6 H10 V13 H6 V6 H3 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="MISES A JOUR" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Demarrage" Click="ModulePlaceholder_Click">
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M8,2 V8 M4,5 A5,5 0 1 0 12,5" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="DEMARRAGE" /></Grid>
+                                <Button x:Name="StartupNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Démarrage" Click="Startup_Click">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M8,2 V8 M4,5 A5,5 0 1 0 12,5" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="DÉMARRAGE" /></Grid>
                                 </Button>
-                                <Button Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Reseau" Click="ModulePlaceholder_Click">
-                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,8 H6 M10,8 H14 M7,5 H9 V11 H7 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RESEAU" /></Grid>
+                                <Button x:Name="NetworkNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Réseau" Click="Network_Click">
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,8 H6 M10,8 H14 M7,5 H9 V11 H7 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="RÉSEAU" /></Grid>
                                 </Button>
                                 <Button x:Name="InterventionsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Réparation" Click="Interventions_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M3,12 L12,3 M10,2 L13,5 M2,10 L5,13" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="Réparation" /></Grid>
@@ -325,8 +325,8 @@
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <TextBlock Text="NETTOYAGE POTENTIEL" Style="{StaticResource VirgilMicroLabel}" />
-                        <TextBlock x:Name="CleanupValueText" Grid.Row="1" Text="--" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
-                        <TextBlock x:Name="CleanupDetailText" Grid.Row="2" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" />
+                        <TextBlock x:Name="CleanupValueText" FontSize="20" TextWrapping="Wrap" Grid.Row="1" Text="--" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
+                        <TextBlock x:Name="CleanupDetailText" TextWrapping="Wrap" Grid.Row="2" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" />
                     </Grid>
                 </Border>
                 <Border x:Name="PriorityMetricCard" Style="{StaticResource VirgilDataCard}">

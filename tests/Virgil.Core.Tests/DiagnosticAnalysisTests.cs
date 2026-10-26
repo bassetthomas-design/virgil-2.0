@@ -84,7 +84,7 @@ public sealed class DiagnosticAnalysisTests
     }
     [Theory]
     [InlineData("cpu")] [InlineData("gpu")] [InlineData("disk")] [InlineData("space")]
-    [InlineData("errors")] [InlineData("devices")] [InlineData("process")] [InlineData("startup")]
+    [InlineData("errors")] [InlineData("devices")] [InlineData("process")]
     public void EachUnavailableSignalMakesScorePartialWithoutPenalty(string missing)
     {
         var s = Healthy(); var signals = Signals();
@@ -98,7 +98,6 @@ public sealed class DiagnosticAnalysisTests
             case "errors": signals = signals with { Errors = DiagnosticSignals.Unavailable.Errors }; break;
             case "devices": signals = signals with { Devices = DiagnosticSignals.Unavailable.Devices }; break;
             case "process": signals = signals with { Processes = DiagnosticSignals.Unavailable.Processes }; break;
-            case "startup": signals = signals with { Startup = DiagnosticSignals.Unavailable.Startup }; break;
         }
         var result = DiagnosticAnalyzer.Analyze(s, signals);
         Assert.Equal(new HealthScore(100, true), result.Score);
@@ -109,10 +108,19 @@ public sealed class DiagnosticAnalysisTests
     {
         var signals = Signals() with { Startup = V<IReadOnlyList<StartupEntry>>([new("Launcher", "HKCU/Run", DiagnosticValue<string>.Unavailable("Impact non mesuré"))]) };
         var result = DiagnosticAnalyzer.Analyze(Healthy(), signals);
-        Assert.Equal(new HealthScore(100, true), result.Score);
-        Assert.Contains("sauvegarde et point de restauration requis", Assert.Single(result.Issues).Description);
+        Assert.Equal(new HealthScore(100, false), result.Score);
+        Assert.Empty(result.Issues);
+        Assert.Empty(result.Unavailable);
+        Assert.Single(result.Signals.Startup.Value);
         Assert.Empty(result.ProposedActions);
         Assert.Empty(result.Top3);
+    }
+    [Fact] public void UnavailableStartupInventoryDoesNotMakeWeightedScorePartial()
+    {
+        var result = DiagnosticAnalyzer.Analyze(Healthy(), Signals() with { Startup = DiagnosticSignals.Unavailable.Startup });
+        Assert.Equal(new HealthScore(100, false), result.Score);
+        Assert.Empty(result.Issues);
+        Assert.Empty(result.Unavailable);
     }
     [Theory] [InlineData("chrome")] [InlineData("Virgil")] [InlineData("svchost")]
     public void NonLauncherIsNeverProposed(string name)

@@ -1,3 +1,8 @@
+using Virgil.Core.Status;
+using Virgil.Core.Network;
+using Virgil.Infrastructure.Windows.Network;
+using Virgil.Core.Startup;
+using Virgil.Infrastructure.Windows.Startup;
 using Virgil.Core.Releases;
 using Virgil.Infrastructure.Releases;
 using Virgil.Core.Diagnostic;
@@ -45,6 +50,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddVirgilServices(this IServiceCollection services)
     {
         services.AddVirgilConfirmation();
+        services.AddSingleton<ISystemStatusStore>(_ => new SystemStatusStore());
+        services.AddTransient<INetworkStatusReader>(_ => new WindowsNetworkStatusReader());
+        services.AddTransient<IStartupApprovalStore>(sp => new WindowsStartupApprovalStore(sp.GetRequiredService<ElevatedHelperClient>()));
+        services.AddTransient<IStartupRestorePointService>(sp => new WindowsStartupRestorePointService(sp.GetRequiredService<IInterventionElevatedHelperClient>()));
+        services.AddTransient<StartupChangeService>(sp => new StartupChangeService(sp.GetRequiredService<IStartupApprovalStore>(), sp.GetRequiredService<IStartupRestorePointService>(), sp.GetRequiredService<IConfirmedPlanGate>()));
+        services.AddTransient<IStartupInventorySource>(_ => new WindowsStartupInventorySource());
         services.AddSingleton<System.Net.Http.HttpClient>(_ => new System.Net.Http.HttpClient(
             new System.Net.Http.SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, ActivityHeadersPropagator = null })
             { Timeout = TimeSpan.FromSeconds(8) });
@@ -69,9 +80,10 @@ public static class ServiceCollectionExtensions
             () => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             sp.GetRequiredService<IElevatedProtocolRoot>(), sp.GetRequiredService<IElevatedProtocolFiles>(),
             () => System.Security.Cryptography.RandomNumberGenerator.GetBytes(16), () => DateTimeOffset.UtcNow));
-        services.AddTransient<IInterventionElevatedHelperClient>(sp => new ElevatedHelperClient(
+        services.AddTransient<ElevatedHelperClient>(sp => new ElevatedHelperClient(
             sp.GetRequiredService<ElevatedHelperRequestStore>(), sp.GetRequiredService<IElevatedProcessLauncher>(),
             () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));
+        services.AddTransient<IInterventionElevatedHelperClient>(sp => sp.GetRequiredService<ElevatedHelperClient>());
         services.AddTransient<IInterventionDiagnosticService>(sp => new InterventionDiagnosticService(
             sp.GetRequiredService<IInterventionCatalog>(), File.Exists, () => Environment.SystemDirectory,
             Process.GetProcessesByName, NetworkInterface.GetAllNetworkInterfaces));
@@ -158,6 +170,7 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<CleanupAnalyzer>(), sp.GetRequiredService<ICleanupExecutionService>(),
             () => sp.GetService<Virgil.Core.Settings.ISettingsService>()?.Current.QuarantineRetentionDays ?? 7,
             sp.GetRequiredService<AdditionalCleanupScanner>(), sp.GetRequiredService<PersonalFolderPolicy>()));
+        services.AddTransient<ICleanupEstimateService>(sp => new CleanupEstimateService(sp.GetRequiredService<CleanupMaintenanceModule>()));
         services.AddTransient<IMaintenanceModule>(sp => sp.GetRequiredService<CleanupMaintenanceModule>());
         services.AddTransient<CleanupPermissionRepairService>(_ => new CleanupPermissionRepairService());
 
@@ -168,22 +181,26 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISystemScanService>(sp => new SystemScanService(
             sp.GetRequiredService<ICleanupService>(), sp.GetRequiredService<IUpdateScanService>(),
             sp.GetRequiredService<IInterventionDiagnosticService>(), sp.GetRequiredService<IResourceMonitoringService>(),
-            sp.GetRequiredService<IApplicationInventoryService>()));
+            sp.GetRequiredService<IApplicationInventoryService>(), sp.GetRequiredService<ICleanupEstimateService>(), sp.GetRequiredService<ISystemStatusStore>()));
         return services;
     }
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddSingleton<NetworkViewModel>(sp => new NetworkViewModel(sp.GetRequiredService<INetworkStatusReader>()));
+        services.AddSingleton<NetworkView>(sp => new NetworkView { DataContext = sp.GetRequiredService<NetworkViewModel>() });
+        services.AddSingleton<StartupViewModel>(sp => new StartupViewModel(sp.GetRequiredService<IStartupInventorySource>(), sp.GetRequiredService<StartupChangeService>(), sp.GetRequiredService<IConfirmationService>()));
+        services.AddSingleton<StartupView>(sp => new StartupView(sp.GetRequiredService<StartupViewModel>()));
         services.AddSingleton<VirgilReleaseViewModel>(sp => new VirgilReleaseViewModel(sp.GetRequiredService<VirgilReleaseChecker>(),
             sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<Virgil.Core.Settings.ISettingsService>(), sp.GetRequiredService<IProcessRunner>()));
         services.AddSingleton<VirgilReleaseView>(sp => new VirgilReleaseView(sp.GetRequiredService<VirgilReleaseViewModel>()));
-        services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IConfirmationService>()));
+        services.AddSingleton<DiagnosticViewModel>(sp => new DiagnosticViewModel(sp.GetRequiredService<DiagnosticModule>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ISystemStatusStore>()));
         services.AddSingleton<DiagnosticView>(sp => new DiagnosticView(sp.GetRequiredService<DiagnosticViewModel>()));
         services.AddSingleton<CleanupViewModel>(sp => new CleanupViewModel(
             sp.GetRequiredService<CleanupMaintenanceModule>(),
             sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IConfirmationService>(),
-            sp.GetRequiredService<QuarantineService>()));
+            sp.GetRequiredService<QuarantineService>(), sp.GetRequiredService<ICleanupEstimateService>(), sp.GetRequiredService<ISystemStatusStore>()));
         services.AddSingleton<CleanupView>(sp => new CleanupView(sp.GetRequiredService<CleanupViewModel>()));
         services.AddSingleton<UpdatesViewModel>(sp => new UpdatesViewModel(
             sp.GetRequiredService<IUpdateScanService>(), sp.GetRequiredService<IUpdateExecutionService>(),
@@ -219,7 +236,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
-            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>()));
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>(), sp.GetRequiredService<StartupView>(), sp.GetRequiredService<NetworkView>(), sp.GetRequiredService<ISystemStatusStore>()));
         return services;
     }
 

@@ -57,7 +57,7 @@ public sealed class DiagnosticSampler(IDiagnosticSource source, TimeProvider clo
         {
             var old = before.Disks.FirstOrDefault(x => x.Id == d.Id && x.Kind == d.Kind);
             return new DiskDiagnostic(d.Id, d.Kind, Measure(old?.Read, d.Read), Measure(old?.Write, d.Write),
-                Measure(old?.Response, d.Response), d.Total, d.Free, d.Health);
+                Measure(old?.Response, d.Response), d.Total, d.Free, d.Health) { IsSystemVolume = d.IsSystemVolume };
         }).ToArray();
         var network = after.Network.Select(n =>
         {

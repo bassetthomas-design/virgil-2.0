@@ -20,7 +20,10 @@ public sealed record MemoryDiagnostic(DiagnosticValue<double> TotalBytes, Diagno
     DiagnosticValue<double> CommittedBytes);
 public sealed record DiskDiagnostic(string Id, string Kind, DiagnosticValue<double> ReadBytesPerSecond,
     DiagnosticValue<double> WriteBytesPerSecond, DiagnosticValue<double> ResponseMilliseconds,
-    DiagnosticValue<double> TotalBytes, DiagnosticValue<double> FreeBytes, DiagnosticValue<string> Health);
+    DiagnosticValue<double> TotalBytes, DiagnosticValue<double> FreeBytes, DiagnosticValue<string> Health)
+{
+    public bool IsSystemVolume { get; init; }
+}
 public sealed record NetworkDiagnostic(string Id, string Type, DiagnosticValue<double> SendBytesPerSecond,
     DiagnosticValue<double> ReceiveBytesPerSecond, DiagnosticValue<double> LinkBitsPerSecond);
 public sealed record GpuDiagnostic(string Id, DiagnosticValue<double> LoadPercent, DiagnosticValue<double> DedicatedUsedBytes,

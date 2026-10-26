@@ -35,7 +35,7 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
             "virgil-restore-point" => RepairScripts.RestorePoint,
             _ => null
         };
-        var executablePath = script is null
+        var executablePath = script is null && command.FileName != "powershell.exe"
             ? Path.Combine(Environment.SystemDirectory, command.FileName)
             : Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
         if (!File.Exists(executablePath))

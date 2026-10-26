@@ -81,13 +81,7 @@ public static class DiagnosticAnalyzer
             if ((p.CpuPercent.IsAvailable && p.CpuPercent.Value >= 20) || (p.WorkingSetBytes.IsAvailable && p.WorkingSetBytes.Value >= 512L * 1024 * 1024))
                 issues.Add(new("process." + p.Pid, p.Name + " : lanceur gourmand", "Ce lanceur utilise au moins 20 % CPU ou 512 Mo de RAM. Si vous ne l'utilisez pas, vous pouvez proposer sa fermeture. Une activité utile reste possible.", 1, 5, "process", DiagnosticSuggestion.Close, target));
         }
-        if (!signals.Startup.IsAvailable) Missing("Démarrage", signals.Startup.Reason);
-        else foreach (var entry in signals.Startup.Value)
-        {
-            if (!entry.Impact.IsAvailable) Missing("Impact de " + entry.Name, entry.Impact.Reason);
-            issues.Add(new("startup." + entry.Source + "." + entry.Name, entry.Name + " démarre avec Windows",
-                "Impact : " + (entry.Impact.IsAvailable ? entry.Impact.Value : entry.Impact.Reason) + ". Modification du démarrage disponible plus tard (sauvegarde et point de restauration requis)", 0, 0, "startup", DiagnosticSuggestion.StartupLater));
-        }
+        // Le démarrage est informatif : aucun de ses signaux ne pondère la note.
         var ordered = issues.OrderByDescending(i => i.Severity).ThenByDescending(i => i.Impact).ThenBy(i => i.Id, StringComparer.Ordinal).ToArray();
         var penalty = ordered.GroupBy(i => i.Category).Sum(g => g.Max(i => i.Impact));
         return new DiagnosticFindings(snapshot, signals, ordered, new HealthScore(Math.Clamp(100 - penalty, 0, 100), missing.Count > 0), missing.Distinct().ToArray());

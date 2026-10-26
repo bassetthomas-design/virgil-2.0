@@ -3,15 +3,15 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
  <StackPanel Margin="0,8,0,0">
   <WrapPanel>
-   <TextBlock Text="{Binding CurrentVersion}" VerticalAlignment="Center" Margin="0,0,12,0" />
-   <Button Content="Vérifier les mises à jour de Virgil" Command="{Binding CheckCommand}" Margin="0,0,12,0" Padding="8,3" />
-   <Button Content="Ouvrir la page de release" Command="{Binding OpenReleaseCommand}" Padding="8,3" />
+   <TextBlock Style="{StaticResource VirgilHudSecondaryText}" Text="{Binding CurrentVersion}" VerticalAlignment="Center" Margin="0,0,12,0" />
+   <Button Style="{StaticResource VirgilSecondaryButton}" Content="Vérifier les mises à jour de Virgil" Command="{Binding CheckCommand}" Margin="0,0,12,0" Padding="8,3" />
+   <Button Style="{StaticResource VirgilSecondaryButton}" Content="Ouvrir la page de release" Command="{Binding OpenReleaseCommand}" Padding="8,3" />
   </WrapPanel>
-  <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,6,0,4" />
+  <TextBlock Style="{StaticResource VirgilHudSecondaryText}" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,6,0,4" />
   <WrapPanel>
    <CheckBox Content="Vérifier au démarrage (au plus une fois par 24 h)" IsChecked="{Binding CheckAtStartup}" VerticalAlignment="Center" Margin="0,0,12,0" />
-   <Button Content="Enregistrer ce réglage" Command="{Binding SavePreferenceCommand}" Padding="8,3" />
+   <Button Style="{StaticResource VirgilSecondaryButton}" Content="Enregistrer ce réglage" Command="{Binding SavePreferenceCommand}" Padding="8,3" />
   </WrapPanel>
-  <TextBlock Text="{Binding SettingsStatus}" TextWrapping="Wrap" />
+  <TextBlock Style="{StaticResource VirgilHudSecondaryText}" Text="{Binding SettingsStatus}" TextWrapping="Wrap" />
  </StackPanel>
 </UserControl>

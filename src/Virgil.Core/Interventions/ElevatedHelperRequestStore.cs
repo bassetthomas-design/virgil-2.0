@@ -34,12 +34,19 @@ public sealed class ElevatedHelperRequestStore
 
     public string RootDirectory => _pathGuard.GetProtocolRoot(_localAppDataProvider());
 
-    public async Task<ElevatedInterventionRequestFile> CreateAsync(
-        InterventionId actionId,
-        CancellationToken cancellationToken,
-        string updateIdentity = "",
-        string restoreSessionId = "")
+    public Task<ElevatedInterventionRequestFile> CreateAsync(InterventionId actionId,
+        CancellationToken cancellationToken, string updateIdentity = "", string restoreSessionId = "")
+        => CreateCoreAsync(actionId, null, cancellationToken, updateIdentity, restoreSessionId);
+
+    public Task<ElevatedInterventionRequestFile> CreateAsync(InterventionId actionId,
+        StartupApprovalWrite? payload, CancellationToken cancellationToken)
+        => CreateCoreAsync(actionId, payload, cancellationToken, "", "");
+
+    private async Task<ElevatedInterventionRequestFile> CreateCoreAsync(InterventionId actionId,
+        StartupApprovalWrite? payload, CancellationToken cancellationToken, string updateIdentity, string restoreSessionId)
     {
+        if ((actionId == InterventionId.SetStartupApproval) != (payload is not null) || (payload is not null && !payload.IsValid()))
+            throw new ArgumentException("Demande de démarrage invalide.");
         var localAppData = _pathGuard.NormalizeLocalAppData(_localAppDataProvider());
         var rootDirectory = _protocolRoot.EnsureCreated(localAppData);
         var nonceBytes = _nonceProvider();
@@ -55,6 +62,7 @@ public sealed class ElevatedHelperRequestStore
         var request = new ElevatedInterventionRequest
         {
             ProtocolVersion = ProtocolVersion,
+            StartupApproval = payload,
             ActionId = actionId,
             Nonce = nonce,
             CreatedAt = createdAt,

@@ -21,8 +21,10 @@ public sealed class InterventionsModuleTests
         var catalog = new InterventionCatalog();
         var definitions = catalog.GetAll();
 
-        Assert.Equal(Enum.GetValues<InterventionId>().Where(id => !UpdateMaintenanceRunner.Handles(id)).Order(),
+        Assert.Equal(Enum.GetValues<InterventionId>().Where(id => !UpdateMaintenanceRunner.Handles(id) &&
+            id is not (InterventionId.CreateStartupRestorePoint or InterventionId.SetStartupApproval)).Order(),
             definitions.Select(definition => definition.Id).Order());
+        Assert.DoesNotContain(definitions, definition => definition.Id is InterventionId.CreateStartupRestorePoint or InterventionId.SetStartupApproval);
         Assert.DoesNotContain(definitions, definition =>
             definition.Title.Contains("ownership", StringComparison.OrdinalIgnoreCase) ||
             definition.CommandPreviews.Any(command =>
@@ -37,7 +39,7 @@ public sealed class InterventionsModuleTests
     {
         var allowlist = new ElevatedActionAllowlist();
         var elevatedActions = Enum.GetValues<InterventionId>()
-            .Where(id => id != InterventionId.RestartExplorer && !UpdateMaintenanceRunner.Handles(id))
+            .Where(id => id is not (InterventionId.RestartExplorer or InterventionId.SetStartupApproval) && !UpdateMaintenanceRunner.Handles(id))
             .ToList();
 
         foreach (var action in elevatedActions)
@@ -111,6 +113,31 @@ public sealed class InterventionsModuleTests
         Assert.Equal(InterventionStatus.Failed, result.Status);
         Assert.Contains("administrateur", result.ReadableError!, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(runner.Commands);
+    }
+
+    [Theory]
+    [InlineData(false, 0, InterventionStatus.Failed)]
+    [InlineData(true, 0, InterventionStatus.Completed)]
+    [InlineData(true, 1, InterventionStatus.PartialFailure)]
+    public async Task StartupRestorePointUsesOnlyFixedScriptAndRequiresAdministrator(bool administrator, int exitCode, InterventionStatus status)
+    {
+        var runner = new RecordingElevatedCommandRunner(_ => new ElevatedCommandResult(exitCode,
+            "VIRGIL_RESTORE_POINT_VERIFIED", string.Empty));
+        var dispatcher = CreateDispatcher(runner, administrator);
+
+        var result = await dispatcher.ExecuteValidatedAsync(Request(InterventionId.CreateStartupRestorePoint));
+
+        Assert.Equal(status, result.Status);
+        if (!administrator) Assert.Empty(runner.Commands);
+        else
+        {
+            var command = Assert.Single(runner.Commands);
+            Assert.Equal("powershell.exe", command.FileName);
+            Assert.Equal(new[] { "-NoProfile", "-NonInteractive", "-Command", ElevatedActionAllowlist.StartupRestorePointScript }, command.Arguments);
+            Assert.Contains("CreateRestorePoint", command.Arguments[3]);
+            Assert.Contains("Get-CimInstance", command.Arguments[3]);
+            Assert.False(result.RebootRequired);
+        }
     }
 
     [Fact]

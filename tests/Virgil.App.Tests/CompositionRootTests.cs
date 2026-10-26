@@ -149,6 +149,7 @@ public sealed class CompositionRootTests
         {
             typeof(IProcessRunner), typeof(TimeProvider), typeof(Virgil.Core.Actions.ConfirmationService),
             typeof(Virgil.Core.Actions.IConfirmationService), typeof(Virgil.Core.Actions.IConfirmedPlanGate),
+            typeof(Virgil.Core.Status.ISystemStatusStore),
             typeof(Virgil.Core.Diagnostic.IDiagnosticSource), typeof(Virgil.Core.Diagnostic.DiagnosticSampler),
             typeof(System.Net.Http.HttpClient), typeof(Virgil.Core.Releases.IVirgilReleaseSource),
             typeof(Virgil.Core.Releases.IApplicationVersionSource), typeof(Virgil.Core.Releases.ApplicationVersionService),
@@ -168,6 +169,40 @@ public sealed class CompositionRootTests
                 Assert.NotSame(provider.GetRequiredService(descriptor.ServiceType), provider.GetRequiredService(descriptor.ServiceType));
             }
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Windows")]
+    public void DiagnosticStartupAndNetworkShareTheValidatedStatusAndViewComposition()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+                using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+                var store = provider.GetRequiredService<Virgil.Core.Status.ISystemStatusStore>();
+                Assert.Same(store, provider.GetRequiredService<Virgil.Core.Status.ISystemStatusStore>());
+                foreach (var type in new[] { typeof(StartupViewModel), typeof(NetworkViewModel),
+                    typeof(Virgil.App.Views.StartupView), typeof(Virgil.App.Views.NetworkView) })
+                {
+                    var descriptor = Assert.Single(services, item => item.ServiceType == type);
+                    Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
+                    Assert.NotNull(descriptor.ImplementationFactory);
+                    Assert.Same(provider.GetRequiredService(type), provider.GetRequiredService(type));
+                }
+                var diagnostic = provider.GetRequiredService<DiagnosticViewModel>();
+                var statusField = typeof(DiagnosticViewModel).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .Single(field => field.FieldType == typeof(Virgil.Core.Status.ISystemStatusStore));
+                Assert.Same(store, statusField.GetValue(diagnostic));
+            }
+            catch (Exception exception) { failure = exception; }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Fact]

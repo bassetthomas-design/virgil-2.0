@@ -145,8 +145,8 @@
                 </Grid.RowDefinitions>
                 <controls:OperationProgressPanel DataContext="{Binding Operation}" Visibility="{Binding IsRunning, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                 <StackPanel Grid.Row="1" Margin="0,8">
-                    <TextBlock Text="{Binding Summary}" Foreground="White" FontSize="20"/>
-                    <TextBlock Text="{Binding SafetySummary}" Foreground="White"/>
+                    <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}" FontSize="20"/>
+                    <TextBlock Text="{Binding SafetySummary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
                 <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
@@ -154,12 +154,12 @@
                          HorizontalContentAlignment="Stretch">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Expander Header="{Binding Header}" Foreground="White" Margin="0,6">
+                            <Expander Header="{Binding Header}" Margin="0,6">
                                 <Expander.Style><Style TargetType="Expander"><Setter Property="IsExpanded" Value="False"/>
                                     <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                                         <Grid IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                                            <CheckBox Content="Sélectionner la catégorie (hors éléments personnels ou à vérifier)" Foreground="White"
+                                            <CheckBox Content="Sélectionner la catégorie (hors éléments personnels ou à vérifier)"
                                                       IsThreeState="True" IsChecked="{Binding Selection.IsSelected, Mode=TwoWay}" Margin="8"/>
                                             <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" MaxHeight="420" Background="Transparent" BorderThickness="0"
                                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -167,10 +167,10 @@
                                                      HorizontalContentAlignment="Stretch">
                                                 <ListBox.ItemTemplate><DataTemplate>
                                                     <StackPanel Margin="4,8">
-                                                        <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" Foreground="White">
+                                                        <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
                                                             <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}"/></StackPanel>
                                                         </CheckBox>
-                                                        <Expander Header="Détails techniques" Foreground="White" Margin="20,4,0,0">
+                                                        <Expander Header="Détails techniques" Margin="20,4,0,0">
                                                             <Expander.Style><Style TargetType="Expander"><Style.Triggers>
                                                                 <Trigger Property="IsExpanded" Value="True"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                                                                     <TextBlock Text="{Binding Details}" TextWrapping="Wrap"/>
@@ -190,17 +190,17 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <StackPanel Grid.Row="3">
-                    <Expander Header="Informations complémentaires (lecture seule)" Foreground="White">
+                    <Expander Header="Informations complémentaires (lecture seule)">
                         <ListBox ItemsSource="{Binding Entries}" MaxHeight="240" Background="Transparent" BorderThickness="0"
                                  ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True"
                                  VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"/>
                     </Expander>
-                    <Expander Header="Quarantaine" Foreground="White">
+                    <Expander Header="Quarantaine">
                         <Grid Margin="12">
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
                             <ListBox Grid.Row="1" ItemsSource="{Binding QuarantineItems}" MaxHeight="240"
-                                     Background="Transparent" BorderThickness="0" Foreground="White" HorizontalContentAlignment="Stretch"
+                                     Background="Transparent" BorderThickness="0" Foreground="{DynamicResource App.TextPrimaryBrush}" HorizontalContentAlignment="Stretch"
                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel">
                                 <ListBox.ItemTemplate>
@@ -313,7 +313,7 @@
                                        Margin="0,3,0,0"
                                        Text="{Binding ValidationWarning}" />
                             <StackPanel Visibility="{Binding RequiresCriticalConfirmation, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ExpectedCriticalConfirmation}" TextWrapping="Wrap" Foreground="White" />
+                                <TextBlock Text="{Binding ExpectedCriticalConfirmation}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" />
                                 <TextBox Text="{Binding CriticalConfirmationText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Confirmation du dossier personnel" />
                             </StackPanel>
                         </StackPanel>

@@ -228,6 +228,20 @@ Core définit `IApplicationVersionSource`, `ApplicationVersionService` et `IVirg
 
 `IUpdateSessionGuard` est le port Core du mutex global, implémenté par UpdateSessionGuard dans Infrastructure. Chaque instance principale garde un handle Global\Virgil.Update.v2 pendant sa durée de vie, sans acquisition exclusive entre sessions. Le mutex Local reste seul responsable de l’instance unique par session. Création globale refusée : démarrage autorisé et avertissement français journalisé, sans détails d’exception. L’installateur détecte les deux noms et ne tue aucun processus. Le script Inno Setup est encodé UTF-8 avec BOM, vérifié par test pour ses dialogues français.
 
+## Correctifs alpha — lot 3d
+
+Diagnostic mesure une fois par entrée visible, puis sur « Actualiser » ; aucun minuteur de mesure ne tourne en continu. Seul Actualiser invalide les signaux lents. L’indicateur `IsRefreshing` conserve la dernière ligne de mesure. L’inventaire Démarrage est replié et son impact non mesuré, sans poids, ne rend plus la note partielle.
+
+`ISystemStatusStore` est un singleton de dernières mesures horodatées (mémoire, volume système, estimation Nettoyage, priorités). Diagnostic, scan et prévisualisation Nettoyage publient leurs résultats ; la fenêtre les observe sur le Dispatcher. Une mesure ancienne ou absente ne remplace pas une mesure disponible plus récente. `ICleanupEstimateService` partage le module Nettoyage protégé entre le scan et la prévisualisation ; les groupes, téléchargements et restes passent par les mêmes politiques existantes. Aucune action de nettoyage n’est exécutée par ces lectures.
+
+La navigation Scan ouvre le protocole rapide/approfondi existant. Réseau lit les adaptateurs, adresses, passerelles, DNS, connexions et tests de connectivité avec délais bornés ; son bouton Réparation navigue sans exécuter de réparation. Démarrage inventorie Run HKCU/HKLM dans les deux vues, dossiers Démarrage et tâches à l’ouverture de session. Les métadonnées de fichiers sont lues sans lancement ; la validation de signature indique explicitement que la révocation n’est pas vérifiée. L’impact reste « Non mesuré ».
+
+Les modifications du démarrage passent par `StartupChangeService` : aperçu lié à la ruche, catégorie, nom et valeurs exactes, consentement renforcé, plan consommé avant sauvegarde/point de restauration/écriture, refus d’un état périmé et sauvegarde vérifiée. Seules les valeurs binaires StartupApproved existantes et reconnues sont modifiables ; aucune entrée Run, aucun raccourci ni aucune tâche n’est supprimé. Une restauration exige un nouvel aperçu et un nouveau plan ; la dernière modification de la session est restaurable depuis la vue, les sauvegardes restent sur disque.
+
+Pour HKCU, le helper crée et vérifie le point de restauration avant l’écriture locale. Pour HKLM, une requête typée strictement validée autorise uniquement les sous-clés StartupApproved Run, Run32 ou StartupFolder ; le helper crée et vérifie lui-même son point, conserve une sauvegarde vérifiée dans un dossier ProgramData dédié protégé Administrateurs/SYSTEM, compare la valeur avant écriture et vérifie le résultat. Aucun chemin de registre ni commande arbitraire n’est accepté. La désactivation de la protection système, son intervalle de création, un refus UAC, une valeur absente/inconnue ou un défaut de sauvegarde bloquent le changement ; aucun contournement sans point n’est proposé. Les tâches restent en lecture seule.
+
+La publication App conserve sa cible `PublishElevatedHelper`. La CI Windows de la PR est la référence pour build, tests et artefacts ; un build croisé Linux ne constitue pas une validation Windows.
+
 
 ## Correctif alpha — lot 3a : nettoyage et progression
 

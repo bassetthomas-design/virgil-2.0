@@ -1,4 +1,5 @@
 using Virgil.Core.Actions;
+using Virgil.Core.Status;
 using Virgil.Core.Operations;
 using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
@@ -21,6 +22,8 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
+    private readonly ICleanupEstimateService? _estimator;
+    private readonly ISystemStatusStore? _statusStore;
     public LongOperationViewModel Operation { get; }
     public ObservableCollection<CleanupCategoryItem> Categories { get; } = new();
     public string Summary => $"{FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleBytes))} récupérables · {Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleFileCount)} fichiers";
@@ -37,6 +40,7 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty] private string expiredQuarantineLabel = string.Empty;
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
+    private CleanupScanInfo? _lastEstimate;
     private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
@@ -52,10 +56,13 @@ public partial class CleanupViewModel : ObservableObject
         CleanupMaintenanceModule module,
         IProcessRunner processRunner,
         IReportHistoryService reportHistoryService,
-        IConfirmationService confirmationService, QuarantineService? quarantine = null)
+        IConfirmationService confirmationService, QuarantineService? quarantine = null,
+        ICleanupEstimateService? estimator = null, ISystemStatusStore? statusStore = null)
     {
         Operation = new LongOperationViewModel(CancelActiveOperation);
         _confirmationService = confirmationService;
+        _estimator = estimator;
+        _statusStore = statusStore;
         _quarantine = quarantine;
         _module = module ?? throw new ArgumentNullException(nameof(module));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
@@ -265,7 +272,11 @@ public partial class CleanupViewModel : ObservableObject
 
             var progress = CreateProgress();
             var token = _operationCancellation!.Token;
-            var findings = (CleanupFindings)await Task.Run(() => _module.ScanAsync(progress, token), token);
+            var findings = await Task.Run(async () => _estimator is null
+                ? (CleanupFindings)await _module.ScanAsync(progress, token).ConfigureAwait(false)
+                : await _estimator.EstimateAsync(progress, token).ConfigureAwait(false), token);
+            _statusStore?.PublishCleanup(findings.Analysis);
+            _lastEstimate = CleanupEstimateService.Summarize(findings.Analysis);
             var groups = await Task.Run(() => Enum.GetValues<CleanupGroup>()
                 .Select(group => new CleanupGroupItem(group, findings.Analysis.Zones.Where(p => p.Definition.Group == group))).ToArray(), token);
             _lastStorageAnalysis = findings.Analysis.Storage;
@@ -584,8 +595,8 @@ public partial class CleanupViewModel : ObservableObject
 
     private void AnnouncePreviewResult()
     {
-        var totalBytes = _lastPreview.Where(preview => preview.Definition.IsExecutable).Sum(preview => preview.EligibleBytes);
-        var reviewCount = _lastStorageAnalysis?.Items.Count ?? 0;
+        var totalBytes = _lastEstimate?.PotentialBytes ?? 0;
+        var reviewCount = _lastEstimate?.ReviewItemCount ?? 0;
 
         if (totalBytes == 0)
         {

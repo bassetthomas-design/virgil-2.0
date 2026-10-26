@@ -92,6 +92,30 @@ public sealed class ElevatedActionDispatcher
         IProgress<InterventionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
+        if (request.ActionId == InterventionId.SetStartupApproval &&
+            (!string.IsNullOrEmpty(request.UpdateIdentity) || !string.IsNullOrEmpty(request.RestoreSessionId)))
+            return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètres de mise à jour inattendus.", false);
+        if (request.ActionId == InterventionId.SetStartupApproval)
+        {
+            if (!_securityContext.IsAdministrator || request.StartupApproval is null || !_allowlist.AllowsStartupApproval(request))
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Demande de démarrage refusée.", false);
+            var restore = await ExecuteValidatedAsync(request with { ActionId = InterventionId.CreateStartupRestorePoint, StartupApproval = null }, progress, cancellationToken).ConfigureAwait(false);
+            if (restore.Status != InterventionStatus.Completed || restore.ExitCode != 0 ||
+                !restore.SummaryOutput.Split('\n').Any(line => line.Trim() == "VIRGIL_RESTORE_POINT_VERIFIED"))
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Point de restauration non vérifié : modification bloquée.", false);
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                StartupApprovalHandler.Execute(request.StartupApproval);
+                return Result(request, startedAt, 0, InterventionStatus.Completed, "État de démarrage sauvegardé et modifié.", false);
+            }
+            catch (Exception)
+            {
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Modification du démarrage refusée ou non vérifiée.", false);
+            }
+        }
+        if (request.StartupApproval is not null)
+            return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètres inattendus refusés.", false);
         if (UpdateMaintenanceRunner.Handles(request.ActionId))
         {
             if (!_securityContext.IsAdministrator || !_allowlist.IsMaintenanceAllowed(request.ActionId, request.UpdateIdentity))

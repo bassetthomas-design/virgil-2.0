@@ -4,6 +4,24 @@ namespace Virgil.ElevatedHelper;
 
 public sealed class ElevatedActionAllowlist
 {
+    // Typed registry operation: its fixed handler never accepts a command or registry path.
+    public bool AllowsStartupApproval(ElevatedInterventionRequest request) =>
+        request.ActionId == InterventionId.SetStartupApproval && request.StartupApproval is { } payload && payload.IsValid();
+
+    // Fixed helper-owned script: no request data, registry path or command interpolation.
+    internal const string StartupRestorePointScript = """
+        $ErrorActionPreference='Stop'
+        $description='Virgil démarrage '+[guid]::NewGuid().ToString('N')
+        $r=Invoke-CimMethod -Namespace root/default -ClassName SystemRestore -MethodName CreateRestorePoint -Arguments @{
+        Description=$description
+        RestorePointType=[uint32]12
+        EventType=[uint32]100
+        }
+        if($r.ReturnValue -ne 0){exit 1}
+        $found=@(Get-CimInstance -Namespace root/default -ClassName SystemRestore)
+        if(-not ($found.Description -contains $description)){exit 2}
+        Write-Output 'VIRGIL_RESTORE_POINT_VERIFIED'
+        """;
     public bool IsMaintenanceAllowed(InterventionId id, string identity) =>
         UpdateMaintenanceRunner.Handles(id) && UpdateMaintenanceRunner.ValidIdentity(id, identity);
 
@@ -11,6 +29,8 @@ public sealed class ElevatedActionAllowlist
     {
         spec = actionId switch
         {
+            InterventionId.CreateStartupRestorePoint => Spec(actionId, reboot: false,
+                Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", StartupRestorePointScript)),
             InterventionId.VerifyHealth when IsValidSystemDrive(systemDrive) => Spec(actionId, false,
                 Command("sfc.exe", "/verifyonly"),
                 Command("dism.exe", "/Online", "/Cleanup-Image", "/CheckHealth", "/English"),
@@ -68,6 +88,9 @@ public sealed class ElevatedActionAllowlist
 
     private static bool IsSafe(ElevatedActionSpec spec)
     {
+        if (spec.ActionId == InterventionId.CreateStartupRestorePoint)
+            return spec.Commands.Count == 1 && spec.Commands[0].FileName == "powershell.exe" &&
+                spec.Commands[0].Arguments.SequenceEqual(new[] { "-NoProfile", "-NonInteractive", "-Command", StartupRestorePointScript });
         foreach (var command in spec.Commands)
         {
             if (command.FileName.Contains('\\') ||

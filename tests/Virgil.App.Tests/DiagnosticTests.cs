@@ -95,25 +95,41 @@ public sealed class DiagnosticPresentationTests
         Assert.Contains(reading.Processes, p => p.Pid == Environment.ProcessId);
     }
     [Fact]
-    public async Task VisibleViewRefreshesEveryTwoSecondsUsingInjectedClockAndStopsItsTimer()
+    public async Task VisibleViewMeasuresOnceUntilExplicitRefreshUsingInjectedClock()
     {
         var clock = new PresentationClock();
         var source = new ImmediateSource();
-        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(source, clock)), clock);
+        var signals = new CountingSignals();
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(source, clock), signals), clock);
         vm.SetPresentation(true, false);
         Assert.Equal(1, source.Reads);
-        var first = source.SecondRead.Task;
         clock.Advance(TimeSpan.FromSeconds(1));
-        await first.WaitAsync(TimeSpan.FromSeconds(5));
-        await WaitUntilAsync(() => vm.Snapshot is not null);
-        Assert.Equal(2, source.Reads);
-        clock.Advance(TimeSpan.FromSeconds(1));
-        await WaitUntilAsync(() => source.Reads == 3);
-        // La période démarre à t=0 ; la deuxième mesure débute à t=2.
-        vm.SetPresentation(false, false);
         await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
-        clock.Advance(TimeSpan.FromSeconds(20));
-        Assert.Equal(3, source.Reads);
+        Assert.Equal(2, source.Reads);
+        Assert.Equal(1, signals.Reads);
+        var measuredStatus = vm.Status;
+        clock.Advance(TimeSpan.FromMinutes(5));
+        Assert.Equal(2, source.Reads);
+        Assert.Equal(measuredStatus, vm.Status);
+        vm.SetPresentation(false, false);
+        vm.SetPresentation(true, false);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(4, source.Reads);
+        Assert.Equal(1, signals.Reads);
+        measuredStatus = vm.Status;
+        var refresh = vm.RefreshCommand.ExecuteAsync(null);
+        Assert.True(vm.IsRefreshing);
+        Assert.Equal(measuredStatus, vm.Status);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await refresh.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(6, source.Reads);
+        Assert.Equal(2, signals.Reads);
+        Assert.False(vm.IsRefreshing);
+        Assert.NotEqual(measuredStatus, vm.Status);
+        vm.SetPresentation(false, false);
+        clock.Advance(TimeSpan.FromMinutes(5));
+        Assert.Equal(6, source.Reads);
     }
     [Fact]
     public async Task UnknownCoreIdentityShowsReasonWithoutGuessingALogicalCoreLabel()
@@ -144,6 +160,27 @@ public sealed class DiagnosticPresentationTests
         Assert.NotEmpty(vm.Unavailable);
         vm.SetPresentation(false, false);
         await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+    [Fact]
+    public async Task StartupInventoryIsInformationalInsteadOfAnIssue()
+    {
+        var clock = new PresentationClock();
+        var signals = new CountingSignals
+        {
+            Value = DiagnosticSignals.Unavailable with
+            {
+                Startup = DiagnosticValue<IReadOnlyList<StartupEntry>>.Available(
+                    [new("Programme", "HKCU/Run", DiagnosticValue<string>.Unavailable("Impact non mesuré"))])
+            }
+        };
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new ImmediateSource(), clock), signals), clock);
+        vm.SetPresentation(true, false);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Contains("Programme — HKCU/Run · Impact : Impact non mesuré", vm.Startup);
+        Assert.DoesNotContain(vm.Findings, finding => finding.Title.Contains("Programme", StringComparison.Ordinal));
+        Assert.DoesNotContain(vm.Unavailable, reason => reason.Contains("Impact", StringComparison.Ordinal));
+        vm.SetPresentation(false, false);
     }
     [Fact]
     public async Task ConfirmationIsExplicitAndCancelHasNoExecutionEffect()
@@ -189,7 +226,7 @@ public sealed class DiagnosticPresentationTests
         Assert.Equal(0, action.Effects);
     }
     [Fact]
-    public async Task SlowSignalsAreCachedUntilManualRefreshOrNewOpening()
+    public async Task SlowSignalsAreCachedUntilExplicitInvalidation()
     {
         var clock = new PresentationClock();
         var signals = new CountingSignals();
@@ -209,7 +246,8 @@ public sealed class DiagnosticPresentationTests
     private sealed class CountingSignals : IDiagnosticSignalSource
     {
         public int Reads;
-        public Task<DiagnosticSignals> ReadAsync(CancellationToken token) { Reads++; return Task.FromResult(DiagnosticSignals.Unavailable); }
+        public DiagnosticSignals Value { get; init; } = DiagnosticSignals.Unavailable;
+        public Task<DiagnosticSignals> ReadAsync(CancellationToken token) { Reads++; return Task.FromResult(Value); }
     }
     private sealed class RecordingAction(IConfirmedPlanGate gate) : IMaintenanceAction
     {

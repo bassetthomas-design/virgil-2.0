@@ -9,7 +9,10 @@ public sealed record DiagnosticCounter(DiagnosticValue<double> Numerator, Diagno
 public sealed record RawCpu(DiagnosticCounter Total, IReadOnlyList<DiagnosticCounter> Cores,
     DiagnosticValue<double> CurrentMhz, DiagnosticValue<double> NominalMhz, DiagnosticValue<double> Temperature);
 public sealed record RawDisk(string Id, string Kind, DiagnosticCounter Read, DiagnosticCounter Write, DiagnosticCounter Response,
-    DiagnosticValue<double> Total, DiagnosticValue<double> Free, DiagnosticValue<string> Health);
+    DiagnosticValue<double> Total, DiagnosticValue<double> Free, DiagnosticValue<string> Health)
+{
+    public bool IsSystemVolume { get; init; }
+}
 public sealed record RawNetwork(string Id, string Type, DiagnosticCounter Send, DiagnosticCounter Receive, DiagnosticValue<double> Speed);
 public sealed record RawGpu(string Id, IReadOnlyList<DiagnosticCounter> Engines, DiagnosticValue<double> Used,
     DiagnosticValue<double> Total, DiagnosticValue<double> Temperature);
