@@ -102,6 +102,8 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
 
         return existing with
         {
+            IsSystemComponent = existing.IsSystemComponent || next.IsSystemComponent,
+            IsGame = existing.IsGame || next.IsGame,
             Publisher = FirstText(existing.Publisher, next.Publisher),
             Version = FirstText(existing.Version, next.Version),
             InstallDate = existing.InstallDate ?? next.InstallDate,

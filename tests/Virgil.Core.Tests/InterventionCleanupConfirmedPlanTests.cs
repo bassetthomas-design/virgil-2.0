@@ -62,7 +62,8 @@ public sealed class InterventionCleanupConfirmedPlanTests
         var plan = Issue(authority, InterventionActionPreviewFactory.Create(diagnostic.Definition));
         Assert.Equal(InterventionStatus.Completed, (await service.ExecuteAsync(diagnostic, plan, CancellationToken.None)).Status);
         Assert.Equal(InterventionStatus.Failed, (await service.ExecuteAsync(diagnostic, plan, CancellationToken.None)).Status);
-        Assert.Equal(1, effects.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 1 : 2, effects.Calls);
+        if (id != InterventionId.RestartExplorer) Assert.Equal(new[] { InterventionId.CreateRestorePoint, id }, effects.HelperActions);
     }
 
     [Theory]
@@ -86,7 +87,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         var preview = InterventionActionPreviewFactory.Create(diagnostic.Definition);
         Assert.Equal("interventions.flushdns", preview.ActionId);
         Assert.Equal(new[] { "FlushDns" }, preview.Targets);
-        Assert.Equal(new[] { "Category", "RequiresAdministrator", "RiskLevel" }, preview.Parameters.Keys.OrderBy(k => k));
+        Assert.Equal(new[] { "AllowWithoutRestorePoint", "Category", "RequiresAdministrator", "RestorePointRequired", "RiskLevel" }, preview.Parameters.Keys.OrderBy(k => k));
         Assert.Equal(ActionPreviewHasher.Hash(preview), ActionPreviewHasher.Hash(InterventionActionPreviewFactory.Create(changed.Definition)));
     }
 
@@ -222,8 +223,10 @@ public sealed class InterventionCleanupConfirmedPlanTests
     private sealed class Effects : IInterventionElevatedHelperClient, IExplorerRestarter, IRecycleBinService
     {
         public int Calls { get; set; }
+        public List<InterventionId> HelperActions { get; } = new();
         public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
-        { Calls++; return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed }); }
+        {
+            HelperActions.Add(definition.Id); Calls++; return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed }); }
         public Task<InterventionExecutionResult> RestartAsync(InterventionDiagnostic diagnostic, CancellationToken cancellationToken)
         { Calls++; return Task.FromResult(new InterventionExecutionResult { Action = diagnostic.Definition, Status = InterventionStatus.Completed }); }
         public RecycleBinState Query() => new(true, 1, 4);

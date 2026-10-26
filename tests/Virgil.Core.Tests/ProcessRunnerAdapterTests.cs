@@ -30,7 +30,7 @@ public sealed class ProcessRunnerAdapterTests
         Assert.Null(request.Verb);
         Assert.Equal(ProcessWindowMode.Normal, request.WindowMode);
         Assert.Null(request.RawArguments);
-        Assert.False(request.WaitForExit);
+        Assert.True(request.WaitForExit);
         Assert.Equal(source.Token, runner.Token);
     }
 
@@ -129,7 +129,7 @@ public sealed class ProcessRunnerAdapterTests
             var result = await client.ExecuteAsync(new InterventionCatalog().Get(InterventionId.FlushDns), CancellationToken.None);
             Assert.Single(runner.Requests);
             Assert.Equal(InterventionStatus.Failed, result.Status);
-            Assert.Equal("Assistant eleve indisponible ou refuse.", result.ReadableError);
+            Assert.Equal("Assistant élevé indisponible : UAC refused", result.ReadableError);
         }
         finally
         {

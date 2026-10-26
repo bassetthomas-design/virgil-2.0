@@ -8,6 +8,22 @@ public sealed class ElevatedActionAllowlist
     {
         spec = actionId switch
         {
+            InterventionId.VerifyHealth when IsValidSystemDrive(systemDrive) => Spec(actionId, false,
+                Command("sfc.exe", "/verifyonly"),
+                Command("dism.exe", "/Online", "/Cleanup-Image", "/CheckHealth", "/English"),
+                Command("chkdsk.exe", systemDrive, "/scan"), Command("virgil-services")),
+            InterventionId.VerifyHealthDeep when IsValidSystemDrive(systemDrive) => Spec(actionId, false,
+                Command("sfc.exe", "/verifyonly"),
+                Command("dism.exe", "/Online", "/Cleanup-Image", "/CheckHealth", "/English"),
+                Command("dism.exe", "/Online", "/Cleanup-Image", "/ScanHealth", "/English"),
+                Command("chkdsk.exe", systemDrive, "/scan"), Command("virgil-services")),
+            InterventionId.SfcVerifyOnly => Spec(actionId, false, Command("sfc.exe", "/verifyonly")),
+            InterventionId.DismCheckHealth => Spec(actionId, false, Command("dism.exe", "/Online", "/Cleanup-Image", "/CheckHealth", "/English")),
+            InterventionId.CheckServices => Spec(actionId, false, Command("virgil-services")),
+            InterventionId.CreateRestorePoint => Spec(actionId, false, Command("virgil-restore-point")),
+            InterventionId.RestartWindowsUpdate => Spec(actionId, false, Command("virgil-update")),
+            InterventionId.RestartAudio => Spec(actionId, false, Command("virgil-audio")),
+            InterventionId.ResetPrintQueue => Spec(actionId, false, Command("virgil-print")),
             InterventionId.FlushDns => Spec(actionId, reboot: false, Command("ipconfig.exe", "/flushdns")),
             InterventionId.RenewIp => Spec(actionId, reboot: false,
                 Command("ipconfig.exe", "/release"),

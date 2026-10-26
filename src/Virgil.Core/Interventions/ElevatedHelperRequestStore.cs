@@ -120,8 +120,41 @@ public sealed class ElevatedHelperRequestStore
         }
     }
 
+    public async Task<InterventionProgress?> ReadProgressAsync(ElevatedInterventionRequestFile requestFile,
+        CancellationToken cancellationToken)
+    {
+        ValidateRequestFileMetadata(requestFile);
+        _protocolRoot.ValidateExisting(requestFile.LocalAppDataDirectory);
+        var path = _pathGuard.ValidateFilePath(requestFile.LocalAppDataDirectory,
+            ProgressPath(requestFile), ElevatedPathExistence.Optional);
+        if (!_files.Exists(path)) return null;
+        try
+        {
+            var value = await _files.ReadProgressAsync(path, cancellationToken).ConfigureAwait(false);
+            _pathGuard.ValidateFilePath(requestFile.LocalAppDataDirectory, path, ElevatedPathExistence.MustExist);
+            return value?.Nonce == requestFile.Nonce ? value : null;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException) { return null; }
+    }
+
+    public void RequestCancel(ElevatedInterventionRequestFile requestFile)
+    {
+        ValidateRequestFileMetadata(requestFile);
+        _protocolRoot.ValidateExisting(requestFile.LocalAppDataDirectory);
+        var path = _pathGuard.ValidateFilePath(requestFile.LocalAppDataDirectory,
+            CancelPath(requestFile), ElevatedPathExistence.Optional);
+        if (!_files.Exists(path)) _files.RequestCancel(path);
+    }
+
+    private static string ProgressPath(ElevatedInterventionRequestFile file)
+        => file.ResultPath.Replace(".result.json", ".progress.json", StringComparison.Ordinal);
+    private static string CancelPath(ElevatedInterventionRequestFile file)
+        => file.ResultPath.Replace(".result.json", ".cancel", StringComparison.Ordinal);
+
     public void Cleanup(ElevatedInterventionRequestFile requestFile)
     {
+        TryDelete(requestFile.LocalAppDataDirectory, ProgressPath(requestFile));
+        TryDelete(requestFile.LocalAppDataDirectory, CancelPath(requestFile));
         TryDelete(requestFile.LocalAppDataDirectory, requestFile.RequestPath);
         TryDelete(requestFile.LocalAppDataDirectory, requestFile.ResultPath);
     }

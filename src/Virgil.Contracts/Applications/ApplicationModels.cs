@@ -24,7 +24,8 @@ public enum ApplicationUninstallKind
     RegistryQuietUninstallString,
     Winget,
     StoreSettings,
-    Unknown
+    Unknown,
+    StorePackage
 }
 
 public enum ApplicationRiskLevel
@@ -80,6 +81,9 @@ public enum ApplicationRemnantAction
 
 public sealed record InstalledApplication
 {
+    public bool IsSystemComponent { get; init; }
+    public bool IsGame { get; init; }
+
     public string Id { get; init; } = string.Empty;
 
     public string DisplayName { get; init; } = string.Empty;
