@@ -196,12 +196,14 @@
                                  VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"/>
                     </Expander>
                     <Expander Header="Quarantaine" Foreground="White">
-                        <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
-                    <GroupBox Header="Quarantaine" Margin="0,16,0,0" Foreground="White">
-                        <StackPanel Margin="12">
+                        <Grid Margin="12">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
-                            <ItemsControl ItemsSource="{Binding QuarantineItems}">
-                                <ItemsControl.ItemTemplate>
+                            <ListBox Grid.Row="1" ItemsSource="{Binding QuarantineItems}" MaxHeight="240"
+                                     Background="Transparent" BorderThickness="0" Foreground="White" HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel">
+                                <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding IsSelected}" Margin="0,8">
                                             <StackPanel>
@@ -211,20 +213,17 @@
                                             </StackPanel>
                                         </CheckBox>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <WrapPanel IsEnabled="{Binding IsIdle}">
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <WrapPanel Grid.Row="2" IsEnabled="{Binding IsIdle}">
                                 <Button Content="Actualiser" Command="{Binding RefreshQuarantineCommand}" Margin="4" />
                                 <Button Content="Restaurer" Command="{Binding RestoreQuarantineCommand}" Margin="4" />
                                 <Button Content="Vider la quarantaine maintenant" Command="{Binding PurgeQuarantineCommand}" Margin="4" />
                                 <Button Content="{Binding ExpiredQuarantineLabel}" Command="{Binding PurgeExpiredQuarantineCommand}"
                                         Visibility="{Binding HasExpiredQuarantine, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="4" />
                             </WrapPanel>
-                            <TextBlock Text="Pour vider toute la quarantaine, laissez la sélection vide." TextWrapping="Wrap" />
-                        </StackPanel>
-                    </GroupBox>
-
-                        </ScrollViewer>
+                            <TextBlock Grid.Row="3" Text="Pour vider toute la quarantaine, laissez la sélection vide." TextWrapping="Wrap" />
+                        </Grid>
                     </Expander>
                 </StackPanel>
             </Grid>

@@ -37,6 +37,8 @@ public sealed class CleanupMaintenanceModule : IMaintenanceModule
         var zones = analysis.Zones.Select(z => _personal?.Apply(z) ?? z).ToList();
         if (_additional is not null)
         {
+            progress?.Report(new(null, "Inventaire des logiciels et des téléchargements", null,
+                "Vérification des preuves d'installation et des fichiers à examiner."));
             var additional = await _additional.ScanAsync(cancellationToken).ConfigureAwait(false);
             if (additional.Any(p => p.Definition.Id == CleanupZoneId.WindowsOld)) zones.RemoveAll(p => p.Definition.Id == CleanupZoneId.WindowsOld);
             zones.AddRange(additional);
@@ -101,8 +103,10 @@ internal static class CleanupMaintenanceSnapshot
 {
     private static CleanupZoneDefinition CopyDefinition(CleanupZoneDefinition definition) => definition with
     {
-        RemnantZones = Array.AsReadOnly(definition.RemnantZones.Select(CopyDefinition).ToArray()),
-        RegistryKeys = Array.AsReadOnly(definition.RegistryKeys.ToArray()),
+        RemnantZones = definition.RemnantZones.Count == 0 ? Array.Empty<CleanupZoneDefinition>()
+            : Array.AsReadOnly(definition.RemnantZones.Select(CopyDefinition).ToArray()),
+        RegistryKeys = definition.RegistryKeys.Count == 0 ? Array.Empty<string>()
+            : Array.AsReadOnly(definition.RegistryKeys.ToArray()),
         AllowedExtensions = Array.AsReadOnly(definition.AllowedExtensions.ToArray()),
         RequiredPathFragments = Array.AsReadOnly(definition.RequiredPathFragments.ToArray()),
         ExcludedPathFragments = Array.AsReadOnly(definition.ExcludedPathFragments.ToArray())

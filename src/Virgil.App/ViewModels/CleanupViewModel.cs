@@ -32,7 +32,7 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty] private bool requiresCriticalConfirmation;
 
     private readonly QuarantineService? _quarantine;
-    public ObservableCollection<QuarantineItemViewModel> QuarantineItems { get; } = new();
+    public ObservableCollection<QuarantineItemViewModel> QuarantineItems { get; private set; } = new();
     [ObservableProperty] private bool hasExpiredQuarantine;
     [ObservableProperty] private string expiredQuarantineLabel = string.Empty;
     private readonly List<CleanupZonePreview> _lastPreview = new();
@@ -44,6 +44,7 @@ public partial class CleanupViewModel : ObservableObject
     private CleanupSessionReport? _lastReport;
     private bool _operationInProgress;
     private int _operationGeneration;
+    private IDisposable? _operationProgress;
 
     private readonly IProcessRunner _processRunner;
 
@@ -62,7 +63,7 @@ public partial class CleanupViewModel : ObservableObject
         Entries.Add(new CleanupTextCardItem("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan."));
     }
 
-    public ObservableCollection<object> Entries { get; } = new();
+    public ObservableCollection<object> Entries { get; private set; } = new();
     [ObservableProperty] private string statusText = "Aucune analyse nettoyage lancee.";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
@@ -128,22 +129,39 @@ public partial class CleanupViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void InitializeQuarantine() => RefreshQuarantine();
+    private Task InitializeQuarantineAsync() => RefreshQuarantineAsync();
 
     [RelayCommand]
-    private void RefreshQuarantine()
+    private async Task RefreshQuarantineAsync()
     {
-        if (_quarantine is null) return;
+        if (_quarantine is null || !BeginOperation("Lecture de la quarantaine…")) return;
         try
         {
-            QuarantineItems.Clear();
-            var now = _quarantine.UtcNow;
-            foreach (var entry in _quarantine.List()) QuarantineItems.Add(new QuarantineItemViewModel(entry, now));
-            var expired = QuarantineItems.Where(item => item.IsExpired).ToArray();
-            HasExpiredQuarantine = expired.Length > 0;
-            ExpiredQuarantineLabel = $"Effacer les éléments expirés ({expired.Length}, {FormatBytes(expired.Sum(item => item.Entry.SizeBytes))})";
+            await LoadQuarantineAsync(_operationCancellation!.Token);
+            StatusText = "Quarantaine actualisée.";
         }
+        catch (OperationCanceledException) { StatusText = "Lecture de la quarantaine annulée."; }
         catch { StatusText = "Lecture de la quarantaine impossible."; }
+        finally { EndOperation(); }
+    }
+
+    private async Task LoadQuarantineAsync(CancellationToken cancellationToken)
+    {
+        if (_quarantine is null) return;
+        var items = await Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var now = _quarantine.UtcNow;
+            var result = _quarantine.List().Select(entry => new QuarantineItemViewModel(entry, now)).ToArray();
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
+        }, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        QuarantineItems = new ObservableCollection<QuarantineItemViewModel>(items);
+        OnPropertyChanged(nameof(QuarantineItems));
+        var expired = items.Where(item => item.IsExpired).ToArray();
+        HasExpiredQuarantine = expired.Length > 0;
+        ExpiredQuarantineLabel = $"Effacer les éléments expirés ({expired.Length}, {FormatBytes(expired.Sum(item => item.Entry.SizeBytes))})";
     }
 
     [RelayCommand]
@@ -163,7 +181,7 @@ public partial class CleanupViewModel : ObservableObject
             var selection = QuarantineItems.Where(item => item.IsSelected).Select(item => item.Entry).ToArray();
             if (selection.Length == 0 && purge) selection = QuarantineItems.Select(item => item.Entry).ToArray();
             if (!expiredOnly && selection.Length == 0) { StatusText = "Sélectionnez les éléments à restaurer."; return; }
-            var action = expiredOnly ? _quarantine.GetExpiredPurgeAction()
+            var action = expiredOnly ? await Task.Run(() => _quarantine.GetExpiredPurgeAction(), _operationCancellation!.Token)
                 : purge ? _quarantine.Purge(selection) : _quarantine.Restore(selection);
             if (action is null) { StatusText = "Aucun élément expiré à effacer."; return; }
             var preview = await action.PreviewAsync(_operationCancellation!.Token);
@@ -189,7 +207,12 @@ public partial class CleanupViewModel : ObservableObject
         }
         catch (OperationCanceledException) { StatusText = "Opération annulée."; }
         catch { StatusText = "Opération de quarantaine impossible."; }
-        finally { EndOperation(); RefreshQuarantine(); }
+        finally
+        {
+            try { await LoadQuarantineAsync(CancellationToken.None); }
+            catch { StatusText += " Lecture de la quarantaine impossible."; }
+            EndOperation();
+        }
     }
 
     [RelayCommand]
@@ -255,7 +278,7 @@ public partial class CleanupViewModel : ObservableObject
             foreach (var category in categories) Categories.Add(category);
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(SafetySummary));
-            RenderPreviews();
+            await RenderPreviewsAsync();
             UpdateCommandState();
             StatusText = "Previsualisation disponible. Validation par zone requise.";
             RequestVirgilState(VirgilCoreState.Success, "PRET");
@@ -339,6 +362,8 @@ public partial class CleanupViewModel : ObservableObject
         catch { sessionErrors.Add("Erreur pendant le nettoyage guide."); }
         finally
         {
+            try { await LoadQuarantineAsync(CancellationToken.None); }
+            catch { sessionErrors.Add("Lecture de la quarantaine impossible."); }
             var storage = _lastStorageAnalysis;
             _lastReport = _module.CreateReport(startedAt, results, sessionErrors) with
             {
@@ -353,7 +378,7 @@ public partial class CleanupViewModel : ObservableObject
             };
             await PersistReportAsync(ReportMapper.FromCleanup(_lastReport, _lastPreview.Count));
             IsReportButtonEnabled = true;
-            RenderPreviews();
+            await RenderPreviewsAsync();
             EndOperation();
             CompleteSessionState(_lastReport);
             AnnounceSessionEnd(_lastReport);
@@ -395,6 +420,8 @@ public partial class CleanupViewModel : ObservableObject
 
     private void EndOperation()
     {
+        _operationProgress?.Dispose();
+        _operationProgress = null;
         _operationInProgress = false;
         _operationGeneration++;
         _operationCancellation?.Dispose();
@@ -432,6 +459,8 @@ public partial class CleanupViewModel : ObservableObject
             Operation.Report(progress);
             StatusText = progress.Message ?? progress.Step;
         }));
+        _operationProgress?.Dispose();
+        _operationProgress = operation;
         return new CleanupProgressAdapter(operation);
     }
 
@@ -500,40 +529,48 @@ public partial class CleanupViewModel : ObservableObject
         activeDecision.TrySetResult(decision);
     }
 
-    private void RenderPreviews()
+    private async Task RenderPreviewsAsync()
     {
-        Entries.Clear();
+        var entries = await Task.Run(BuildPreviewEntries);
+        Entries = new ObservableCollection<object>(entries);
+        OnPropertyChanged(nameof(Entries));
+    }
 
-        AddCategorySection("NETTOYAGE SUR", CleanupClassification.Cleanable);
-        AddCategorySection("NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
+    private IReadOnlyList<object> BuildPreviewEntries()
+    {
+        var entries = new List<object>();
 
-        Entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+        AddCategorySection(entries, "NETTOYAGE SUR", CleanupClassification.Cleanable);
+        AddCategorySection(entries, "NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
 
-        Entries.Add(new CleanupTextCardItem("A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
+        entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+
+        entries.Add(new CleanupTextCardItem("A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
         if (_lastStorageAnalysis is not null)
         {
             foreach (var item in _lastStorageAnalysis.Items.Take(20))
             {
-                Entries.Add(new CleanupReviewItemViewModel(item, _processRunner, message => VirgilMessageRequested?.Invoke(message)));
+                entries.Add(new CleanupReviewItemViewModel(item, _processRunner, message => VirgilMessageRequested?.Invoke(message)));
             }
         }
 
-        Entries.Add(new CleanupTextCardItem("PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
+        entries.Add(new CleanupTextCardItem("PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
 
-        if (Entries.Count == 0)
+        if (entries.Count == 0)
         {
-            Entries.Add(new CleanupTextCardItem("Aucune zone analysee."));
+            entries.Add(new CleanupTextCardItem("Aucune zone analysee."));
         }
+        return entries;
     }
 
-    private void AddCategorySection(string title, CleanupClassification classification)
+    private void AddCategorySection(List<object> entries, string title, CleanupClassification classification)
     {
-        Entries.Add(new CleanupSectionTitleItem(title));
+        entries.Add(new CleanupSectionTitleItem(title));
         foreach (var preview in _lastPreview
             .Where(preview => preview.Definition.Classification == classification)
             .OrderBy(preview => preview.Definition.DisplayOrder))
         {
-            Entries.Add(new CleanupZoneItemViewModel(preview));
+            entries.Add(new CleanupZoneItemViewModel(preview));
         }
 
         foreach (var preview in _lastPreview
@@ -541,7 +578,7 @@ public partial class CleanupViewModel : ObservableObject
             .Where(preview => classification == CleanupClassification.AdvancedCleanable)
             .OrderBy(preview => preview.Definition.DisplayOrder))
         {
-            Entries.Add(new CleanupZoneItemViewModel(preview));
+            entries.Add(new CleanupZoneItemViewModel(preview));
         }
     }
 
@@ -574,7 +611,6 @@ public partial class CleanupViewModel : ObservableObject
         }
 
         VirgilMessageRequested?.Invoke($"Nettoyage termine.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille : {FormatBytes(report.DeletedBytes)} libérés.\nRapport disponible.");
-        RefreshQuarantine();
     }
 
     private void AnnounceZoneResult(CleanupStepResult result)

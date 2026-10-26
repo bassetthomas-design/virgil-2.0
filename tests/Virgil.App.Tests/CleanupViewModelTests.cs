@@ -309,10 +309,16 @@ public sealed class CleanupViewModelTests
     {
         var f = new Fixture();
         var gate = new TaskCompletionSource<CleanupStepResult>();
-        f.Actions.Handler = (_, token) => gate.Task.WaitAsync(token);
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Actions.Handler = (_, token) =>
+        {
+            started.TrySetResult(true);
+            return gate.Task.WaitAsync(token);
+        };
         await f.Analyze();
         var pending = f.Run();
         f.Vm.ExecuteDecisionCommand.Execute(null);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(f.Vm.IsValidationOpen);
         AssertBusy(f.Vm);
         Assert.True(f.Vm.TryCloseOverlay());
@@ -490,12 +496,10 @@ public sealed class CleanupViewModelTests
     {
         Assert.NotSame(expected, actual);
         Assert.NotSame(expected.Definition, actual.Definition);
-        Assert.Equal(expected.Definition with
-        {
-            AllowedExtensions = actual.Definition.AllowedExtensions,
-            RequiredPathFragments = actual.Definition.RequiredPathFragments,
-            ExcludedPathFragments = actual.Definition.ExcludedPathFragments
-        }, actual.Definition);
+        // Toutes les propriétés, y compris les collections ordonnées et les racines enfants,
+        // restent identiques après la copie profonde, indépendamment de leur implémentation.
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected.Definition),
+            System.Text.Json.JsonSerializer.Serialize(actual.Definition));
         Assert.Equal(expected.Definition.AllowedExtensions, actual.Definition.AllowedExtensions);
         Assert.Equal(expected.Definition.RequiredPathFragments, actual.Definition.RequiredPathFragments);
         Assert.Equal(expected.Definition.ExcludedPathFragments, actual.Definition.ExcludedPathFragments);

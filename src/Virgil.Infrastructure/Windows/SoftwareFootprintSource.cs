@@ -287,6 +287,10 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
     private static IEnumerable<string> ExtractPaths(string text)
     {
         text = Environment.ExpandEnvironmentVariables(text.Trim());
+        // Les chemins d'installation sont parfois entourés de guillemets même sans arguments.
+        var exactPath = text.Trim('"');
+        if (Directory.Exists(exactPath) || File.Exists(exactPath))
+        { yield return Path.GetFullPath(exactPath); yield break; }
         if (Directory.Exists(text)) { yield return Path.GetFullPath(text); yield break; }
         foreach (Match match in Regex.Matches(text, "[A-Za-z]:\\\\[^\\\"\\r\\n]*?\\.(?:exe|dll|sys|msi)", RegexOptions.IgnoreCase))
             yield return match.Value;
