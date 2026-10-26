@@ -195,7 +195,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
-        ((Virgil.App.ViewModels.NetworkViewModel)NetworkModuleView.DataContext).RefreshCommand.Cancel();
+        ((Virgil.App.ViewModels.NetworkViewModel)NetworkModuleView.DataContext).CancelRefresh();
         _statusStore.Changed -= SystemStatusChanged;
         _virgilRelease.Dispose();
         _activeScanCancellation?.Cancel();

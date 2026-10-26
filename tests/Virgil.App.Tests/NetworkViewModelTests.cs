@@ -30,7 +30,7 @@ public sealed class NetworkViewModelTests
         var model = new NetworkViewModel(reader);
         var first = model.RefreshCommand.ExecuteAsync(null);
         Assert.Equal(1, reader.Calls);
-        model.RefreshCommand.Cancel();
+        model.CancelRefresh();
         pending.SetCanceled();
         await first;
         Assert.Null(model.Snapshot);
