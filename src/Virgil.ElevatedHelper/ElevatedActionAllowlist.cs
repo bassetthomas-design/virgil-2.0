@@ -4,10 +4,27 @@ namespace Virgil.ElevatedHelper;
 
 public sealed class ElevatedActionAllowlist
 {
+    // Fixed helper-owned script: no request data, registry path or command interpolation.
+    internal const string StartupRestorePointScript = """
+        $ErrorActionPreference='Stop'
+        $description='Virgil démarrage '+[guid]::NewGuid().ToString('N')
+        $r=Invoke-CimMethod -Namespace root/default -ClassName SystemRestore -MethodName CreateRestorePoint -Arguments @{
+        Description=$description
+        RestorePointType=[uint32]12
+        EventType=[uint32]100
+        }
+        if($r.ReturnValue -ne 0){exit 1}
+        $found=@(Get-CimInstance -Namespace root/default -ClassName SystemRestore)
+        if(-not ($found.Description -contains $description)){exit 2}
+        Write-Output 'VIRGIL_RESTORE_POINT_VERIFIED'
+        """;
+
     public bool TryGet(InterventionId actionId, string systemDrive, out ElevatedActionSpec spec)
     {
         spec = actionId switch
         {
+            InterventionId.CreateStartupRestorePoint => Spec(actionId, reboot: false,
+                Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", StartupRestorePointScript)),
             InterventionId.FlushDns => Spec(actionId, reboot: false, Command("ipconfig.exe", "/flushdns")),
             InterventionId.RenewIp => Spec(actionId, reboot: false,
                 Command("ipconfig.exe", "/release"),
@@ -49,6 +66,9 @@ public sealed class ElevatedActionAllowlist
 
     private static bool IsSafe(ElevatedActionSpec spec)
     {
+        if (spec.ActionId == InterventionId.CreateStartupRestorePoint)
+            return spec.Commands.Count == 1 && spec.Commands[0].FileName == "powershell.exe" &&
+                spec.Commands[0].Arguments.SequenceEqual(new[] { "-NoProfile", "-NonInteractive", "-Command", StartupRestorePointScript });
         foreach (var command in spec.Commands)
         {
             if (command.FileName.Contains('\\') ||

@@ -13,6 +13,7 @@ public sealed class LegacyEffectArchitectureTests
         .Where(p => !p.Split(Path.DirectorySeparatorChar).Any(s => s is "bin" or "obj"));
 
     [Theory]
+    [InlineData("Startup/StartupChangeService.cs", "store.SaveVerifiedBackupAsync(")]
     [InlineData("Cleanup/CleanupExecutionService.cs", "_recycleBinService.Empty()")]
     [InlineData("Cleanup/CleanupExecutionService.cs", "_quarantine.MoveToQuarantine(")]
     [InlineData("Cleanup/QuarantineMaintenanceAction.cs", "_store.Purge(")]
@@ -24,7 +25,7 @@ public sealed class LegacyEffectArchitectureTests
     public void GateRejectionReturnsBeforeEveryEffectBoundary(string path, string effect)
     {
         var source = Read("Virgil.Core/" + path);
-        var gate = source.IndexOf("_gate.TryConsume(", StringComparison.Ordinal);
+        var gate = source.IndexOf(path.StartsWith("Startup/", StringComparison.Ordinal) ? "plans.TryConsume(" : "_gate.TryConsume(", StringComparison.Ordinal);
         var operation = source.IndexOf(effect, StringComparison.Ordinal);
         Assert.True(gate >= 0 && operation > gate, path);
         var between = source[gate..operation];
@@ -98,7 +99,7 @@ public sealed class LegacyEffectArchitectureTests
     }
 
     [Fact]
-    public void ChatIsOutputOnlyTrayAbsentAndUnimplementedUiIsBlocked()
+    public void ChatIsOutputOnlyTrayAbsentAndNavigationIsReadOnly()
     {
         var xaml = Read("Virgil.App/MainWindow.xaml");
         var window = Read("Virgil.App/MainWindow.xaml.cs");
@@ -106,7 +107,13 @@ public sealed class LegacyEffectArchitectureTests
         Assert.DoesNotContain("TextBox", xaml);
         Assert.DoesNotContain("SendCommand", xaml);
         Assert.DoesNotContain("ChatInput", window);
-        Assert.Contains("Action indisponible dans cette alpha : parcours sécurisé de confirmation non livré.", window);
+        Assert.DoesNotContain("ModulePlaceholder_Click", xaml);
+        Assert.DoesNotContain("parcours sécurisé de confirmation non livré", window);
+        Assert.Contains("x:Name=\"ScanNavButton\"", xaml);
+        Assert.Contains("Click=\"OpenScanProtocol_Click\"", xaml);
+        Assert.Contains("Startup_Click", xaml);
+        Assert.Contains("Network_Click", xaml);
+        Assert.DoesNotContain("IProcessRunner", Read("Virgil.App/ViewModels/NetworkViewModel.cs"));
         var sources = Sources("Virgil.App").Select(File.ReadAllText);
         foreach (var text in sources)
         {

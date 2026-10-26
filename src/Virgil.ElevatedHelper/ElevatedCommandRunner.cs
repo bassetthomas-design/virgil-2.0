@@ -11,7 +11,9 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
 {
     public async Task<ElevatedCommandResult> RunAsync(ElevatedCommandSpec command)
     {
-        var executablePath = Path.Combine(Environment.SystemDirectory, command.FileName);
+        var executablePath = command.FileName == "powershell.exe"
+            ? Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe")
+            : Path.Combine(Environment.SystemDirectory, command.FileName);
         if (!File.Exists(executablePath))
         {
             return new ElevatedCommandResult(-1, string.Empty, $"{command.FileName} indisponible.");

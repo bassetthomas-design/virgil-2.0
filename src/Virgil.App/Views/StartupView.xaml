@@ -1,0 +1,37 @@
+<UserControl x:Class="Virgil.App.Views.StartupView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Loaded="View_Loaded">
+ <Grid Margin="24"><Grid.Resources><BooleanToVisibilityConverter x:Key="BoolVisibility" /></Grid.Resources><DockPanel>
+  <StackPanel DockPanel.Dock="Top">
+   <TextBlock Text="Démarrage" FontSize="26" Foreground="{DynamicResource App.TextPrimaryBrush}" />
+   <TextBlock Text="{Binding Status}" Margin="0,8" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap" />
+   <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Style="{DynamicResource VirgilSecondaryButton}" />
+   <TextBlock Margin="0,12" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Text="Sélectionnez une entrée pour modifier son autorisation. Les tâches planifiées restent en lecture seule. Toute modification nécessite votre confirmation, une sauvegarde vérifiée et un point de restauration." />
+   <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+    <Button Content="Activer" Command="{Binding EnableCommand}" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
+    <Button Content="Désactiver" Command="{Binding DisableCommand}" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
+    <Button Content="Restaurer la dernière modification" Command="{Binding RestoreCommand}" Style="{DynamicResource VirgilSecondaryButton}" />
+   </StackPanel>
+  </StackPanel>
+  <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="*" />
+    <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="*" />
+    <DataGridTextColumn Header="Chemin / commande" Binding="{Binding Path}" Width="2*" />
+    <DataGridTextColumn Header="État" Binding="{Binding State}" />
+    <DataGridTextColumn Header="Éditeur" Binding="{Binding Publisher}" />
+    <DataGridTextColumn Header="Signature" Binding="{Binding Signature}" />
+    <DataGridTextColumn Header="Impact" Binding="{Binding Impact}" />
+   </DataGrid.Columns>
+  </DataGrid>
+ </DockPanel>
+ <Border Background="{DynamicResource App.PanelBrush}" BorderBrush="{DynamicResource App.AccentBrush}" BorderThickness="1" Padding="24" MaxWidth="640" VerticalAlignment="Center" Visibility="{Binding IsConfirmationOpen, Converter={StaticResource BoolVisibility}}">
+  <StackPanel>
+   <TextBlock Text="Confirmer la modification du démarrage" FontSize="20" Foreground="{DynamicResource App.TextPrimaryBrush}" />
+   <TextBlock Text="{Binding ConfirmationText}" TextWrapping="Wrap" Margin="0,16" Foreground="{DynamicResource App.TextPrimaryBrush}" />
+   <CheckBox Content="J’ai compris les effets et je confirme cette modification." IsChecked="{Binding ConfirmationAccepted}" />
+   <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+    <Button Content="Confirmer" Command="{Binding ConfirmCommand}" IsEnabled="{Binding ConfirmationAccepted}" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,12,0" />
+    <Button Content="Annuler" Command="{Binding CancelConfirmationCommand}" Style="{DynamicResource VirgilSecondaryButton}" />
+   </StackPanel>
+  </StackPanel>
+ </Border></Grid>
+</UserControl>

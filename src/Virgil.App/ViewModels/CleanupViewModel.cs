@@ -1,4 +1,5 @@
 using Virgil.Core.Actions;
+using Virgil.Core.Status;
 using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
@@ -20,6 +21,8 @@ namespace Virgil.App.ViewModels;
 public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupMaintenanceModule _module;
+    private readonly ICleanupEstimateService? _estimator;
+    private readonly ISystemStatusStore? _statusStore;
     public ObservableCollection<CleanupGroupItem> Groups { get; } = new();
     [ObservableProperty] private string criticalConfirmationText = string.Empty;
     [ObservableProperty] private string expectedCriticalConfirmation = string.Empty;
@@ -31,6 +34,7 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty] private string expiredQuarantineLabel = string.Empty;
     private readonly List<CleanupZonePreview> _lastPreview = new();
     private CleanupStorageAnalysis? _lastStorageAnalysis;
+    private CleanupScanInfo? _lastEstimate;
     private readonly IConfirmationService _confirmationService;
     private readonly IReportHistoryService _reportHistoryService;
     private CancellationTokenSource? _operationCancellation;
@@ -44,9 +48,12 @@ public partial class CleanupViewModel : ObservableObject
         CleanupMaintenanceModule module,
         IProcessRunner processRunner,
         IReportHistoryService reportHistoryService,
-        IConfirmationService confirmationService, QuarantineService? quarantine = null)
+        IConfirmationService confirmationService, QuarantineService? quarantine = null,
+        ICleanupEstimateService? estimator = null, ISystemStatusStore? statusStore = null)
     {
         _confirmationService = confirmationService;
+        _estimator = estimator;
+        _statusStore = statusStore;
         _quarantine = quarantine;
         _module = module ?? throw new ArgumentNullException(nameof(module));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
@@ -232,9 +239,12 @@ public partial class CleanupViewModel : ObservableObject
             RequestVirgilState(VirgilCoreState.Scanning, "NETTOYAGE");
             VirgilMessageRequested?.Invoke("Analyse des zones de nettoyage initialisee.");
 
-            var findings = (CleanupFindings)await _module
-                .ScanAsync(new Progress<CleanupProgress>(HandleProgress), _operationCancellation!.Token)
-                .ConfigureAwait(true);
+            var progress = new Progress<CleanupProgress>(HandleProgress);
+            var findings = _estimator is null
+                ? (CleanupFindings)await _module.ScanAsync(progress, _operationCancellation!.Token).ConfigureAwait(true)
+                : await _estimator.EstimateAsync(progress, _operationCancellation!.Token).ConfigureAwait(true);
+            _statusStore?.PublishCleanup(findings.Analysis);
+            _lastEstimate = CleanupEstimateService.Summarize(findings.Analysis);
             _lastStorageAnalysis = findings.Analysis.Storage;
             _lastPreview.AddRange(findings.Analysis.Zones);
             Groups.Clear();
@@ -524,8 +534,8 @@ public partial class CleanupViewModel : ObservableObject
 
     private void AnnouncePreviewResult()
     {
-        var totalBytes = _lastPreview.Where(preview => preview.Definition.IsExecutable).Sum(preview => preview.EligibleBytes);
-        var reviewCount = _lastStorageAnalysis?.Items.Count ?? 0;
+        var totalBytes = _lastEstimate?.PotentialBytes ?? 0;
+        var reviewCount = _lastEstimate?.ReviewItemCount ?? 0;
 
         if (totalBytes == 0)
         {

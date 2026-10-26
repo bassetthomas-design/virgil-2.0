@@ -1,0 +1,17 @@
+<UserControl x:Class="Virgil.App.Views.NetworkView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="20">
+  <TextBlock Text="Réseau" FontSize="24"/>
+  <TextBlock Text="État en lecture seule. Un ping sans réponse ne signifie pas forcément une panne." TextWrapping="Wrap" Margin="0,8"/>
+  <Button Style="{DynamicResource VirgilSecondaryButton}" Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left"/>
+  <TextBlock Text="{Binding Status}" Margin="0,8"/>
+  <ItemsControl ItemsSource="{Binding Snapshot.Adapters}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,8">
+   <TextBlock Text="{Binding Name}" FontWeight="Bold"/><TextBlock Text="{Binding State}"/>
+   <TextBlock Text="{Binding Addresses, StringFormat=Adresses IP : {0}}" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Gateway, StringFormat=Passerelle : {0}}"/><TextBlock Text="{Binding Dns, StringFormat=DNS : {0}}" TextWrapping="Wrap"/>
+  </StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  <TextBlock Text="{Binding Snapshot.GatewayLatency, StringFormat=Latence passerelle : {0}}"/>
+  <TextBlock Text="{Binding Snapshot.InternetLatency, StringFormat=Latence 1.1.1.1 : {0}}"/>
+  <TextBlock Text="{Binding Snapshot.DnsTest}"/><TextBlock Text="{Binding Snapshot.Connections}"/>
+  <Button Style="{DynamicResource VirgilSecondaryButton}" Content="Ouvrir Réparation" Command="{Binding OpenRepairCommand}" HorizontalAlignment="Left" Margin="0,12"/>
+ </StackPanel></ScrollViewer>
+</UserControl>

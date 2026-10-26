@@ -1,3 +1,4 @@
+using Virgil.Core.Status;
 using System.Windows.Automation;
 using Virgil.App.Views;
 using Virgil.App.Animation;
@@ -23,6 +24,7 @@ namespace Virgil.App;
 
 public partial class MainWindow : Window
 {
+    private readonly ISystemStatusStore _statusStore;
     private readonly Virgil.App.ViewModels.VirgilReleaseViewModel _virgilRelease;
     private readonly ISystemScanService _systemScanService;
     private readonly IReportHistoryService _reportHistoryService;
@@ -35,6 +37,8 @@ public partial class MainWindow : Window
     private bool _hasPersistentReport;
     private SystemScanReport? _lastReport;
 
+    private readonly StartupView StartupModuleView;
+    private readonly NetworkView NetworkModuleView;
     private readonly DiagnosticView DiagnosticModuleView;
     private readonly CleanupView CleanupModuleView;
     private readonly UpdatesView UpdatesModuleView;
@@ -49,8 +53,10 @@ public partial class MainWindow : Window
         IReportExportService reportExportService,
         CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
         ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView,
-        VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease)
+        VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease,
+        StartupView startupView, NetworkView networkView, ISystemStatusStore statusStore)
     {
+        _statusStore = statusStore;
         _virgilRelease = virgilRelease;
         _systemScanService = systemScanService;
         _reportHistoryService = reportHistoryService;
@@ -67,7 +73,16 @@ public partial class MainWindow : Window
             if (destination == Virgil.Core.Diagnostic.DiagnosticSuggestion.Cleanup) ShowCleanup();
             else if (destination == Virgil.Core.Diagnostic.DiagnosticSuggestion.Updates) ShowUpdates();
         };
+        StartupModuleView = startupView;
+        NetworkModuleView = networkView;
+        ((Virgil.App.ViewModels.NetworkViewModel)networkView.DataContext).RepairRequested += (_, _) => ShowInterventions();
         InitializeComponent();
+        StartupModuleView.Visibility = Visibility.Collapsed;
+        NetworkModuleView.Visibility = Visibility.Collapsed;
+        ModuleHostGrid.Children.Add(StartupModuleView);
+        ModuleHostGrid.Children.Add(NetworkModuleView);
+        _statusStore.Changed += SystemStatusChanged;
+        ApplySystemStatus();
         ReleasePanelHost.Children.Add(releaseView);
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(DiagnosticModuleView);
@@ -180,6 +195,8 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        ((Virgil.App.ViewModels.NetworkViewModel)NetworkModuleView.DataContext).RefreshCommand.Cancel();
+        _statusStore.Changed -= SystemStatusChanged;
         _virgilRelease.Dispose();
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
@@ -275,6 +292,7 @@ public partial class MainWindow : Window
 
     private void ShowHome()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Visible;
@@ -298,6 +316,7 @@ public partial class MainWindow : Window
 
     private void ShowCleanup()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -322,6 +341,7 @@ public partial class MainWindow : Window
 
     private void ShowUpdates()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -346,6 +366,7 @@ public partial class MainWindow : Window
 
     private void ShowInterventions()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -370,6 +391,7 @@ public partial class MainWindow : Window
 
     private void ShowResources()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -394,6 +416,7 @@ public partial class MainWindow : Window
 
     private void ShowApplications()
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -418,6 +441,7 @@ public partial class MainWindow : Window
 
     private void ShowReports(bool refresh = true)
     {
+        HideAdditionalModules();
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         DiagnosticNavButton.Tag = null;
         HomeContentGrid.Visibility = Visibility.Collapsed;
@@ -444,10 +468,36 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ModulePlaceholder_Click(object sender, RoutedEventArgs e)
+    private void HideAdditionalModules()
     {
-        StatusText.Text = "MODULE INDISPONIBLE";
-        AppendVirgilMessage("Action indisponible dans cette alpha : parcours sécurisé de confirmation non livré.");
+        StartupModuleView.Visibility = Visibility.Collapsed;
+        NetworkModuleView.Visibility = Visibility.Collapsed;
+        ScanNavButton.Tag = null;
+        StartupNavButton.Tag = null;
+        NetworkNavButton.Tag = null;
+    }
+
+    private void Startup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress) return;
+        ShowHome();
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        StartupModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        StartupNavButton.Tag = "Active";
+        StatusText.Text = "DÉMARRAGE";
+    }
+
+    private async void Network_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanInProgress) return;
+        ShowHome();
+        HomeContentGrid.Visibility = Visibility.Collapsed;
+        NetworkModuleView.Visibility = Visibility.Visible;
+        HomeNavButton.Tag = null;
+        NetworkNavButton.Tag = "Active";
+        StatusText.Text = "RÉSEAU — LECTURE SEULE";
+        await ((Virgil.App.ViewModels.NetworkViewModel)NetworkModuleView.DataContext).RefreshCommand.ExecuteAsync(null);
     }
 
     private void WireCleanupModule()
@@ -532,7 +582,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (CleanupModuleView.Visibility == Visibility.Visible ||
+        if (StartupModuleView.Visibility == Visibility.Visible ||
+            NetworkModuleView.Visibility == Visibility.Visible ||
+            CleanupModuleView.Visibility == Visibility.Visible ||
             UpdatesModuleView.Visibility == Visibility.Visible ||
             InterventionsModuleView.Visibility == Visibility.Visible ||
             DiagnosticModuleView.Visibility == Visibility.Visible ||
@@ -543,6 +595,8 @@ public partial class MainWindow : Window
             ShowHome();
         }
 
+        HomeNavButton.Tag = null;
+        ScanNavButton.Tag = "Active";
         ScanProtocolOverlay.Visibility = Visibility.Visible;
         QuickScanButton.Focus();
     }
@@ -550,6 +604,8 @@ public partial class MainWindow : Window
     private void CloseScanProtocol()
     {
         ScanProtocolOverlay.Visibility = Visibility.Collapsed;
+        ScanNavButton.Tag = null;
+        HomeNavButton.Tag = "Active";
         MainScanButton.Focus();
     }
 
@@ -646,8 +702,6 @@ public partial class MainWindow : Window
     private void ApplyReport(SystemScanReport report)
     {
         var systemDisk = ScanRules.SelectSystemDisk(report.Disks, Environment.SystemDirectory);
-        var priorityCount = CountPriorities(report);
-
         GlobalStatusText.Text = report.OverallStatus.ToUpperInvariant();
         ReportCpuText.Text = report.Resources.WasAnalyzed
             ? $"{report.Resources.AverageCpuPercent:0.0} % moyenne courte"
@@ -659,7 +713,7 @@ public partial class MainWindow : Window
             ? "N/A - aucun disque fixe accessible"
             : $"{systemDisk.Name} : {systemDisk.UsedPercent:0.0} % utilises";
         ReportCleanupText.Text = report.Cleanup.WasAnalyzed
-            ? $"Sur {FormatBytes(report.Cleanup.SafePotentialBytes)}, avance {FormatBytes(report.Cleanup.AdvancedPotentialBytes)}, {report.Cleanup.ReviewItemCount} a revoir. Aucune suppression."
+            ? $"Sans risque : {FormatBytes(report.Cleanup.SafePotentialBytes)} · À vérifier : {FormatBytes(report.Cleanup.AdvancedPotentialBytes)} · {report.Cleanup.ReviewItemCount} éléments à revoir."
             : "Non analyse pour scan rapide.";
         ReportRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
@@ -668,49 +722,37 @@ public partial class MainWindow : Window
             ? "AUCUNE"
             : string.Join("\n", report.Errors.Distinct().Take(4));
 
-        ApplyMemoryCard(report.Memory);
-        ApplyDiskCard(systemDisk);
-        ApplyCleanupCard(report.Cleanup);
-        UpdatePriorities(priorityCount);
+        ApplySystemStatus();
     }
 
-    private void ApplyMemoryCard(MemoryScanInfo memory)
+    private void SystemStatusChanged(object? sender, EventArgs e)
     {
-        if (memory.TotalPhysicalBytes == 0)
-        {
-            MemoryValueText.Text = "N/A";
-            MemoryDetailText.Text = "LECTURE MEMOIRE ECHOUEE";
-            return;
-        }
-
-        MemoryValueText.Text = $"{memory.UsedPercent:0.0} %";
-        MemoryDetailText.Text = $"{FormatBytes(memory.UsedPhysicalBytes)} / {FormatBytes(memory.TotalPhysicalBytes)}";
+        if (Dispatcher.CheckAccess()) ApplySystemStatus();
+        else _ = Dispatcher.InvokeAsync(ApplySystemStatus);
     }
 
-    private void ApplyDiskCard(DiskScanInfo? disk)
+    private void ApplySystemStatus()
     {
-        if (disk is null || disk.TotalBytes <= 0)
+        if (_statusStore.LastMemory is { } memory)
         {
-            DiskValueText.Text = "N/A";
-            DiskDetailText.Text = "AUCUN DISQUE ACCESSIBLE";
-            return;
+            MemoryValueText.Text = $"{memory.Value.UsedPercent:0.0} %";
+            MemoryDetailText.Text = $"{SystemStatusText.Bytes((long)memory.Value.UsedPhysicalBytes)} / {SystemStatusText.Bytes((long)memory.Value.TotalPhysicalBytes)} · {SystemStatusText.MeasuredAt(memory.CapturedAt)}";
         }
-
-        DiskValueText.Text = $"{disk.UsedPercent:0.0} %";
-        DiskDetailText.Text = $"{disk.Name} - {FormatBytes(disk.UsedBytes)} / {FormatBytes(disk.TotalBytes)}";
-    }
-
-    private void ApplyCleanupCard(CleanupScanInfo cleanup)
-    {
-        if (!cleanup.WasAnalyzed)
+        if (_statusStore.LastSystemDisk is { } disk)
         {
-            CleanupValueText.Text = "--";
-            CleanupDetailText.Text = "NON ANALYSE";
-            return;
+            DiskValueText.Text = $"{disk.Value.UsedPercent:0.0} %";
+            DiskDetailText.Text = $"{disk.Value.Name} · {SystemStatusText.Bytes(disk.Value.UsedBytes)} / {SystemStatusText.Bytes(disk.Value.TotalBytes)} · {SystemStatusText.MeasuredAt(disk.CapturedAt)}";
         }
-
-        CleanupValueText.Text = FormatBytes(cleanup.PotentialBytes);
-        CleanupDetailText.Text = $"Sur {FormatBytes(cleanup.SafePotentialBytes)}, avance {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} a revoir. Lecture seule.";
+        if (_statusStore.LastCleanupEstimate is { } cleanup)
+        {
+            CleanupValueText.Text = SystemStatusText.CleanupValue(cleanup.Value);
+            CleanupDetailText.Text = SystemStatusText.CleanupDetail(cleanup.Value) + "\n" + SystemStatusText.MeasuredAt(cleanup.CapturedAt);
+        }
+        if (_statusStore.LastPriorities is { } priorities)
+        {
+            UpdatePriorities(priorities.Value);
+            PriorityDetailText.Text += " · " + SystemStatusText.MeasuredAt(priorities.CapturedAt);
+        }
     }
 
     private void CompleteScan(SystemScanReport report)

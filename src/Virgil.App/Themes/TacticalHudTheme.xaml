@@ -61,6 +61,119 @@
         </Setter>
     </Style>
 
+    <!-- Implicit selection styles keep the header and module controls readable on the dark theme. -->
+    <Style TargetType="{x:Type CheckBox}">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        <Setter Property="Background" Value="{DynamicResource App.SecondaryBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.TextSecondaryBrush}" />
+        <Setter Property="Padding" Value="8,2,0,2" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource VirgilFocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="SelectionBox" Width="16" Height="16" VerticalAlignment="Center"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="2">
+                            <Grid>
+                                <Path x:Name="CheckMark" Data="M 2,7 L 5,10 L 11,3" Stroke="{TemplateBinding Foreground}"
+                                      StrokeThickness="2" Visibility="Collapsed" />
+                                <Rectangle x:Name="MixedMark" Width="8" Height="2" Fill="{TemplateBinding Foreground}"
+                                           Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+                        <ContentPresenter Grid.Column="1" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          RecognizesAccessKey="True" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="SelectionBox" Property="BorderBrush" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="{x:Null}">
+                            <Setter TargetName="MixedMark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="SelectionBox" Property="BorderBrush" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="SelectionBox" Property="BorderBrush" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                            <Setter TargetName="SelectionBox" Property="BorderBrush" Value="{DynamicResource App.TextDisabledBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type RadioButton}">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        <Setter Property="Background" Value="{DynamicResource App.SecondaryBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.TextSecondaryBrush}" />
+        <Setter Property="Padding" Value="8,2,0,2" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource VirgilFocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="16" Height="16" VerticalAlignment="Center">
+                            <Ellipse x:Name="SelectionCircle" Fill="{TemplateBinding Background}"
+                                     Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1" />
+                            <Ellipse x:Name="SelectionMark" Width="8" Height="8" Fill="{TemplateBinding Foreground}"
+                                     Visibility="Collapsed" />
+                        </Grid>
+                        <ContentPresenter Grid.Column="1" Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          RecognizesAccessKey="True" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="SelectionCircle" Property="Stroke" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="SelectionCircle" Property="Stroke" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="SelectionCircle" Property="Stroke" Value="{DynamicResource App.AccentLightBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                            <Setter TargetName="SelectionCircle" Property="Stroke" Value="{DynamicResource App.TextDisabledBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type Expander}">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource VirgilFocusVisual}" />
+    </Style>
+
+    <Style TargetType="{x:Type GroupBox}">
+        <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}" />
+    </Style>
+
     <Style x:Key="VirgilHudPanel" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource App.PanelBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource App.BorderBrush}" />

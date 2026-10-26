@@ -90,6 +90,26 @@ public sealed class ElevatedActionDispatcher
     public async Task<ElevatedInterventionResult> ExecuteValidatedAsync(ElevatedInterventionRequest request)
     {
         var startedAt = DateTimeOffset.UtcNow;
+        if (request.ActionId == InterventionId.SetStartupApproval)
+        {
+            if (!_securityContext.IsAdministrator || request.StartupApproval is null || !request.StartupApproval.IsValid())
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Demande de démarrage refusée.", false);
+            var restore = await ExecuteValidatedAsync(request with { ActionId = InterventionId.CreateStartupRestorePoint, StartupApproval = null }).ConfigureAwait(false);
+            if (restore.Status != InterventionStatus.Completed || restore.ExitCode != 0 ||
+                !restore.SummaryOutput.Contains("VIRGIL_RESTORE_POINT_VERIFIED", StringComparison.Ordinal))
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Point de restauration non vérifié : modification bloquée.", false);
+            try
+            {
+                StartupApprovalHandler.Execute(request.StartupApproval);
+                return Result(request, startedAt, 0, InterventionStatus.Completed, "État de démarrage sauvegardé et modifié.", false);
+            }
+            catch (Exception)
+            {
+                return Result(request, startedAt, -1, InterventionStatus.Failed, "Modification du démarrage refusée ou non vérifiée.", false);
+            }
+        }
+        if (request.StartupApproval is not null)
+            return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètres inattendus refusés.", false);
         if (!_allowlist.TryGet(request.ActionId, GetSystemDrive(), out var spec))
         {
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Action refusee par la liste blanche.", false);

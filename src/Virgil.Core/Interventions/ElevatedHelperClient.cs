@@ -19,9 +19,11 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         _helperPathProvider = helperPathProvider;
     }
 
+    public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
+        => ExecuteAsync(definition, null, cancellationToken);
+
     public async Task<ElevatedInterventionResult> ExecuteAsync(
-        InterventionDefinition definition,
-        CancellationToken cancellationToken)
+        InterventionDefinition definition, StartupApprovalWrite? payload, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -34,7 +36,7 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         ElevatedInterventionRequestFile requestFile;
         try
         {
-            requestFile = await _requestStore.CreateAsync(definition.Id, cancellationToken).ConfigureAwait(false);
+            requestFile = await _requestStore.CreateAsync(definition.Id, payload, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
         {

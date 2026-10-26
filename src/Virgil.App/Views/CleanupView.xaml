@@ -148,19 +148,19 @@
                     <ItemsControl x:Name="ZonesPanel" ItemsSource="{Binding Groups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <GroupBox Header="{Binding Title}" Foreground="White" Margin="0,8">
+                                <GroupBox Header="{Binding Title}" Margin="0,8">
                                     <StackPanel Margin="12" IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                         <CheckBox Content="Sélectionner le groupe (hors dossiers personnels et lignes à confirmer)"
-                                                  IsThreeState="True" IsChecked="{Binding IsSelected, Mode=TwoWay}" Foreground="White" />
+                                                  IsThreeState="True" IsChecked="{Binding IsSelected, Mode=TwoWay}" />
                                         <ItemsControl ItemsSource="{Binding Sections}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="White" />
+                                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" />
                                                         <ItemsControl ItemsSource="{Binding Rows}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" Foreground="White" Margin="0,8">
+                                                                    <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" Margin="0,8">
                                                                         <StackPanel>
                                                                             <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
                                                                             <TextBlock Text="{Binding Details}" TextWrapping="Wrap" />
@@ -178,7 +178,7 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <GroupBox Header="Quarantaine" Margin="0,16,0,0" Foreground="White">
+                    <GroupBox Header="Quarantaine" Margin="0,16,0,0">
                         <StackPanel Margin="12">
                             <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
                             <ItemsControl ItemsSource="{Binding QuarantineItems}">
@@ -292,7 +292,7 @@
                                        Margin="0,3,0,0"
                                        Text="{Binding ValidationWarning}" />
                             <StackPanel Visibility="{Binding RequiresCriticalConfirmation, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="{Binding ExpectedCriticalConfirmation}" TextWrapping="Wrap" Foreground="White" />
+                                <TextBlock Text="{Binding ExpectedCriticalConfirmation}" TextWrapping="Wrap" />
                                 <TextBox Text="{Binding CriticalConfirmationText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Confirmation du dossier personnel" />
                             </StackPanel>
                         </StackPanel>

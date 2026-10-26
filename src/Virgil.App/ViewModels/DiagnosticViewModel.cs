@@ -5,13 +5,14 @@ using Virgil.Contracts.Diagnostic;
 using Virgil.Contracts.Actions;
 using Virgil.Core.Actions;
 using Virgil.Core.Diagnostic;
+using Virgil.Core.Status;
 
 namespace Virgil.App.ViewModels;
 
 public sealed partial class DiagnosticViewModel : ObservableObject
 {
     private readonly DiagnosticModule _module;
-    private readonly TimeProvider _clock;
+    private readonly ISystemStatusStore? _statusStore;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private CancellationTokenSource? _presentation;
     private bool _visible, _minimized;
@@ -20,11 +21,12 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private DiagnosticProcessSort _sort = DiagnosticProcessSort.Cpu;
     private bool _descending = true;
     private IReadOnlyList<DiagnosticProcessRow> _processes = Array.Empty<DiagnosticProcessRow>();
-    public DiagnosticViewModel(DiagnosticModule module, TimeProvider clock, IConfirmationService? confirmation = null)
+    public DiagnosticViewModel(DiagnosticModule module, TimeProvider clock, IConfirmationService? confirmation = null, ISystemStatusStore? statusStore = null)
     {
         _module = module;
-        _clock = clock;
+        ArgumentNullException.ThrowIfNull(clock);
         _confirmation = confirmation;
+        _statusStore = statusStore;
         RefreshCommand = new AsyncRelayCommand(() => { _module.InvalidateSignals(); return RefreshAsync(); });
     }
     public IAsyncRelayCommand RefreshCommand { get; }
@@ -71,13 +73,14 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         if (!_visible || _minimized)
         {
             CancelConfirmation();
-            _presentation?.Cancel();
+            var stoppedSession = _presentation;
             _presentation = null;
+            stoppedSession?.Cancel();
+            stoppedSession?.Dispose();
             return;
         }
         if (_presentation is not null) return;
         var session = new CancellationTokenSource();
-        _module.InvalidateSignals();
         _presentation = session;
         PresentationTask = RunPresentationAsync(session, PresentationTask);
     }
@@ -87,35 +90,34 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         {
             // Reprise : attendre la fin effective de la lecture annulée avant de relire.
             await previous;
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2), _clock);
-            await RefreshAsync();
-            while (await timer.WaitForNextTickAsync(session.Token)) await RefreshAsync();
+            if (ReferenceEquals(session, _presentation)) await RefreshAsync(waitForTurn: true);
         }
         catch (OperationCanceledException) when (session.IsCancellationRequested) { }
-        finally { session.Dispose(); }
     }
-    public async Task RefreshAsync()
+    public Task RefreshAsync() => RefreshAsync(waitForTurn: false);
+    private async Task RefreshAsync(bool waitForTurn)
     {
         var session = _presentation;
         if (session is null || session.IsCancellationRequested || !_visible || _minimized) return;
         var token = session.Token;
-        if (!await _refreshGate.WaitAsync(0)) return;
+        if (waitForTurn) await _refreshGate.WaitAsync(token);
+        else if (!await _refreshGate.WaitAsync(0)) return;
         try
         {
             IsRefreshing = true;
             OnPropertyChanged(nameof(IsRefreshing));
-            Status = "Mesure en cours…";
             var findings = (DiagnosticFindings)await _module.ScanAsync(token);
             token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(session, _presentation)) return;
             _snapshot = findings.Snapshot;
             ApplyFindings(findings);
+            _statusStore?.PublishDiagnostic(findings);
             Status = $"Mesuré à {_snapshot.CapturedAtUtc.ToLocalTime():HH:mm:ss} — aucune action sans votre validation";
             foreach (var name in new[] { nameof(Snapshot), nameof(CpuDetails), nameof(MemoryDetails), nameof(DiskDetails), nameof(NetworkDetails), nameof(GpuDetails) })
                 OnPropertyChanged(name);
             ApplySort();
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { Status = "Observation arrêtée."; }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception) { Status = "Indisponible : lecture Windows impossible. Utilisez Actualiser pour réessayer."; }
         finally
         {
@@ -129,6 +131,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private IReadOnlyList<string> _top3 = Array.Empty<string>();
     private IReadOnlyList<string> _unavailable = Array.Empty<string>();
     private string _health = "Note non calculée";
+    private IReadOnlyList<string> _startup = Array.Empty<string>();
     private IMaintenanceAction? _pending;
     private ActionPreview? _preview;
     private CancellationTokenSource? _actionCancellation;
@@ -137,6 +140,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     [ObservableProperty] private string validationDetails = string.Empty;
     [ObservableProperty] private string validationSafety = string.Empty;
     public string Health => _health;
+    public IReadOnlyList<string> Startup => _startup;
     public IReadOnlyList<string> Top3 => _top3;
     public string Top3Caption => _top3.Count == 0 ? "Aucun problème détecté dans les signaux disponibles." : "Top 3 des problèmes";
     public IReadOnlyList<string> Unavailable => _unavailable;
@@ -147,11 +151,15 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         _health = $"Note de santé : {findings.Score.Value}/100" + (findings.Score.IsPartial ? " — partielle" : "");
         _top3 = findings.Top3.Select(i => i.Title + " : " + i.Description).ToArray();
         _unavailable = findings.Unavailable;
+        _startup = findings.Signals.Startup.IsAvailable
+            ? findings.Signals.Startup.Value.Select(entry => entry.Name + " — " + entry.Source + " · Impact : " +
+                (entry.Impact.IsAvailable ? entry.Impact.Value : entry.Impact.Reason)).ToArray()
+            : new[] { findings.Signals.Startup.Reason! };
         var actions = _module.GetActions(findings);
         _findings = findings.Issues.Select(issue => new DiagnosticFindingRow(issue, actions.Where(a =>
             a is DiagnosticCloseAction close && issue.Process?.ProcessId == close.ProcessId ||
             a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync)).ToArray();
-        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable), nameof(Findings) }) OnPropertyChanged(name);
+        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable), nameof(Findings), nameof(Startup) }) OnPropertyChanged(name);
     }
     public async Task PrepareActionAsync(IMaintenanceAction action)
     {

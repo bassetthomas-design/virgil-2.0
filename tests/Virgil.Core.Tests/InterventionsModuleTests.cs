@@ -112,6 +112,31 @@ public sealed class InterventionsModuleTests
         Assert.Empty(runner.Commands);
     }
 
+    [Theory]
+    [InlineData(false, 0, InterventionStatus.Failed)]
+    [InlineData(true, 0, InterventionStatus.Completed)]
+    [InlineData(true, 1, InterventionStatus.PartialFailure)]
+    public async Task StartupRestorePointUsesOnlyFixedScriptAndRequiresAdministrator(bool administrator, int exitCode, InterventionStatus status)
+    {
+        var runner = new RecordingElevatedCommandRunner(_ => new ElevatedCommandResult(exitCode,
+            "VIRGIL_RESTORE_POINT_VERIFIED", string.Empty));
+        var dispatcher = CreateDispatcher(runner, administrator);
+
+        var result = await dispatcher.ExecuteValidatedAsync(Request(InterventionId.CreateStartupRestorePoint));
+
+        Assert.Equal(status, result.Status);
+        if (!administrator) Assert.Empty(runner.Commands);
+        else
+        {
+            var command = Assert.Single(runner.Commands);
+            Assert.Equal("powershell.exe", command.FileName);
+            Assert.Equal(new[] { "-NoProfile", "-NonInteractive", "-Command", ElevatedActionAllowlist.StartupRestorePointScript }, command.Arguments);
+            Assert.Contains("CreateRestorePoint", command.Arguments[3]);
+            Assert.Contains("Get-CimInstance", command.Arguments[3]);
+            Assert.False(result.RebootRequired);
+        }
+    }
+
     [Fact]
     public async Task Dispatcher_executes_network_reset_and_marks_reboot_required()
     {

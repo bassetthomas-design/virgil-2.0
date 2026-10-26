@@ -10,7 +10,9 @@ public enum InterventionId
     SfcScan,
     DismScanHealth,
     DismRestoreHealth,
-    ChkdskOnlineScan
+    ChkdskOnlineScan,
+    CreateStartupRestorePoint,
+    SetStartupApproval
 }
 
 public enum InterventionCategory
@@ -182,6 +184,8 @@ public sealed record InterventionScanSummary
 
 public sealed record ElevatedInterventionRequest
 {
+    public StartupApprovalWrite? StartupApproval { get; init; }
+
     public int ProtocolVersion { get; init; } = 1;
 
     public InterventionId ActionId { get; init; }

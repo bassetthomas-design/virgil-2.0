@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Virgil.Core.Applications;
+using Virgil.Core.Status;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
 using Virgil.Core.Monitoring;
@@ -13,6 +14,8 @@ namespace Virgil.Core.Scanning;
 public sealed class SystemScanService : ISystemScanService
 {
     private readonly ICleanupService _cleanupService;
+    private readonly ICleanupEstimateService? _cleanupEstimator;
+    private readonly ISystemStatusStore? _statusStore;
     private readonly IUpdateScanService _updateScanService;
     private readonly IInterventionDiagnosticService _interventionDiagnosticService;
     private readonly IResourceMonitoringService _resourceMonitoringService;
@@ -23,9 +26,12 @@ public sealed class SystemScanService : ISystemScanService
         IUpdateScanService updateScanService,
         IInterventionDiagnosticService interventionDiagnosticService,
         IResourceMonitoringService resourceMonitoringService,
-        IApplicationInventoryService applicationInventoryService)
+        IApplicationInventoryService applicationInventoryService,
+        ICleanupEstimateService? cleanupEstimator = null, ISystemStatusStore? statusStore = null)
     {
         _cleanupService = cleanupService;
+        _cleanupEstimator = cleanupEstimator;
+        _statusStore = statusStore;
         _updateScanService = updateScanService;
         _interventionDiagnosticService = interventionDiagnosticService;
         _resourceMonitoringService = resourceMonitoringService;
@@ -54,7 +60,7 @@ public sealed class SystemScanService : ISystemScanService
             ? ReadProcesses(progress, errors, findings)
             : Array.Empty<ProcessScanInfo>();
         var cleanup = mode == ScanMode.Deep
-            ? ReadCleanup(progress, errors, findings)
+            ? await ReadCleanupAsync(progress, errors, findings, cancellationToken).ConfigureAwait(false)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
         var resources = await ReadResourcesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
@@ -87,7 +93,7 @@ public sealed class SystemScanService : ISystemScanService
         stopwatch.Stop();
         Report(progress, "Termine", "Scan termine.", "Systeme", 100);
 
-        return new SystemScanReport(
+        var report = new SystemScanReport(
             scanDate,
             mode,
             stopwatch.Elapsed,
@@ -108,6 +114,8 @@ public sealed class SystemScanService : ISystemScanService
             Resources = resources,
             Applications = applications
         };
+        _statusStore?.PublishScan(report);
+        return report;
     }
 
     private async Task<ApplicationScanSummary> ReadApplicationsAsync(
@@ -498,49 +506,39 @@ public sealed class SystemScanService : ISystemScanService
         return result.Value;
     }
 
-    private CleanupScanInfo ReadCleanup(
+    private async Task<CleanupScanInfo> ReadCleanupAsync(
         IProgress<ScanProgress>? progress,
         ICollection<string> errors,
-        ICollection<ScanFinding> findings)
+        ICollection<ScanFinding> findings,
+        CancellationToken cancellationToken)
     {
         Report(progress, "Nettoyage potentiel", "Estimation lecture seule des fichiers temporaires.", "Nettoyage", 84);
 
         try
         {
-            if (_cleanupService is ICleanupPreviewService detailedPreview)
+            CleanupScanInfo cleanup;
+            if (_cleanupEstimator is not null)
             {
-                var previews = detailedPreview.PreviewAsync(null, CancellationToken.None).GetAwaiter().GetResult();
-                var storage = new CleanupStorageAnalyzer().AnalyzeAsync(CancellationToken.None).GetAwaiter().GetResult();
-                var safe = previews.Where(item => item.Definition.Classification == CleanupClassification.Cleanable).Sum(item => item.EligibleBytes);
-                var advanced = previews.Where(item => item.Definition.Classification == CleanupClassification.AdvancedCleanable).Sum(item => item.EligibleBytes);
-                var detailedZones = previews.Select(item => item.Definition.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                var detailedErrors = previews.SelectMany(item => item.Errors).Concat(storage.Errors).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                AddErrors(errors, detailedErrors);
-                return new CleanupScanInfo(true, safe + advanced, previews.Sum(item => item.EligibleFileCount), detailedZones, detailedErrors)
+                var estimate = await _cleanupEstimator.EstimateAsync(null, cancellationToken).ConfigureAwait(false);
+                cleanup = CleanupEstimateService.Summarize(estimate.Analysis);
+                AddErrors(errors, cleanup.Errors);
+                _statusStore?.PublishCleanup(estimate.Analysis);
+            }
+            else
+            {
+                var preview = _cleanupService.PreviewTemporaryFiles();
+                var zones = preview.Targets
+                    .Select(target => target.DisplayName)
+                    .Where(zone => !string.IsNullOrWhiteSpace(zone))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                cleanup = new CleanupScanInfo(true, preview.TotalBytes, preview.TotalFiles, zones, Array.Empty<string>())
                 {
-                    SafePotentialBytes = safe,
-                    AdvancedPotentialBytes = advanced,
-                    ReviewItemCount = storage.ReviewItemCount,
-                    ReviewItemBytes = storage.ReviewBytes,
-                    InformationOnlyZoneCount = previews.Count(item => !item.Definition.IsExecutable),
+                    SafePotentialBytes = preview.TotalBytes,
                     PersonalDataProtected = true,
                     ExecutedAnyAction = false
                 };
             }
-
-            var preview = _cleanupService.PreviewTemporaryFiles();
-            var zones = preview.Targets
-                .Select(target => target.DisplayName)
-                .Where(zone => !string.IsNullOrWhiteSpace(zone))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var cleanup = new CleanupScanInfo(true, preview.TotalBytes, preview.TotalFiles, zones, Array.Empty<string>())
-            {
-                SafePotentialBytes = preview.TotalBytes,
-                PersonalDataProtected = true,
-                ExecutedAnyAction = false
-            };
 
             if (cleanup.PotentialBytes >= 5L * 1024 * 1024 * 1024)
             {
@@ -566,6 +564,10 @@ public sealed class SystemScanService : ISystemScanService
             }
 
             return cleanup;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
