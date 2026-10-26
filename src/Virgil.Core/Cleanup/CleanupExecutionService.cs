@@ -261,6 +261,12 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         CleanupZoneDefinition zone,
         CleanupCandidate candidate, int retentionDays)
     {
+        if (zone.RemnantZones.Count > 0)
+        {
+            var resolved = CleanupRemnantResolver.Resolve(zone, candidate.FullPath);
+            if (resolved is null) return CandidateDeleteResult.SkippedFile("Racine du reste absente ou ambiguë.");
+            zone = resolved;
+        }
         if (_personal is not null && !_personal.CanQuarantine(zone, candidate.FullPath))
             return CandidateDeleteResult.SkippedFile("Dossier personnel : fichier hors d'un reste identifié.");
         if (zone.Id == CleanupZoneId.SoftwareLeftovers &&

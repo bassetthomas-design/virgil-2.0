@@ -67,6 +67,26 @@ public sealed class SystemStatusStoreTests
         Assert.Equal("7,2 Go récupérables", SystemStatusText.CleanupValue(summary with { PotentialBytes = (long)(7.2 * 1024 * 1024 * 1024) }));
     }
 
+    [Fact]
+    public void EstimateMatchesSelectablePreviewAndMovesSensitiveSafeGroupItemsToVerify()
+    {
+        var analysis = Analysis(DateTimeOffset.UnixEpoch);
+        var personal = Zone(CleanupZoneId.UserCrashDumps, 40, CleanupClassification.Cleanable);
+        personal = personal with { Definition = personal.Definition with { IsPersonalFolder = true } };
+        var review = Zone(CleanupZoneId.TechnicalLogs, 60, CleanupClassification.Cleanable);
+        review = review with { Definition = review.Definition with { NeedsReview = true } };
+        var unavailable = Zone(CleanupZoneId.WindowsOld, 9000, CleanupClassification.AdvancedCleanable);
+        var empty = Zone(CleanupZoneId.DirectXShaderCache, 1000, CleanupClassification.Cleanable) with { EligibleFileCount = 0 };
+
+        var summary = CleanupEstimateService.Summarize(analysis with
+            { Zones = analysis.Zones.Concat(new[] { personal, review, unavailable, empty }).ToArray() });
+
+        Assert.Equal(700, summary.PotentialBytes);
+        Assert.Equal(100, summary.SafePotentialBytes);
+        Assert.Equal(600, summary.AdvancedPotentialBytes);
+        Assert.Equal(5, summary.FileCount);
+    }
+
     private static CleanupAnalysisReport Analysis(DateTimeOffset at) => new(at,
         [Zone(CleanupZoneId.UserTemporaryFiles, 100, CleanupClassification.Cleanable),
          Zone(CleanupZoneId.OldDownloads, 200, CleanupClassification.AdvancedCleanable),

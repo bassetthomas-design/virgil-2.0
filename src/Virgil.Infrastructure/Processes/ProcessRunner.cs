@@ -28,13 +28,14 @@ public sealed class ProcessRunner : IProcessRunner
 
         try
         {
+            linked.Token.ThrowIfCancellationRequested();
             if (!process.Start())
             {
                 return new ProcessRunResult(-1, string.Empty, string.Empty, LaunchError: "Processus non demarre.");
             }
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
+            var outputTask = process.StandardOutput.ReadToEndAsync(linked.Token);
+            var errorTask = process.StandardError.ReadToEndAsync(linked.Token);
             await process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
 
             return new ProcessRunResult(

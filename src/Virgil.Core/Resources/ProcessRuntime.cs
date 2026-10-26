@@ -23,7 +23,7 @@ public interface IProcessRuntime
 
     bool FileExists(string path);
 
-    bool OpenLocation(string path);
+    Task<bool> OpenLocationAsync(string path, CancellationToken cancellationToken);
 }
 
 public sealed class ProcessRuntime : IProcessRuntime
@@ -93,6 +93,7 @@ public sealed class ProcessRuntime : IProcessRuntime
         {
             return false;
         }
+        catch (OperationCanceledException) { throw; }
         catch (ArgumentException)
         {
             return true;
@@ -117,8 +118,9 @@ public sealed class ProcessRuntime : IProcessRuntime
         return File.Exists(path);
     }
 
-    public bool OpenLocation(string path)
+    public async Task<bool> OpenLocationAsync(string path, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!File.Exists(path))
         {
             return false;
@@ -130,10 +132,10 @@ public sealed class ProcessRuntime : IProcessRuntime
                 Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                 "explorer.exe");
             var request = new ProcessLaunchRequest(explorerPath, new[] { "/select,", path }, UseShellExecute: false);
-            // Termine en synchrone car WaitForExit=false ; sync conserve jusqu'a 0d.
-            var result = _runner.LaunchAsync(request, CancellationToken.None).GetAwaiter().GetResult();
+            var result = await _runner.LaunchAsync(request, cancellationToken).ConfigureAwait(false);
             return result.LaunchError is null;
         }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             return false;

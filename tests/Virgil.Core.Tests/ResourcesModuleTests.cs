@@ -516,10 +516,10 @@ public sealed class ResourcesModuleTests
 
         public bool FileExists(string path) => !string.IsNullOrWhiteSpace(path);
 
-        public bool OpenLocation(string path)
+        public Task<bool> OpenLocationAsync(string path, CancellationToken cancellationToken)
         {
             OpenLocationCalls++;
-            return true;
+            return Task.FromResult(true);
         }
     }
 

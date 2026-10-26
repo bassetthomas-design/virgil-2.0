@@ -59,6 +59,58 @@ public sealed class CleanupSelectionTests
     }
 
     [Fact]
+    public void TenThousandRowsToggleInOneBatchWithoutRescanningOnNotifications()
+    {
+        var group = new CleanupGroupItem(CleanupGroup.Sur, Enumerable.Repeat(Preview(CleanupClassification.Cleanable), 10_000));
+        var notifications = 0;
+        group.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(CleanupGroupItem.IsSelected))
+            {
+                _ = group.IsSelected;
+                notifications++;
+            }
+        };
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        group.IsSelected = false;
+        group.IsSelected = true;
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5));
+        Assert.Equal(2, notifications);
+        Assert.True(group.IsSelected);
+    }
+
+    [Fact]
+    public void EmptyRowsAreHiddenAndRowsSortBySize()
+    {
+        var preview = Preview(CleanupClassification.Cleanable);
+        var group = new CleanupGroupItem(CleanupGroup.Sur, new[]
+        {
+            preview with { EligibleBytes = 0 }, preview, preview with { EligibleBytes = 100 }
+        });
+        Assert.Equal(new long[] { 100, 10 }, group.Rows.Select(r => r.Preview.EligibleBytes));
+    }
+
+    [Fact]
+    public void DownloadsAreNotSplitAgainInTheViewModelAndCannotBeGroupSelected()
+    {
+        var preview = Preview(CleanupClassification.AdvancedCleanable);
+        preview = preview with
+        {
+            Definition = preview.Definition with { Id = CleanupZoneId.OldDownloads, IsPersonalFolder = true },
+            Candidates = new[]
+            {
+                new CleanupCandidate(CleanupZoneId.OldDownloads, "a", "a", 5, DateTimeOffset.UtcNow, true, null),
+                new CleanupCandidate(CleanupZoneId.OldDownloads, "b", "b", 5, DateTimeOffset.UtcNow, true, null)
+            }
+        };
+        var group = new CleanupGroupItem(CleanupGroup.AVerifier, new[] { preview });
+        var row = Assert.Single(group.Rows);
+        group.IsSelected = true;
+        Assert.False(row.IsSelected);
+        Assert.False(row.CanGroupSelect);
+    }
+
+    [Fact]
     public void NewPortsAndPolicyResolveWithValidateOnBuild()
     {
         using var provider = new ServiceCollection().AddVirgilServices().BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });

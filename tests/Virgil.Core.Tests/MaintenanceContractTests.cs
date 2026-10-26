@@ -49,12 +49,10 @@ public sealed class MaintenanceContractTests
         var findings = Assert.IsType<CleanupFindings>(await module.ScanAsync(CancellationToken.None));
         var actual = Assert.Single(findings.Analysis.Zones);
         Assert.NotSame(legacy.Definition, actual.Definition);
-        Assert.Equal(legacy.Definition with
-        {
-            AllowedExtensions = actual.Definition.AllowedExtensions,
-            RequiredPathFragments = actual.Definition.RequiredPathFragments,
-            ExcludedPathFragments = actual.Definition.ExcludedPathFragments
-        }, actual.Definition);
+        // Comparaison structurelle complète : une copie profonde change les références
+        // des collections, mais jamais leurs valeurs ni leur ordre.
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(legacy.Definition),
+            System.Text.Json.JsonSerializer.Serialize(actual.Definition));
         Assert.Equal(legacy.Definition.AllowedExtensions, actual.Definition.AllowedExtensions);
         Assert.Equal(legacy.Definition.RequiredPathFragments, actual.Definition.RequiredPathFragments);
         Assert.Equal(legacy.Definition.ExcludedPathFragments, actual.Definition.ExcludedPathFragments);

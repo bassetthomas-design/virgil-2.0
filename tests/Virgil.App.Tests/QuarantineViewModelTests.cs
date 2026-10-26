@@ -32,7 +32,7 @@ public sealed class QuarantineViewModelTests
         EmptyCleanupSource.Register(services);
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         var vm = provider.GetRequiredService<CleanupViewModel>();
-        vm.InitializeQuarantineCommand.Execute(null);
+        await vm.InitializeQuarantineCommand.ExecuteAsync(null);
         var item = Assert.Single(vm.QuarantineItems);
         Assert.Equal("old.tmp", item.Name);
         item.IsSelected = true;
@@ -64,7 +64,7 @@ public sealed class QuarantineViewModelTests
         var vm = provider.GetRequiredService<CleanupViewModel>();
         var notifications = 0;
         vm.VirgilMessageRequested += _ => notifications++;
-        vm.InitializeQuarantineCommand.Execute(null);
+        await vm.InitializeQuarantineCommand.ExecuteAsync(null);
         Assert.Equal(0, store.Effects); Assert.Equal(0, notifications);
         Assert.False(vm.IsValidationOpen); Assert.True(vm.HasExpiredQuarantine);
         Assert.Contains("(1,", vm.ExpiredQuarantineLabel);
@@ -75,6 +75,7 @@ public sealed class QuarantineViewModelTests
         // La sélection manuelle d'un fichier non expiré ne doit pas élargir cette action.
         vm.QuarantineItems.Single(item => !item.IsExpired).IsSelected = true;
         var pending = vm.PurgeExpiredQuarantineCommand.ExecuteAsync(null);
+        await WaitForValidationAsync(vm);
         Assert.True(vm.IsValidationOpen);
         Assert.Equal("Effacer les éléments expirés", vm.ValidationTitle);
         Assert.Contains("1 fichiers", vm.ValidationMetrics);
@@ -87,6 +88,47 @@ public sealed class QuarantineViewModelTests
         Assert.Equal(cancel ? 2 : 1, store.List().Count);
         Assert.Contains(store.List(), entry => entry.OriginalPath.EndsWith("future.tmp", StringComparison.Ordinal));
         Assert.Equal(cancel, vm.HasExpiredQuarantine);
+    }
+
+    [Fact]
+    public async Task QuarantineReadReturnsControlWhileStorageIsBlockedAndCanBeCanceled()
+    {
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new Store
+        {
+            BeforeRead = () =>
+            {
+                entered.TrySetResult(true);
+                if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+            }
+        };
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
+        services.AddSingleton<IQuarantineStore>(store);
+        EmptyCleanupSource.Register(services);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        var vm = provider.GetRequiredService<CleanupViewModel>();
+        var pending = vm.InitializeQuarantineCommand.ExecuteAsync(null);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(pending.IsCompleted);
+            Assert.True(vm.IsBusy);
+            Assert.True(vm.Operation.IsRunning);
+            vm.CancelActiveOperation();
+        }
+        finally { release.Set(); }
+        await pending;
+        Assert.False(vm.IsBusy);
+        Assert.Empty(vm.QuarantineItems);
+        Assert.Contains("annulée", vm.StatusText);
+        Assert.Equal(0, store.Effects);
+    }
+
+    private static async Task WaitForValidationAsync(CleanupViewModel vm)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!vm.IsValidationOpen) await Task.Delay(10, timeout.Token);
     }
 
     private sealed class EmptyPreviews : ICleanupPreviewService
@@ -108,7 +150,12 @@ public sealed class QuarantineViewModelTests
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
         public int Effects { get; private set; }
-        public IReadOnlyList<QuarantineEntry> List() => _entries.ToArray();
+        public Action? BeforeRead { get; init; }
+        public IReadOnlyList<QuarantineEntry> List()
+        {
+            BeforeRead?.Invoke();
+            return _entries.ToArray();
+        }
         public QuarantineEntry MoveToQuarantine(string path, CleanupZoneDefinition zone, DateTimeOffset now, int retentionDays) => throw new NotSupportedException();
         public string? ValidateRestore(QuarantineEntry entry) => null;
         public void Restore(QuarantineEntry entry) { Effects++; _entries.RemoveAll(e => e.Id == entry.Id); }

@@ -38,10 +38,11 @@ public sealed class SystemScanService : ISystemScanService
         _applicationInventoryService = applicationInventoryService;
     }
 
-    public async Task<SystemScanReport> RunAsync(
-        ScanMode mode,
-        IProgress<ScanProgress>? progress,
-        CancellationToken cancellationToken)
+    public Task<SystemScanReport> RunAsync(ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken) =>
+        Task.Run(() => RunCoreAsync(mode, progress, cancellationToken), cancellationToken);
+
+    private async Task<SystemScanReport> RunCoreAsync(
+        ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken)
     {
         var scanDate = DateTimeOffset.Now;
         var stopwatch = Stopwatch.StartNew();
@@ -565,10 +566,7 @@ public sealed class SystemScanService : ISystemScanService
 
             return cleanup;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             var cleanupErrors = new[] { "Analyse nettoyage indisponible." };

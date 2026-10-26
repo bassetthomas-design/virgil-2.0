@@ -41,13 +41,6 @@ internal static class ProcessorReader
             errors);
     }
 
-    public static double MeasureUsageBlocking()
-    {
-        return MeasureUsageAsync(TimeSpan.FromMilliseconds(250), CancellationToken.None)
-            .GetAwaiter()
-            .GetResult();
-    }
-
     internal static async Task<double> MeasureUsageAsync(TimeSpan sampleDelay, CancellationToken cancellationToken)
     {
         var first = ReadSystemTimes();
