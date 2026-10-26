@@ -52,8 +52,8 @@ public sealed class ApplicationsViewModelTests
     public void InitialStateIsReadOnlyAndHasNoSelection()
     {
         var f = new Fixture();
-        Assert.Equal("Inventaire pret. Desinstallation individuelle uniquement.", f.Vm.StatusText);
-        Assert.Equal("TOUT", f.Vm.SelectedFilter);
+        Assert.Equal("Inventaire prêt. Sélectionnez les applications à désinstaller.", f.Vm.StatusText);
+        Assert.Equal("Applications", f.Vm.SelectedFilter);
         Assert.Empty(f.Vm.SearchText);
         Assert.False(f.Vm.IsBusy);
         Assert.True(f.Vm.IsIdle);
@@ -499,10 +499,11 @@ public sealed class ApplicationsViewModelTests
             Assert.NotNull(Assert.Single(doc.Descendants(p + "ItemsControl"), e => (string?)e.Attribute(x + "Name") == name).Attribute("ItemsSource"));
         Assert.DoesNotContain(doc.Descendants(), e => e.Attribute("Click") is not null);
         var service = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Virgil.App/Services/ApplicationUninstallConfirmationDialogService.cs"));
-        Assert.Contains("ResolveDialogOwner()", service);
-        Assert.Contains("owner.Activate();", service);
-        Assert.Contains("owner.Focus();", service);
-        Assert.Contains("MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No", service);
+        Assert.DoesNotContain("MessageBox", service);
+        Assert.DoesNotContain("Activate()", service);
+        Assert.Contains("=> false", service);
+        Assert.Contains(doc.Descendants(p + "Button"), button => (string?)button.Attribute("Command") == "{Binding AcceptConfirmationCommand}");
+        Assert.Contains(doc.Descendants(p + "Grid"), grid => (string?)grid.Attribute("Visibility") == "{Binding IsConfirmationOpen, Converter={StaticResource BoolVisibility}}");
         var vm = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Virgil.App/ViewModels/ApplicationsViewModel.cs"));
         Assert.DoesNotContain("System.IO", vm);
         Assert.DoesNotContain("Directory.Exists", vm);
@@ -613,10 +614,19 @@ public sealed class ApplicationsViewModelTests
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.VirgilStateRequested += (s, l) => States.Add((s, l));
             Vm.ReportPersisted += (_, _) => Persisted++;
+            Vm.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(Vm.IsConfirmationOpen) && Vm.IsConfirmationOpen)
+                {
+                    var answer = Dialog.Confirm(Vm.ConfirmationTitle, Vm.ConfirmationBody);
+                    if (answer) Vm.AcceptConfirmationCommand.Execute(null);
+                    else Vm.RefuseConfirmationCommand.Execute(null);
+                }
+            };
         }
         public Task Analyze() => Execute(() => Vm.AnalyzeCommand.ExecuteAsync(null));
         public Task Launch() => Execute(() => Vm.LaunchUninstallCommand.ExecuteAsync(null));
-        public void OpenDetails() => Assert.Single(Cards).DetailsCommand.Execute(null);
+        public void OpenDetails() { if (!Cards.Any()) Vm.SelectedFilter = "TOUT"; Assert.Single(Cards).DetailsCommand.Execute(null); }
         // Les notifications Progress<T> restent deterministes sans Dispatcher WPF.
         private static Task Execute(Func<Task> action)
         {

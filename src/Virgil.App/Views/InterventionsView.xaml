@@ -43,7 +43,7 @@
                                                 AnimationDetailLevel="Compact"
                                                 AutomationProperties.Name="Mini noyau Virgil interventions" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="INTERVENTIONS CIBLEES"
+                        <TextBlock Text="Réparation"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="InterventionsStatusText"
                                    Text="{Binding StatusText}"
@@ -52,24 +52,27 @@
                     </StackPanel>
                 </Grid>
 
+                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="5" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding ElapsedText}" Style="{StaticResource VirgilHudSecondaryText}" />
                 <WrapPanel KeyboardNavigation.TabNavigation="Continue">
+                    <Button Content="Annuler" Command="{Binding CancelOperationCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="0,0,8,8" />
                     <Button x:Name="AnalyzeInterventionsButton"
                             IsEnabled="{Binding IsIdle}"
-                            Content="ANALYSER LES INTERVENTIONS"
+                            Content="Vérifier"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="210"
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Analyser les interventions"
-                            Command="{Binding AnalyzeCommand}" />
+                            Command="{Binding VerifyHealthCommand}" />
                     <Button x:Name="RunGuidedButton"
-                            IsEnabled="{Binding IsRunGuidedEnabled}"
-                            Content="LANCER LE PARCOURS GUIDE"
+                            IsEnabled="{Binding IsIdle}"
+                            Content="Scanner et réparer"
                             Style="{StaticResource VirgilPrimaryButton}"
                             MinWidth="205"
                             Margin="0,0,8,8"
 
                             AutomationProperties.Name="Lancer le parcours guide"
-                            Command="{Binding RunGuidedCommand}" />
+                            Command="{Binding ScanRepairCommand}" />
                     <Button x:Name="ViewInterventionsReportButton"
                             IsEnabled="{Binding IsReportButtonEnabled}"
                             Content="VOIR LE DERNIER RAPPORT"
@@ -80,7 +83,6 @@
                             AutomationProperties.Name="Voir le dernier rapport interventions"
                             Command="{Binding ViewReportCommand}" />
                     <Button x:Name="ReturnHomeButton"
-                            IsEnabled="{Binding IsIdle}"
                             Content="RETOUR ACCUEIL"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="130"
@@ -272,6 +274,8 @@
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="{Binding CriticalConfirmationPrompt}" TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" />
+                            <TextBox Text="{Binding TypedConfirmation, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Confirmation Critique sans point de restauration" />
                             <TextBlock x:Name="ValidationSafetyText"
                                        Text="{Binding ValidationSafety}"
                                    Style="{StaticResource VirgilHudSecondaryText}"

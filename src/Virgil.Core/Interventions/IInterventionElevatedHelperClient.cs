@@ -7,6 +7,9 @@ public interface IInterventionElevatedHelperClient
     Task<ElevatedInterventionResult> ExecuteAsync(
         InterventionDefinition definition,
         CancellationToken cancellationToken);
+    Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition,
+        IProgress<InterventionProgress>? progress, CancellationToken cancellationToken)
+        => ExecuteAsync(definition, cancellationToken);
 }
 
 public interface IElevatedProcessLauncher

@@ -59,7 +59,7 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
 
     public static InstalledApplication ConvertEntry(ApplicationRegistryEntry entry)
     {
-        if (entry.SystemComponent || string.IsNullOrWhiteSpace(entry.DisplayName))
+        if (string.IsNullOrWhiteSpace(entry.DisplayName))
         {
             return new InstalledApplication();
         }
@@ -79,6 +79,8 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
         return new InstalledApplication
         {
             Id = StableId("registry", entry.KeyName, entry.DisplayName, entry.Publisher, entry.DisplayVersion),
+            IsSystemComponent = entry.SystemComponent,
+            IsGame = LooksLikeGame(entry),
             DisplayName = entry.DisplayName.Trim(),
             Publisher = entry.Publisher.Trim(),
             Version = entry.DisplayVersion.Trim(),
@@ -101,6 +103,14 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
                 ? ApplicationStatus.Unknown
                 : ApplicationStatus.UninstallAvailable
         };
+    }
+
+    private static bool LooksLikeGame(ApplicationRegistryEntry entry)
+    {
+        // Concrete installation or uninstaller evidence; a title containing “game” is insufficient.
+        var evidence = $"{entry.KeyName} {entry.InstallLocation} {entry.UninstallString}";
+        return new[] { @"\steamapps\", "steam://uninstall/", "Steam App ", @"\Epic Games\", @"\Ubisoft Game Launcher\games\", @"\GOG Galaxy\Games\" }
+            .Any(marker => evidence.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ReadRegistryView(

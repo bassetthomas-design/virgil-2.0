@@ -7,7 +7,7 @@ public sealed partial class ApplicationUninstallCommandValidator
 {
     public ApplicationCommandValidationResult Validate(InstalledApplication application)
     {
-        if (application.RiskLevel == ApplicationRiskLevel.Protected)
+        if (application.IsSystemComponent || application.RiskLevel == ApplicationRiskLevel.Protected)
         {
             return Blocked("Application protegee : aucune desinstallation depuis Virgil V1.");
         }
@@ -15,6 +15,17 @@ public sealed partial class ApplicationUninstallCommandValidator
         if (application.UninstallKind == ApplicationUninstallKind.Winget)
         {
             return ValidateWinget(application.WingetId, exactMatch: true);
+        }
+
+        if (application.UninstallKind == ApplicationUninstallKind.StorePackage)
+        {
+            var package = application.StorePackageFullName;
+            if (string.IsNullOrWhiteSpace(package) ||
+                !Regex.IsMatch(package, @"^[A-Za-z0-9][A-Za-z0-9.\-]*_[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+_(?:x64|x86|arm|arm64|neutral)_[A-Za-z0-9.\-]*_[A-Za-z0-9]+$"))
+                return Blocked("Identité du package Store invalide.");
+            return WithExecutable(ApplicationRiskLevel.Caution, "Retrait officiel du package du compte actuel uniquement.",
+                "powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+                    "Remove-AppxPackage -Package '" + package + "' -ErrorAction Stop"]);
         }
 
         if (application.UninstallKind == ApplicationUninstallKind.StoreSettings)

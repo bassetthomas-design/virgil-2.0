@@ -357,7 +357,7 @@ public sealed class InterventionsViewModelTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task CancellationWaitsForCriticalActionAndCancelsInterruptibleAction(bool interruptible, bool escape)
+    public async Task CancellationAlwaysReachesHelperForSafeStop(bool interruptible, bool escape)
     {
         var f = new Fixture();
         f.Diagnostics.Items = new[] { Diagnostic() with { Definition = Diagnostic().Definition with { CanBeInterruptedAfterStart = interruptible } } };
@@ -372,24 +372,12 @@ public sealed class InterventionsViewModelTests
         Assert.False(f.Vm.IsReportButtonEnabled);
         if (escape) Assert.True(f.Vm.TryCloseOverlay());
         else f.Vm.CancelActiveOperation();
-        Assert.Equal(interruptible, token.IsCancellationRequested);
-        if (!interruptible)
-        {
-            Assert.Equal("Action critique deja lancee.\nVirgil attend la fin sans tuer le processus.", f.Message);
-            Assert.False(pending.IsCompleted);
-            gate.SetResult(new() { Action = f.Diagnostics.Items[0].Definition, Status = InterventionStatus.Completed, WasConfirmed = true });
-        }
+        Assert.True(token.IsCancellationRequested);
         await pending;
         Assert.True(f.Vm.IsIdle);
         Assert.True(f.Vm.IsReportOpen);
         Assert.Equal(1, f.Persisted);
-        if (interruptible) Assert.Contains("Parcours annule.", f.Actions.Report!.Errors);
-        else
-        {
-            Assert.Empty(f.Actions.Report!.Errors);
-            Assert.Equal(InterventionStatus.Completed, Assert.Single(f.Actions.Report.Results).Status);
-            Assert.Equal("Parcours termine.", f.Vm.StatusText);
-        }
+        Assert.Contains("Parcours annule.", f.Actions.Report!.Errors);
     }
 
     [Theory]

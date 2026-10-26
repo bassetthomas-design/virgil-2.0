@@ -26,7 +26,12 @@ public partial class ApplicationsViewModel : ObservableObject
     private readonly ApplicationUninstallService _uninstallService;
     private readonly List<InstalledApplication> _applications = new();
     private readonly IReportHistoryService _reportHistoryService;
-    private readonly IApplicationUninstallConfirmationDialog _confirmationDialog;
+    private readonly IApplicationIconLoader? _iconLoader;
+    private readonly HashSet<string> _selectedIds = new(StringComparer.Ordinal);
+    private IReadOnlyList<ApplicationUninstallResult>? _batchResults;
+    private TaskCompletionSource<bool>? _confirmationDecision;
+    private bool _skipNext;
+    private DateTimeOffset _operationStarted;
     private CancellationTokenSource? _operationCancellation;
     private ApplicationInventoryReport? _lastInventoryReport;
     private ApplicationUninstallResult? _lastUninstallResult;
@@ -39,22 +44,36 @@ public partial class ApplicationsViewModel : ObservableObject
     public ApplicationsViewModel(IApplicationInventoryService inventoryService,
         ApplicationUninstallService uninstallService, IProcessRunner processRunner,
         IReportHistoryService reportHistoryService, IApplicationUninstallConfirmationDialog confirmationDialog,
-        IConfirmationService confirmationService, IInstallationLocationService locationService)
+        IConfirmationService confirmationService, IInstallationLocationService locationService, IApplicationIconLoader? iconLoader = null)
     {
+        _iconLoader = iconLoader;
         _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
         _confirmationService = confirmationService ?? throw new ArgumentNullException(nameof(confirmationService));
         _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
         _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
-        _confirmationDialog = confirmationDialog ?? throw new ArgumentNullException(nameof(confirmationDialog));
+        ArgumentNullException.ThrowIfNull(confirmationDialog);
         Entries.Add(new ApplicationTextCardViewModel("Lancez un inventaire. Aucune action ne sera executee."));
     }
+
+    public ObservableCollection<ApplicationItemViewModel> ProtectedEntries { get; } = new();
+    [ObservableProperty] private string selectedSort = "Nom";
+    partial void OnSelectedSortChanged(string value) => RenderApplications();
+    [ObservableProperty] private bool isConfirmationOpen;
+    [ObservableProperty] private string confirmationTitle = string.Empty;
+    [ObservableProperty] private string confirmationBody = string.Empty;
+    [ObservableProperty] private string selectionSummary = "Aucune application sélectionnée";
+    [ObservableProperty] private string elapsedText = string.Empty;
+    [RelayCommand] private void AcceptConfirmation() => _confirmationDecision?.TrySetResult(true);
+    [RelayCommand] private void RefuseConfirmation() => _confirmationDecision?.TrySetResult(false);
+    [RelayCommand] private void CancelOperation() { RefuseConfirmation(); CancelActiveOperation(); }
+    [RelayCommand] private void SkipNext() { _skipNext = true; StatusText = "Le prochain élément sera passé."; }
 
     public ObservableCollection<object> Entries { get; } = new();
     public ObservableCollection<ApplicationTextCardViewModel> Remnants { get; } = new();
     [ObservableProperty] private string searchText = string.Empty;
-    [ObservableProperty] private string selectedFilter = "TOUT";
+    [ObservableProperty] private string selectedFilter = "Applications";
     partial void OnSearchTextChanged(string value) => RenderApplications();
     partial void OnSelectedFilterChanged(string value) => RenderApplications();
     [ObservableProperty]
@@ -67,7 +86,7 @@ public partial class ApplicationsViewModel : ObservableObject
     [ObservableProperty] private bool isDetailsOpen;
     [ObservableProperty] private bool isReportOpen;
     [ObservableProperty] private double progress;
-    [ObservableProperty] private string statusText = "Inventaire pret. Desinstallation individuelle uniquement.";
+    [ObservableProperty] private string statusText = "Inventaire prêt. Sélectionnez les applications à désinstaller.";
     [ObservableProperty] private string inventorySummary = "NON ANALYSE";
     [ObservableProperty] private string riskSummary = "NON CLASSE";
     [ObservableProperty] private string detailsTitle = "DETAIL APPLICATION";
@@ -90,11 +109,13 @@ public partial class ApplicationsViewModel : ObservableObject
 
     public void CancelActiveOperation()
     {
+        _confirmationDecision?.TrySetResult(false);
         _operationCancellation?.Cancel();
     }
 
     public bool TryCloseOverlay()
     {
+        if (IsConfirmationOpen) { RefuseConfirmation(); return true; }
         if (IsReportOpen)
         {
             HideReport();
@@ -173,6 +194,8 @@ public partial class ApplicationsViewModel : ObservableObject
 
             _lastInventoryReport = report;
             _lastUninstallResult = null;
+            _batchResults = null;
+            _selectedIds.Clear();
             _applications.Clear();
             _applications.AddRange(report.Applications);
             RenderInventory(report);
@@ -204,6 +227,7 @@ public partial class ApplicationsViewModel : ObservableObject
 
     private async Task LaunchUninstallAsync(InstalledApplication application)
     {
+        if (_operationInProgress || IsConfirmationOpen) return;
         var plan = _uninstallService.BuildPlan(application);
         if (!application.CanUninstall)
         {
@@ -219,9 +243,9 @@ public partial class ApplicationsViewModel : ObservableObject
 
         StatusText = "Confirmation utilisateur requise.";
         RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
-        VirgilMessageRequested?.Invoke("Confirmation de desinstallation demandee.\nUne fenetre de validation doit s'ouvrir au premier plan.");
+        VirgilMessageRequested?.Invoke("Confirmation de désinstallation demandée.\nVérifiez l’aperçu dans la page Applications.");
 
-        var confirmation = RequestUninstallConfirmation(application, plan);
+        var confirmation = await RequestUninstallConfirmationAsync(application, plan).ConfigureAwait(true);
         var confirmationDecision = new ApplicationUninstallConfirmationPolicy().Validate(plan, confirmation);
         if (!confirmationDecision.CanProceed)
         {
@@ -286,7 +310,7 @@ public partial class ApplicationsViewModel : ObservableObject
         }
     }
 
-    private ApplicationUninstallConfirmation RequestUninstallConfirmation(
+    private async Task<ApplicationUninstallConfirmation> RequestUninstallConfirmationAsync(
         InstalledApplication application,
         ApplicationUninstallPlan plan)
     {
@@ -306,7 +330,7 @@ public partial class ApplicationsViewModel : ObservableObject
             "Continuer ?"
         });
 
-        var explicitResponse = _confirmationDialog.Confirm("Confirmation desinstallation", explicitMessage);
+        var explicitResponse = await AskConfirmationAsync("Confirmation desinstallation", explicitMessage).ConfigureAwait(true);
         if (!explicitResponse)
         {
             return ApplicationUninstallConfirmation.None;
@@ -329,7 +353,7 @@ public partial class ApplicationsViewModel : ObservableObject
                 "Confirmer malgre ce risque ?"
             });
 
-            reinforcedConfirmed = _confirmationDialog.Confirm("Confirmation renforcee applications", reinforcedMessage);
+            reinforcedConfirmed = await AskConfirmationAsync("Confirmation renforcee applications", reinforcedMessage).ConfigureAwait(true);
         }
 
         return new ApplicationUninstallConfirmation
@@ -338,6 +362,58 @@ public partial class ApplicationsViewModel : ObservableObject
             ReinforcedConfirmed = reinforcedConfirmed,
             Source = "ApplicationsDetails"
         };
+    }
+
+    private async Task<bool> AskConfirmationAsync(string title, string body)
+    {
+        if (_confirmationDecision is not null) return false;
+        var decision = new TaskCompletionSource<bool>();
+        _confirmationDecision = decision;
+        ConfirmationTitle = title;
+        ConfirmationBody = body;
+        IsConfirmationOpen = true;
+        try { return await decision.Task.ConfigureAwait(true); }
+        finally { IsConfirmationOpen = false; _confirmationDecision = null; }
+    }
+
+    [RelayCommand]
+    private async Task UninstallSelectionAsync()
+    {
+        if (_operationInProgress || IsConfirmationOpen) return;
+        var selected = _applications.Where(app => _selectedIds.Contains(app.Id)).OrderBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var plans = selected.Select(_uninstallService.BuildPlan).ToArray();
+        if (plans.Length == 0 || plans.Any(plan => !plan.CanLaunch || !plan.Application.CanUninstall || IsProtectedComponent(plan.Application)))
+        { ReportUninstallBlocked("Sélection vide, protégée ou commande officielle invalide."); return; }
+        var preview = ApplicationBatchPreviewFactory.Create(plans);
+        var reinforced = plans.Any(plan => plan.RequiresReinforcedConfirmation);
+        if (!await AskConfirmationAsync(reinforced ? "Confirmation renforcée de la sélection" : "Désinstaller la sélection",
+            string.Join("\n", preview.Effects) + "\nRisque maximal : " + preview.RiskLevel +
+            "\nLes assistants officiels peuvent retirer des données locales. Sauvegardez vos profils et projets. Aucun reste ne sera supprimé par Virgil.").ConfigureAwait(true)) return;
+        ConfirmedPlan plan;
+        try { plan = _confirmationService.Issue(preview, new ConfirmationConsent(reinforced ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null)); }
+        catch (ConfirmationRefusedException) { ReportUninstallCancelled("Confirmation de la sélection refusée."); return; }
+        if (!BeginOperation("Désinstallation de la sélection en cours.")) return;
+        try
+        {
+            _skipNext = false;
+            var progress = new Progress<ApplicationUninstallProgress>(item =>
+            {
+                Progress = item.Percent ?? 0;
+                StatusText = item.Status;
+                ElapsedText = "Temps écoulé : " + (DateTimeOffset.Now - _operationStarted).ToString(@"hh\:mm\:ss");
+                VirgilMessageRequested?.Invoke(StatusText);
+            });
+            _batchResults = await _uninstallService.LaunchBatchAsync(selected, plan, new ApplicationUninstallConfirmation
+            { ExplicitlyConfirmed = true, ReinforcedConfirmed = reinforced, Source = "ApplicationsBatchPreview" },
+                progress, _operationCancellation!.Token, _ => { var skip = _skipNext; _skipNext = false; return skip; }).ConfigureAwait(true);
+            foreach (var result in _batchResults) await PersistReportAsync(ApplicationReportMapper.FromUninstall(result));
+            StatusText = "Parcours de désinstallation terminé. Rapport disponible.";
+            VirgilMessageRequested?.Invoke(StatusText);
+            ShowReport();
+        }
+        catch (OperationCanceledException) { StatusText = "Parcours annulé. L’assistant officiel peut rester ouvert."; VirgilMessageRequested?.Invoke(StatusText); }
+        catch (Exception ex) { ReportUninstallException(ex); }
+        finally { EndOperation(); }
     }
 
     private void ReportUninstallBlocked(string message)
@@ -370,6 +446,9 @@ public partial class ApplicationsViewModel : ObservableObject
     private void RenderApplications()
     {
         Entries.Clear();
+        ProtectedEntries.Clear();
+        foreach (var application in _applications.Where(IsProtectedComponent).OrderBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase))
+            ProtectedEntries.Add(new ApplicationItemViewModel(application, ShowDetails, OpenApplicationLocationOrSettingsAsync, null, _iconLoader));
         var items = FilteredApplications().ToList();
         if (items.Count == 0)
         {
@@ -379,14 +458,18 @@ public partial class ApplicationsViewModel : ObservableObject
             return;
         }
         foreach (var application in items)
-            Entries.Add(new ApplicationItemViewModel(application, ShowDetails, OpenApplicationLocationOrSettingsAsync));
+            Entries.Add(new ApplicationItemViewModel(application, ShowDetails, OpenApplicationLocationOrSettingsAsync, (app, selected) =>
+            {
+                if (selected) _selectedIds.Add(app.Id); else _selectedIds.Remove(app.Id);
+                SelectionSummary = $"{_selectedIds.Count} application(s) sélectionnée(s)";
+            }, _iconLoader) { IsSelected = _selectedIds.Contains(application.Id) });
     }
 
     public IEnumerable<InstalledApplication> FilteredApplications()
     {
         var query = SearchText.Trim();
         var filter = SelectedFilter;
-        return _applications.Where(application =>
+        var filtered = _applications.Where(application =>
         {
             var matchesQuery = string.IsNullOrWhiteSpace(query) ||
                 application.DisplayName.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
@@ -399,6 +482,10 @@ public partial class ApplicationsViewModel : ObservableObject
 
             return filter switch
             {
+                "Applications" => application.CanUninstall && !IsProtectedComponent(application),
+                "Jeux" => application.IsGame && application.CanUninstall && !IsProtectedComponent(application),
+                "Store" => application.Source == ApplicationInventorySource.Store && !IsProtectedComponent(application),
+                "Système" => IsProtectedComponent(application),
                 "DESINSTALLABLE" => application.CanUninstall,
                 "ATTENTION" => application.RiskLevel == ApplicationRiskLevel.Caution,
                 "PROTEGE" => application.RiskLevel == ApplicationRiskLevel.Protected,
@@ -406,7 +493,15 @@ public partial class ApplicationsViewModel : ObservableObject
                 _ => true
             };
         });
+        return SelectedSort switch
+        {
+            "Taille" => filtered.OrderByDescending(app => app.EstimatedSizeBytes).ThenBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase),
+            "Date d’installation" => filtered.OrderByDescending(app => app.InstallDate).ThenBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase),
+            _ => filtered.OrderBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+        };
     }
+
+    private static bool IsProtectedComponent(InstalledApplication app) => app.IsSystemComponent || app.RiskLevel == ApplicationRiskLevel.Protected;
 
     private void ShowDetails(InstalledApplication application)
     {
@@ -549,7 +644,13 @@ public partial class ApplicationsViewModel : ObservableObject
 
     private void ShowReport()
     {
-        if (_lastUninstallResult is not null)
+        if (_batchResults is not null)
+        {
+            ReportSummary = $"{_batchResults.Count} application(s) dans le rapport du lot.";
+            ReportDetails = string.Join("\n\n", _batchResults.Select(result => result.Application.DisplayName + " : " + result.Result));
+            ReportErrors = string.Join("\n", _batchResults.SelectMany(result => result.Errors));
+        }
+        else if (_lastUninstallResult is not null)
         {
             RenderUninstallResult(_lastUninstallResult);
         }
@@ -612,6 +713,7 @@ public partial class ApplicationsViewModel : ObservableObject
         }
 
         _operationInProgress = true;
+        _operationStarted = DateTimeOffset.Now;
         _operationCancellation = new CancellationTokenSource();
         StatusText = status;
         Progress = 0;

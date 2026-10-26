@@ -30,7 +30,7 @@ public sealed class ProcessRunnerAdapterTests
         Assert.Null(request.Verb);
         Assert.Equal(ProcessWindowMode.Normal, request.WindowMode);
         Assert.Null(request.RawArguments);
-        Assert.False(request.WaitForExit);
+        Assert.True(request.WaitForExit);
         Assert.Equal(source.Token, runner.Token);
     }
 
