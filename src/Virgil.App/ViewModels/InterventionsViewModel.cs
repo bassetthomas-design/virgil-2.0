@@ -29,6 +29,8 @@ public partial class InterventionsViewModel : ObservableObject
     private InterventionSessionReport? _lastReport;
     private bool _operationInProgress;
     private InterventionExecutionResult? _verificationResult;
+    private string _lastProgressMessage = string.Empty;
+    private DateTimeOffset _lastProgressAt;
 
     public InterventionsViewModel(
         IInterventionDiagnosticService diagnosticService,
@@ -58,6 +60,7 @@ public partial class InterventionsViewModel : ObservableObject
     public ObservableCollection<InterventionItemViewModel> StorageItems { get; } = new();
     public ObservableCollection<InterventionItemViewModel> InterfaceItems { get; } = new();
 
+    [ObservableProperty] private bool includeDeepScan;
     [ObservableProperty] private double progress;
     [ObservableProperty] private string elapsedText = string.Empty;
     [ObservableProperty] private string typedConfirmation = string.Empty;
@@ -141,7 +144,7 @@ public partial class InterventionsViewModel : ObservableObject
         var errors = new List<string>();
         var checks = new InterventionDiagnostic
         {
-            Definition = new InterventionCatalog().Get(InterventionId.VerifyHealth),
+            Definition = new InterventionCatalog().Get(IncludeDeepScan ? InterventionId.VerifyHealthDeep : InterventionId.VerifyHealth),
             IsAvailable = true, StateBefore = "Non vérifié"
         };
         try
@@ -207,7 +210,12 @@ public partial class InterventionsViewModel : ObservableObject
         Progress = item.Percent ?? 0;
         ElapsedText = $"Temps écoulé : {item.Elapsed:hh\\:mm\\:ss}";
         StatusText = item.Step + (item.Percent.HasValue ? $" — {item.Percent} %" : " — en cours…");
-        VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
+        if (StatusText != _lastProgressMessage || DateTimeOffset.Now - _lastProgressAt >= TimeSpan.FromSeconds(10))
+        {
+            _lastProgressMessage = StatusText;
+            _lastProgressAt = DateTimeOffset.Now;
+            VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
+        }
     });
 
     [RelayCommand]

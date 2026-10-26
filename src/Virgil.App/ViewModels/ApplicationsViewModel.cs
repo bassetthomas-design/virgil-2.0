@@ -196,6 +196,7 @@ public partial class ApplicationsViewModel : ObservableObject
             _lastUninstallResult = null;
             _batchResults = null;
             _selectedIds.Clear();
+            SelectionSummary = "Aucune application sélectionnée";
             _applications.Clear();
             _applications.AddRange(report.Applications);
             RenderInventory(report);
@@ -521,7 +522,8 @@ public partial class ApplicationsViewModel : ObservableObject
         DetailsCommand = application.UninstallKind switch
         {
             ApplicationUninstallKind.Winget => $"winget uninstall --id {application.WingetId} --exact",
-            ApplicationUninstallKind.StoreSettings => "Parametres Windows. Aucun retrait Store execute par Virgil V1.",
+            ApplicationUninstallKind.StoreSettings => "Paramètres Windows uniquement : identité du package non validée.",
+            ApplicationUninstallKind.StorePackage => "Remove-AppxPackage : " + application.StorePackageFullName,
             _ => Empty(application.UninstallCommand ?? application.QuietUninstallCommand)
         };
         DetailsSafety = string.Join("\n", new[]
@@ -541,7 +543,7 @@ public partial class ApplicationsViewModel : ObservableObject
             : application.RiskLevel == ApplicationRiskLevel.Caution
                 ? "LANCER AVEC VALIDATION RENFORCEE"
                 : "LANCER DESINSTALLATEUR";
-        IsLaunchUninstallEnabled = !_operationInProgress;
+        IsLaunchUninstallEnabled = !_operationInProgress && application.CanUninstall && !IsProtectedComponent(application);
         IsOpenApplicationLocationEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
         OpenApplicationLocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings
             ? "PARAMETRES WINDOWS"
@@ -715,15 +717,30 @@ public partial class ApplicationsViewModel : ObservableObject
         _operationInProgress = true;
         _operationStarted = DateTimeOffset.Now;
         _operationCancellation = new CancellationTokenSource();
+        _ = UpdateElapsedAsync(_operationCancellation.Token);
         StatusText = status;
         Progress = 0;
         SetInteractionEnabled(false);
         return true;
     }
 
+    private async Task UpdateElapsedAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                ElapsedText = "Temps écoulé : " + (DateTimeOffset.Now - _operationStarted).ToString(@"hh\:mm\:ss");
+                await Task.Delay(1000, token).ConfigureAwait(true);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
     private void EndOperation()
     {
         _operationInProgress = false;
+        _operationCancellation?.Cancel();
         _operationCancellation?.Dispose();
         _operationCancellation = null;
         SetInteractionEnabled(true);
@@ -733,7 +750,7 @@ public partial class ApplicationsViewModel : ObservableObject
     {
         IsBusy = !enabled;
         IsReportButtonEnabled = enabled && (_lastInventoryReport is not null || _lastUninstallResult is not null);
-        IsLaunchUninstallEnabled = enabled && _selectedApplication is not null;
+        IsLaunchUninstallEnabled = enabled && _selectedApplication?.CanUninstall == true && !IsProtectedComponent(_selectedApplication);
         IsOpenApplicationLocationEnabled = enabled && (_selectedApplication?.CanOpenLocation == true ||
             _selectedApplication?.UninstallKind == ApplicationUninstallKind.StoreSettings);
     }

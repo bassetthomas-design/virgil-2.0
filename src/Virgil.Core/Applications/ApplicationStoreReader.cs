@@ -50,7 +50,7 @@ public sealed class ApplicationStoreReader(IProcessRunner processRunner) : IAppl
                 $logoPath=Get-ChildItem -LiteralPath $parent -File -ErrorAction SilentlyContinue | Where-Object { $_.Name.StartsWith($stem+'.scale-') -and $_.Extension -eq $ext } | Select-Object -First 1 -ExpandProperty FullName
               }
             }
-            [pscustomobject]@{ Name=$p.Name; PackageFullName=$p.PackageFullName; DisplayName=$name; PublisherDisplayName=$publisher; Version=[string]$p.Version; IsFramework=[bool]$p.IsFramework; Logo=$logoPath; InstallLocation=$p.InstallLocation }
+            [pscustomobject]@{ Name=$p.Name; PackageFullName=$p.PackageFullName; DisplayName=$name; PublisherDisplayName=$publisher; Version=[string]$p.Version; IsFramework=[bool]$p.IsFramework; InstallDate=(Get-Item -LiteralPath $p.InstallLocation -ErrorAction SilentlyContinue).CreationTimeUtc.ToString('o'); Logo=$logoPath; InstallLocation=$p.InstallLocation }
           } catch { [pscustomobject]@{ Name=$p.Name; PackageFullName=$p.PackageFullName; Version=[string]$p.Version; IsFramework=[bool]$p.IsFramework; MetadataUnavailable=$true } }
         })
         ConvertTo-Json -InputObject $items -Depth 3 -Compress
@@ -94,6 +94,8 @@ public sealed class ApplicationStoreReader(IProcessRunner processRunner) : IAppl
                     Id = ApplicationRegistryReader.StableId("store", package), DisplayName = name,
                     Publisher = publisher, Version = Text(row, "Version"), StorePackageFullName = package,
                     Source = ApplicationInventorySource.Store, Sources = [ApplicationInventorySource.Store],
+                    InstallDate = DateTimeOffset.TryParse(Text(row, "InstallDate"), System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal, out var date) ? date : null,
                     IconPath = Text(row, "Logo"), InstallLocation = Text(row, "InstallLocation"),
                     IsSystemComponent = framework, CanUninstall = !framework,
                     RiskLevel = framework ? ApplicationRiskLevel.Protected : ApplicationRiskLevel.Caution,

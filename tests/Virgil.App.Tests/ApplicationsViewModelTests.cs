@@ -474,6 +474,8 @@ public sealed class ApplicationsViewModelTests
         f.Inventory.Report = new() { Applications = [Safe() with { UninstallKind = ApplicationUninstallKind.StoreSettings, CanUninstall = false }] };
         f.Runner.Handler = (_, _) => throws ? throw new InvalidOperationException("Parametres test.") : Task.FromResult(new ProcessLaunchResult(true, null));
         await f.Analyze();
+        f.Vm.SelectedFilter = "Store";
+        f.Vm.SelectedFilter = "TOUT";
         var card = Assert.Single(f.Cards);
         Assert.True(card.IsLocationVisible);
         Assert.Equal("PARAMETRES", card.LocationLabel);

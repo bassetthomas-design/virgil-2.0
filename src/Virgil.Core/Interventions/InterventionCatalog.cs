@@ -160,6 +160,19 @@ public sealed class InterventionCatalog : IInterventionCatalog
         Repair(InterventionId.RestartWindowsUpdate, "Redémarrer le service Windows Update", "virgil-update", 14),
         Repair(InterventionId.RestartAudio, "Redémarrer les services audio", "virgil-audio", 15),
         Repair(InterventionId.ResetPrintQueue, "Réinitialiser les tâches d’impression bloquées", "virgil-print", 16)
+    }).Concat(new[]
+    {
+        ReadOnly(InterventionId.VerifyHealthDeep, "Vérifier Windows avec analyse approfondie de l’image", "virgil-services", 17) with
+        {
+            CommandPreviews = new[]
+            {
+                new InterventionCommandPreview { Executable = "sfc.exe", Arguments = ["/verifyonly"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "dism.exe", Arguments = ["/Online", "/Cleanup-Image", "/CheckHealth", "/English"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "dism.exe", Arguments = ["/Online", "/Cleanup-Image", "/ScanHealth", "/English"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "chkdsk.exe", Arguments = ["<system-drive>", "/scan"], RunsElevated = true },
+                new InterventionCommandPreview { Executable = "virgil-services", RunsElevated = true }
+            }
+        }
     }).Select(definition => InterventionSafety.RequiresRestorePoint(definition.Id)
         ? definition with { RiskLevel = InterventionRiskLevel.Sensitive } : definition).ToArray();
 

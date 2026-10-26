@@ -33,7 +33,8 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(0, confirmation.Calls); Assert.Equal(0, helper.Calls + explorer.Calls);
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(1, confirmation.Calls);
-        Assert.Equal(id == InterventionId.RestartExplorer ? 0 : 1, helper.Calls);
+        Assert.Equal(id == InterventionId.RestartExplorer ? 0 : 2, helper.Calls);
+        if (id != InterventionId.RestartExplorer) Assert.Equal(new[] { InterventionId.CreateRestorePoint, id }, helper.Actions);
         Assert.Equal(id == InterventionId.RestartExplorer ? 1 : 0, explorer.Calls);
         Assert.Single(f.History.Saved!.ExecutedActions);
     }
@@ -461,8 +462,8 @@ public sealed class InterventionsViewModelTests
     [Theory]
     [InlineData(InterventionStatus.Completed, "Intervention terminee.\nRapport mis a jour.", "Parcours termine.", VirgilCoreState.Success)]
     [InlineData(InterventionStatus.RebootRequired, "Intervention terminee.\nRedemarrage manuel probablement requis.", "Parcours termine.", VirgilCoreState.Success)]
-    [InlineData(InterventionStatus.PartialFailure, "Intervention partielle.\nRapport disponible.", "Parcours termine avec erreurs.", VirgilCoreState.Warning)]
-    [InlineData(InterventionStatus.Failed, "Intervention en echec.\nRapport disponible.", "Parcours termine avec erreurs.", VirgilCoreState.Warning)]
+    [InlineData(InterventionStatus.PartialFailure, "Intervention partielle.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
+    [InlineData(InterventionStatus.Failed, "Intervention en echec.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
     [InlineData(InterventionStatus.Unavailable, "Intervention traitee.\nRapport disponible.", "Parcours termine.", VirgilCoreState.Success)]
     public async Task ExecutionResultKeepsMessagesAndSessionState(InterventionStatus status, string message, string session, VirgilCoreState state)
     {
@@ -623,9 +624,11 @@ public sealed class InterventionsViewModelTests
     {
         public bool ThrowOnCall { get; init; } = true;
         public int Calls { get; private set; }
+        public List<InterventionId> Actions { get; } = new();
         public Task<ElevatedInterventionResult> ExecuteAsync(InterventionDefinition definition, CancellationToken cancellationToken)
         {
             Calls++;
+            Actions.Add(definition.Id);
             if (ThrowOnCall) throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
             return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed });
         }

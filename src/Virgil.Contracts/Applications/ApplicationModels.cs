@@ -24,8 +24,8 @@ public enum ApplicationUninstallKind
     RegistryQuietUninstallString,
     Winget,
     StoreSettings,
-    StorePackage,
-    Unknown
+    Unknown,
+    StorePackage
 }
 
 public enum ApplicationRiskLevel

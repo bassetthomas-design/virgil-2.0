@@ -8,7 +8,10 @@ internal static class RepairScripts
         function Check($key,$ok,$detail) { if($ok){"VIRGIL|$key|OK|$detail"}else{"VIRGIL|$key|FINDING|$detail"} }
         foreach($name in @('wuauserv','AppXSvc','ClipSVC','Audiosrv','AudioEndpointBuilder','Spooler')) {
           try { $s=Get-Service -Name $name
-            if($name -in @('wuauserv','AppXSvc','ClipSVC')) { "VIRGIL|$name|INFO|$($s.Status) (démarrage à la demande possible)" }
+            if($name -in @('wuauserv','AppXSvc','ClipSVC')) {
+              if($s.StartType -eq 'Disabled'){ Check $name $false "$name désactivé : vérifiez la configuration dans Windows" }
+              else { "VIRGIL|$name|INFO|$($s.Status) (démarrage à la demande possible)" }
+            }
             else { Check $name ($s.Status -eq 'Running') "$name : $($s.Status)" }
           } catch { "VIRGIL|$name|UNKNOWN|État du service indisponible" }
         }

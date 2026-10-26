@@ -116,12 +116,12 @@ public sealed class ElevatedActionDispatcher
                 cancellationToken).ConfigureAwait(false);
             exitCode = commandResult.ExitCode;
             checkFailed |= commandResult.ExitCode != 0;
-            if (request.ActionId == InterventionId.VerifyHealth) outputs.Add(IntegrityFinding(command, commandResult));
+            if (request.ActionId is InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep) outputs.Add(IntegrityFinding(command, commandResult));
             outputs.Add("Étape : " + command.FileName + " " + string.Join(" ", command.Arguments) + "\n" + Summarize(commandResult));
 
             if (commandResult.Cancelled)
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs), false);
-            if (commandResult.ExitCode != 0 && request.ActionId != InterventionId.VerifyHealth)
+            if (commandResult.ExitCode != 0 && request.ActionId is not (InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep))
             {
                 return Result(request, startedAt, commandResult.ExitCode,
                     InterventionStatus.PartialFailure,
@@ -130,7 +130,7 @@ public sealed class ElevatedActionDispatcher
             }
         }
 
-        if (request.ActionId == InterventionId.VerifyHealth)
+        if (request.ActionId is InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep)
         {
             var text = string.Join("\n", outputs);
             var incomplete = checkFailed || text.Contains("|UNKNOWN|", StringComparison.Ordinal);

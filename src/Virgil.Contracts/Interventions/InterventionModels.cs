@@ -18,7 +18,8 @@ public enum InterventionId
     CreateRestorePoint,
     RestartWindowsUpdate,
     RestartAudio,
-    ResetPrintQueue
+    ResetPrintQueue,
+    VerifyHealthDeep
 }
 
 public enum InterventionCategory
