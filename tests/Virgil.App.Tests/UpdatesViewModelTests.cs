@@ -234,16 +234,16 @@ public sealed class UpdatesViewModelTests
         Assert.False(f.Vm.IsBusy);
         Assert.True(f.Vm.IsValidationOpen);
         Assert.Equal("OUVRIR WINDOWS UPDATE", f.Vm.ValidationTitle);
-        Assert.Equal("A jour\nRedemarrage en attente : oui\nURI : ms-settings:windowsupdate", f.Vm.ValidationDetails);
+        Assert.Equal("A jour\nRedémarrage en attente : oui\nURI : ms-settings:windowsupdate", f.Vm.ValidationDetails);
         Assert.Equal("Ouverture des Paramètres Windows uniquement.", f.Vm.ValidationCommand);
-        Assert.Equal("Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est declenche.", f.Vm.ValidationSafety);
+        Assert.Equal("Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est déclenché.", f.Vm.ValidationSafety);
         Assert.Equal("OUVRIR", f.Vm.ExecuteLabel);
         Assert.Equal("ANNULER", f.Vm.SkipLabel);
         Assert.False(f.Vm.IsCancelSequenceVisible);
         Decide(f.Vm, decision); await pending;
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(decision == "ExecuteDecision" ? 1 : 0, f.Runner.Calls);
-        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lancé aucune installation.", f.Messages.Last());
+        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lance aucune installation.", f.Messages.Last());
         if (f.Runner.Calls != 0)
         {
             Assert.Equal("ms-settings:windowsupdate", f.Runner.Request!.FileName);

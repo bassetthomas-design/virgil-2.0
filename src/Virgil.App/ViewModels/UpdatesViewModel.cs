@@ -364,7 +364,7 @@ public partial class UpdatesViewModel : ObservableObject
                 info.SettingsUri, Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
             VirgilMessageRequested?.Invoke(result.LaunchError is not null
                 ? "Ouverture Windows Update impossible."
-                : "Windows Update ouvert.\nVirgil ne lancé aucune installation.");
+                : "Windows Update ouvert.\nVirgil ne lance aucune installation.");
         }
         catch
         {
@@ -473,7 +473,7 @@ public partial class UpdatesViewModel : ObservableObject
         });
         ValidationCommand = "Ouverture des Paramètres Windows uniquement.";
         ValidationSafety =
-            "Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est declenche.";
+            "Virgil n'appuie sur aucun bouton Windows Update.\nAucune recherche, installation ou redémarrage n'est déclenché.";
         ExecuteLabel = "OUVRIR";
         SkipLabel = "ANNULER";
         IsCancelSequenceVisible = false;
@@ -661,7 +661,7 @@ public partial class UpdatesViewModel : ObservableObject
         {
             builder.AppendLine($"Date scan : {scanReport.CapturedAt:yyyy-MM-dd HH:mm:ss}");
             builder.AppendLine($"État global : {scanReport.OverallStatus}");
-            builder.AppendLine($"WinGet : {(scanReport.Winget.IsAvailable ? scanReport.Winget.Message : "non detecte")}");
+            builder.AppendLine($"WinGet : {(scanReport.Winget.IsAvailable ? scanReport.Winget.Message : "non détecté")}");
             builder.AppendLine($"Applications : {scanReport.Items.Count}");
             builder.AppendLine($"Faible risque : {scanReport.SafeCount}");
             builder.AppendLine($"Validation : {scanReport.ValidationRequiredCount}");
