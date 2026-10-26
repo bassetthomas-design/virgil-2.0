@@ -24,10 +24,10 @@ public sealed class WindowsStartupInventorySource : IStartupInventorySource
                 using var approved = approvalRoot.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\" + (view == RegistryView.Registry32 ? "Run32" : "Run"), false);
                 if (run is null) continue;
                 foreach (var name in run.GetValueNames())
-                    items.Add(Item(name, $"{hive} / {view} / Run", run.GetValue(name) as string ?? "Chemin indisponible", State(approved?.GetValue(name) as byte[])) with { ApprovalTarget = new(hive == RegistryHive.CurrentUser ? StartupApprovalHive.CurrentUser : StartupApprovalHive.LocalMachine, view == RegistryView.Registry32 ? StartupApprovalKind.Run32 : StartupApprovalKind.Run, name) });
+                    items.Add(Item(name, $"{(hive == RegistryHive.CurrentUser ? "Compte actuel" : "Tous les comptes")} · Registre Run ({(view == RegistryView.Registry32 ? "32" : "64")} bits)", run.GetValue(name) as string ?? "Chemin indisponible", State(approved?.GetValue(name) as byte[])) with { ApprovalTarget = new(hive == RegistryHive.CurrentUser ? StartupApprovalHive.CurrentUser : StartupApprovalHive.LocalMachine, view == RegistryView.Registry32 ? StartupApprovalKind.Run32 : StartupApprovalKind.Run, name) });
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-            { warnings.Add($"Clé Run inaccessible : {hive} / {view}."); }
+            { warnings.Add($"Clé Run inaccessible : {(hive == RegistryHive.CurrentUser ? "compte actuel" : "tous les comptes")} ({(view == RegistryView.Registry32 ? "32" : "64")} bits)."); }
         }
         foreach (var folder in new[] { Environment.SpecialFolder.Startup, Environment.SpecialFolder.CommonStartup })
         {
@@ -40,10 +40,10 @@ public sealed class WindowsStartupInventorySource : IStartupInventorySource
                 using var root = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
                 using var approved = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder", false);
                 foreach (var file in Directory.EnumerateFiles(path).Where(f => !string.Equals(System.IO.Path.GetFileName(f), "desktop.ini", StringComparison.OrdinalIgnoreCase)))
-                    items.Add(Item(System.IO.Path.GetFileName(file), "Dossier Démarrage / " + folder, file, State(approved?.GetValue(System.IO.Path.GetFileName(file)) as byte[]), directFile: true) with { ApprovalTarget = new(hive == RegistryHive.CurrentUser ? StartupApprovalHive.CurrentUser : StartupApprovalHive.LocalMachine, StartupApprovalKind.StartupFolder, System.IO.Path.GetFileName(file)) });
+                    items.Add(Item(System.IO.Path.GetFileName(file), "Dossier Démarrage · " + (folder == Environment.SpecialFolder.Startup ? "Compte actuel" : "Tous les comptes"), file, State(approved?.GetValue(System.IO.Path.GetFileName(file)) as byte[]), directFile: true) with { ApprovalTarget = new(hive == RegistryHive.CurrentUser ? StartupApprovalHive.CurrentUser : StartupApprovalHive.LocalMachine, StartupApprovalKind.StartupFolder, System.IO.Path.GetFileName(file)) });
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-            { warnings.Add("Dossier Démarrage inaccessible : " + folder + "."); }
+            { warnings.Add("Dossier Démarrage inaccessible : " + (folder == Environment.SpecialFolder.Startup ? "compte actuel." : "tous les comptes.")); }
         }
         var tasks = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "Tasks");
         ReadTasks(tasks, items, warnings, token);

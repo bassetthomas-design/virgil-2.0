@@ -78,7 +78,9 @@ public partial class StartupViewModel : ObservableObject
     {
         _pending = change;
         ConfirmationAccepted = false;
-        ConfirmationText = title + "\nL’entrée et sa commande seront conservées. Une sauvegarde vérifiée et un point de restauration sont obligatoires avant l’écriture. Si une protection échoue, la modification sera bloquée. Le nouvel état s’appliquera aux prochaines ouvertures de session.";
+        var scope = change.Target.Hive == StartupApprovalHive.CurrentUser ? "Compte actuel" : "Tous les comptes";
+        var path = Items.FirstOrDefault(item => item.ApprovalTarget == change.Target)?.Path ?? "Chemin indisponible";
+        ConfirmationText = title + "\nPortée : " + scope + "\nSource : StartupApproved / " + change.Target.Kind + "\nChemin : " + path + "\nL’entrée et sa commande seront conservées. Une sauvegarde vérifiée et un point de restauration sont obligatoires avant l’écriture. Si une protection échoue, la modification sera bloquée. Le nouvel état s’appliquera aux prochaines ouvertures de session.";
         IsConfirmationOpen = true;
     }
 

@@ -59,6 +59,8 @@ public sealed class LegacyEffectArchitectureTests
     }
 
     [Theory]
+    [InlineData("IStartupApprovalStore", "StartupChangeService.cs")]
+    [InlineData("IStartupRestorePointService", "StartupChangeService.cs")]
     [InlineData("IProcessRuntime", "ProcessActionService.cs|ProcessRuntime.cs")]
     [InlineData("IRecycleBinService", "CleanupExecutionService.cs|CleanupPreviewService.cs|ICleanupDisk.cs|RecycleBinService.cs")]
     [InlineData("IQuarantineStore", "CleanupExecutionService.cs|IQuarantineStore.cs|QuarantineMaintenanceAction.cs")]
