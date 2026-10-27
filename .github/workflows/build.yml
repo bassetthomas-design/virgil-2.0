@@ -29,10 +29,32 @@ jobs:
         run: dotnet build Virgil.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Virgil.sln --configuration Release --no-build
+        run: dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI"
 
       - name: Publish app
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2 -p:Version=0.0.0-dev -p:InformationalVersion=0.0.0-dev -p:IncludeSourceRevisionInInformationalVersion=false
+
+      - name: Set display resolution
+        shell: pwsh
+        run: |
+          if (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue) {
+            Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          } else {
+            Write-Host "Set-DisplayResolution indisponible ; fenêtre fixée à 1600×900 par FlaUI."
+          }
+
+      - name: UI smoke tests
+        run: dotnet test tests/Virgil.UiTests --configuration Release --no-build --filter "Category=UI" --logger "console;verbosity=normal"
+        env:
+          VIRGIL_APP_EXE: ${{ github.workspace }}\artifacts\Virgil2\Virgil.App.exe
+
+      - name: Upload UI smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Virgil-ui-smoke
+          path: artifacts/ui-smoke
+          if-no-files-found: warn
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6

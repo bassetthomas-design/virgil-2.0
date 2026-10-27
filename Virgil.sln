@@ -18,6 +18,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Virgil.Infrastructure", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Virgil.App.Tests", "tests\Virgil.App.Tests\Virgil.App.Tests.csproj", "{8EE7EE56-9B9B-4A31-8EA9-27E71DC1B073}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C43E986D-5AF2-44F4-94D3-01FC494BFC26}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Virgil.UiTests", "tests\Virgil.UiTests\Virgil.UiTests.csproj", "{F648BA5F-A004-4D8C-9C4B-AD0B284AC360}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,8 +56,13 @@ Global
 		{325D8791-31AB-4C70-A509-B0B4E1BA632F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{325D8791-31AB-4C70-A509-B0B4E1BA632F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{325D8791-31AB-4C70-A509-B0B4E1BA632F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F648BA5F-A004-4D8C-9C4B-AD0B284AC360}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F648BA5F-A004-4D8C-9C4B-AD0B284AC360}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F648BA5F-A004-4D8C-9C4B-AD0B284AC360}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F648BA5F-A004-4D8C-9C4B-AD0B284AC360}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{325D8791-31AB-4C70-A509-B0B4E1BA632F} = {0FE6C7EA-ADBD-441D-9A07-481E4DCCB57E}
+		{F648BA5F-A004-4D8C-9C4B-AD0B284AC360} = {C43E986D-5AF2-44F4-94D3-01FC494BFC26}
 	EndGlobalSection
 EndGlobal
