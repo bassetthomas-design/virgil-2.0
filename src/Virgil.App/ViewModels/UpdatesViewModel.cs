@@ -168,7 +168,7 @@ public partial class UpdatesViewModel : ObservableObject
 
             var report = await _scanService
                 .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
-                .ConfigureAwait(true);
+                .WaitAsync(_operationCancellation.Token).ConfigureAwait(true);
 
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = report;
@@ -221,6 +221,7 @@ public partial class UpdatesViewModel : ObservableObject
                 .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
+            _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = MergeDriverReport(_lastScanReport, report);
             await PersistReportAsync(ReportMapper.FromUpdateScan(_lastScanReport));
             RenderScanReport(_lastScanReport);

@@ -443,7 +443,8 @@ public sealed class ApplicationsViewModelTests
         await launch;
         Assert.Equal(1, f.Runner.Started);
         Assert.Contains("après annulation", f.Vm.StatusText);
-        Assert.Single(f.History.Reports);
+        Assert.Equal(2, f.History.Reports.Count);
+        Assert.Contains("après annulation", f.History.Reports[^1].Summary);
         Idle(f.Vm);
     }
 

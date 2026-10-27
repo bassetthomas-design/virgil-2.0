@@ -126,7 +126,7 @@ public sealed class ElevatedActionDispatcher
             { return Result(request, startedAt, 0, InterventionStatus.Cancelled, "Étape terminée après annulation. Étapes suivantes non lancées.", false); }
             return Result(request, startedAt, maintenance.Success ? 0 : -1,
                 maintenance.Success ? (maintenance.Reboot ? InterventionStatus.RebootRequired : InterventionStatus.Completed) : InterventionStatus.Failed,
-                maintenance.Message, maintenance.Reboot);
+                maintenance.Message + (cancellationToken.IsCancellationRequested ? " Étape terminée après annulation." : ""), maintenance.Reboot);
         }
         if (!string.IsNullOrEmpty(request.UpdateIdentity))
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètre de mise à jour inattendu.", false);

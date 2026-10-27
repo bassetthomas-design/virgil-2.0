@@ -75,6 +75,7 @@ public partial class UpdatesViewModel
         {
             var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview,
                 new Progress<string>(HandleProgress), _operationCancellation!.Token);
+            _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = scan;
             _lastItems.Clear();
             _lastItems.AddRange(scan.Items);

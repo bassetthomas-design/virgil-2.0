@@ -16,7 +16,7 @@ public static class UpdateMaintenanceRunner
         if (!ValidIdentity(request.ActionId, request.UpdateIdentity)) return (false, false, "Identité de mise à jour refusée.");
         if (request.ActionId == InterventionId.UpdateDefenderSignatures)
         {
-            var defender = await commands.RunAsync(new("WindowsPowerShell\\v1.0\\powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Update-MpSignature -ErrorAction Stop"])).ConfigureAwait(false);
+            var defender = await commands.RunAsync(new("WindowsPowerShell\\v1.0\\powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Update-MpSignature -ErrorAction Stop"]) { NonInterruptible = true }).ConfigureAwait(false);
             return (defender.ExitCode == 0, false, defender.ExitCode == 0 ? "Signatures Defender à jour." : "Mise à jour Defender impossible.");
         }
         // Protection fails closed: installation never starts unless creation and verification succeed.
@@ -33,6 +33,7 @@ public static class UpdateMaintenanceRunner
         try { return Install(request, cancellationToken); }
         catch (COMException)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (request.ActionId == InterventionId.InstallDriverUpdate) return (false, false, "Canal de pilotes Windows Update indisponible.");
             var fallback = await commands.RunAsync(new("UsoClient.exe", ["StartInteractiveScan"])).ConfigureAwait(false);
             return (false, false, fallback.ExitCode == 0 ? "Recherche Windows Update lancée en secours ; vérifiez les Paramètres pour terminer." : "Windows Update indisponible.");
@@ -60,6 +61,7 @@ public static class UpdateMaintenanceRunner
             collection.Add(update);
         }
         if (collection.Count == 0) return (true, false, "Aucune mise à jour nécessaire.");
+        cancellationToken.ThrowIfCancellationRequested();
         dynamic downloader = session.CreateUpdateDownloader();
         downloader.Updates = collection;
         dynamic downloaded = downloader.Download();
