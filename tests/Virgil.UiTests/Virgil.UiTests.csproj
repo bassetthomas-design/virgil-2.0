@@ -8,6 +8,7 @@
     <!-- The pure safety test is linked into Core.Tests to keep it independent
          of FlaUI and its WindowsForms dependency. -->
     <Compile Remove="SafeUiTests.cs" />
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
