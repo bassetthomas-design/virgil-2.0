@@ -111,12 +111,14 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             var screen = Screens[i];
             try
             {
+                SampleLatency();
                 await ui!.Click(screen.Navigation);
                 // Injected *ModuleView fields have no x:Name. WPF's
                 // UserControlAutomationPeer exposes their concrete class names.
                 await UntilAsync(() => screen.View.EndsWith("View", StringComparison.Ordinal)
                     ? window!.FindAllDescendants(cf => cf.ByClassName(screen.View)).Any(IsVisible)
                     : Visible(screen.View), TimeSpan.FromSeconds(60), $"Vue invisible : {screen.View}");
+                SampleLatency();
                 AssertHealthy();
                 SaveWindow($"{i + 1:00}-{screen.Screen}.png");
                 screenResults[screen.Screen] = null;
@@ -144,7 +146,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             await UntilAsync(() => Find("HomeNavButton")!.IsEnabled,
                 TimeSpan.FromSeconds(120), "Le scan approfondi dépasse 120 s.");
             Assert.True(window!.FindAllDescendants().Any(element =>
-                element.Name.StartsWith("Analyse approfondie terminee.", StringComparison.Ordinal)),
+                element.Name?.StartsWith("Analyse approfondie terminee.", StringComparison.Ordinal) == true),
                 "Le scan approfondi n'a pas annoncé sa fin réussie.");
             AssertHealthy();
         }
@@ -224,8 +226,8 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         // Sample all areas, including the interior. Uniform captures have zero variance.
         double sum = 0, squares = 0;
         var count = 0;
-        for (var y = 0; y < bitmap.Height; y += Math.Max(1, bitmap.Height / 100))
-        for (var x = 0; x < bitmap.Width; x += Math.Max(1, bitmap.Width / 100))
+        for (var y = bitmap.Height / 10; y < bitmap.Height * 9 / 10; y += Math.Max(1, bitmap.Height / 100))
+        for (var x = bitmap.Width / 10; x < bitmap.Width * 9 / 10; x += Math.Max(1, bitmap.Width / 100))
         {
             var pixel = bitmap.GetPixel(x, y);
             var value = (pixel.R + pixel.G + pixel.B) / 3d;
@@ -249,8 +251,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                     process.Refresh();
                     if (measureLatency && process.MainWindowHandle != IntPtr.Zero)
                     {
-                        try { latencies.Enqueue(NativeUi.MeasureLatency(process.MainWindowHandle)); }
-                        catch (Exception exception) { violations.Enqueue(exception.Message); }
+                        SampleLatency();
                     }
                 }
                 await Task.Delay(100, stop.Token);
@@ -258,6 +259,12 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
         catch (Exception exception) { violations.Enqueue($"Sonde de session : {exception}"); }
+    }
+
+    private void SampleLatency()
+    {
+        try { latencies.Enqueue(NativeUi.MeasureLatency(process!.MainWindowHandle)); }
+        catch (Exception exception) { violations.Enqueue(exception.Message); }
     }
 
     public async Task DisposeAsync()
