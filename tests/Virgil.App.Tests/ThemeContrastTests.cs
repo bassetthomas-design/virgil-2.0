@@ -129,6 +129,9 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
         foreach (var node in document.Descendants())
         {
+            if (node.Name.NamespaceName.StartsWith("clr-namespace:Virgil.App", StringComparison.Ordinal)
+                && !node.Name.NamespaceName.Contains(";assembly=", StringComparison.Ordinal))
+                node.Name = XName.Get(node.Name.LocalName, node.Name.NamespaceName + ";assembly=Virgil.App");
             foreach (var attribute in node.Attributes().ToArray())
             {
                 if (attribute.Name == x + "Class" || attribute.Name.LocalName is "Click" or "Loaded" or "Unloaded"
@@ -165,7 +168,9 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
     private static Window Show(FrameworkElement content)
     {
         var window = new Window { Content = content, Width = 1280, Height = 720,
-            Background = (Brush)Application.Current.FindResource("App.BackgroundBrush"), ShowInTaskbar = false };
+            Background = (Brush)Application.Current.FindResource("App.BackgroundBrush"),
+            Foreground = (Brush)Application.Current.FindResource("App.TextPrimaryBrush"),
+            FontFamily = new FontFamily("Segoe UI"), ShowInTaskbar = false };
         window.Show();
         content.Measure(new Size(1280, 720));
         content.Arrange(new Rect(0, 0, 1280, 720));
@@ -213,9 +218,12 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
         {
             try
             {
-                var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-                app.Resources.MergedDictionaries.Add(new ResourceDictionary
-                { Source = new Uri("/Virgil.App;component/Themes/TacticalHudTheme.xaml", UriKind.Relative) });
+                // Même fusion de dictionnaires que l'application compilée ; sans OnStartup ni services OS.
+                var app = new Virgil.App.App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                app.InitializeComponent();
+                if (app.Resources["App.TextPrimaryBrush"] is not SolidColorBrush ||
+                    app.Resources["App.BackgroundBrush"] is not SolidColorBrush)
+                    throw new InvalidOperationException("Dictionnaires du thème de l'application absents.");
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
                 ready.SetResult(Dispatcher.CurrentDispatcher);
                 Dispatcher.Run();

@@ -53,7 +53,7 @@
                                 KeyboardNavigation.TabNavigation="Continue">
                         <Border Style="{StaticResource VirgilBadge}">
                             <TextBlock x:Name="StatusText"
-                                       Text="SYSTEME PRET"
+                                       Text="SYSTÈME PRÊT"
                                        Style="{StaticResource VirgilMicroLabel}"
                                        Foreground="{DynamicResource App.TextPrimaryBrush}" />
                         </Border>
@@ -213,7 +213,7 @@
                                             <ColumnDefinition Width="1.4*" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
-                                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                                            <TextBlock Text="ÉTAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
                                             <TextBlock x:Name="GlobalStatusText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
                                             <TextBlock Text="CPU" Style="{StaticResource VirgilMicroLabel}" />
                                             <TextBlock x:Name="ReportCpuText" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
@@ -371,7 +371,7 @@
                                                 AutomationProperties.Name="Mini noyau Virgil" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
-                        <TextBlock Text="SELECTION DU PROTOCOLE"
+                        <TextBlock Text="SÉLECTION DU PROTOCOLE"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource App.TextPrimaryBrush}"
@@ -379,7 +379,7 @@
                     </StackPanel>
                     <TextBlock Grid.Row="1"
                                Grid.ColumnSpan="2"
-                               Text="Selectionnez le niveau d'analyse. Aucune modification ne sera effectuee."
+                               Text="Sélectionnez le niveau d'analyse. Aucune modification ne sera effectuée."
                                Style="{StaticResource VirgilHudSecondaryText}"
                                Margin="0,18,0,20" />
                     <StackPanel x:Name="PopupActionsPanel"

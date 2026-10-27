@@ -101,12 +101,12 @@
                     </Grid.ColumnDefinitions>
                     <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,6,8">
                         <StackPanel>
-                            <TextBlock Text="ETAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ÉTAT GLOBAL" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="InterventionsOverallText"
                                        Text="{Binding OverallText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
-                            <TextBlock Text="ACTIONS RECOMMANDEES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ACTIONS RECOMMANDÉES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="RecommendedCountText"
                                        Text="{Binding RecommendedCountText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
@@ -119,15 +119,15 @@
                             <TextBlock Text="Validation separee par action. Aucune commande libre. Aucun redemarrage automatique."
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
-                            <TextBlock Text="HELPER ELEVE" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock Text="Lancement uniquement apres confirmation d'une action admin."
+                            <TextBlock Text="HELPER ÉLEVÉ" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="Lancement uniquement après confirmation d'une action admin."
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,0" />
                         </StackPanel>
                     </Border>
                 </Grid>
 
-                <TextBlock Text="SYSTEME"
+                <TextBlock Text="SYSTÈME"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
                 <StackPanel>
@@ -149,7 +149,7 @@
                                   KeyboardNavigation.TabNavigation="Continue" />
                 </StackPanel>
 
-                <TextBlock Text="RESEAU"
+                <TextBlock Text="RÉSEAU"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
                 <StackPanel>
@@ -268,7 +268,7 @@
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="COMMANDE AUTORISEE" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="COMMANDE AUTORISÉE" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationCommandText"
                                        Text="{Binding ValidationCommand}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
@@ -292,7 +292,7 @@
                         <Button x:Name="ExecuteInterventionButton"
                                 Content="{Binding ExecuteActionLabel}"
                                 Style="{StaticResource VirgilPrimaryButton}"
-                                AutomationProperties.Name="Executer cette intervention"
+                                AutomationProperties.Name="Exécuter cette intervention"
                                 Command="{Binding ExecuteDecisionCommand}" />
                         <Button x:Name="SkipInterventionButton"
                                 Content="PASSER"

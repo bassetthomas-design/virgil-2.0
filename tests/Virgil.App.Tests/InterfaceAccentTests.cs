@@ -10,7 +10,9 @@ public sealed class InterfaceAccentTests
     {
         string[] forbidden = ["MISES A JOUR", "A REVOIR MANUELLEMENT", "ETAT VIRGIL", "MEMOIRE",
             "DISQUE SYSTEME", "PRIORITES", "NON ANALYSE", "Systeme pret", "securise",
-            "MARQUER A REVOIR", "RESSOURCES SYSTEME", "AGENT TACTIQUE SYSTEME", "LIBERER", "Mises a jour"];
+            "MARQUER A REVOIR", "RESSOURCES SYSTEME", "AGENT TACTIQUE SYSTEME", "LIBERER", "Mises a jour", "SYSTEME PRET", "ETAT GLOBAL", "SELECTION DU PROTOCOLE",
+            "ACTIONS RECOMMANDEES", "HELPER ELEVE", "COMMANDE AUTORISEE", "CONFIDENTIALITE",
+            "ACTIONS PROPOSEES", "ACTIONS EXECUTEES", "ACTIONS PASSEES", "DETAILS TECHNIQUES", "NON TOUCHE"];
         var root = Path.Combine(FindRepositoryRoot(), "src", "Virgil.App");
         var sources = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(p => Path.GetExtension(p) is ".xaml" or ".resx" or ".cs")

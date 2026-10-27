@@ -186,7 +186,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                 TimeSpan.FromSeconds(120), "Le scan approfondi dépasse 120 s.");
             // Chat entries prepend "[VIRGIL]\n" to the completion message.
             await UntilAsync(() => window!.FindAllDescendants().Any(element =>
-                element.Name?.Contains("Analyse approfondie terminee.", StringComparison.Ordinal) == true),
+                element.Name?.Contains("Analyse approfondie terminée.", StringComparison.Ordinal) == true),
                 TimeSpan.FromSeconds(5), "Le scan approfondi n'a pas annoncé sa fin réussie.");
             AssertHealthy();
         }

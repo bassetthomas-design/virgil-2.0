@@ -115,7 +115,7 @@ public partial class MainWindow : Window
         WireReportsModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
-        AppendVirgilMessage("Système prêt.\nAucune analyse recente.\nEn attente d'instruction.");
+        AppendVirgilMessage("Système prêt.\nAucune analyse récente.\nEn attente d'instruction.");
     }
 
     private void OpenScanProtocol_Click(object sender, RoutedEventArgs e) => OpenScanProtocol();
@@ -338,7 +338,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
-        AppendVirgilMessage("Nettoyage sécurisé pret.\nAucune action automatique.");
+        AppendVirgilMessage("Nettoyage sécurisé prêt.\nAucune action automatique.");
         CleanupModuleView.FocusAnalyzeButton();
     }
 
@@ -776,7 +776,7 @@ public partial class MainWindow : Window
         if (report.Mode == ScanMode.Deep)
         {
             AppendVirgilMessage(
-                $"Analyse approfondie terminee.\nCPU moyen court : {report.Resources.AverageCpuPercent:0.0} %.\n" +
+                $"Analyse approfondie terminée.\nCPU moyen court : {report.Resources.AverageCpuPercent:0.0} %.\n" +
                 $"Processus lourds : {report.Resources.HeavyProcessCount}.\nAucune action executee.");
             return;
         }

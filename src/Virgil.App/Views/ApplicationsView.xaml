@@ -29,7 +29,7 @@
                     </DockPanel>
                     <TextBlock Text="{Binding Lines}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" />
                     <WrapPanel Margin="0,8,0,0">
-                        <Button Content="DETAILS" Command="{Binding DetailsCommand}" Style="{StaticResource VirgilPrimaryButton}" Margin="0,0,8,8" MinWidth="110" />
+                        <Button Content="DÉTAILS" Command="{Binding DetailsCommand}" Style="{StaticResource VirgilPrimaryButton}" Margin="0,0,8,8" MinWidth="110" />
                         <Button Content="{Binding LocationLabel}" Command="{Binding OpenLocationCommand}" Visibility="{Binding IsLocationVisible, Converter={StaticResource BoolVisibility}}" Style="{StaticResource VirgilSecondaryButton}" Margin="0,0,8,8" MinWidth="110" />
                     </WrapPanel>
                 </StackPanel>
@@ -203,7 +203,7 @@
                                                 Height="72"
                                                 AnimationDetailLevel="Compact"
                                                 IsHitTestVisible="False"
-                                                AutomationProperties.Name="Mini noyau details applications" />
+                                                AutomationProperties.Name="Mini noyau détails applications" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="VIRGIL" Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="DetailsTitleText"
@@ -221,7 +221,7 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False">
                         <StackPanel>
-                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="DÉTAILS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="DetailsBodyText" Text="{Binding DetailsBody}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
@@ -236,7 +236,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="RESTES APRES DESINSTALLATION" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="RESTES APRES DÉSINSTALLATION" Style="{StaticResource VirgilMicroLabel}" />
                             <ItemsControl x:Name="DetailsRemnantsPanel" ItemsSource="{Binding Remnants}" Margin="0,4,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:ApplicationTextCardViewModel}">
@@ -267,7 +267,7 @@
                                 Content="FERMER"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="10,0,0,0"
-                                AutomationProperties.Name="Fermer details application"
+                                AutomationProperties.Name="Fermer détails application"
                                 Command="{Binding CloseDetailsCommand}" />
                     </StackPanel>
                 </Grid>
@@ -320,7 +320,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap" />
                             <Rectangle Style="{StaticResource VirgilSeparator}" Margin="0,12,0,12" />
-                            <TextBlock Text="DETAILS" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="DÉTAILS" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ApplicationsReportDetailsText" Text="{Binding ReportDetails}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
