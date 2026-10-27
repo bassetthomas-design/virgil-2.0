@@ -5,6 +5,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Virgil.UiTests/SafeUi.cs" Link="UiSmoke/SafeUi.cs" />
+    <Compile Include="../Virgil.UiTests/SafeUiTests.cs" Link="UiSmoke/SafeUiTests.cs" />
     <ProjectReference Include="../../src/Virgil.Infrastructure/Virgil.Infrastructure.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
