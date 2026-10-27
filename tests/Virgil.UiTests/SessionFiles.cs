@@ -43,6 +43,14 @@ internal sealed class SessionFiles
         }
     }
 
+    public static string[] SnapshotReports()
+    {
+        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Virgil", "reports");
+        return !Directory.Exists(root) ? [] : Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(root, path) + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))))
+            .Order(StringComparer.Ordinal).ToArray();
+    }
+
     public void AssertQuarantineUnchanged() => Assert.Equal(quarantineBefore, SnapshotQuarantine());
 
     private string[] SnapshotQuarantine()

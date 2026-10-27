@@ -121,7 +121,7 @@ public sealed class ElevatedActionDispatcher
             if (!_securityContext.IsAdministrator || !_allowlist.IsMaintenanceAllowed(request.ActionId, request.UpdateIdentity))
                 return Result(request, startedAt, -1, InterventionStatus.Failed, "Action de mise à jour refusée.", false);
             (bool Success, bool Reboot, string Message) maintenance;
-            try { maintenance = await UpdateMaintenanceRunner.ExecuteAsync(request, _commandRunner, cancellationToken).ConfigureAwait(false); }
+            try { maintenance = await UpdateMaintenanceRunner.ExecuteAsync(request, _commandRunner, cancellationToken, progress).ConfigureAwait(false); }
             catch (OperationCanceledException)
             { return Result(request, startedAt, 0, InterventionStatus.Cancelled, "Étape terminée après annulation. Étapes suivantes non lancées.", false); }
             return Result(request, startedAt, maintenance.Success ? 0 : -1,
@@ -152,6 +152,9 @@ public sealed class ElevatedActionDispatcher
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs) + "\nParcours annulé entre deux commandes. Commandes suivantes non lancées.", false);
             commandIndex++;
             progress?.Report(new InterventionProgress { Step = command.FileName });
+            // Le canal lit .cancel à Report : revérifier avant de démarrer une commande protégée.
+            if (cancellationToken.IsCancellationRequested && !renewMustRun)
+                return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs) + "\nCommandes suivantes non lancées : annulation demandée.", false);
             var commandResult = await _commandRunner.RunAsync(command,
                 new CommandProgress(value => progress?.Report(new InterventionProgress { Step = command.FileName, Percent = value })),
                 command.NonInterruptible || renewMustRun ? CancellationToken.None : cancellationToken).ConfigureAwait(false);

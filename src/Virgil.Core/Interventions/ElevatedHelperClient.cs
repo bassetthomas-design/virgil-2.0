@@ -54,6 +54,11 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         var helperFinished = false;
         try
         {
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try { _requestStore.RequestCancel(requestFile); }
+                catch (Exception) { /* Le canal du helper refuse aussi un protocole inaccessible ou compromis. */ }
+            });
             // Keep the protocol alive until the helper has acknowledged cancellation and exited.
             using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
             var launch = _processLauncher.RunElevatedAsync(helperPath, requestFile.RequestPath, timeout.Token);

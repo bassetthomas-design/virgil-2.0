@@ -213,20 +213,25 @@ public partial class InterventionsViewModel : ObservableObject
         }
     }
 
-    private IProgress<InterventionProgress> CreateProgress() => new Progress<InterventionProgress>(item =>
+    private IProgress<InterventionProgress> CreateProgress()
     {
-        Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
-        if (Operation.IsCancelling) return;
-        Progress = item.Percent ?? 0;
-        ElapsedText = $"Temps écoulé : {item.Elapsed:hh\\:mm\\:ss}";
-        StatusText = item.Step + (item.Percent.HasValue ? $" — {item.Percent} %" : " — en cours…");
-        if (StatusText != _lastProgressMessage || DateTimeOffset.Now - _lastProgressAt >= TimeSpan.FromSeconds(10))
+        var session = _operationCancellation;
+        return new Progress<InterventionProgress>(item =>
         {
-            _lastProgressMessage = StatusText;
-            _lastProgressAt = DateTimeOffset.Now;
-            VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
-        }
-    });
+            if (!ReferenceEquals(session, _operationCancellation)) return;
+            Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
+            if (Operation.IsCancelling) return;
+            Progress = item.Percent ?? 0;
+            ElapsedText = $"Temps écoulé : {item.Elapsed:hh\\:mm\\:ss}";
+            StatusText = item.Step + (item.Percent.HasValue ? $" — {item.Percent} %" : " — en cours…");
+            if (StatusText != _lastProgressMessage || DateTimeOffset.Now - _lastProgressAt >= TimeSpan.FromSeconds(10))
+            {
+                _lastProgressMessage = StatusText;
+                _lastProgressAt = DateTimeOffset.Now;
+                VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
+            }
+        });
+    }
 
     [RelayCommand]
     private async Task AnalyzeAsync()

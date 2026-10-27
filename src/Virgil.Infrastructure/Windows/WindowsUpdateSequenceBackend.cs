@@ -24,6 +24,7 @@ public sealed class WindowsUpdateSequenceBackend(
             dynamic session = Activator.CreateInstance(Type.GetTypeFromProgID("Microsoft.Update.Session", true)!)!;
             dynamic searcher = session.CreateUpdateSearcher();
             dynamic search = searcher.Search("IsInstalled=0 and Type='Driver' and IsHidden=0");
+            cancellationToken.ThrowIfCancellationRequested();
             for (var i = 0; i < search.Updates.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -33,6 +34,7 @@ public sealed class WindowsUpdateSequenceBackend(
         }
         catch (OperationCanceledException) { throw; }
         catch { steps.Add(new("unavailable", "Recherche des pilotes indisponible ; réessayez plus tard", UpdateComponent.Driver)); }
+        cancellationToken.ThrowIfCancellationRequested();
         return steps;
     }, cancellationToken);
 

@@ -74,13 +74,16 @@ public partial class UpdatesViewModel
         try
         {
             var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview,
-                new Progress<string>(HandleProgress), _operationCancellation!.Token);
+                CreateTextProgress(), _operationCancellation!.Token);
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = scan;
             _lastItems.Clear();
             _lastItems.AddRange(scan.Items);
             RenderScanReport(scan);
+            StatusText = "Recherche Windows Update en cours — ne peut pas être interrompue";
+            Operation.Report(new Virgil.Core.Operations.OperationProgress(StatusText));
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
+            _operationCancellation.Token.ThrowIfCancellationRequested();
             SequenceChoices.Clear();
             foreach (var step in steps)
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));

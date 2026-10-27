@@ -10,8 +10,9 @@ public static class UpdateMaintenanceRunner
     public static bool ValidIdentity(InterventionId id, string identity) => id == InterventionId.InstallDriverUpdate
         ? Guid.TryParseExact(identity, "D", out _) : string.IsNullOrEmpty(identity);
 
-    public static async Task<(bool Success, bool Reboot, string Message)> ExecuteAsync(ElevatedInterventionRequest request, IElevatedCommandRunner commands, CancellationToken cancellationToken = default)
+    public static async Task<(bool Success, bool Reboot, string Message)> ExecuteAsync(ElevatedInterventionRequest request, IElevatedCommandRunner commands, CancellationToken cancellationToken = default, IProgress<InterventionProgress>? progress = null)
     {
+        progress?.Report(new InterventionProgress { Step = "Préparation de la maintenance" });
         cancellationToken.ThrowIfCancellationRequested();
         if (!ValidIdentity(request.ActionId, request.UpdateIdentity)) return (false, false, "Identité de mise à jour refusée.");
         if (request.ActionId == InterventionId.UpdateDefenderSignatures)
@@ -27,10 +28,12 @@ public static class UpdateMaintenanceRunner
             "$point=Get-ComputerRestorePoint | Where-Object { $_.Description -eq $name -and [Management.ManagementDateTimeConverter]::ToDateTime($_.CreationTime) -ge (Get-Date).AddHours(-2) -and [Management.ManagementDateTimeConverter]::ToDateTime($_.CreationTime) -le (Get-Date) }; " +
             "if (-not $point) { Checkpoint-Computer -Description $name -RestorePointType MODIFY_SETTINGS }; " +
             "$verified=Get-ComputerRestorePoint | Where-Object { $_.Description -eq $name -and [Management.ManagementDateTimeConverter]::ToDateTime($_.CreationTime) -ge (Get-Date).AddHours(-2) -and [Management.ManagementDateTimeConverter]::ToDateTime($_.CreationTime) -le (Get-Date) }; if (-not $verified) { exit 1 }";
+        progress?.Report(new InterventionProgress { Step = "Création du point de restauration" });
+        cancellationToken.ThrowIfCancellationRequested();
         var restore = await commands.RunAsync(new("WindowsPowerShell\\v1.0\\powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", restoreScript]) { NonInterruptible = true }).ConfigureAwait(false);
         if (restore.ExitCode != 0) return (false, false, "Point de restauration non vérifié. Activez la protection du système puis réessayez. Installation bloquée.");
         cancellationToken.ThrowIfCancellationRequested();
-        try { return Install(request, cancellationToken); }
+        try { return Install(request, cancellationToken, progress); }
         catch (COMException)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -40,17 +43,20 @@ public static class UpdateMaintenanceRunner
         }
     }
 
-    private static (bool Success, bool Reboot, string Message) Install(ElevatedInterventionRequest request, CancellationToken cancellationToken)
+    private static (bool Success, bool Reboot, string Message) Install(ElevatedInterventionRequest request, CancellationToken cancellationToken, IProgress<InterventionProgress>? progress)
     {
         var sessionType = Type.GetTypeFromProgID("Microsoft.Update.Session", throwOnError: true)!;
         dynamic session = Activator.CreateInstance(sessionType)!;
         dynamic searcher = session.CreateUpdateSearcher();
         var driver = request.ActionId == InterventionId.InstallDriverUpdate;
+        progress?.Report(new InterventionProgress { Step = "Recherche Windows Update — ne peut pas être interrompue" });
+        cancellationToken.ThrowIfCancellationRequested();
         dynamic search = searcher.Search(driver ? $"IsInstalled=0 and Type='Driver' and UpdateID='{request.UpdateIdentity}'" : "IsInstalled=0 and Type='Software' and IsHidden=0");
         cancellationToken.ThrowIfCancellationRequested();
         dynamic collection = Activator.CreateInstance(Type.GetTypeFromProgID("Microsoft.Update.UpdateColl", true)!)!;
         for (var i = 0; i < search.Updates.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             dynamic update = search.Updates.Item(i);
             // Exclude feature upgrades from this quality/security maintenance sequence.
             var featureUpgrade = false;
@@ -62,10 +68,14 @@ public static class UpdateMaintenanceRunner
         }
         if (collection.Count == 0) return (true, false, "Aucune mise à jour nécessaire.");
         cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new InterventionProgress { Step = "Téléchargement Windows Update — ne peut pas être interrompu" });
+        cancellationToken.ThrowIfCancellationRequested();
         dynamic downloader = session.CreateUpdateDownloader();
         downloader.Updates = collection;
         dynamic downloaded = downloader.Download();
         if ((int)downloaded.ResultCode != 2) return (false, false, "Téléchargement incomplet ; installation bloquée.");
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new InterventionProgress { Step = "Installation Windows Update — ne peut pas être interrompue" });
         cancellationToken.ThrowIfCancellationRequested();
         dynamic installer = session.CreateUpdateInstaller();
         installer.Updates = collection;

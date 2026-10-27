@@ -69,7 +69,8 @@ public sealed class ElevatedActionAllowlist
             {
                 NonInterruptible = actionId is InterventionId.SfcScan or InterventionId.DismRestoreHealth or
                     InterventionId.DismScanHealth or InterventionId.ResetWinsock or InterventionId.ResetTcpIp or
-                    InterventionId.CreateRestorePoint or InterventionId.CreateStartupRestorePoint or InterventionId.RenewIp ||
+                    InterventionId.CreateRestorePoint or InterventionId.CreateStartupRestorePoint or InterventionId.RenewIp or
+                    InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or InterventionId.FlushDns ||
                     command.Arguments.Contains("/ScanHealth")
             }).ToArray() };
             return true;

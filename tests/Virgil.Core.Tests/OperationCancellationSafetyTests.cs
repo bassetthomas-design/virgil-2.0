@@ -13,6 +13,45 @@ namespace Virgil.Tests;
 
 public sealed class OperationCancellationSafetyTests
 {
+    [Fact]
+    [Trait("Category", "Safety")]
+    [Trait("Category", "Windows")]
+    public async Task CancelObservedAtProgressBoundaryPreventsTheProtectedCommandFromStarting()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var runner = new ImmediateCommands(() => { });
+        var notifications = 0;
+        var progress = new BoundaryProgress(() => { if (++notifications == 3) cancellation.Cancel(); });
+        var result = await Dispatcher(runner).ExecuteValidatedAsync(new() { ActionId = InterventionId.VerifyHealthDeep }, progress, cancellation.Token);
+        Assert.Equal(2, runner.Calls);
+        Assert.Equal(InterventionStatus.Cancelled, result.Status);
+        Assert.Contains("non lancées", result.SummaryOutput);
+    }
+
+    [Fact]
+    [Trait("Category", "Safety")]
+    public async Task CancelAfterRestorePointPreventsWindowsUpdateSearchFromStarting()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var runner = new ImmediateCommands(cancellation.Cancel);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => UpdateMaintenanceRunner.ExecuteAsync(new()
+        {
+            ActionId = InterventionId.InstallWindowsUpdates, RestoreSessionId = Guid.NewGuid().ToString("D")
+        }, runner, cancellation.Token));
+        Assert.Equal(1, runner.Calls);
+        Assert.True(runner.Last!.NonInterruptible);
+    }
+
+    private sealed class BoundaryProgress(Action report) : IProgress<InterventionProgress>
+    { public void Report(InterventionProgress value) => report(); }
+    private sealed class ImmediateCommands(Action after) : IElevatedCommandRunner
+    {
+        public int Calls { get; private set; }
+        public ElevatedCommandSpec? Last { get; private set; }
+        public Task<ElevatedCommandResult> RunAsync(ElevatedCommandSpec command)
+        { Calls++; Last = command; after(); return Task.FromResult(new ElevatedCommandResult(0, "", "")); }
+    }
+
     [Theory]
     [Trait("Category", "Safety")]
     [InlineData(InterventionId.SfcScan)]

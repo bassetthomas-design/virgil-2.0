@@ -167,7 +167,7 @@ public partial class UpdatesViewModel : ObservableObject
             VirgilMessageRequested?.Invoke("Scan mises à jour lancé.\nAucune installation.");
 
             var report = await _scanService
-                .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
+                .ScanAsync(request, CreateTextProgress(), _operationCancellation!.Token)
                 .WaitAsync(_operationCancellation.Token).ConfigureAwait(true);
 
             _operationCancellation!.Token.ThrowIfCancellationRequested();
@@ -218,7 +218,7 @@ public partial class UpdatesViewModel : ObservableObject
             };
 
             var report = await _scanService
-                .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
+                .ScanAsync(request, CreateTextProgress(), _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
             _operationCancellation!.Token.ThrowIfCancellationRequested();
@@ -428,6 +428,12 @@ public partial class UpdatesViewModel : ObservableObject
         IsReportButtonEnabled = !_operationInProgress && HasAnyReport();
         IsInstallDriversVisible = _lastScanReport?.Drivers.CanInstallDrivers == true;
         IsInstallDriversEnabled = !_operationInProgress && IsInstallDriversVisible;
+    }
+
+    private IProgress<string> CreateTextProgress()
+    {
+        var session = _operationCancellation;
+        return new Progress<string>(message => { if (ReferenceEquals(session, _operationCancellation)) HandleProgress(message); });
     }
 
     private void HandleProgress(string message)

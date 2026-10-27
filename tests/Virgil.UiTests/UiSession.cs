@@ -177,6 +177,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         {
             await ui!.Click("ScanNavButton");
             await WaitVisibleAsync("DeepScanButton");
+            var reportsBeforeCancelledScan = SessionFiles.SnapshotReports();
             await ui.Click("DeepScanButton");
             await UntilAsync(() => Visible("ScanCancelButton"), TimeSpan.FromSeconds(10), "Panneau de progression absent.");
             Assert.True(Find("ScanCancelButton")!.IsEnabled);
@@ -186,6 +187,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             await UntilAsync(() => Find("HomeNavButton")!.IsEnabled && window!.FindAllDescendants().Any(element =>
                 element.Name?.Contains("Analyse annulée", StringComparison.Ordinal) == true),
                 TimeSpan.FromSeconds(1), "Annuler ne rend pas la main en une seconde.");
+            Assert.Equal(reportsBeforeCancelledScan, SessionFiles.SnapshotReports());
             await ui.Click("ScanNavButton");
             await WaitVisibleAsync("DeepScanButton");
             await ui.Click("DeepScanButton");

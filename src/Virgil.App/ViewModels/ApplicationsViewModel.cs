@@ -188,8 +188,10 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             RequestVirgilState(VirgilCoreState.Scanning, "APPLICATIONS");
             VirgilMessageRequested?.Invoke("Inventaire applications lance.\nLecture seule.\nAucune desinstallation.");
+            var session = _operationCancellation;
             var progress = new Progress<ApplicationInventoryProgress>(item =>
             {
+                if (!ReferenceEquals(session, _operationCancellation)) return;
                 Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
                 if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
@@ -285,8 +287,10 @@ public partial class ApplicationsViewModel : ObservableObject
         try
         {
             RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
+            var session = _operationCancellation;
             var progress = new Progress<ApplicationUninstallProgress>(item =>
             {
+                if (!ReferenceEquals(session, _operationCancellation)) return;
                 Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
                 if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
@@ -410,8 +414,10 @@ public partial class ApplicationsViewModel : ObservableObject
         try
         {
             _skipNext = false;
+            var session = _operationCancellation;
             var progress = new Progress<ApplicationUninstallProgress>(item =>
             {
+                if (!ReferenceEquals(session, _operationCancellation)) return;
                 Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
                 if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
