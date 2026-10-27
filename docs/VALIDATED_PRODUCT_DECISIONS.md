@@ -318,27 +318,11 @@ Décisions principales :
 
 ## 11. Ton de Virgil
 
-Virgil parle en texte court, tactique et clair.
+**Cible L11 :** sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord.
 
-Exemples :
+**État à 4af1cce :** ton actuel tactique et neutre ; catalogue et réglage en L11.
 
-```text
-[VIRGIL]
-Scan complet terminé.
-3 priorités détectées.
-```
-
-```text
-[VIRGIL]
-Action sensible détectée.
-Validation requise.
-```
-
-```text
-[VIRGIL]
-Étape passée.
-Passage à l'action suivante.
-```
+Définition de référence : [CHATBOX_MODULE](modules/CHATBOX_MODULE.md#style-de-communication). Capacités actuelles : [ACTIONS](ACTIONS.md).
 
 ## 12. Prochaine étape de conception
 

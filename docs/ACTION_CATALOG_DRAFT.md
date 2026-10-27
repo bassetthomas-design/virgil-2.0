@@ -1,5 +1,7 @@
 > Specifications validees : voir [ACTIONS.md](ACTIONS.md)
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 # Virgil 2.0 - Catalogue des actions ciblées
 
 ## Principe général

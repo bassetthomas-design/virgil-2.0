@@ -1,97 +1,50 @@
 # Virgil 2.0
 
-**Statut :** phase 0 en cours — documentation 0a fusionnée (PR #27), corrections 0a.1 ; refonte et installateur alpha à réaliser. Voir [PROJECT_STATUS](docs/PROJECT_STATUS.md).
+**Statut :** préversion Windows `v2.0.0-alpha.4` publiée ; dernier lot fusionné : L4b-5 (#66), après REL-1 (#65), base documentaire `main` à `4af1cce`.
 
-**Virgil 2.0** est un nouveau projet créé de zéro : un assistant PC Windows local orienté diagnostic, surveillance, maintenance encadrée et interface tactique sombre/orange.
+Virgil est un assistant PC Windows local : diagnostic ponctuel, maintenance après confirmation et interface WPF sombre/orange. La réécriture propre remplace l'import de Virgil v1.
 
-## Décision de travail
+## Installer l'alpha
 
-Le projet se travaille uniquement sur **GitHub**.
+Télécharger l'installateur et son SHA-256 depuis la [release alpha.4](https://github.com/bassetthomas-design/virgil-2.0/releases/tag/v2.0.0-alpha.4). Publication .NET 8 self-contained Windows x64 : aucun SDK requis pour l'utilisateur. L'installateur Inno Setup distribue aussi le helper élevé. Cette alpha est non signée ; le hash ne remplace pas une signature d'éditeur.
 
-Aucun développement local n'est requis pour avancer :
+## Les onze écrans de navigation
 
-- les fichiers sont créés et modifiés par commits GitHub ;
-- la compilation se fait avec GitHub Actions ;
-- les artefacts testables sont générés par GitHub Actions ;
-- l'objectif final est un installateur Windows téléchargeable depuis une release GitHub.
+« Livré » décrit le périmètre indiqué, sans attester toutes les ambitions du module. Les preuves et limites sont dans [ACTIONS](docs/ACTIONS.md) et [ARCHITECTURE](docs/ARCHITECTURE.md).
 
-Virgil v1 reste une référence d'idée, mais Virgil 2.0 repart sur une base neuve.
+| Écran | Capacité actuelle | État |
+| --- | --- | --- |
+| Accueil | Tuiles issues des dernières mesures, accès au dernier rapport | livré |
+| Scan | Scan rapide ou analyse approfondie, en lecture seule | livré |
+| Nettoyage | Trois groupes, aperçu, sélection, confirmation, quarantaine et récapitulatif | livré |
+| Diagnostic | Instantané CPU/RAM/disques/réseau/GPU/processus, note partielle et top 3 ; mesure à l'entrée puis sur Actualiser | partiel |
+| Ressources | Écran séparé CPU/RAM et actions processus confirmées ; fusion prévue en L7, écran encore présent | partiel |
+| Applications | Inventaire, recherche, désinstallation officielle individuelle ou multiple confirmée | livré |
+| Mises à jour | WinGet et séquence Windows/Defender/pilotes ; limites des lanceurs ci-dessous | partiel |
+| Démarrage | Inventaire ; activation, désactivation et restauration des autorisations reconnues, avec sauvegarde et confirmation | partiel |
+| Réseau | État réseau et lien vers Réparation | livré |
+| Réparation | Vérifier / Scanner et réparer ; commandes limitées par l'allowlist | partiel |
+| Rapports | Historique local, détail et export texte | livré |
 
-## Objectif final
+La vue `VirgilReleaseView` permet aussi de vérifier les versions GitHub et d'ouvrir leur page. Elle n'est pas un douzième bouton de navigation.
 
-L'utilisateur final doit pouvoir :
+## Limites actuelles
 
-1. télécharger un installateur ;
-2. installer Virgil ;
-3. lancer l'application ;
-4. analyser son PC ;
-5. valider les actions proposées.
+- La température CPU est indisponible dans la source Windows actuelle. Les données non exposées sont affichées comme indisponibles. Capteurs : cible L9 ; aucun monitoring continu livré.
+- L'inventaire des pilotes fixe `CanInstallDrivers = false` : le bouton d'installation dédié ne s'affiche jamais. L'installation passe par « Tout mettre à jour ». Les pilotes y sont actuellement décochés par défaut ; la décision produit du 26/10 prévoit de les cocher par défaut et de retirer le code mort en L6+.
+- Steam, Epic Games et Ubisoft Connect sont des consignes : chaque étape est comptée réussie sans mise à jour effective. Aucun scan de mises à jour Microsoft Store. Correction et couverture : cible L6.
+- Communication : messages `[VIRGIL]` à sens unique, sans saisie de chat. Ton actuel tactique et neutre ; catalogue et réglage : cible L11.
+- Impact du démarrage, temps avant/après et budget CPU en usage Windows : non mesuré.
 
-Aucun add-on manuel. Aucun SDK à installer. Aucun bricolage. Le minimum syndical pour ne pas transformer l'utilisateur en technicien malgré lui.
+## Sécurité et références
 
-## Identité
+Les actions à effet utilisent un aperçu et un `ConfirmedPlan`. Le nettoyage conserve ses gardes et sa quarantaine ; les changements système concernés exigent un point de restauration vérifié. Les processus protégés ne sont pas proposés à la fermeture.
 
-Virgil 2.0 vise une ambiance originale :
+- [Statut et livraisons](docs/PROJECT_STATUS.md) : source unique du suivi ; prochain lot L5.
+- [Spécification des actions](docs/ACTIONS.md) : livré, limites et cibles par lot.
+- [Architecture](docs/ARCHITECTURE.md) : code, protections et tests UI.
+- [Roadmap](docs/ROADMAP.md) : ordre des cibles.
+- [Ton et communication](docs/modules/CHATBOX_MODULE.md).
+- [Règles de contribution](AGENTS.md).
 
-- HUD sombre ;
-- accent orange / ambre ;
-- notifications système brèves ;
-- diagnostic local ;
-- actions validées par l'utilisateur ;
-- aucune copie d'asset, son, nom ou élément propriétaire issu d'une licence tierce.
-
-## Base technique
-
-- .NET 8
-- WPF
-- Windows x64
-- Publication self-contained
-- Build GitHub Actions
-- Artefact installable à terme
-
-## Modules cibles
-
-| Module | But |
-| --- | --- |
-| Monitoring | CPU, RAM, disque, réseau, température si disponible |
-| Ressources système | Observation CPU/RAM courte, processus lourds, actions processus confirmées, rapport |
-| Nettoyage | Prévisualisation avant action |
-| Démarrage | Analyse des applications lancées avec Windows |
-| Pilotes | Scan puis bouton d'installation si résultat |
-| Applications | Vérification et mise à jour encadrée |
-| Assistant | Notifications internes et recommandations lisibles |
-| HUD | Interface orange/noir avec état système |
-
-## Principe de sécurité
-
-Virgil fonctionne en trois niveaux :
-
-1. **Observation** : lire l'état du PC sans rien modifier.
-2. **Recommandation** : proposer une action claire.
-3. **Action validée** : agir uniquement après validation.
-
-Le module Ressources applique en plus une confirmation renforcée avant toute fermeture forcée. Les processus Windows, sécurité, VPN et matériel identifiés comme sensibles ne sont jamais proposés à la fermeture. La libération de mémoire inactive reste informative en V1 : aucun « boost RAM » n'est simulé.
-
-## Documentation
-
-- [PROJECT_STATUS — statut de référence](docs/PROJECT_STATUS.md)
-- [AGENTS.md — règles de contribution](AGENTS.md)
-- `docs/CLEAN_REWRITE_DECISION.md`
-- `docs/GITHUB_ONLY_WORKFLOW.md`
-- [Architecture : existant et cible](docs/ARCHITECTURE.md)
-- [ROADMAP — phases et critères de sortie](docs/ROADMAP.md)
-- `docs/UI_DIRECTION.md`
-
-## Statut
-
-La [ROADMAP](docs/ROADMAP.md) fixe l’ordre des travaux :
-
-- Phase 0 : fondations, lots 0a/0a.1 puis 0b à 0g, une PR chacun.
-- Phase 1 : Diagnostic + Nettoyage.
-- Phase 2 : installateur Inno Setup et release v2.0.0-alpha.
-- Phase 3 : Mises à jour, Applications, Démarrage, Réparations.
-- Phase 4 : monitoring continu.
-- Phase 5 : agent barre des tâches.
-- Phase 6 : personnalité.
-
-Le [statut détaillé](docs/PROJECT_STATUS.md) distingue les capacités existantes de la cible ; la documentation ne vaut pas validation de leur implémentation.
+La CI GitHub Actions Windows est la référence de build et de distribution. La présence de cette documentation ne constitue pas une attestation de réussite d'un run.

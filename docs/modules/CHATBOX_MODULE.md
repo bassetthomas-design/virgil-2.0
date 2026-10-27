@@ -1,5 +1,7 @@
 # Module Chatbox - Virgil 2.0
 
+> À `4af1cce` : messages à sens unique, sans saisie utilisateur (`MainWindow.xaml.cs`). Les parcours et exemples ci-dessous sont une **cible L11**, pas un inventaire des boutons livrés. Capacités actuelles : [ACTIONS](../ACTIONS.md).
+
 ## Décision validée
 
 La chatbox de Virgil est un canal de communication textuel guidé.
@@ -8,7 +10,7 @@ En V1, l'utilisateur ne saisit pas de texte. Virgil parle uniquement dans la cha
 
 Aucune IA locale n'est intégrée en V1.
 
-## Objectif
+## Objectif cible L11
 
 Permettre à Virgil de guider l'utilisateur avec des messages courts, tactiques et clairs.
 
@@ -55,18 +57,11 @@ Une IA locale pourra être étudiée plus tard, uniquement comme couche d'explic
 
 ## Style de communication
 
-Virgil communique comme un agent système tactique :
+**Cible L11 :** sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord.
 
-- court ;
-- froid ;
-- précis ;
-- clair ;
-- opérationnel ;
-- non bavard ;
-- non émotionnel ;
-- jamais infantilisant.
+**État à 4af1cce :** ton actuel tactique et neutre ; catalogue et réglage en L11.
 
-Virgil doit donner une impression proche d'un système tactique orange/noir, sans copier une licence existante.
+Cette section est la définition de référence du ton. ACTIONS et les documents produit y renvoient. Les messages actuels passent par `MainWindow.xaml.cs` et les événements `VirgilMessageRequested`.
 
 ## Vocabulaire autorisé
 
@@ -105,7 +100,7 @@ Analyse terminée.
 3 priorités détectées.
 ```
 
-## Messages types
+## Messages types — exemples de cible L11, données fictives
 
 ### Lancement d'analyse
 
@@ -202,7 +197,7 @@ Boutons standards :
 [RETOUR]
 ```
 
-## Exemple après scan complet
+## Exemple cible L11 après scan complet — données fictives
 
 ```text
 [VIRGIL]
@@ -226,7 +221,7 @@ Boutons :
 [VOIR RAPPORT]
 ```
 
-## Exemple nettoyage étape par étape
+## Exemple cible L11 nettoyage — données fictives
 
 ```text
 [VIRGIL]
@@ -255,7 +250,7 @@ Boutons :
 [ANNULER TOUT]
 ```
 
-## Exemple mise à jour sensible
+## Exemple cible L11 de mise à jour sensible
 
 ```text
 [VIRGIL]
@@ -276,7 +271,7 @@ Boutons :
 [ANNULER TOUT]
 ```
 
-## Lien avec le noyau lumineux
+## Lien cible L11 avec le noyau lumineux
 
 Quand Virgil parle dans la chatbox, le noyau lumineux réagit selon l'état.
 
@@ -321,7 +316,7 @@ Virgil ne doit pas :
 - afficher des logs bruts par défaut ;
 - copier directement le style, les phrases ou l'identité d'une licence existante.
 
-## Version 1
+## Périmètre cible L11 (ancienne Version 1)
 
 À inclure en V1 :
 
@@ -335,7 +330,7 @@ Virgil ne doit pas :
 - rapport court ;
 - interaction avec le noyau lumineux.
 
-## Version 2
+## Extensions cibles après L11 (ancienne Version 2, sous-lot non fixé)
 
 À prévoir en V2 :
 
@@ -345,7 +340,7 @@ Virgil ne doit pas :
 - meilleure personnalisation du ton ;
 - messages plus contextuels selon les modules.
 
-## Version 3 éventuelle
+## Étude éventuelle après L11 (ancienne Version 3, non planifiée)
 
 À étudier plus tard :
 

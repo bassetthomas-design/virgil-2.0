@@ -1,121 +1,80 @@
-# Virgil 2.0 — État du projet
+# Virgil 2.0 — Situation après L4b-5 / REL-1
 
-Les spécifications validées des actions et leur rattachement aux phases sont décrits dans [ACTIONS.md](ACTIONS.md) ; elles décrivent la cible produit.
+Source unique du statut. Référence : `main` à `4af1cce`, le 27 octobre 2026. Les capacités et leurs limites sont spécifiées dans [ACTIONS.md](ACTIONS.md), l'implémentation dans [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Situation après le lot 0g
+## Distribution
 
-La solution comporte App (WPF, animation dans App/Animation), Core, Contracts, Infrastructure, ElevatedHelper et les projets xUnit Virgil.Core.Tests et Virgil.App.Tests (0g livré, PR #48). Le dépôt contient déjà diagnostic, nettoyage, mises à jour, applications, interventions, ressources/monitoring et rapports. Leur présence ne signifie pas qu’ils respectent le nouveau contrat ou que la refonte est achevée. Les dépendances et limites réelles sont décrites dans [ARCHITECTURE.md](ARCHITECTURE.md).
-
-La CI `.github/workflows/build.yml` sur Windows restaure, compile, teste et publie un artefact self-contained win-x64. La réussite d’un build se constate uniquement dans GitHub Actions ; ce document ne constitue pas une attestation de CI verte. Installateur Inno Setup et workflow de release livrés en 2a (validation Windows suivie dans la PR).
-
-## Livraison documentaire 0a
-
-- Suppression du workflow invalide de payload de confirmation Applications, dont le travail a été livré par les PR #24 à #26.
-- Suppression du workflow désactivé et du script d’initialisation devenus obsolètes selon la décision de reconstruction propre.
-- Architecture réécrite : inventaire réel, cible, contrats, confirmation liée au hash d’aperçu et filets de sécurité.
-- Roadmap remplacée par les phases 0 à 6 et leurs critères de sortie ; règles agents ajoutées à la racine.
-- Aucun code C#, projet ou comportement applicatif modifié par ce lot. La phase 0 complète reste à réaliser ; la cible n’est pas implémentée par la documentation.
-
-## Corrections documentaires 0a.1
-
-Périmètre des points de restauration précisé, critères de distribution alpha complétés, phase 0 découpée en sous-lots ordonnés, inventaire actuel et règles agents corrigés. Les deux anciens documents de décisions/roadmap sont marqués historiques et le README renvoie aux références actuelles. Aucun changement C#, csproj ou workflow ; ces corrections ne livrent pas la cible.
-
-## Suivi des phases
-
-| Phase | État | Condition de clôture |
+| Tag publié | Date de publication | État |
 | --- | --- | --- |
-| 0 — Fondations | 0a fusionné (PR #27), corrections 0a.1 ; 0b livré (PR #29) ; 0c livré (PR #30, #31) ; 0d-1 livré (PR #32) ; 0d-2 livré (PR #33) ; 0d-3 livré (PR #34) ; 0d-4 livré (PR #36) ; 0d-5 livré (PR #37) ; 0d-6 livré (PR #38) ; 0d-7 livré (PR #39) ; 0d-8 livré (PR #40) ; 0d-9 livré (PR #41) ; lot 0d terminé ; 0e-1 livré (PR #42) ; 0e-2 livré (PR #43) : correspondances RiskLevel, purge et pilote Applications ; 0e-3 livré (PR #44) : porte Ressources et Mises à jour ; 0e-4 livré (PR #45) : porte Interventions et Nettoyage ; lot 0e terminé ; 0f livré (PR #47) ; 0g livré (PR #48), sous-lots 0a–0g livrés ; 0f-bis livré (PR #49) : code OS hors de Contracts ; phase 0 non clôturée, dette OS Core existante à migrer vers Infrastructure | Tous les critères de phase 0, y compris séparation des couches, DI et validation du contrat, satisfaits. |
-| 1 — Diagnostic + Nettoyage | 1a livré (PR #50) : contrat commun et Nettoyage branché ; 1b livré (PR #51) ; 1c livré (PR #52) ; 1d livré (PR #53), 1e livré (PR #54), Phase 1 terminée, CI Windows verte (1 010 tests) | Parcours scan/aperçu/ConfirmedPlan/résultat et restauration testés. |
-| 2 — Installateur Inno Setup + v2.0.0-alpha | 2a et 2b livrés ; tests manuels Windows et tag restent à réaliser | Installation Windows vérifiée et release alpha publiée. |
-| 3 — Mises à jour, Applications, Démarrage, Réparations | Capacités partielles existantes ; migration et compléments à réaliser | Contrat commun, sauvegarde du démarrage et protections validés. |
-| 4 — Monitoring continu | Services existants ; stabilisation à réaliser | Observation continue maîtrisée et budget de ressources validé. |
-| 5 — Agent barre des tâches | À réaliser | Tray opérationnel, n’agissant jamais seul. |
-| 6 — Personnalité | Contrôle animé existant ; parcours complet à réaliser | Avatar, messages `[VIRGIL]` et intentions du chat passant par ConfirmationService validés. |
+| `v2.0.0-alpha` | 21 octobre 2026 | préversion publiée |
+| `v2.0.0-alpha.2` | 26 octobre 2026 | préversion publiée |
+| `v2.0.0-alpha.3` | 27 octobre 2026 | préversion publiée |
+| `v2.0.0-alpha.4` | 27 octobre 2026 | dernière préversion de cette base |
 
-Les critères de sortie détaillés, y compris la CI Windows pour chaque phase, figurent dans [ROADMAP.md](ROADMAP.md). Ne clôturer aucune phase sur la seule présence d’un fichier ou d’un écran.
+Les releases GitHub fournissent un installateur x64 et son SHA-256. La publication ne prouve pas une validation manuelle complète sur un vrai PC Windows. Les scénarios manuels sans SDK, compte standard, élévation, mise à jour multi-session et désinstallation ne sont pas attestés ici. Performances en usage réel : non mesuré.
 
-## Correctifs P1 post-0e
+## Phases
 
-Les deux P1 sont livres (PR #46) : execution WinGet epinglee sur la version confirmee avec refus si elle manque ou est invalide ; sonde et ouverture des emplacements Applications via le port Core IInstallationLocationService, implemente dans Infrastructure et injecte par Hosting. Textes UI existants inchanges. 0f livré (PR #47) ; 0g livré (PR #48). La Phase 1 reste hors périmètre de ces correctifs ; 0f-bis livré (PR #49).
+| Phase historique | État à cette base | Suite |
+| --- | --- | --- |
+| 0 — Fondations | Lots 0a–0g et 0f-bis livrés ; dette d'accès OS encore présente dans Core | Séparation cible décrite dans ARCHITECTURE ; pas de clôture totale revendiquée |
+| 1 — Diagnostic et Nettoyage | Lots 1a–1e livrés (#50–#54) | Limites des capteurs et cadence ponctuelle conservées |
+| 2 — Distribution alpha | 2a/2b livrés (#55/#56) ; quatre tags publiés | Essais manuels non attestés, signature hors de cette livraison |
+| 3 — Maintenance | 3a–3d livrés (#57–#60), périmètre décrit ci-dessous | Complétude des mises à jour : cible L6 ; Démarrage : cible L12 ; Réparation : cible L12b |
+| 4 — Monitoring continu | Non livré ; Diagnostic ponctuel | Fusion Ressources : cible L7 ; capteurs : cible L9 ; suivi continu à planifier |
+| 5 — Agent / tray | Non livré ; aucun projet Agent/Tray | Cible reportée, sous-lot non fixé dans le cadrage L4c |
+| 6 — Personnalité | Messages tactiques neutres ; aucun réglage de ton | Catalogue et réglage : cible L11 |
+
+## Socle livré avant les correctifs alpha
+
+0a–0g (#27–#48), correctifs P1 (#46) et 0f-bis (#49) : reconstruction, couches et composition DI, MVVM, contrats de confirmation et séparation Core.Tests/App.Tests. La présence d'accès OS dans Core reste une limite explicite.
+
+1a (#50) : contrat commun et Nettoyage ; 1b (#51) : quarantaine/restauration ; 1c (#52) : trois groupes et restes ; 1d (#53) : Diagnostic en lecture seule ; 1e (#54) : note, top 3 et propositions confirmées. La cadence a ensuite été modifiée en 3d.
+
+2a (#55) : Inno Setup, helper publié et distribution par tag ; 2b (#56) : vérification des versions GitHub, ouverture de page sans installation automatique.
+
+## Lot 3a — PR #58
+
+Livré : exclusions des logiciels installés, regroupement des résultats de Nettoyage, virtualisation et progression/annulation avec `LongOperationViewModel` et `OperationProgressPanel`.
+
+## Lot 3b — PR #59
+
+Livré : scan WinGet renforcé et séquence « Tout mettre à jour », aperçu lié à la sélection, exécution séquentielle, rapport et redémarrage manuel. Les consignes des lanceurs sont comptées réussies sans action réelle ; le Store n'est pas scanné pour ses mises à jour. Cible L6.
+
+## Lot 3c — PR #57
+
+Livré : modes Vérifier / Scanner et réparer, suivi du helper, protection par restauration ; inventaire Applications et désinstallation multiple confirmée. La liste exacte des commandes reste celle de l'allowlist.
+
+## Lot 3d — PR #60
+
+Livré : Diagnostic à l'entrée puis sur Actualiser, tuiles de dernières mesures, en-tête et accès Scan, écran Réseau et modification/restauration des autorisations Démarrage reconnues. Aucun monitoring continu.
+
+## L4b-1 — PR #61
+
+Livré : smoke UI FlaUI sur l'exécutable publié, navigation des onze écrans et garde de lecture seule `SafeUi`.
+
+## L4b-2 — PR #62
+
+Livré : lisibilité du Nettoyage et inventaire de faux PC en lecture seule pour vérifier les exclusions des restes.
+
+## L4b-3 — PR #63
+
+Livré : sélection globale et par catégorie, nature/risque par ligne et phrase de confirmation liée à l'aperçu ; exclusions personnelles conservées.
+
+## L4b-4 — PR #64
+
+Livré : vérification de la latence après Idle, accents et contraste des onze vues. Ce test automatisé ne mesure pas le budget CPU en usage réel.
+
+## REL-1 — PR #65
+
+Livré : exclusion `Category!=UI` dans le workflow de release ; les tests UI restent exécutés par `build.yml` sur Windows.
+
+## L4b-5 — PR #66
+
+Livré : accents des messages Communication, récapitulatif Nettoyage corrigé et contrôle des treize PNG attendus dans l'artefact smoke, dont la capture du bureau.
 
 ## Prochain travail
 
-0g livré (PR #48) : `Virgil.Core.Tests` et `Virgil.App.Tests`, 746 cas existants conservés et deux tests d’architecture ajoutés (476 + 272 = 748 cas sur main, CI Windows verte, 0 warning). 0f-bis livré (PR #49) : le code OS est sorti de Contracts conformément à la cible d’[ARCHITECTURE.md](ARCHITECTURE.md). La phase 0 n’est pas encore close : la dette OS existante dans Core reste à migrer vers Infrastructure. Préserver les gardes existants ; aucune fonctionnalité de Phase 1 n’est livrée par ces lots.
+**L5** : harmonisation des opérations longues et textes UI restants selon le cadrage produit, dont L5-2 pour les libellés. Puis cibles de [ROADMAP.md](ROADMAP.md). `loops/plan-lots.md`, cité dans le cadrage, est absent du dépôt à `4af1cce` ; aucun découpage supplémentaire n'est inventé ici.
 
-## Livraison 0f-bis (PR #49)
-
-0f-bis livré (PR #49) : gardes de chemins purs et inspections injectées dans Contracts ; inspection disque, création des dossiers, ACL et fichiers du protocole client dans Infrastructure.Windows derrière les ports Core injectés par Hosting, validation disque/ACL interne au helper limité à Contracts. Cas de sécurité du protocole partagés entre les deux validations, garde d’architecture des références de Contracts et synchronisation native du test de mutex abandonné. Aucun changement de protocole, d’allowlist ou de comportement applicatif ; Phase 1 hors périmètre.
-
-Le correctif P1 de la même PR #49 retire les adaptateurs OS client de Core : `ElevatedProtocolRoot`, `ElevatedDiskInspector` et les accès aux fichiers du protocole sont dans Infrastructure.Windows ; Core conserve les ports et la logique du magasin. La dette de placement Core est levée pour ce point ; les autres accès OS legacy restent hors lot. Les tests partagés client/helper et le correctif du mutex sont conservés.
-
-
-## Livraison 1a (PR #50)
-
-1a livré (PR #50) : `Findings` en lecture seule dans Contracts/Actions ; `IMaintenanceModule` et `IMaintenanceAction` dans Core/Actions, avec annulation et `ConfirmedPlan`. Nettoyage utilise le module et les actions injectés ; zones, tailles, textes français, confirmations et effets existants sont conservés, sans XAML. Les accès disque du service d’exécution modifié sont derrière `ICleanupDisk` dans Infrastructure.Windows ; gardes et porte à usage unique conservés.
-
-Tests ajoutés pour les refus sans effet fichier/corbeille, le scan sans suppression, l’aperçu déterministe, l’équivalence du parcours en bac à sable, l’architecture et la DI validée. Aucun test existant supprimé ou affaibli. Référence main confirmée dans les logs Windows : 786 tests (Core.Tests 513 + App.Tests 273). La CI Windows du code 1a (run 161, PR #50) passe 803 tests (Core.Tests 529 + App.Tests 274), soit 17 nouveaux, avec 0 échec, 0 ignoré et 0 warning. La cible de publication vérifie explicitement la présence de `Virgil.ElevatedHelper.exe` ; sa validation sur le dernier commit est suivie dans la PR. Le SDK dotnet est absent de l’environnement de travail ; aucune validation locale de build revendiquée.
-
-Suite de Phase 1 : 1b quarantaine de 7 jours réglable avec restauration vérifiée ; 1c trois groupes et restes de logiciels avec garde-fous dossiers personnels ; 1d Diagnostic détaillé en lecture seule ; 1e note, top 3 et actions proposées après validation avec fermeture de processus protégée. Ces capacités ne sont pas livrées par 1a.
-
-
-### Correctifs de revue 1a — PR #50
-
-Les actions liées au scan sont obtenues par `IMaintenanceModule.GetActions(Findings)`, également utilisé par le VM ; aucune action inerte n’est exposée en DI. Le service d’exécution transmet une raison de refus distincte des erreurs opérationnelles : une annulation après erreur n’est pas un refus avant effet. Les zones de `CleanupFindings` sont copiées en profondeur, avec leurs candidats et listes de règles.
-
-Trois tests de régression sont ajoutés sans retirer de cas existant : exécution via les seuls contrats après scan, mutation des listes source sans modification des Findings, annulation après erreur sans WasRefused. Le lot comporte désormais 806 cas (Core.Tests 532 + App.Tests 274), soit 786 + 20 nouveaux ; résultat Windows du dernier commit et logs par projet suivis dans la PR #50. Les dix cas de refus fichier/corbeille restent obligatoires, sans appel disque. SDK dotnet toujours absent localement.
-
-
-## Livraison 1b — PR #51
-
-1b livré : quarantaine de Nettoyage, port Core IQuarantineStore et stockage Windows injecté, manifeste JSON atomique complet, durée 7 jours réglable (1–30) figée dans l'aperçu, restauration vérifiée taille/SHA-256 sans écrasement, purge manuelle distincte avec ConfirmedPlan Sensitive et expiration UTC avec horloge testable qui propose une purge confirmée, sans aucun effacement silencieux. Section Quarantaine dans la vue existante, sans changement des autres modules ni du helper. Les zones Sûr passent également par la quarantaine. Aucun espace libéré annoncé pour les fichiers déplacés.
-
-Le SDK dotnet est absent localement ; aucun build local validé. Référence main : 806 tests (Core.Tests 532 + App.Tests 274). La [CI Windows du code 1b, run 167](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39478190910) valide 843 tests : Core.Tests 564 (532 + 32 nouveaux) et App.Tests 279 (274 + 5 nouveaux), soit 806 + 37. Logs par projet : 0 échec, 0 ignoré ; build : 0 warning. Le log de publication confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l’artefact win-x64 est publié. Ce constat concerne le commit de code de52be7 ; la dernière mise à jour documentaire est suivie par la CI de la PR #51. Phase 1 non clôturée : 1c–1e restent à réaliser.
-
-
-### Correctif P1 — expiration confirmée (PR #51)
-
-Le consentement au nettoyage ne vaut plus consentement à un effacement ultérieur. L'ouverture de la vue, le scan et la fin d'un nettoyage ne purgent rien. L'échéance produit uniquement une proposition liée aux éléments expirés, avec nombre et taille, overlay existant et ConfirmedPlan Sensitive à usage unique. Aucun effacement sans TryConsume ; aucune fenêtre ni notification automatique. Textes et hash d'aperçu adaptés ; accents de « Suppression définitive après confirmation » corrigés. Les tests de l'horloge sont conservés et renforcés, avec refus sans effet et parcours UI/scan/nettoyage sans purge. Les chiffres de CI 843 ci-dessus décrivent la version antérieure au correctif ; la CI Windows du correctif est suivie dans la PR #51. SDK dotnet toujours absent localement.
-
-
-## Livraison 1c (PR #52)
-
-Trois groupes et restes de logiciels désinstallés livrés : ports de lecture Windows, analyse pure, exclusions des programmes installés/actifs/protégés, téléchargements ciblés, garde-fous personnels et sélection individuelle Critical, aperçu global et ConfirmedPlan unique. Registre en lecture seule ; fichiers via quarantaine de 1b. Tests existants conservés et adaptés au parcours récapitulatif ; tests nouveaux de politiques, seuils, sélection et refus sans effet. SDK dotnet absent localement : la CI Windows reste la référence. Base main : 850 tests (Core.Tests 569 + App.Tests 281). La [CI Windows du code final 1c, run 176](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39496186080) valide 915 tests : Core.Tests 625 (569 + 56 nouveaux) et App.Tests 290 (281 + 9 nouveaux), soit 850 + 65 nouveaux ; 0 échec, 0 ignoré, build à 0 warning. Le log confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l’artefact win-x64 est publié. Ce constat concerne le commit de code 77e1fdb ; la dernière mise à jour est documentaire uniquement, avec sa CI suivie dans la PR #52.
-
-
-## Livraison 1d — Diagnostic en lecture seule (PR #53)
-
-Contrats de mesures disponibles/indisponibles, port de lecture Windows, sampler pur et horloge injectée, module sans actions, catalogue français, vue détaillée et tableau triable, rafraîchissement limité à la visibilité et annulé à la réduction. Aucun helper, service de fond, écriture, historique ou fermeture de processus. Ressources et les protections existantes conservées. Objectif <1 % CPU moyen pendant l'affichage, mesure Windows restant à effectuer.
-
-SDK dotnet absent localement ; aucun build local revendiqué. La [CI Windows du code final 1d, run 180](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39515664167), commit cf2f29e, valide 953 tests : Core.Tests 655 (625 + 30 nouveaux), App.Tests 298 (290 + 8 nouveaux), soit 915 + 38 nouveaux ; 0 échec, 0 ignoré, build à 0 warning et 0 erreur. Le log confirme « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et l'artefact win-x64 est publié. La mise à jour suivante est documentaire uniquement ; sa CI reste suivie dans la PR #53.
-
-
-### Correctif P2 — ordre des cœurs PDH (PR #53)
-
-`ProcessorInstanceOrdering` analyse les identités groupe/index et trie numériquement par groupe puis index ; les totaux machine et de groupe sont exclus. Une instance invalide ou une identité numérique dupliquée rend la charge par cœur indisponible avec raison française, sans libellé de cœur deviné. Les compteurs conservent leur identité entre deux mesures. Cinq tests ajoutés : ordre numérique, totaux exclus, instances invalides, doublons et affichage sans numéro inventé. Aucun autre périmètre modifié ni test supprimé ou affaibli.
-
-La [CI Windows du correctif, run 182](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39547143412), commit 7362e80, valide 958 tests : Core.Tests 659 (655 + 4 nouveaux), App.Tests 299 (298 + 1 nouveau), soit 953 + 5 nouveaux, ou 915 + 43 depuis main. Logs par projet : 0 échec, 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » et artefact win-x64 publié. SDK dotnet toujours absent localement. Le commit suivant est documentaire uniquement ; dernière CI suivie dans la PR #53.
-
-
-## Livraison 1e — analyse Diagnostic
-
-Implémentation du lot 1e livrée : signaux Windows en lecture seule, analyse pure, note déterministe partielle, top 3, constats et actions proposées après validation. Fermetures protégées via le port existant, navigation seule vers Nettoyage/Mises à jour ; aucun changement du démarrage. PR #54 : https://github.com/bassetthomas-design/virgil-2.0/pull/54. Phase 1 terminée : contrats communs, refus sans effet, quarantaine/restauration et parcours de confirmation validés par les tests Windows. L’objectif de performance pendant l’affichage reste à mesurer sur une session Windows représentative ; aucune mesure CPU revendiquée.
-
-La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.
-
-## Livraison 2a — PR #55
-
-2a livré (PR #55) : installateur Inno Setup 6 par machine x64, sortie self-contained complète et helper dans Program Files, CI de compilation/artefact setup distinct, workflow de prerelease sur tags v* avec SHA-256 et exception alpha non signée documentée. Désinstallation : données conservées par défaut, suppression explicite limitée aux paramètres/rapports/logs du compte exécutant ; quarantaine jamais supprimée. Inventaire des actions à effet et gardes d'architecture, refus français des entrées non livrées, chat sans entrée et tray absent.
-
-Base main 8d30f375 : 1 010 tests (Core 706 + App 304). Les logs Windows du [run 194](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39552385525) valident 1 033 tests : Core 724 (706 + 18 nouveaux), App 309 (304 + 5 nouveaux), soit 1 010 + 23, avec 0 échec, 0 ignoré, build à 0 warning et helper publié. Ce run a révélé une erreur de signature CreateCustomForm, corrigée ensuite dans le script Inno Setup ; la validation complète ISCC et l’artefact setup du dernier commit sont suivis dans la PR #55. SDK dotnet, ISCC et PowerShell absents localement ; aucun résultat de build local revendiqué. Aucun test existant retiré ou affaibli. Phase 2 ouverte : 2b GitHub Releases, tests manuels Windows sans SDK, tag v2.0.0-alpha ; aucun tag créé par 2a.
-
-
-## Livraison 2b — PR #56
-
-2b livré : version du tag commune à Version/InformationalVersion et au setup ; version courante lue depuis l’assembly via port Core, comparateur SemVer 2.0 pur. Releases GitHub publiques anonymes avec prereleases, brouillons/tags invalides ignorés, états français explicites, contrôle manuel et démarrage discret au plus une tentative par 24 h, désactivable dans les settings existants. Ouverture de page seulement ; aucun téléchargement/installation automatique, notification, son ou prise de focus. Publication stable refusée sans notes stables, mutex Global\Virgil.Update.v2 ajouté sans modifier l’instance unique Local, création globale refusée non bloquante et journalisée, BOM UTF-8 du script Inno Setup garanti. Notes alpha finalisées ; verrou legacy et tests existants conservés.
-
-Base main 5bbd5ed : 1 033 tests (Core.Tests 724 + App.Tests 309). SDK dotnet, PowerShell et ISCC absents localement ; la CI Windows de la PR fait foi. Totaux par projet, 0 échec/ignoré/warning, helper publié, log ISCC et artefact setup à vérifier dans ce run avant de revendiquer leur validation. Git fetch/push indisponibles (proxy) : état de main lu via connecteur GitHub et publication identique sur branche feature/2b-verification-maj, parent 5bbd5ed.
-
-Phase 2 reste ouverte : essais manuels sur Windows sans SDK, compte standard, élévation du helper, redémarrage, mise à jour avec deux sessions ouvertes, désinstallation avec/sans retrait des données et quarantaine conservée ; puis tag v2.0.0-alpha. Aucun tag créé dans ce lot.
-
-
-Validation Windows du code 2b : [run 199](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39555196968), commit 50f2984, 1 105 tests lus dans les logs : Core.Tests 781 (724 + 57 nouveaux), App.Tests 324 (309 + 15 nouveaux), soit 1 033 + 72. Chaque projet : 0 échec, 0 ignoré ; build : 0 warning et 0 erreur. Le log confirme Virgil.ElevatedHelper.exe dans la publication, ISCC « Successful compile », setup Virgil-0.0.0-dev-win-x64-setup.exe vérifié et artefact Virgil-win-x64-setup publié. La base main est aussi confirmée par les logs du run 197 (724 + 309). La mise à jour suivante ajoute deux cas limites SemVer : un identifiant prerelease commençant par un tiret est alphanumérique, jamais un entier négatif. Dernière CI suivie dans la PR #56, sans relance ni exclusion de test.
+La CI Windows de chaque PR reste la référence. Aucun nouveau résultat de tests, total de tests ou temps Windows n'est déduit de ces descriptions. Les issues #1–#10 restent hors de ce lot ; leur décision appartient à thoms.

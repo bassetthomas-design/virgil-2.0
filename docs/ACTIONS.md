@@ -1,132 +1,117 @@
-# Virgil 2.0 — Spécifications des actions validées
+# Virgil 2.0 — Spécification des actions
 
-Ces specifications decrivent la cible produit ; les garanties de securite de ARCHITECTURE.md et ROADMAP.md (apercu, ConfirmedPlan, point de restauration avant changement systeme) priment en cas de doute.
+Référence : `4af1cce`. « Livré » porte seulement sur la capacité indiquée. « Partiel » signale une limite fonctionnelle. Une cible serait implémentée dans le lot indiqué ; elle n'est pas une capacité actuelle. Le [statut](PROJECT_STATUS.md) suit les livraisons et l'[architecture](ARCHITECTURE.md) décrit les protections et les fichiers de preuve.
 
-| Action | Phase | Statut |
+| Action | État à 4af1cce | Cible |
 | --- | --- | --- |
-| 0 — Tout mettre à jour | 3 | Exigence |
-| 1 — Diagnostic | 1 ; 4 pour la vue en direct continue et l’historique | Validée 2026-10-18 |
-| 2 — Nettoyage | 1 | Validée 2026-10-18 |
-| 3 — Mises à jour « pack all inclusive » | 3 | Validée 2026-10-18 |
-| 4 — Applications | 3 ; lien avec le Nettoyage en 1 pour les restes après désinstallation | Validée 2026-10-18 |
-| 5 — Réparations | 3 | Validée 2026-10-18 |
-| 6 — Ressources | 1 | Fusionnée dans l’Action 1 le 2026-10-18 |
-| 7 — Démarrage | 3 | Validée 2026-10-18 |
-| 8 — Historique | 4 | Validée, priorité basse |
-| 9 — Surveillance / Tray | 5 | Validée 2026-10-18 |
-| 10 — Personnalité | 6 | Validée 2026-10-18, bonus |
+| 0 — Tout mettre à jour | partiel | L6 |
+| 1 — Diagnostic | partiel | L7, L9 ; monitoring continu à planifier |
+| 2 — Nettoyage | livré dans le périmètre décrit | Compléments non livrés à répartir dans L5–L13 |
+| 3 — Mises à jour | partiel | L6 |
+| 4 — Applications | livré dans le périmètre décrit | Compléments non livrés à répartir dans L5–L13 |
+| 5 — Réparation | partiel | L12b |
+| 6 — Ressources | partiel, écran encore présent | Fusion prévue en L7 |
+| 7 — Démarrage | partiel | L12 |
+| 8 — Historique | partiel | Comparaison/PDF à répartir dans L5–L13 |
+| 9 — Surveillance / Tray | cible, non livré | Reporté ; sous-lot non fixé |
+| 10 — Personnalité | partiel | L11 |
 
-## Action 0 : Tout mettre a jour (exigence)
+Le cadrage disponible ne fournit pas l'affectation de toutes les ambitions à un sous-lot L5–L13. Ces mentions ne créent pas une décision de planification. Les spécifications détaillées anciennes de modules ne valent pas preuve de livraison.
 
-Phase roadmap : Phase 3.
+## Action 0 — Tout mettre à jour
 
-Doit tout couvrir : Windows (Windows Update API), pilotes (Windows Update + eventuellement outils constructeurs NVIDIA/AMD/Intel), logiciels (winget + Microsoft Store), jeux (detection Steam/Epic/Battle.net, mise a jour via leur launcher). Un apercu unique valide par l'utilisateur, puis un rapport.
+**État à 4af1cce : partiel.**
 
-## Action 1 : Diagnostic (VALIDEE 2026-10-18)
+Le bouton prépare une sélection et un aperçu unique. `UpdateSequenceService` lie toute la sélection au `ConfirmedPlan`, puis exécute les étapes et produit un résultat. L'annulation intervient entre deux étapes ; elle ne coupe pas brutalement une installation. Le redémarrage reste manuel.
 
-Phase roadmap : Phase 1 ; vue en direct continue et historique : Phase 4.
+Windows qualité/sécurité, Defender, pilotes via Windows Update et applications WinGet ont un backend effectif. Windows et les pilotes exigent un point de restauration vérifié. Steam, Epic Games et Ubisoft Connect sont seulement trois consignes fixes ; leur détection et leur mise à jour ne sont pas assurées par cette séquence. Le backend les compte réussies sans rien faire (« À mettre à jour depuis le lanceur. »). Aucun scan de mises à jour Store.
 
-Vue en direct, facon Gestionnaire des taches tres detaille :
+**Cible L6 :** le résultat des lanceurs devrait distinguer une consigne d'une installation réussie. La couverture Store et jeux devrait être complétée et vérifiée. Cible L6 : Battle.net pourrait rejoindre le périmètre des mises à jour ; il n'y figure pas aujourd'hui. Les outils constructeurs, les pilotes GPU et les runtimes devraient être précisés dans cette cible L6. BIOS et firmware resteraient en information seulement, sans installation automatique.
 
-- CPU : charge totale et par coeur, frequence, temperature si dispo.
-- RAM : utilisee, en cache, compressee, par programme.
-- Disques : lecture/ecriture, temps de reponse, sante SMART.
-- Reseau : debit, et quel programme l'utilise.
-- GPU : charge, VRAM, temperature.
-- Processus : tri par conso, editeur, emplacement, explication en francais de chaque programme.
+## Action 1 — Diagnostic
 
-1d livré : écran Diagnostic distinct en lecture seule, instantané CPU/RAM/disques/réseau/GPU/processus, tri et explications françaises, actualisation visible toutes les 2 s et manuelle. Les valeurs non exposées restent explicitement indisponibles. Réseau par programme : connexions TCP établies et points UDP liés uniquement, aucun débit attribué ; E/S disque par programme indisponibles si elles ne peuvent pas être isolées. Ressources reste inchangée dans ce lot. Aucune action, note ou fermeture de processus.
+**État à 4af1cce : partiel.**
 
-1e livré (PR #54, validation Windows suivie dans la PR) — analyse "ce qui ne va pas" :
+L'écran présente un instantané CPU, RAM, disques, réseau, GPU et processus, un tri et des explications françaises. La note est partielle si une source manque ; le top 3 vient de l'analyse déterministe. Les données absentes portent une raison, sans zéro inventé.
 
-- Note de sante globale + top 3 des problemes.
-- Programmes gourmands inutilement (ex : launcher en fond).
-- Ce qui ralentit le demarrage.
-- Signaux d'alerte : surchauffe, disque malade, erreurs Windows recentes, pilotes en echec, espace disque qui fond.
-- Pour chaque probleme, une action proposee (fermer, desactiver au demarrage, nettoyer, mettre a jour), toujours apres validation.
+Une mesure est faite à l'entrée, puis seulement sur « Actualiser ». Aucun minuteur de monitoring continu. La température CPU est toujours indisponible dans la source actuelle. Les débits réseau et disque par programme ne sont pas fournis ; les connexions TCP et points UDP ne sont pas des débits. Une vérification SMART limitée ne garantit pas la santé du disque.
 
-Phase 4 : monitoring continu et historique pour comparer l'état du PC dans le temps.
+Les propositions de fermeture utilisent les protections processus et un `ConfirmedPlan`. Nettoyer / Mettre à jour ouvrent leurs écrans après validation ; cette navigation n'exécute pas l'entretien. La modification du démarrage est disponible dans son écran depuis 3d, voir Action 7.
 
-## Action 2 : Nettoyage (VALIDEE 2026-10-18)
+**Cibles :** la fusion Ressources serait faite en L7 ; les capteurs seraient traités en L9. La fréquence CPU, la mémoire compressée, la charge GPU, la VRAM et les données SMART devraient rester explicitement indisponibles quand Windows ne les expose pas ; leur couverture matérielle complète serait une cible L9. Les débits et E/S par programme, le monitoring continu et la comparaison historique resteraient des cibles L5–L13 à affecter. Budget CPU et temps en usage réel Windows : non mesuré.
 
-Phase roadmap : Phase 1.
+## Action 2 — Nettoyage
 
-- Restes de logiciels : TOUS les logiciels desinstalles qui ont encore des traces (Dofus n'est qu'un exemple), chacun sur sa ligne avec sa taille.
-- Scan avec annonce claire de ce qui peut/va etre efface, en 3 groupes : Sur (temp, caches, corbeille ; coche par defaut), A verifier (vieux telechargements, Windows.old, gros fichiers oublies ; decoche), Restes de logiciels desinstalles (dossiers AppData/ProgramData/Program Files/Documents + cles de registre de programmes absents ; ex. "Dofus (desinstalle) : taille, nb fichiers, cles registre, derniere utilisation").
-- Choix par groupe ou ligne par ligne, puis confirmation recapitulative (taille totale, nb fichiers, elements sensibles).
-- Quarantaine (1b livré) : les zones fichiers Sûr, y compris temp/caches, passent aussi par la quarantaine conformément aux filets de sécurité. Rétention de 7 jours réglable de 1 à 30, puis effacement définitif proposé avec confirmation, annoncé dans l’aperçu. Aucun effacement silencieux à l’expiration, à l’ouverture, au scan ou après nettoyage. Les éléments « Expiré » disposent d’une proposition de purge dédiée (nombre, taille), toujours irréversible et soumise à un nouveau ConfirmedPlan Sensitive. Restauration vérifiée possible pendant la rétention. Purge immédiate possible par « Vider la quarantaine maintenant », action distincte irréversible avec aperçu et confirmation. La corbeille conserve son comportement actuel. Les restes et les trois groupes sont livrés en 1c.
-- GARDE-FOUS ABSOLUS : jamais toucher aux dossiers perso (Images, Photos, Videos, Documents perso, Bureau, Musique, OneDrive), ni a Windows/systeme critique, ni aux programmes encore installes. Les restes trouves dans les dossiers perso peuvent etre affiches mais jamais coches automatiquement. "Le but c'est pas de vitrifier le PC."
+**État à 4af1cce : livré pour le parcours ci-dessous.**
 
-1c livré : Sûr coché par défaut, À vérifier et Restes de logiciels désinstallés décochés. Choix par groupe tri-état ou ligne, aperçu récapitulatif unique (taille, fichiers, éléments sensibles, groupes) et plan lié à toute la sélection. Téléchargements résolu : plus de 90 jours ou plus de 500 Mo, sans chercher les gros fichiers ailleurs. Restes : dossiers et clés de logiciels absents, exclusions des programmes installés, références des services/processus et composants protégés ; ambiguïté ou inventaire incomplet → « à confirmer ». Dossier personnel → uniquement reste identifié, ligne par fichier, Critical avec saisie et quarantaine ; gardes existants conservés. Clés affichées en lecture seule : « Suppression des clés de registre : lot ultérieur (sauvegarde et point de restauration) ». Windows.old reste délégué aux outils Windows.
+Trois groupes : Sûr, À vérifier et Restes de logiciels. Analyse, lignes regroupées, sélection individuelle/par catégorie/globale, aperçu récapitulatif et confirmation précèdent les effets. Nature, compteurs et phrase de confirmation entrent dans l'aperçu lié au plan. Une sélection n'émet aucun consentement à elle seule.
 
-## Action 3 : Mises a jour "pack all inclusive" (VALIDEE 2026-10-18)
+La sélection globale exclut les dossiers personnels, Téléchargements, Corbeille et Windows.old. Un fichier personnel admissible exige un choix individuel et une confirmation critique. Windows.old reste délégué aux outils Windows. Les restes détectés excluent les preuves d'installation ; un inventaire incomplet impose une vérification manuelle. Aucun scan ne garantit de trouver tous les restes de tous les logiciels. Les clés de registre sont en lecture seule.
 
-Phase roadmap : Phase 3.
+Les fichiers nettoyés par ce parcours passent par la quarantaine ; la Corbeille conserve son API distincte. Rétention : 7 jours par défaut, réglable de 1 à 30. La restauration vérifie taille et SHA-256 et refuse l'écrasement. L'expiration ne supprime rien seule : purge et vidage immédiat exigent un nouvel aperçu et un nouveau plan. Un déplacement en quarantaine ne constitue pas de l'espace disque libéré.
 
-Un seul bouton "Tout mettre a jour" qui met a jour tout le PC : Windows (systeme + securite), signatures Microsoft Defender, pilotes, logiciels (winget), applis Microsoft Store, jeux via leurs launchers (Steam, Epic, Battle.net...). Un apercu unique valide par l'utilisateur, puis execution et rapport final.
+`LongOperationViewModel` et `OperationProgressPanel` donnent progression et annulation dans Nettoyage. L'harmonisation des autres vues serait traitée en **cible L5**. La suppression des clés de registre resterait une **cible L5–L13, sous-lot non fixé**, avec sauvegarde et point de restauration ; aucune écriture de registre n'est promise ici.
 
-## Action 4 : Applications (VALIDEE 2026-10-18)
+## Action 3 — Mises à jour
 
-Phase roadmap : Phase 3 (restes apres desinstallation : lien avec le Nettoyage, Phase 1).
+**État à 4af1cce : partiel.**
 
-- Liste de tous les programmes (Win32 + Store) avec taille, editeur, version.
-- Desinstallation multiple en une fois (selection de plusieurs programmes, une confirmation recapitulative, file d'execution, rapport).
-- Affichage PRO : vraies cartes avec le logo/icone de chaque logiciel (ApplicationIconExtractor existe deja), nom, editeur, taille, date d'installation/derniere utilisation. Pas juste une ligne de texte.
-- Desinstalleur officiel + recherche et suppression des restes apres desinstallation (lien avec Action 2).
-- Protection des programmes sensibles (pilotes, antivirus, composants Windows).
+Le scan WinGet utilise le module JSON quand disponible et un repli CLI localisé. Les installations individuelles épinglent la version confirmée. « Tout mettre à jour » est spécifié une seule fois, dans l'Action 0.
 
-## Action 5 : Reparations (VALIDEE 2026-10-18)
+L'inventaire des pilotes retourne `CanInstallDrivers = false` : le bouton dédié ne s'affiche jamais. Leur recherche/installation effective passe par la séquence Windows Update. Les pilotes sont actuellement décochés par défaut (`UpdateSequenceChoiceViewModel`).
 
-Phase roadmap : Phase 3.
+**Cible L6+ :** conformément à la décision de thoms du 26 octobre à 19 h 14, les pilotes devraient être cochés par défaut et le code mort du bouton retiré. La décision ne décrit pas le comportement actuel. **Cible L6 :** couverture et résultats Store/lanceurs, voir Action 0.
 
-Deux modes :
+## Action 4 — Applications
 
-1. "Verifier" : controle d'integrite en lecture seule (sfc /verifyonly, DISM /CheckHealth puis /ScanHealth, chkdsk en lecture, etat Windows Update, Store, reseau, son, imprimante, Explorer). Resultat : "sain" ou liste des problemes.
-2. "Scanner et reparer" : tout ce qui est trouve en 1 (et par le Diagnostic) est propose en reparations, apercu + validation, puis execution via le helper eleve (sfc /scannow, DISM /RestoreHealth, chkdsk planifie, reset Windows Update, wsreset Store, reset reseau, relance Explorer/services audio/spouleur) et rapport. Point de restauration avant les reparations systeme.
+**État à 4af1cce : livré pour l'inventaire et la désinstallation officielle confirmée.**
 
-Reparations a ajouter : Windows Update bloque, Microsoft Store, son, imprimante.
+Inventaire Win32/Store, recherche, détail et chargement des icônes en arrière-plan. La désinstallation individuelle ou multiple utilise un aperçu, un plan et les protections des composants sensibles. Elle lance le désinstalleur officiel ; un lancement réussi ne garantit pas sa réussite finale.
 
-## Action 6 : Ressources -> FUSIONNEE dans l'Action 1 (2026-10-18)
+Des cartes complètes avec logo, éditeur, taille et dates fiables seraient des cibles L5–L13 à affecter lorsque ces données manquent. Les restes sont consultables ; leur nettoyage relève de l'Action 2. Une suppression automatique de tous les restes, une date de dernière utilisation exhaustive et une couverture parfaite des icônes resteraient des **cibles L5–L13, sous-lot non fixé**. Une valeur absente n'est pas une mesure.
 
-Phase roadmap : fusionnee dans l'Action 1 (Phase 1).
+## Action 5 — Réparation
 
-Cible après 1e (la vue Ressources legacy reste inchangée en 1d) : observation CPU/RAM, processus gourmands et fermeture confirmee (avec protection des processus Windows/securite/VPN/materiel) font partie du Diagnostic. Pas de mode jeu ni de boost.
+**État à 4af1cce : partiel.**
 
-## Action 7 : Demarrage (VALIDEE 2026-10-18)
+Les modes « Vérifier » et « Scanner et réparer » passent par les services d'intervention. L'allowlist du helper borne les commandes : SFC vérification/réparation, DISM CheckHealth/ScanHealth/RestoreHealth et `chkdsk /scan` en ligne. Le redémarrage du service Windows Update (`virgil-update`), les actions audio/impression et les opérations réseau autorisées restent des actions précises, pas une réparation universelle.
 
-Phase roadmap : Phase 3.
+Les changements système concernés exigent aperçu, confirmation et point de restauration créé/vérifié. Un refus UAC ou un échec de protection bloque l'action. Le helper n'accepte pas de commande libre.
 
-- Liste de tout ce qui se lance au demarrage (programmes, services, taches planifiees) avec logo, editeur, impact (faible/moyen/fort).
-- Recommandation par element : utile / inutile au demarrage / inconnu a verifier.
-- Desactiver/reactiver en un clic, sauvegarde automatique pour tout restaurer.
-- Mesure du temps de demarrage avant/apres.
+**Cible L12b :** un chkdsk planifié, une remise à zéro complète de Windows Update et `wsreset` pour le Store seraient des ajouts distincts. Ils ne sont pas livrés par l'allowlist actuelle. Les diagnostics son/imprimante/Store exhaustifs resteraient à compléter dans ce lot.
 
-## Action 8 : Historique (VALIDEE, priorite basse)
+## Action 6 — Ressources
 
-Phase roadmap : Phase 4, priorite basse.
+**État à 4af1cce : partiel ; fusion prévue en L7, écran encore présent.**
 
-Frise chronologique des actions, totaux (espace libere, MAJ, reparations), comparaison de l'etat du PC, export PDF. Garder simple.
+`ResourcesNavButton`, `ResourcesView` et `ResourcesViewModel` existent. L'écran observe CPU/RAM et les processus ; les actions de fermeture propre/forcée et de relance Explorer sont confirmées et protégées. La libération de mémoire inactive est informative, sans boost simulé.
 
-## Action 9 : Surveillance en arriere-plan / Tray (VALIDEE 2026-10-18)
+**Cible L7 :** ces parcours seraient intégrés à Diagnostic. Aucun mode jeu ni promesse de gain FPS.
 
-Phase roadmap : Phase 5.
+## Action 7 — Démarrage
 
-- Icone discrete pres de l'horloge, consommation minimale (budget strict CPU/RAM, ex. <1% CPU moyen, <100 Mo RAM).
-- Notifications toast Windows uniquement si vrai probleme (disque plein, surchauffe, MAJ importantes, disque malade), rappel entretien optionnel.
-- JAMAIS invasif : aucune fenetre qui vole le focus, respect du mode Ne pas deranger / Assistant de concentration, aucune notif quand un jeu ou une app plein ecran tourne (notifs mises en attente), pas de son par defaut, limitation de frequence.
-- N'agit jamais seul : clic sur la notif = ouvre Virgil, validation par l'utilisateur.
+**État à 4af1cce : partiel ; modification livrée en 3d.**
 
-## Action 10 : Personnalite (VALIDEE 2026-10-18, bonus)
+L'inventaire lit les entrées Run, dossiers et tâches prises en charge par la source. Les autorisations StartupApproved reconnues peuvent être désactivées, réactivées et restaurées avec aperçu et `ConfirmedPlan`. Sauvegarde vérifiée et point de restauration précèdent l'écriture. La vue peut restaurer la dernière modification de la session ; ce n'est pas une restauration globale de tout le démarrage. Aucune entrée ni tâche n'est supprimée ; les tâches restent en lecture seule.
 
-Phase roadmap : Phase 6.
+**Cible L12 :** logos, impact faible/moyen/fort, recommandation par élément et temps avant/après devraient être ajoutés. Impact et temps actuels : « indisponible sans mesure » / non mesuré. L'inventaire ne prouve pas une lenteur.
 
-Ton un peu sarcastique et drole (ex. "8 Go de fichiers temporaires... tu collectionnes ?"), explications en langage simple. Reglage ton sobre / ton humour. Jamais de blague dans les confirmations critiques (risque, suppression) : la clarte prime.
+## Action 8 — Historique
 
-Avatar : en attente, a revoir plus tard.
+**État à 4af1cce : partiel.**
 
-### Action 1 — livraison 1e
+L'historique conserve des rapports JSON locaux et propose détail et export texte assaini. Aucune comparaison continue ni export PDF livré. Une frise, des totaux consolidés et une comparaison de santé seraient des **cibles L5–L13, sous-lot non fixé** ; aucun espace libéré ou temps gagné ne devrait être calculé sans preuve.
 
-L'analyse « ce qui ne va pas » affiche note 0–100 (partielle si une source manque), top 3 et constats français. Sources, seuils et poids : voir ARCHITECTURE.md, section Analyse et propositions Diagnostic (1e). Fermetures propre/forcée distinctes via le service Ressources existant et ConfirmedPlan ; processus protégés et Virgil exclus. Nettoyer et Mettre à jour ouvrent seulement leurs écrans après validation. Démarrage : inventaire Run et dossiers, impact indisponible sans mesure ; modification reportée à la Phase 3 avec sauvegarde et restauration. La mention devient « Aucune action sans votre validation ». La validation Windows de la PR #54 fait foi pour cette livraison. Historique et monitoring continu restent en Phase 4.
+## Action 9 — Surveillance / Tray
 
+**État à 4af1cce : cible reportée ; aucun projet Agent/Tray.**
 
-Validation 1e (PR #54) : CI Windows du lot, run 188, 1 010 tests (Core 706 + App 304), soit 958 + 52 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Phase 1 terminée ; objectif CPU à mesurer sur Windows, sans mesure de performance revendiquée.
+Le futur agent pourrait ouvrir Virgil et proposer des actions, sans agir seul. Notifications seulement en cas de problème, rappel optionnel, respect de Ne pas déranger et du plein écran, absence de son par défaut et limitation de fréquence seraient des exigences à valider. Les budgets cibles historiques (<1 % CPU moyen et <100 Mo RAM) resteraient à vérifier, sans mesure revendiquée. Le sous-lot n'est pas fixé dans le cadrage L4c ; aucun monitoring continu ni budget mesuré n'est livré.
+
+## Action 10 — Personnalité
+
+**État à 4af1cce : partiel.**
+
+Les messages `[VIRGIL]` sont à sens unique, sans saisie de chat. Ton actuel tactique et neutre ; catalogue et réglage en **cible L11**. La définition unique du ton est dans [CHATBOX_MODULE.md](modules/CHATBOX_MODULE.md#style-de-communication) ; les documents produit y renvoient.
+
+**Cible L11 :** le ton serait sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord. Aucun catalogue sarcastique ni réglage sobre/humour n'est livré. Une IA libre et un avatar nouveau ne sont pas décidés par cette spécification.

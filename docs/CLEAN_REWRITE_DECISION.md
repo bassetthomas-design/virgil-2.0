@@ -1,5 +1,7 @@
 # Décision - Virgil 2.0 repart de zéro
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 Date : 18 mai 2026
 
 ## Décision

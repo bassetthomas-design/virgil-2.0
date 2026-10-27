@@ -1,5 +1,7 @@
 # Virgil 2.0.0-alpha
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 Première alpha installable pour Windows 10/11 x64. L’application et son helper sont autonomes : aucun SDK ni runtime .NET à installer. Cette note décrit le contenu préparé ; le tag et la release seront publiés après les essais manuels Windows sans SDK.
 
 ## Contenu

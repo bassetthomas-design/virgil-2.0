@@ -1,5 +1,7 @@
 # Feuille de route professionnelle Virgil 2.0
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 > **Document historique** — Conservé pour référence. Les décisions et critères actuels sont définis dans [ROADMAP.md](ROADMAP.md) et [ARCHITECTURE.md](ARCHITECTURE.md), qui font autorité en cas de divergence.
 
 Date: 2026-06-17
