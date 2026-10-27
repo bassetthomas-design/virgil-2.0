@@ -37,7 +37,9 @@
         </DataTemplate>
     </UserControl.Resources>
     <Grid ClipToBounds="True">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <controls:OperationProgressPanel Grid.Row="0" DataContext="{Binding Operation}" CancelAutomationId="ApplicationsCancelButton"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Focusable="False"
                       ClipToBounds="True">
@@ -90,19 +92,11 @@
                 <WrapPanel>
                     <Button Content="Désinstaller la sélection" Command="{Binding UninstallSelectionCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource VirgilPrimaryButton}" Margin="0,0,8,8" />
                     <Button Content="Passer le prochain élément" Command="{Binding SkipNextCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="0,0,8,8" />
-                    <Button Content="Annuler" Command="{Binding CancelOperationCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="0,0,8,8" />
                 </WrapPanel>
                 <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource VirgilHudSecondaryText}" />
-                <TextBlock Text="{Binding ElapsedText}" Style="{StaticResource VirgilHudSecondaryText}" />
                 <ComboBox SelectedValuePath="Content" SelectedValue="{Binding SelectedSort}" AutomationProperties.Name="Trier les applications" HorizontalAlignment="Left" MinWidth="180" Margin="0,8,0,8">
                     <ComboBoxItem Content="Nom" /><ComboBoxItem Content="Taille" /><ComboBoxItem Content="Date d’installation" />
                 </ComboBox>
-                <ProgressBar x:Name="ApplicationsProgressBar"
-                             Height="4"
-                             Minimum="0"
-                             Maximum="100"
-                             Value="{Binding Progress}"
-                             Margin="0,0,0,12" />
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -176,7 +170,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid x:Name="ApplicationDetailsOverlay"
+        <Grid Grid.Row="1" x:Name="ApplicationDetailsOverlay"
               Panel.ZIndex="20"
               Visibility="{Binding IsDetailsOpen, Converter={StaticResource BoolVisibility}}"
               Background="#CC06090D"
@@ -274,7 +268,7 @@
             </Border>
         </Grid>
 
-        <Grid Panel.ZIndex="40" Visibility="{Binding IsConfirmationOpen, Converter={StaticResource BoolVisibility}}" Background="#DD06090D" KeyboardNavigation.TabNavigation="Cycle">
+        <Grid Grid.Row="1" Panel.ZIndex="40" Visibility="{Binding IsConfirmationOpen, Converter={StaticResource BoolVisibility}}" Background="#DD06090D" KeyboardNavigation.TabNavigation="Cycle">
             <Border Style="{StaticResource VirgilOverlayCard}" MaxWidth="820" MaxHeight="700" Margin="16" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -290,7 +284,7 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="ApplicationsReportOverlay"
+        <Grid Grid.Row="1" x:Name="ApplicationsReportOverlay"
               Panel.ZIndex="30"
               Visibility="{Binding IsReportOpen, Converter={StaticResource BoolVisibility}}"
               Background="#CC06090D"

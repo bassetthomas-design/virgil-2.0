@@ -126,12 +126,14 @@ public sealed class ApplicationUninstallService
 
         cancellationToken.ThrowIfCancellationRequested();
         var launch = await _launcher
-            .LaunchAsync(executable, arguments, useShellExecute: true, cancellationToken)
+            .LaunchAsync(executable, arguments, useShellExecute: true, CancellationToken.None)
             .ConfigureAwait(false);
 
         Report(progress, 3, 5, 55, "assistant officiel", "Suivre l'assistant officiel si une fenetre s'ouvre.");
         Report(progress, 4, 5, 78, "restes", "Analyse lecture seule des restes.");
-        var remnants = await _remnantScanner.ScanAsync(application, cancellationToken).ConfigureAwait(false);
+        var remnants = cancellationToken.IsCancellationRequested
+            ? new ApplicationRemnantScanReport { Application = application }
+            : await _remnantScanner.ScanAsync(application, cancellationToken).ConfigureAwait(false);
         Report(progress, 5, 5, 100, "rapport", "Rapport final prepare.");
 
         return new ApplicationUninstallResult
@@ -143,7 +145,7 @@ public sealed class ApplicationUninstallService
             ExitCode = launch.ExitCode,
             WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
             WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-            Result = launch.Started
+            Result = cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
                 ? "Desinstalleur officiel lance. Statut final potentiellement gere par l'assistant externe."
                 : launch.ReadableError ?? "Desinstalleur officiel non lance.",
             Errors = string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
@@ -185,9 +187,11 @@ public sealed class ApplicationUninstallService
                 plan.Application.DisplayName, $"Désinstallation {index + 1}/{plans.Length} : {plan.Application.DisplayName}");
             try
             {
+                // Les callbacks peuvent demander l’arrêt : vérifier après eux, avant l’effet OS.
+                if (cancellationToken.IsCancellationRequested) break;
                 var launch = await _launcher.LaunchAsync(plan.Validation.Executable!, plan.Validation.Arguments,
-                    useShellExecute: true, cancellationToken).ConfigureAwait(false);
-                var remnants = launch.Started && launch.ExitCode is 0 or 3010
+                    useShellExecute: true, CancellationToken.None).ConfigureAwait(false);
+                var remnants = !cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode is 0 or 3010
                     ? await _remnantScanner.ScanAsync(plan.Application, cancellationToken).ConfigureAwait(false)
                     : new ApplicationRemnantScanReport { Application = plan.Application };
                 results.Add(new ApplicationUninstallResult
@@ -195,7 +199,7 @@ public sealed class ApplicationUninstallService
                     Application = plan.Application, Method = plan.Method, WasLaunched = launch.Started,
                     ExitCode = launch.ExitCode, StatusUnknown = launch.Started && launch.ExitCode is null,
                     WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed, WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-                    Result = launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
+                    Result = cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation ; éléments suivants non lancés." : launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
                         : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé."),
                     Errors = launch.ReadableError is null ? remnants.Errors : [launch.ReadableError], Remnants = remnants
                 });

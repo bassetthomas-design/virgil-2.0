@@ -13,6 +13,47 @@ namespace Virgil.Tests;
 public sealed class DiagnosticPresentationTests
 {
     [Fact]
+    [Trait("Category", "Safety")]
+    public async Task HidingSessionCancelsPendingActionPreviewWithoutOpeningConfirmation()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var source = new BlockingSource();
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(source, TimeProvider.System)), TimeProvider.System, authority);
+        vm.SetPresentation(true, false);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preview = new TaskCompletionSource<ActionPreview>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var action = new RecordingAction(authority)
+        {
+            PreviewHandler = async token => { Assert.True(token.CanBeCanceled); entered.SetResult(); return await preview.Task.WaitAsync(token); }
+        };
+        var pending = vm.PrepareActionAsync(action);
+        await entered.Task;
+        vm.SetPresentation(false, false);
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        await vm.PresentationTask;
+        Assert.False(vm.IsValidationOpen);
+        Assert.Equal(0, action.Effects);
+    }
+
+    [Fact]
+    [Trait("Category", "Safety")]
+    public async Task CancelRefreshStopsSamplingAndPublishesNoPartialSnapshot()
+    {
+        var source = new BlockingSource();
+        var vm = Create(source);
+        vm.SetPresentation(true, false);
+        await source.Started.Task;
+        vm.Operation.CancelCommand.Execute(null);
+        Assert.True(vm.Operation.IsCancelling);
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.False(vm.IsRefreshing);
+        Assert.Null(vm.Snapshot);
+        Assert.Equal(0, source.Active);
+        Assert.Contains("annulée", vm.Status);
+        vm.SetPresentation(false, false);
+    }
+
+    [Fact]
     public async Task HiddenAndMinimizedViewsNeverRead()
     {
         var source = new BlockingSource();
@@ -251,6 +292,7 @@ public sealed class DiagnosticPresentationTests
     }
     private sealed class RecordingAction(IConfirmedPlanGate gate) : IMaintenanceAction
     {
+        public Func<CancellationToken, Task<ActionPreview>>? PreviewHandler { get; init; }
         public int Effects;
         public ConfirmationLevel? Level;
         public string Id => "test.close";
@@ -258,7 +300,7 @@ public sealed class DiagnosticPresentationTests
         public bool RequiresAdmin => false;
         public bool RebootRequired => false;
         public Reversibility Reversibility => Reversibility.None;
-        public Task<ActionPreview> PreviewAsync(CancellationToken token) => Task.FromResult(new ActionPreview(Id, "Fermeture forcée", RiskLevel, ["steam"], new Dictionary<string, string>(), ["Perte possible de données"], false, false, Reversibility, []));
+        public Task<ActionPreview> PreviewAsync(CancellationToken token) => PreviewHandler?.Invoke(token) ?? Task.FromResult(new ActionPreview(Id, "Fermeture forcée", RiskLevel, ["steam"], new Dictionary<string, string>(), ["Perte possible de données"], false, false, Reversibility, []));
         public async Task<ActionResult> ExecuteAsync(ConfirmedPlan? plan, CancellationToken token)
         {
             var validation = gate.TryConsume(plan, await PreviewAsync(token));

@@ -52,11 +52,16 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var results = new List<UpdateSequenceStepResult>();
         foreach (var step in snapshot)
         {
-            if (cancellationToken.IsCancellationRequested) return new(false, true, results.Any(r => r.RebootRequired), results, "Séquence annulée entre deux étapes.");
+            if (cancellationToken.IsCancellationRequested)
+            {
+                results.AddRange(snapshot.Skip(results.Count).Select(pending => new UpdateSequenceStepResult(pending, false, false, "Non lancée : annulation demandée.")));
+                return new(false, true, results.Any(r => r.RebootRequired), results, "Séquence annulée entre deux étapes.");
+            }
             progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours"));
             UpdateSequenceStepResult result;
-            try { result = await backend.ExecuteAsync(step, CancellationToken.None).ConfigureAwait(false); }
+            try { result = await backend.ExecuteAsync(step, cancellationToken).ConfigureAwait(false); }
             catch { result = new(step, false, false, "Étape impossible. Aucune autre action pour ce composant."); }
+            if (cancellationToken.IsCancellationRequested) result = result with { Message = result.Message + " Étape terminée après annulation." };
             results.Add(result);
             progress?.Report(new(results.Count, snapshot.Length, step.Title, result.Message));
         }

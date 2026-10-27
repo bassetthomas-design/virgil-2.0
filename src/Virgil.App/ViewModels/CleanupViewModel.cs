@@ -487,7 +487,7 @@ public partial class CleanupViewModel : ObservableObject
         {
             if (!_operationInProgress || generation != _operationGeneration) return;
             Operation.Report(progress);
-            StatusText = progress.Message ?? progress.Step;
+            // Le panneau porte la progression ; un message différé ne remplace pas le résultat final.
         }));
         _operationProgress?.Dispose();
         _operationProgress = operation;

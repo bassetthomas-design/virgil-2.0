@@ -13,6 +13,45 @@ namespace Virgil.Tests;
 public sealed class InterventionsViewModelTests
 {
     [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData("Analyze")]
+    [InlineData("VerifyHealth")]
+    [InlineData("ScanRepair")]
+    [InlineData("RunGuided")]
+    public async Task CancelEachRepairOperationAcknowledgesWithoutStartingNext(string operation)
+    {
+        var f = new Fixture();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var diagnostics = new TaskCompletionSource<IReadOnlyList<InterventionDiagnostic>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<InterventionExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (operation == "Analyze")
+            f.Diagnostics.Handler = async token => { started.SetResult(); return await diagnostics.Task.WaitAsync(token); };
+        else
+        {
+            await f.Analyze();
+            foreach (var item in f.Items) item.IsSelected = true;
+            f.Actions.Handler = (diagnostic, token) => { started.SetResult(); return finish.Task; };
+        }
+        var task = operation switch
+        {
+            "Analyze" => f.Analyze(),
+            "VerifyHealth" => f.Vm.VerifyHealthCommand.ExecuteAsync(null),
+            "ScanRepair" => f.Vm.ScanRepairCommand.ExecuteAsync(null),
+            _ => f.Run()
+        };
+        if (f.Vm.IsValidationOpen) f.Vm.ExecuteDecisionCommand.Execute(null);
+        Assert.False(task.IsCompleted);
+        await started.Task;
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(!f.Vm.IsBusy || f.Vm.IsCancelling);
+        var count = f.Actions.Executed.Count;
+        finish.TrySetResult(new InterventionExecutionResult { Action = Diagnostic().Definition, Status = InterventionStatus.Completed });
+        await task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Equal(count, f.Actions.Executed.Count);
+        Assert.False(f.Vm.IsBusy);
+    }
+
+    [Theory]
     [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
     [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
     [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]
@@ -254,7 +293,7 @@ public sealed class InterventionsViewModelTests
         Assert.Equal("outil.exe C: \"deux mots\" /scan", f.Vm.ValidationCommand);
         Assert.Equal(string.Join("\n", new[] { d.Definition.Title, "Description", "Effet attendu : Effet", "Non touche : Fichiers",
             sensitive ? "Risque : sensible" : "Risque : faible", "Admin : oui", "Redemarrage possible : oui", "Diagnostic : Etat avant", "Recommandation : Conseil" }), f.Vm.ValidationDetails);
-        Assert.Equal("Attention reseau\nValidation separee obligatoire.\nAucune commande libre.\nAucun redemarrage automatique.\nAucun Take Ownership dans cette PR.", f.Vm.ValidationSafety);
+        Assert.Equal("Certaines étapes ne peuvent pas être interrompues une fois lancées.\nAttention reseau\nValidation separee obligatoire.\nAucune commande libre.\nAucun redemarrage automatique.\nAucun Take Ownership dans cette PR.", f.Vm.ValidationSafety);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         var call = Assert.Single(f.Actions.Executed);

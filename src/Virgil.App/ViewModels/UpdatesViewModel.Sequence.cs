@@ -68,17 +68,22 @@ public partial class UpdatesViewModel
     private async Task RunAllAsync()
     {
         if (_sequenceService is null || !BeginOperation("Préparation de l’aperçu des mises à jour…")) return;
+        Operation.Start(StatusText, immediately: true, nonInterruptible: true);
         SequenceProgress.Clear();
         RebootRequired = false;
         try
         {
             var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview,
-                new Progress<string>(HandleProgress), _operationCancellation!.Token);
+                CreateTextProgress(), _operationCancellation!.Token);
+            _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = scan;
             _lastItems.Clear();
             _lastItems.AddRange(scan.Items);
             RenderScanReport(scan);
+            StatusText = "Recherche Windows Update en cours — ne peut pas être interrompue";
+            Operation.Report(new Virgil.Core.Operations.OperationProgress(StatusText));
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
+            _operationCancellation.Token.ThrowIfCancellationRequested();
             SequenceChoices.Clear();
             foreach (var step in steps)
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));
@@ -104,6 +109,8 @@ public partial class UpdatesViewModel
             var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps, plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
+                    Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
+                    if (Operation.IsCancelling) return;
                     SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
                     StatusText = SequenceStepText;
                     SequenceProgress.Add(SequenceStepText);
@@ -161,7 +168,7 @@ public partial class UpdatesViewModel
         }
         var preview = _sequenceService.CreatePreview(selected);
         ValidationCommand = string.Join("\n", preview.Effects);
-        ValidationSafety = "Une seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
+        ValidationSafety = "Certaines étapes ne peuvent pas être interrompues une fois lancées.\nUne seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
             + string.Join("\n", preview.RequiredBackups);
     }
 }

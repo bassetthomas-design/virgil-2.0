@@ -63,7 +63,19 @@ public sealed class ElevatedActionAllowlist
             _ => new ElevatedActionSpec(actionId, false, Array.Empty<ElevatedCommandSpec>(), false)
         };
 
-        return spec.Commands.Count > 0 && IsSafe(spec);
+        if (spec.Commands.Count > 0 && IsSafe(spec))
+        {
+            spec = spec with { Commands = spec.Commands.Select(command => command with
+            {
+                NonInterruptible = actionId is InterventionId.SfcScan or InterventionId.DismRestoreHealth or
+                    InterventionId.DismScanHealth or InterventionId.ResetWinsock or InterventionId.ResetTcpIp or
+                    InterventionId.CreateRestorePoint or InterventionId.CreateStartupRestorePoint or InterventionId.RenewIp or
+                    InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or InterventionId.FlushDns ||
+                    command.Arguments.Contains("/ScanHealth")
+            }).ToArray() };
+            return true;
+        }
+        return false;
     }
 
     public static bool IsValidSystemDrive(string value)
@@ -126,4 +138,7 @@ public sealed record ElevatedActionSpec(
 
 public sealed record ElevatedCommandSpec(
     string FileName,
-    IReadOnlyList<string> Arguments);
+    IReadOnlyList<string> Arguments)
+{
+    public bool NonInterruptible { get; init; }
+}

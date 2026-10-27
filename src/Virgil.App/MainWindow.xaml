@@ -160,6 +160,14 @@
                         <TranslateTransform x:Name="VirgilMainStartupTransform" Y="0" />
                     </Border.RenderTransform>
                     <Grid x:Name="ModuleHostGrid" ClipToBounds="True">
+                        <GroupBox AutomationProperties.AutomationId="ScanCentralCard"
+                                  AutomationProperties.Name="Carte centrale du Scan"
+                                  Style="{x:Null}" Focusable="False" ClipToBounds="True">
+                            <GroupBox.Template>
+                                <ControlTemplate TargetType="{x:Type GroupBox}">
+                                    <ContentPresenter />
+                                </ControlTemplate>
+                            </GroupBox.Template>
                         <Grid x:Name="HomeContentGrid" ClipToBounds="True">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -168,12 +176,23 @@
 
                             <StackPanel HorizontalAlignment="Center" Margin="0,4,0,18">
                                 <controls:VirgilCoreControl x:Name="VirgilCore"
-                                                            Width="310"
-                                                            Height="310"
                                                             HorizontalAlignment="Center"
                                                             AnimationDetailLevel="Full"
                                                             PlayBootSequence="True"
-                                                            AutomationProperties.Name="Noyau Virgil" />
+                                                            AutomationProperties.Name="Noyau Virgil">
+                                    <controls:VirgilCoreControl.Style>
+                                        <Style TargetType="{x:Type controls:VirgilCoreControl}">
+                                            <Setter Property="Width" Value="310" />
+                                            <Setter Property="Height" Value="310" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.IsRunning, ElementName=ScanProgressPanel}" Value="True">
+                                                    <Setter Property="Width" Value="150" />
+                                                    <Setter Property="Height" Value="150" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </controls:VirgilCoreControl.Style>
+                                </controls:VirgilCoreControl>
                                 <TextBlock x:Name="VirgilStateText"
                                            Text="ÉTAT VIRGIL : REPOS"
                                            Style="{StaticResource VirgilHudSectionTitle}"
@@ -187,6 +206,7 @@
                                         Margin="0,18,0,0"
                                         AutomationProperties.Name="Scan complet"
                                         Click="OpenScanProtocol_Click" />
+                                <controls:OperationProgressPanel x:Name="ScanProgressPanel" CancelAutomationId="ScanCancelButton"/>
                                 <TextBlock Text="ANALYSE RAPIDE OU APPROFONDIE"
                                            Style="{StaticResource VirgilHudSecondaryText}"
                                            HorizontalAlignment="Center"
@@ -234,7 +254,7 @@
                                 </Grid>
                             </ScrollViewer>
                         </Grid>
-
+                        </GroupBox>
                     </Grid>
                 </Border>
 

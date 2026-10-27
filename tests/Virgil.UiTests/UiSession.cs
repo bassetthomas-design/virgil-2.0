@@ -177,6 +177,38 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         {
             await ui!.Click("ScanNavButton");
             await WaitVisibleAsync("DeepScanButton");
+            var reportsBeforeCancelledScan = SessionFiles.SnapshotReports();
+            await ui.Click("DeepScanButton");
+            await UntilAsync(() => Visible("ScanCancelButton"), TimeSpan.FromSeconds(10), "Panneau de progression absent.");
+            var cancel = Find("ScanCancelButton")!;
+            Assert.True(cancel.IsEnabled);
+            Assert.Contains(window!.FindAllDescendants(), element => element.Name?.StartsWith("Écoulé :", StringComparison.Ordinal) == true);
+            var card = Find("ScanCentralCard") ?? throw new InvalidOperationException("Carte centrale du Scan absente de l’arbre UIA.");
+            var elapsed = Assert.Single(card.FindAllDescendants(), element =>
+                element.Name?.StartsWith("Écoulé :", StringComparison.Ordinal) == true && !element.IsOffscreen);
+            var windowBounds = window!.BoundingRectangle;
+            var cardBounds = card.BoundingRectangle;
+            Assert.True(windowBounds.Width > 0 && windowBounds.Height > 0, "Rectangle de fenêtre vide.");
+            Assert.True(cardBounds.Width > 0 && cardBounds.Height > 0, "Rectangle de carte Scan vide.");
+            foreach (var element in new[] { elapsed, cancel })
+            {
+                var bounds = element.BoundingRectangle;
+                Assert.True(bounds.Width > 0 && bounds.Height > 0, $"Rectangle vide : {element.Name}.");
+                Assert.True(bounds.Left >= windowBounds.Left && bounds.Top >= windowBounds.Top &&
+                    bounds.Right <= windowBounds.Right && bounds.Bottom <= windowBounds.Bottom,
+                    $"Contrôle Scan rogné par la fenêtre : {element.Name} ({bounds}, fenêtre {windowBounds}).");
+                Assert.True(bounds.Left >= cardBounds.Left && bounds.Top >= cardBounds.Top &&
+                    bounds.Right <= cardBounds.Right && bounds.Bottom <= cardBounds.Bottom,
+                    $"Contrôle Scan rogné par la carte centrale : {element.Name} ({bounds}, carte {cardBounds}).");
+            }
+            SaveWindow("13-scan-progression.png");
+            await ui.Click("ScanCancelButton");
+            await UntilAsync(() => Find("HomeNavButton")!.IsEnabled && window!.FindAllDescendants().Any(element =>
+                element.Name?.Contains("Analyse annulée", StringComparison.Ordinal) == true),
+                TimeSpan.FromSeconds(1), "Annuler ne rend pas la main en une seconde.");
+            Assert.Equal(reportsBeforeCancelledScan, SessionFiles.SnapshotReports());
+            await ui.Click("ScanNavButton");
+            await WaitVisibleAsync("DeepScanButton");
             await ui.Click("DeepScanButton");
             // Invoke dispatches the async handler. Navigation is disabled synchronously
             // before its first await, so this proves the scan actually started.
@@ -230,7 +262,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
         Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
         var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
-            .Append("12-recap-nettoyage.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
+            .Append("12-recap-nettoyage.png").Append("13-scan-progression.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected, actual);

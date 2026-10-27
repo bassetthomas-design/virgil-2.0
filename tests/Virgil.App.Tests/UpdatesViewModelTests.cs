@@ -13,6 +13,50 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesViewModelTests
 {
+    [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancelScanOrDriverSearchAcknowledgesImmediatelyAndNeverExecutes(bool drivers)
+    {
+        var f = new Fixture();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocked = new TaskCompletionSource<UpdateScanReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Scan.Handler = async token => { started.SetResult(); return await blocked.Task.WaitAsync(token); };
+        var task = drivers ? f.Vm.InspectDriversCommand.ExecuteAsync(null) : f.Analyze();
+        await started.Task;
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(!f.Vm.IsBusy || f.Vm.IsCancelling);
+        Assert.False(f.Vm.Operation.CanCancel);
+        Assert.Empty(f.Actions.Order);
+        await task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.False(f.Vm.IsBusy);
+        Assert.Equal(0, f.Persisted);
+    }
+
+    [Fact]
+    [Trait("Category", "Safety")]
+    public async Task CancelSelectedDuringFirstInstallationNeverStartsSecondOrThird()
+    {
+        var f = new Fixture();
+        f.Scan.Report = Report(Item("a"), Item("b"), Item("c"));
+        await f.Analyze(); f.SelectAll();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<UpdateExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Actions.Handler = (item, token) => { started.SetResult(); return finish.Task; };
+        var task = f.Run();
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await started.Task;
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(f.Vm.IsCancelling);
+        Assert.False(task.IsCompleted);
+        Assert.Single(f.Actions.Plans);
+        finish.SetResult(new UpdateExecutionResult { Item = Item("a"), Status = UpdateItemStatus.Completed });
+        await task;
+        Assert.Single(f.Actions.Plans);
+        Assert.False(f.Vm.IsBusy);
+    }
+
     [Fact]
     public void InitialStateAndEmptyCommands()
     {

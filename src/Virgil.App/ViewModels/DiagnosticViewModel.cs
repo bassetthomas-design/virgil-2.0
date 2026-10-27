@@ -23,12 +23,15 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private IReadOnlyList<DiagnosticProcessRow> _processes = Array.Empty<DiagnosticProcessRow>();
     public DiagnosticViewModel(DiagnosticModule module, TimeProvider clock, IConfirmationService? confirmation = null, ISystemStatusStore? statusStore = null)
     {
+        Operation = new LongOperationViewModel(() => _refreshCancellation?.Cancel(), clock);
         _module = module;
         ArgumentNullException.ThrowIfNull(clock);
         _confirmation = confirmation;
         _statusStore = statusStore;
         RefreshCommand = new AsyncRelayCommand(() => { _module.InvalidateSignals(); return RefreshAsync(); });
     }
+    private CancellationTokenSource? _refreshCancellation;
+    public LongOperationViewModel Operation { get; }
     public IAsyncRelayCommand RefreshCommand { get; }
     public Task PresentationTask { get; private set; } = Task.CompletedTask;
     public bool IsRefreshing { get; private set; }
@@ -104,6 +107,10 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         else if (!await _refreshGate.WaitAsync(0)) return;
         try
         {
+            using var refresh = CancellationTokenSource.CreateLinkedTokenSource(token);
+            _refreshCancellation = refresh;
+            token = refresh.Token;
+            Operation.Start("Actualisation du diagnostic…");
             IsRefreshing = true;
             OnPropertyChanged(nameof(IsRefreshing));
             var findings = (DiagnosticFindings)await _module.ScanAsync(token);
@@ -117,10 +124,12 @@ public sealed partial class DiagnosticViewModel : ObservableObject
                 OnPropertyChanged(name);
             ApplySort();
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { Status = "Actualisation annulée. Aucun résultat partiel publié."; }
         catch (Exception) { Status = "Indisponible : lecture Windows impossible. Utilisez Actualiser pour réessayer."; }
         finally
         {
+            Operation.Complete(Status);
+            _refreshCancellation = null;
             IsRefreshing = false;
             OnPropertyChanged(nameof(IsRefreshing));
             _refreshGate.Release();
@@ -135,6 +144,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private IMaintenanceAction? _pending;
     private ActionPreview? _preview;
     private CancellationTokenSource? _actionCancellation;
+    private CancellationTokenSource? _previewCancellation;
     [ObservableProperty] private bool isValidationOpen;
     [ObservableProperty] private string validationTitle = string.Empty;
     [ObservableProperty] private string validationDetails = string.Empty;
@@ -166,7 +176,11 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         if (IsValidationOpen || _actionCancellation is not null) return;
         try
         {
-            _preview = await action.PreviewAsync(CancellationToken.None);
+            using var previewCancellation = CancellationTokenSource.CreateLinkedTokenSource(_presentation?.Token ?? default);
+            _previewCancellation = previewCancellation;
+            var token = previewCancellation.Token;
+            _preview = await action.PreviewAsync(token);
+            token.ThrowIfCancellationRequested();
             _pending = action;
             ValidationTitle = _preview.Title;
             ValidationDetails = string.Join("\n", _preview.Targets.Concat(_preview.Parameters.Select(p => (p.Key switch { "ProcessId" => "PID", "Name" => "Nom", "Path" => "Emplacement", "StartedAt" => "Démarrage (UTC)", _ => "Paramètre" }) + " : " + p.Value)).Concat(_preview.Effects));
@@ -175,7 +189,9 @@ public sealed partial class DiagnosticViewModel : ObservableObject
                 : "Validation simple. Aucune fermeture forcée automatique. Aucun point de restauration requis pour un processus.";
             IsValidationOpen = true;
         }
+        catch (OperationCanceledException) { Status = "Préparation annulée. Aucune action effectuée."; }
         catch { Status = "Impossible de préparer cette action. Aucune action effectuée."; }
+        finally { _previewCancellation = null; }
     }
     [RelayCommand]
     private async Task ExecuteDecisionAsync()
@@ -207,6 +223,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         IsValidationOpen = false;
         _pending = null;
         _preview = null;
+        _previewCancellation?.Cancel();
         _actionCancellation?.Cancel();
     }
     public void Sort(DiagnosticProcessSort sort)

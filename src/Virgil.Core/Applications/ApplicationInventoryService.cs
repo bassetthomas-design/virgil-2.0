@@ -39,6 +39,7 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
             try
             {
                 var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 all.AddRange(result.Applications);
                 errors.AddRange(result.Errors);
                 Report(progress, "Analyse des applications", reader.SourceName, all.Count, Percent(index + 1, _readers.Count), $"Applications trouvees : {all.Count}");
@@ -53,6 +54,7 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var merged = Merge(all)
             .Select(app => app with
             {
@@ -62,6 +64,7 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
             .OrderBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
+        cancellationToken.ThrowIfCancellationRequested();
         stopwatch.Stop();
         Report(progress, "Termine", "Synthese", merged.Count, 100, "Inventaire termine.");
 

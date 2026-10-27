@@ -54,6 +54,8 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
         var helperFinished = false;
         try
         {
+            var cancellationRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellationRegistration = cancellationToken.Register(() => cancellationRequested.TrySetResult());
             // Keep the protocol alive until the helper has acknowledged cancellation and exited.
             using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
             var launch = _processLauncher.RunElevatedAsync(helperPath, requestFile.RequestPath, timeout.Token);
@@ -67,7 +69,8 @@ public sealed class ElevatedHelperClient : IInterventionElevatedHelperClient
                     Step = cancellationToken.IsCancellationRequested ? "Annulation demandée, arrêt en cours…" : "Élévation ou vérification en cours…",
                     Elapsed = DateTimeOffset.UtcNow - requestFile.CreatedAt
                 });
-                await Task.WhenAny(launch, Task.Delay(500, timeout.Token)).ConfigureAwait(false);
+                var delay = Task.Delay(500, timeout.Token);
+                await Task.WhenAny(launch, delay, cancellationToken.IsCancellationRequested ? delay : cancellationRequested.Task).ConfigureAwait(false);
                 timeout.Token.ThrowIfCancellationRequested();
             }
             var helperExitCode = await launch.ConfigureAwait(false);

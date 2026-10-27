@@ -20,6 +20,7 @@ internal sealed class ElevatedProgressChannel : IProgress<InterventionProgress>,
         _validator = validator;
         _request = request;
         _timer = new Timer(_ => Tick(), null, 0, 500);
+        Tick(); // Une demande déjà présente bloque la première commande, sans attendre le premier tick.
     }
 
     public CancellationToken Token => _cancel.Token;

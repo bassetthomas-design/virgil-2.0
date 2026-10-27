@@ -1,5 +1,6 @@
 <UserControl x:Class="Virgil.App.Views.DiagnosticView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:controls="clr-namespace:Virgil.App.Controls"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  Loaded="View_Loaded" Unloaded="View_Unloaded" IsVisibleChanged="View_IsVisibleChanged">
  <UserControl.Resources>
@@ -17,7 +18,7 @@
    <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
    <ItemsControl ItemsSource="{Binding Top3}"/>
    <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
-   <TextBlock Text="Actualisation en cours…" Visibility="{Binding IsRefreshing, Converter={StaticResource DiagnosticBoolToVisibility}}" Margin="0,4"/>
+   <controls:OperationProgressPanel DataContext="{Binding Operation}" CancelAutomationId="DiagnosticCancelButton"/>
    <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
   </StackPanel>
   <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">

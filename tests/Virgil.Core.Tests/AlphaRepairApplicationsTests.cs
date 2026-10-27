@@ -107,6 +107,59 @@ public sealed class AlphaRepairApplicationsTests
         Assert.Empty(launcher.Apps);
     }
 
+    [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData("Report", 1, false)]
+    [InlineData("Report", 2, false)]
+    [InlineData("skip", 1, false)]
+    [InlineData("skip", 2, false)]
+    [InlineData("skip", 1, true)]
+    public async Task BatchCancellationInsideCallbackNeverLaunchesCurrentOrFollowingInstaller(
+        string callback, int cancelAt, bool skipCancelledItem)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var authority = new ConfirmationService(TimeProvider.System);
+        var launcher = new Launcher();
+        var service = new ApplicationUninstallService(new(), launcher, new(), authority);
+        var apps = new[] { Safe("one"), Safe("two") };
+        var plan = authority.Issue(ApplicationBatchPreviewFactory.Create(apps.Select(service.BuildPlan).ToArray()),
+            new(ConfirmationLevel.Simple, null));
+        var notified = new List<int>();
+        var progress = new CallbackProgress(value =>
+        {
+            if (value.Step == "Rapport") return;
+            notified.Add(value.StepNumber);
+            if (callback == "Report" && value.StepNumber == cancelAt) cancellation.Cancel();
+        });
+        var result = await service.LaunchBatchAsync(apps, plan,
+            new() { ExplicitlyConfirmed = true }, progress, cancellation.Token, app =>
+            {
+                if (callback != "skip" || app.Id != apps[cancelAt - 1].Id) return false;
+                cancellation.Cancel();
+                return skipCancelledItem;
+            });
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.Equal(cancelAt - 1, launcher.Apps.Count);
+        Assert.DoesNotContain(launcher.Apps, command => command.Contains("Example.two", StringComparison.Ordinal));
+        Assert.Equal(2, result.Count);
+        Assert.Equal("two", result[1].Application.Id);
+        Assert.True(result[1].WasCancelled);
+        Assert.False(result[1].WasLaunched);
+        Assert.False(result[1].StatusUnknown);
+        Assert.Contains("Non lancée", result[1].Result);
+        if (!skipCancelledItem)
+        {
+            Assert.All(result.Skip(cancelAt - 1), item => Assert.Contains("Non lancée", item.Result));
+            if (callback == "Report") Assert.Contains(cancelAt, notified);
+        }
+    }
+
+    private sealed class CallbackProgress(Action<ApplicationUninstallProgress> report) : IProgress<ApplicationUninstallProgress>
+    {
+        public void Report(ApplicationUninstallProgress value) => report(value);
+    }
+
     [Fact]
     public async Task BatchSkipNeverLaunchesSkippedItem()
     {

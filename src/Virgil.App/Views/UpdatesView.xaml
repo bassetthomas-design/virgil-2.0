@@ -40,7 +40,9 @@
         </DataTemplate>
     </UserControl.Resources>
     <Grid ClipToBounds="True">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <controls:OperationProgressPanel Grid.Row="0" DataContext="{Binding Operation}" CancelAutomationId="UpdatesCancelButton"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Focusable="False"
                       ClipToBounds="True">
@@ -115,15 +117,11 @@
                         Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8" />
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
                     <StackPanel>
-                        <TextBlock Text="{Binding SequenceStepText}" TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" />
+                <TextBlock Text="{Binding SequenceStepText}" TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" />
                         <TextBlock Text="Redémarrage nécessaire. Enregistrez votre travail avant de redémarrer Windows."
                                    Visibility="{Binding RebootRequired, Converter={StaticResource BoolVisibility}}"
                                    TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,8,0,0" />
                         <ItemsControl ItemsSource="{Binding SequenceProgress}" ItemTemplate="{StaticResource UpdatesTextCardTemplate}" Margin="0,8,0,0" />
-                        <Button Content="ANNULER" Command="{Binding CancelUpdateOperationCommand}"
-                                Visibility="{Binding IsBusy, Converter={StaticResource BoolVisibility}}"
-                                Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,8,0,0"
-                                AutomationProperties.Name="Annuler entre les étapes" />
                     </StackPanel>
                 </Border>
                 <Rectangle Style="{StaticResource VirgilSeparator}" />
@@ -178,7 +176,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid x:Name="UpdateValidationOverlay"
+        <Grid Grid.Row="1" x:Name="UpdateValidationOverlay"
               Panel.ZIndex="20"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
@@ -277,7 +275,7 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="UpdatesReportOverlay"
+        <Grid Grid.Row="1" x:Name="UpdatesReportOverlay"
               Panel.ZIndex="30"
               Background="#CC06090D"
               FocusManager.IsFocusScope="True"
