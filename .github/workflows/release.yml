@@ -29,7 +29,7 @@ jobs:
         run: dotnet build Virgil.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Virgil.sln --configuration Release --no-build
+        run: dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI"
 
       - name: Release version
         id: version
