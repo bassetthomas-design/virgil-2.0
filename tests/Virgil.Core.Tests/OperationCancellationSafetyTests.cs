@@ -136,7 +136,8 @@ public sealed class OperationCancellationSafetyTests
         Directory.CreateDirectory(directory);
         try
         {
-            var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(),
+            var files = new RecordingProtocolFiles();
+            var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), files,
                 () => new byte[16], () => DateTimeOffset.UtcNow);
             var launcher = new HelperLauncher();
             var backend = new WindowsUpdateSequenceBackend(null!, store, launcher, () => "helper.exe");
@@ -144,6 +145,7 @@ public sealed class OperationCancellationSafetyTests
             var task = backend.ExecuteAsync(new("windows", "Windows", UpdateComponent.Windows), cancellation.Token);
             var request = await launcher.Started.Task;
             cancellation.Cancel();
+            await files.CancelWritten.Task.WaitAsync(TimeSpan.FromSeconds(1));
             var cancel = request.Replace(".request.json", ".cancel", StringComparison.Ordinal);
             Assert.True(File.Exists(cancel));
             Assert.True(File.Exists(request));
@@ -206,6 +208,18 @@ public sealed class OperationCancellationSafetyTests
             var result = await executor.ExecuteAsync(step.Application!, plan, token);
             return new(step, result.Status == UpdateItemStatus.Completed, false, result.UserMessage);
         }
+    }
+    private sealed class RecordingProtocolFiles : IElevatedProtocolFiles
+    {
+        private readonly ElevatedProtocolFiles _inner = new();
+        public TaskCompletionSource CancelWritten { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task WriteRequestAsync(string path, ElevatedInterventionRequest request, System.Text.Json.JsonSerializerOptions options, CancellationToken token)
+            => _inner.WriteRequestAsync(path, request, options, token);
+        public Task<ElevatedInterventionResult?> ReadResultAsync(string path, System.Text.Json.JsonSerializerOptions options, CancellationToken token)
+            => _inner.ReadResultAsync(path, options, token);
+        public bool Exists(string path) => _inner.Exists(path);
+        public void Delete(string path) => _inner.Delete(path);
+        public void RequestCancel(string path) { _inner.RequestCancel(path); CancelWritten.TrySetResult(); }
     }
     private sealed class HelperLauncher : IElevatedProcessLauncher
     {

@@ -76,10 +76,14 @@ public sealed class WindowsUpdateSequenceBackend(
         var helperFinished = false;
         try
         {
-            using var registration = cancellationToken.Register(() => store.RequestCancel(file));
+            var cancellationRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = cancellationToken.Register(() => cancellationRequested.TrySetResult());
             var launch = launcher.RunElevatedAsync(helperPath(), file.RequestPath, CancellationToken.None);
+            await Task.WhenAny(launch, cancellationRequested.Task).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested) store.RequestCancel(file);
             await launch.ConfigureAwait(false);
             helperFinished = true;
+            if (cancellationToken.IsCancellationRequested) store.RequestCancel(file);
             var result = await store.ReadResultAsync(file, CancellationToken.None).ConfigureAwait(false);
             return new(step, result?.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired,
                 result?.RebootRequired == true, result?.ReadableError ?? result?.SummaryOutput ?? "Assistant élevé sans résultat.");
