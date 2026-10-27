@@ -556,6 +556,42 @@ public sealed class CleanupViewModelTests
         }
     }
 
+    [Fact]
+    public async Task Dev_cache_rows_never_appear_under_restes_category()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var root = Path.GetFullPath("cache-vm-fixture");
+        var candidates = new[] { "npm-cache", "NuGet", "pnpm-cache", "pnpm", "OldTool" }.Select(name =>
+        {
+            var path = Path.Combine(root, name);
+            return new SoftwareFootprintCandidate(name, path, root,
+                [new(Path.Combine(path, "cache.tmp"), 100, now)], [@"HKCU\SOFTWARE\" + name], now);
+        }).ToArray();
+        var f = new Fixture();
+        f.Previews.Items = new LeftoverAnalyzer().Analyze(new([], [], candidates), now);
+        await f.Analyze();
+        var category = Assert.Single(f.Vm.Categories);
+        Assert.Equal("Restes de logiciels désinstallés", category.Title);
+        Assert.Equal("OldTool", Assert.Single(category.Rows).Preview.Definition.SoftwareName);
+        Assert.DoesNotContain(category.Rows, r => DevelopmentCacheCatalog.Contains(r.Preview.Definition.SoftwareName ?? ""));
+    }
+
+    internal static async Task<CleanupViewModel> ContrastFixture()
+    {
+        var f = new Fixture();
+        var now = DateTimeOffset.UtcNow;
+        var leftovers = Enumerable.Range(1, 20).Select(i => Preview(CleanupZoneId.SoftwareLeftovers) with
+        {
+            Definition = Preview(CleanupZoneId.SoftwareLeftovers).Definition with
+            { SoftwareName = $"Ancien outil {i}", DisplayName = $"Ancien outil {i}", Classification = CleanupClassification.AdvancedCleanable },
+            EligibleBytes = (long)(2.1 * 1024 * 1024 * 1024 / 20)
+        });
+        f.Previews.Items = leftovers.Concat(new[] { Preview(CleanupZoneId.OldDownloads),
+            Preview(CleanupZoneId.BrowserChromeCache), Preview() }).ToArray();
+        await f.Analyze();
+        return f.Vm;
+    }
+
     private static CleanupZonePreview Preview(CleanupZoneId id = CleanupZoneId.UserTemporaryFiles,
         CleanupClassification classification = CleanupClassification.Cleanable, int order = 0, bool executable = true, int eligible = 2) =>
         new(new CleanupZoneDefinition(id, id.ToString(), "Description", "Zone test", TimeSpan.FromDays(2), CleanupRiskLevel.Low, "Attention", "Effet", "Non touche", order)

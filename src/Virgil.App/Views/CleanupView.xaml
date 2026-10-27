@@ -148,14 +148,14 @@
                     <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}" FontSize="20"/>
                     <TextBlock Text="{Binding SafetySummary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
-                <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
+                <ListBox Grid.Row="2" x:Name="ZonesPanel" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
                          HorizontalContentAlignment="Stretch">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Expander Header="{Binding Header}" Margin="0,6">
-                                <Expander.Style><Style TargetType="Expander"><Setter Property="IsExpanded" Value="False"/>
+                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="IsExpanded" Value="False"/>
                                     <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                                         <Grid IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -171,7 +171,7 @@
                                                             <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}"/></StackPanel>
                                                         </CheckBox>
                                                         <Expander Header="Détails techniques" Margin="20,4,0,0">
-                                                            <Expander.Style><Style TargetType="Expander"><Style.Triggers>
+                                                            <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers>
                                                                 <Trigger Property="IsExpanded" Value="True"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                                                                     <TextBlock Text="{Binding Details}" TextWrapping="Wrap"/>
                                                                 </DataTemplate></Setter.Value></Setter></Trigger>

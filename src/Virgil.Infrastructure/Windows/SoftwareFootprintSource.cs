@@ -1,5 +1,4 @@
 using Microsoft.Win32;
-using System.Diagnostics;
 using System.Security;
 using System.Text.RegularExpressions;
 using Virgil.Core.Applications;
@@ -9,8 +8,27 @@ using Virgil.Core.Processes;
 namespace Virgil.Infrastructure.Windows;
 
 /// <summary>Inventaire Windows en lecture seule. Une lecture incomplète interdit la sélection de groupe.</summary>
-public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProcessRunner runner) : ISoftwareFootprintSource
+public sealed class SoftwareFootprintSource : ISoftwareFootprintSource
 {
+    private readonly IKnownFoldersProvider folders;
+    private readonly IProcessRunner runner;
+    private readonly IFootprintRegistry registryReader;
+    private readonly FootprintFileRoots fileRoots;
+    private readonly IFootprintProcessPaths processes;
+
+    public SoftwareFootprintSource(IKnownFoldersProvider folders, IProcessRunner runner)
+        : this(folders, runner, new WindowsFootprintRegistry(), FootprintFileRoots.Windows(), new WindowsFootprintProcessPaths()) { }
+
+    public SoftwareFootprintSource(IKnownFoldersProvider folders, IProcessRunner runner,
+        IFootprintRegistry registry, FootprintFileRoots roots, IFootprintProcessPaths processes)
+    {
+        this.folders = folders;
+        this.runner = runner;
+        registryReader = registry;
+        fileRoots = roots;
+        this.processes = processes;
+    }
+
     public Task<SoftwareFootprintSnapshot> ReadAsync(CancellationToken cancellationToken) =>
         Task.Run(() => ReadInventoryAsync(cancellationToken), cancellationToken);
 
@@ -27,18 +45,22 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
             try
             {
                 if (hive == RegistryHive.CurrentUser && view == RegistryView.Registry32) continue;
-                using var root = RegistryKey.OpenBaseKey(hive, view);
-                using var uninstall = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", false);
+                using var root = registryReader.OpenBaseKey(hive, view);
+                using var uninstall = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
                 if (uninstall is null) continue;
                 foreach (var name in uninstall.GetSubKeyNames())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    using var key = uninstall.OpenSubKey(name, false);
+                    using var key = uninstall.OpenSubKey(name);
                     if (key?.GetValue("DisplayName") is not string display) continue;
                     var references = new List<string>();
                     foreach (var value in new[] { "InstallLocation", "DisplayIcon", "UninstallString", "QuietUninstallString" })
                         if (key.GetValue(value) is string text) references.AddRange(ExtractPaths(text));
                     installed.Add(new(display, references));
+                    // Le nom de la sous-clé identifie aussi les profils dont le nom diffère du DisplayName.
+                    // Une identité MSI GUID ne fournit aucun nom de dossier exploitable.
+                    if (!Guid.TryParse(name, out _))
+                        evidence.Add(new(name, references, "Identité de désinstallation Windows"));
                     evidence.Add(new(display, references, "Désinstallation Windows"));
                     if (key.GetValue("Publisher") is string publisher && publisher.Length > 0)
                     {
@@ -59,29 +81,24 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
                 string.IsNullOrWhiteSpace(a.InstallLocation) ? [] : new[] { a.InstallLocation! }, "Paquet Microsoft Store")));
         }
         catch (Exception ex) when (IsReadError(ex)) { complete = false; }
-        foreach (var process in Process.GetProcesses())
-        {
-            using (process)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                try { if (process.MainModule?.FileName is { } path) active.Add(path); }
-                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException) { complete = false; }
-            }
-        }
+        var processPaths = processes.Read(cancellationToken);
+        active.AddRange(processPaths.Paths);
+        if (!processPaths.IsComplete) complete = false;
         try
         {
-            using var services = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services", false);
+            using var serviceRoot = registryReader.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default);
+            using var services = serviceRoot.OpenSubKey(@"SYSTEM\CurrentControlSet\Services");
             if (services is null) complete = false;
             else foreach (var name in services.GetSubKeyNames())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using var service = services.OpenSubKey(name, false);
+                using var service = services.OpenSubKey(name);
                 if (name.Equals("Steam Client Service", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("SteamService", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(service?.GetValue("DisplayName") as string, "Steam Client Service", StringComparison.OrdinalIgnoreCase))
                     evidence.Add(new("Steam", [], "Service Windows"));
                 if (service?.GetValue("ImagePath") is string path) active.AddRange(ExtractPaths(path));
-                using var parameters = service?.OpenSubKey("Parameters", false);
+                using var parameters = service?.OpenSubKey("Parameters");
                 if (parameters?.GetValue("ServiceDll") is string dll) active.AddRange(ExtractPaths(dll));
             }
         }
@@ -93,10 +110,10 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
         {
             try
             {
-                using var root = RegistryKey.OpenBaseKey(hive, view);
+                using var root = registryReader.OpenBaseKey(hive, view);
                 if (hive == RegistryHive.CurrentUser && view == RegistryView.Registry32) continue;
                 const string softwarePath = "SOFTWARE";
-                using var software = root.OpenSubKey(softwarePath, false);
+                using var software = root.OpenSubKey(softwarePath);
                 if (software is null) continue;
                 foreach (var publisher in software.GetSubKeyNames().Where(n => !LeftoverAnalyzer.IsProtected(n) && n != "WOW6432Node"))
                 {
@@ -104,7 +121,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
                     var prefix = (hive == RegistryHive.CurrentUser ? "HKCU" : "HKLM") + @"\SOFTWARE\" +
                         (hive == RegistryHive.LocalMachine && view == RegistryView.Registry32 ? @"WOW6432Node\" : "") + publisher;
                     registry.Add((publisher, prefix));
-                    using var key = software.OpenSubKey(publisher, false);
+                    using var key = software.OpenSubKey(publisher);
                     if (key is not null)
                     {
                         ReadInstallValues(key, publisher, prefix, evidence);
@@ -112,7 +129,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             registry.Add((product, prefix + "\\" + product));
-                            using var productKey = key.OpenSubKey(product, false);
+                            using var productKey = key.OpenSubKey(product);
                             if (productKey is not null) ReadInstallValues(productKey, product, prefix + "\\" + product, evidence);
                         }
                     }
@@ -122,10 +139,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
         }
         ReadLaunchers(evidence, cancellationToken, ref complete);
         var knownFolders = folders.GetFolders();
-        var roots = new[] { Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolder.ApplicationData,
-            Environment.SpecialFolder.CommonApplicationData, Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
-            .Select(Environment.GetFolderPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase);
+        var roots = fileRoots.All.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase);
         foreach (var root in roots)
         {
             try
@@ -157,7 +171,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
     private static readonly string[] InstallValueNames =
         ["InstallPath", "InstallDir", "InstallLocation", "Path", "ExePath", "Install_Dir", "SteamPath"];
 
-    private static void ReadInstallValues(RegistryKey key, string name, string keyPath, List<InstalledEvidence> evidence)
+    private static void ReadInstallValues(IFootprintRegistryKey key, string name, string keyPath, List<InstalledEvidence> evidence)
     {
         var paths = key.GetValueNames().Where(n => InstallValueNames.Contains(n, StringComparer.OrdinalIgnoreCase))
             .Select(n => key.GetValue(n)).OfType<string>().SelectMany(ExtractPaths)
@@ -165,7 +179,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
         if (paths.Length > 0) evidence.Add(new(name, paths, "Chemin du registre", [keyPath]));
     }
 
-    private static void ReadLaunchers(List<InstalledEvidence> evidence, CancellationToken token, ref bool complete)
+    private void ReadLaunchers(List<InstalledEvidence> evidence, CancellationToken token, ref bool complete)
     {
         var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var hive in new[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser })
@@ -174,11 +188,11 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
             if (hive == RegistryHive.CurrentUser && view == RegistryView.Registry32) continue;
             try
             {
-                using var root = RegistryKey.OpenBaseKey(hive, view);
+                using var root = registryReader.OpenBaseKey(hive, view);
                 foreach (var vendor in new[] { @"Valve\Steam", @"Ubisoft\Launcher", @"Tencent\WeGame", @"Blizzard Entertainment", @"Battle.net", @"Electronic Arts", @"EA Desktop", @"GOG.com\Games" })
                 {
                     token.ThrowIfCancellationRequested();
-                    using var key = root.OpenSubKey(@"SOFTWARE\" + vendor, false);
+                    using var key = root.OpenSubKey(@"SOFTWARE\" + vendor);
                     if (key is null) continue;
                     var prefix = (hive == RegistryHive.LocalMachine ? "HKLM" : "HKCU") + @"\SOFTWARE\" +
                         (hive == RegistryHive.LocalMachine && view == RegistryView.Registry32 ? @"WOW6432Node\" : "") + vendor;
@@ -228,7 +242,7 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
         }
         try
         {
-            var manifests = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Epic", "EpicGamesLauncher", "Data", "Manifests");
+            var manifests = Path.Combine(fileRoots.ProgramData, "Epic", "EpicGamesLauncher", "Data", "Manifests");
             if (Directory.Exists(manifests)) foreach (var manifest in Directory.EnumerateFiles(manifests, "*.item"))
             {
                 token.ThrowIfCancellationRequested();
@@ -243,14 +257,14 @@ public sealed class SoftwareFootprintSource(IKnownFoldersProvider folders, IProc
         catch (Exception ex) when (IsReadError(ex)) { complete = false; }
     }
 
-    private static void ReadLauncherKey(RegistryKey key, string name, string prefix, List<InstalledEvidence> evidence, CancellationToken token, int depth)
+    private static void ReadLauncherKey(IFootprintRegistryKey key, string name, string prefix, List<InstalledEvidence> evidence, CancellationToken token, int depth)
     {
         token.ThrowIfCancellationRequested();
         ReadInstallValues(key, key.GetValue("DisplayName") as string ?? key.GetValue("GameName") as string ?? name, prefix, evidence);
         if (depth >= 4) return;
         foreach (var child in key.GetSubKeyNames())
         {
-            using var subkey = key.OpenSubKey(child, false);
+            using var subkey = key.OpenSubKey(child);
             if (subkey is not null) ReadLauncherKey(subkey, child, prefix + "\\" + child, evidence, token, depth + 1);
         }
     }
