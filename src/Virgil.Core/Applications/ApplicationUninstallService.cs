@@ -187,6 +187,8 @@ public sealed class ApplicationUninstallService
                 plan.Application.DisplayName, $"Désinstallation {index + 1}/{plans.Length} : {plan.Application.DisplayName}");
             try
             {
+                // Les callbacks peuvent demander l’arrêt : vérifier après eux, avant l’effet OS.
+                if (cancellationToken.IsCancellationRequested) break;
                 var launch = await _launcher.LaunchAsync(plan.Validation.Executable!, plan.Validation.Arguments,
                     useShellExecute: true, CancellationToken.None).ConfigureAwait(false);
                 var remnants = !cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode is 0 or 3010
