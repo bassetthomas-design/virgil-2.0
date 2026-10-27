@@ -121,7 +121,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(new[]
         {
             "NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown.",
-            "A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
+            "À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
             "PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."
         }, f.Vm.Entries.OfType<CleanupTextCardItem>().Select(c => c.Text));
         Assert.Empty(f.Actions.Order);
