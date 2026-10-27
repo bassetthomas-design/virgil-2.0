@@ -89,6 +89,7 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty] private string validationMetrics = string.Empty;
     [ObservableProperty] private string validationEffect = string.Empty;
     [ObservableProperty] private string validationNotTouched = string.Empty;
+    [ObservableProperty] private string validationNatureSummary = string.Empty;
     [ObservableProperty] private string validationWarning = string.Empty;
     [ObservableProperty] private string executeZoneLabel = "EXECUTER";
     [ObservableProperty] private bool isReportOpen;
@@ -195,6 +196,7 @@ public partial class CleanupViewModel : ObservableObject
             RequiresCriticalConfirmation = false;
             CriticalConfirmationText = string.Empty;
             ExpectedCriticalConfirmation = string.Empty;
+            ValidationNatureSummary = string.Empty;
             ValidationTitle = expiredOnly ? "Effacer les éléments expirés" : preview.Title;
             ValidationReason = "Éléments sélectionnés dans la quarantaine";
             ValidationRoot = string.Join("\n", preview.Targets);
@@ -220,6 +222,22 @@ public partial class CleanupViewModel : ObservableObject
             catch { StatusText += " Lecture de la quarantaine impossible."; }
             EndOperation();
         }
+    }
+
+    [RelayCommand]
+    private void SelectAll()
+    {
+        if (!IsIdle) return;
+        foreach (var group in Groups) group.IsSelected = true;
+        UpdateCommandState();
+    }
+
+    [RelayCommand]
+    private void DeselectAll()
+    {
+        if (!IsIdle) return;
+        foreach (var row in Groups.SelectMany(g => g.Rows)) row.IsSelected = false;
+        UpdateCommandState();
     }
 
     [RelayCommand]
@@ -335,6 +353,7 @@ public partial class CleanupViewModel : ObservableObject
             ValidationMetrics = $"Taille totale : {FormatBytes(selected.Sum(p => p.EligibleBytes))}\nNombre de fichiers : {preview.Parameters["Files"]}\nÉléments sensibles : {preview.Parameters["Sensitive"]}\n" +
                 string.Join("\n", Groups.Select(g => g.Title + " : " + preview.Parameters[g.Group.ToString()]));
             ValidationEffect = string.Join("\n", preview.Effects);
+            ValidationNatureSummary = preview.Parameters["NatureSummary"];
             ValidationNotTouched = "Clés de registre en lecture seule. Fichiers hors sélection et racines conservés.";
             ValidationWarning = selected.Any(p => p.Definition.Id == CleanupZoneId.RecycleBin)
                 ? "Corbeille : suppression irréversible via l'API Windows, confirmation renforcée obligatoire." : "Fichiers : quarantaine uniquement.";
@@ -824,7 +843,7 @@ public partial class CleanupViewModel : ObservableObject
         {
             CleanupRiskLevel.Low => "faible",
             CleanupRiskLevel.Medium => "moyen",
-            _ => "eleve"
+            _ => "élevé"
         };
     }
 

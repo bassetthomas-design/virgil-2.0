@@ -44,6 +44,7 @@ public sealed class CleanupSelectionAction : IMaintenanceAction
             ["Files"] = selection.Sum(p => p.EligibleFileCount).ToString(CultureInfo.InvariantCulture),
             ["Sensitive"] = selection.Where(p => CleanupActionPreviewFactory.Create(p).RiskLevel >= RiskLevel.Sensitive).Sum(p => p.EligibleFileCount).ToString(CultureInfo.InvariantCulture)
         };
+        CleanupConfirmationSummary.Bind(selection, parameters);
         for (var i = 0; i < previews.Length; i++) parameters["Selection:" + i] = ActionPreviewHasher.Hash(previews[i]);
         foreach (var group in Enum.GetValues<CleanupGroup>())
         {

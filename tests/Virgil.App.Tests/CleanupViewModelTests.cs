@@ -26,6 +26,7 @@ public sealed class CleanupViewModelTests
         row.IsSelected = true;
         var pending = f.Run();
         Assert.True(f.Vm.RequiresCriticalConfirmation);
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (UserTemporaryFiles) et 0 élément(s) système ().", f.Vm.ValidationNatureSummary);
         Assert.Contains("dossier personnel", f.Vm.ValidationTitle);
         Assert.Contains("Dossier personnel", f.Vm.ValidationWarning);
         Assert.NotEmpty(f.Vm.ExpectedCriticalConfirmation);
@@ -269,6 +270,7 @@ public sealed class CleanupViewModelTests
         var p = Preview(id) with { Definition = Preview(id).Definition with { RequiresReinforcedConfirmation = reinforced } };
         f.Previews.Items = new[] { p };
         await f.Analyze();
+        if (id == CleanupZoneId.RecycleBin) Assert.Single(f.Vm.Groups.SelectMany(g => g.Rows)).IsSelected = true;
         var pending = f.Run();
         Assert.Equal("Nettoyage — confirmation récapitulative", f.Vm.ValidationTitle);
         Assert.Equal("CONFIRMER LA SÉLECTION", f.Vm.ExecuteZoneLabel);
@@ -363,6 +365,7 @@ public sealed class CleanupViewModelTests
         f.Actions.Errors = new[] { "Fichier verrouille" };
         f.Actions.ErrorFiles = 3;
         await f.Analyze();
+        f.Vm.Groups.SelectMany(g => g.Rows).Single(r => r.Preview.Definition.Id == CleanupZoneId.RecycleBin).IsSelected = true;
         var pending = f.Run(true);
         Assert.DoesNotContain("WindowsOld", f.Vm.ValidationReason);
         f.Vm.ExecuteDecisionCommand.Execute(null);
@@ -597,7 +600,7 @@ public sealed class CleanupViewModelTests
         new(new CleanupZoneDefinition(id, id.ToString(), "Description", "Zone test", TimeSpan.FromDays(2), CleanupRiskLevel.Low, "Attention", "Effet", "Non touche", order)
         { Classification = classification, IsExecutable = executable }, DateTimeOffset.Now, 3, eligible, 2048, 1, Array.Empty<CleanupCandidate>(), Array.Empty<string>());
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public FakePreview Previews { get; } = new();
         public RecordingConfirmation Confirmation { get; } = new();
@@ -607,12 +610,12 @@ public sealed class CleanupViewModelTests
         public CleanupViewModel Vm { get; }
         public List<string> Messages { get; } = new();
         public int Persisted { get; private set; }
-        public Fixture(CleanupStorageAnalyzer? analyzer = null)
+        public Fixture(CleanupStorageAnalyzer? analyzer = null, IQuarantineStore? quarantine = null)
         {
             Actions.Authority = Confirmation.Authority;
             var module = new CleanupMaintenanceModule(new CleanupAnalyzer(Previews,
                 analyzer ?? new CleanupStorageAnalyzer(Array.Empty<string>())), Actions);
-            Vm = new(module, Runner, History, Confirmation);
+            Vm = new(module, Runner, History, Confirmation, quarantine is null ? null : new QuarantineService(quarantine, Confirmation.Authority, TimeProvider.System));
             Vm.VirgilMessageRequested += Messages.Add;
             Vm.ReportPersisted += (_, _) => Persisted++;
         }
@@ -620,7 +623,7 @@ public sealed class CleanupViewModelTests
         public Task Run(bool advanced = false) => advanced ? Vm.LaunchCleanupAdvancedCommand.ExecuteAsync(null) : Vm.LaunchCleanupSafeCommand.ExecuteAsync(null);
     }
 
-    private sealed class FakePreview : ICleanupPreviewService
+    internal sealed class FakePreview : ICleanupPreviewService
     {
         public IReadOnlyList<CleanupZonePreview> Items { get; set; } = new[] { Preview() };
         public Func<CancellationToken, Task<IReadOnlyList<CleanupZonePreview>>>? Handler { get; set; }
@@ -629,7 +632,7 @@ public sealed class CleanupViewModelTests
             Handler?.Invoke(cancellationToken) ?? Task.FromResult(Items);
     }
 
-    private sealed class FakeActions : ICleanupExecutionService
+    internal sealed class FakeActions : ICleanupExecutionService
     {
         public ConfirmationService Authority { get; set; } = null!;
         public List<string> Order { get; } = new();
@@ -684,7 +687,7 @@ public sealed class CleanupViewModelTests
         }
     }
 
-    private sealed class FakeRunner : IProcessRunner
+    internal sealed class FakeRunner : IProcessRunner
     {
         public int Calls { get; private set; }
         public int Failure { get; init; }
@@ -701,7 +704,7 @@ public sealed class CleanupViewModelTests
         }
     }
 
-    private sealed class FakeHistory : IReportHistoryService
+    internal sealed class FakeHistory : IReportHistoryService
     {
         public ReportSaveResult Result { get; set; } = new() { Success = true };
         public ReportEntry? Saved { get; private set; }
