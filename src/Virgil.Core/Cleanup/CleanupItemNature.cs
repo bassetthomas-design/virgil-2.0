@@ -26,7 +26,7 @@ public static class CleanupItemNature
     };
 
     public static CleanupNature For(CleanupZonePreview preview) =>
-        preview.Definition.IsPersonalFolder || preview.Candidates.Any(c => c.IsEligible && c.IsPersonalFolder)
+        preview.Definition.IsPersonalFolder || preview.Candidates.Any(c => c.IsPersonalFolder)
             ? CleanupNature.Personal : For(preview.Definition.Id);
 
     public static string Label(CleanupNature nature) => nature switch

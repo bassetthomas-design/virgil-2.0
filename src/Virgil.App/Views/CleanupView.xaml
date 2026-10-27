@@ -326,27 +326,27 @@
 
                     <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
                         <TextBlock Text="{Binding ValidationNatureSummary}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
-                    <StackPanel Orientation="Horizontal"
-                                HorizontalAlignment="Right"
-                                KeyboardNavigation.TabNavigation="Continue">
-                        <Button x:Name="ExecuteZoneButton"
-                                Content="{Binding ExecuteZoneLabel}"
-                                Style="{StaticResource VirgilPrimaryButton}"
-                                AutomationProperties.Name="Executer le nettoyage de cette zone"
-                                Command="{Binding ExecuteDecisionCommand}" />
-                        <Button x:Name="SkipZoneButton"
-                                Content="PASSER"
-                                Style="{StaticResource VirgilSecondaryButton}"
-                                Margin="10,0,0,0"
-                                AutomationProperties.Name="Passer cette zone"
-                                Command="{Binding SkipDecisionCommand}" />
-                        <Button x:Name="CancelAllButton"
-                                Content="ANNULER TOUT"
-                                Style="{StaticResource VirgilSecondaryButton}"
-                                Margin="10,0,0,0"
-                                AutomationProperties.Name="Annuler tout le nettoyage guide"
-                                Command="{Binding CancelDecisionCommand}" />
-                    </StackPanel>
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    KeyboardNavigation.TabNavigation="Continue">
+                            <Button x:Name="ExecuteZoneButton"
+                                    Content="{Binding ExecuteZoneLabel}"
+                                    Style="{StaticResource VirgilPrimaryButton}"
+                                    AutomationProperties.Name="Executer le nettoyage de cette zone"
+                                    Command="{Binding ExecuteDecisionCommand}" />
+                            <Button x:Name="SkipZoneButton"
+                                    Content="PASSER"
+                                    Style="{StaticResource VirgilSecondaryButton}"
+                                    Margin="10,0,0,0"
+                                    AutomationProperties.Name="Passer cette zone"
+                                    Command="{Binding SkipDecisionCommand}" />
+                            <Button x:Name="CancelAllButton"
+                                    Content="ANNULER TOUT"
+                                    Style="{StaticResource VirgilSecondaryButton}"
+                                    Margin="10,0,0,0"
+                                    AutomationProperties.Name="Annuler tout le nettoyage guide"
+                                    Command="{Binding CancelDecisionCommand}" />
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>

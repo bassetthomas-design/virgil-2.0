@@ -26,6 +26,7 @@ public sealed class CleanupViewModelTests
         row.IsSelected = true;
         var pending = f.Run();
         Assert.True(f.Vm.RequiresCriticalConfirmation);
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (UserTemporaryFiles) et 0 élément(s) système ().", f.Vm.ValidationNatureSummary);
         Assert.Contains("dossier personnel", f.Vm.ValidationTitle);
         Assert.Contains("Dossier personnel", f.Vm.ValidationWarning);
         Assert.NotEmpty(f.Vm.ExpectedCriticalConfirmation);

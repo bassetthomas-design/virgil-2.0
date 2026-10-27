@@ -843,7 +843,7 @@ public partial class CleanupViewModel : ObservableObject
         {
             CleanupRiskLevel.Low => "faible",
             CleanupRiskLevel.Medium => "moyen",
-            _ => "eleve"
+            _ => "élevé"
         };
     }
 

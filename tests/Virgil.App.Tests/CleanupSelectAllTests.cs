@@ -40,10 +40,10 @@ public sealed class CleanupSelectAllTests
         await f.Analyze();
         f.Vm.SelectAllCommand.Execute(null);
         var rows = f.Vm.Groups.SelectMany(g => g.Rows).ToArray();
-        Assert.Single(rows.Where(r => r.IsSelected));
+        Assert.Single(rows, r => r.IsSelected);
         Assert.All(rows.Where(r => !r.CanGroupSelect), r => Assert.False(r.IsSelected));
         foreach (var category in f.Vm.Categories) category.Selection.IsSelected = true;
-        Assert.Single(rows.Where(r => r.IsSelected));
+        Assert.Single(rows, r => r.IsSelected);
         // Les choix personnels restent possibles individuellement et Tout désélectionner les efface.
         foreach (var row in rows.Where(r => r.CanSelect)) row.IsSelected = true;
         f.Vm.DeselectAllCommand.Execute(null);
@@ -78,6 +78,17 @@ public sealed class CleanupSelectAllTests
             Assert.Equal(0, f.Confirmation.Calls);
             Assert.Equal(0, quarantine.Effects);
         }
+    }
+
+    [Theory]
+    [InlineData(CleanupRiskLevel.Low, "Cache · risque faible")]
+    [InlineData(CleanupRiskLevel.Medium, "Cache · risque moyen")]
+    [InlineData(CleanupRiskLevel.High, "Cache · risque élevé")]
+    public void Row_displays_nature_and_risk(CleanupRiskLevel risk, string label)
+    {
+        var preview = CleanupSelectionTests.Preview(CleanupClassification.Cleanable);
+        Assert.Equal(label, new CleanupSelectionRow(preview with
+        { Definition = preview.Definition with { RiskLevel = risk } }).NatureAndRisk);
     }
 
     private sealed class NoEffectQuarantine : IQuarantineStore
