@@ -19,8 +19,8 @@ public sealed class CleanupSelectionTests
     }
 
     [Theory]
-    [InlineData(true, false)] [InlineData(false, true)] [InlineData(true, true)]
-    public void GroupNeverSelectsOrDeselectsPersonalOrUncertainRows(bool personal, bool uncertain)
+    [InlineData(true, false)] [InlineData(true, true)]
+    public void GroupNeverSelectsOrDeselectsPersonalRows(bool personal, bool uncertain)
     {
         var preview = Preview(CleanupClassification.Cleanable);
         var special = preview with { Definition = preview.Definition with { IsPersonalFolder = personal, NeedsReview = uncertain } };

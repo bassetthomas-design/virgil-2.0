@@ -147,6 +147,11 @@
                 <StackPanel Grid.Row="1" Margin="0,8">
                     <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}" FontSize="20"/>
                     <TextBlock Text="{Binding SafetySummary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                    <WrapPanel IsEnabled="{Binding IsIdle}" Margin="0,8,0,4">
+                        <Button Content="TOUT SÉLECTIONNER" Command="{Binding SelectAllCommand}" Style="{StaticResource VirgilSecondaryButton}"/>
+                        <Button Content="TOUT DÉSÉLECTIONNER" Command="{Binding DeselectAllCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0"/>
+                    </WrapPanel>
+                    <TextBlock Text="La sélection globale et par catégorie exclut les dossiers personnels, les Téléchargements, la Corbeille (suppression irréversible), Windows.old et les lignes non exécutables." TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
                 <ListBox Grid.Row="2" x:Name="ZonesPanel" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
@@ -159,7 +164,7 @@
                                     <Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
                                         <Grid IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                                            <CheckBox Content="Sélectionner la catégorie (hors éléments personnels ou à vérifier)"
+                                            <CheckBox Content="Sélectionner toute la catégorie"
                                                       IsThreeState="True" IsChecked="{Binding Selection.IsSelected, Mode=TwoWay}" Margin="8"/>
                                             <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" MaxHeight="420" Background="Transparent" BorderThickness="0"
                                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -168,7 +173,7 @@
                                                 <ListBox.ItemTemplate><DataTemplate>
                                                     <StackPanel Margin="4,8">
                                                         <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
-                                                            <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}"/></StackPanel>
+                                                            <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}"/><TextBlock Text="{Binding NatureAndRisk}" Foreground="{DynamicResource App.TextPrimaryBrush}"/></StackPanel>
                                                         </CheckBox>
                                                         <Expander Header="Détails techniques" Margin="20,4,0,0">
                                                             <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers>
@@ -319,9 +324,9 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <StackPanel Grid.Row="2"
-                                Grid.ColumnSpan="2"
-                                Orientation="Horizontal"
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
+                        <TextBlock Text="{Binding ValidationNatureSummary}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 KeyboardNavigation.TabNavigation="Continue">
                         <Button x:Name="ExecuteZoneButton"
@@ -341,6 +346,7 @@
                                 Margin="10,0,0,0"
                                 AutomationProperties.Name="Annuler tout le nettoyage guide"
                                 Command="{Binding CancelDecisionCommand}" />
+                    </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>

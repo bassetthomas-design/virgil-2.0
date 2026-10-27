@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Virgil.Contracts;
+using Virgil.Core.Cleanup;
 
 namespace Virgil.App.ViewModels;
 
@@ -8,22 +9,23 @@ public sealed partial class CleanupSelectionRow : ObservableObject
     public CleanupSelectionRow(CleanupZonePreview preview)
     {
         Preview = preview;
-        isSelected = CanSelect && CanGroupSelect && preview.Definition.Group == CleanupGroup.Sur;
+        isSelected = CanSelect && CanGroupSelect && preview.Definition.Group == CleanupGroup.Sur && !preview.Definition.NeedsReview && !preview.Candidates.Any(c => c.NeedsReview);
     }
     public CleanupZonePreview Preview { get; }
     public string Title => Preview.Definition.SoftwareName is null ? Preview.Definition.DisplayName
         : Preview.Definition.IsPersonalFolder ? Preview.Candidates.FirstOrDefault()?.FullPath ?? Preview.Definition.RootPath : Preview.Definition.SoftwareName;
     public string Summary => $"{CleanupViewModel.FormatBytes(Preview.EligibleBytes)} · {Preview.EligibleFileCount} fichiers" + (Preview.Definition.NeedsReview ? " · À vérifier" : "");
+    public string NatureAndRisk => $"{CleanupItemNature.Label(CleanupItemNature.For(Preview))} · risque {CleanupViewModel.RiskLabel(Preview.Definition.RiskLevel)}";
     public string Details => $"{Preview.Definition.Description}\n{Preview.EligibleBytes} octets, {Preview.EligibleFileCount} fichiers\n" +
         (Preview.Definition.IsPersonalFolder ? "Dossier personnel — sélection ligne par ligne, confirmation critique, quarantaine uniquement.\n" : "") +
-        (Preview.Definition.NeedsReview ? "À confirmer — sélection ligne par ligne uniquement.\n" : "") +
+        (Preview.Definition.NeedsReview ? "À vérifier — confirmation récapitulative obligatoire.\n" : "") +
         Preview.Definition.RootPath + "\n" + string.Join("\n", Preview.Definition.RegistryKeys) + "\n" +
         string.Join("\n", Preview.Candidates.Select(c => c.FullPath)) + "\n" +
         string.Join("\n", Preview.Candidates.Where(c => !c.IsEligible).Select(c => c.ExclusionReason));
     public bool CanSelect => Preview.Definition.Id != CleanupZoneId.WindowsOld && Preview.Definition.IsExecutable && Preview.HasEligibleCandidates &&
         Preview.Definition.Classification is CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable;
-    public bool CanGroupSelect => CanSelect && !Preview.Definition.IsPersonalFolder && !Preview.Definition.NeedsReview &&
-        !Preview.Candidates.Any(c => c.IsPersonalFolder || c.NeedsReview);
+    public bool CanGroupSelect => CanSelect && Preview.Definition.Id is not (CleanupZoneId.RecycleBin or CleanupZoneId.OldDownloads) &&
+        CleanupItemNature.For(Preview) != CleanupNature.Personal;
     [ObservableProperty] private bool isSelected;
 }
 
