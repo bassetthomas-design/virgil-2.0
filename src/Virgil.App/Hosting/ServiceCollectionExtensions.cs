@@ -140,8 +140,14 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IKnownFoldersProvider>(_ => new Virgil.Infrastructure.Windows.KnownFoldersProvider());
         services.AddTransient<PersonalFolderPolicy>(sp => new PersonalFolderPolicy(sp.GetRequiredService<IKnownFoldersProvider>()));
         services.AddTransient<IDownloadsSource>(_ => new Virgil.Infrastructure.Windows.DownloadsSource());
+        services.AddTransient<Virgil.Infrastructure.Windows.IFootprintRegistry>(_ => new Virgil.Infrastructure.Windows.WindowsFootprintRegistry());
+        services.AddTransient<Virgil.Infrastructure.Windows.IFootprintProcessPaths>(_ => new Virgil.Infrastructure.Windows.WindowsFootprintProcessPaths());
+        services.AddSingleton(_ => Virgil.Infrastructure.Windows.FootprintFileRoots.Windows());
         services.AddTransient<ISoftwareFootprintSource>(sp => new Virgil.Infrastructure.Windows.SoftwareFootprintSource(
-            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IProcessRunner>()));
+            sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IProcessRunner>(),
+            sp.GetRequiredService<Virgil.Infrastructure.Windows.IFootprintRegistry>(),
+            sp.GetRequiredService<Virgil.Infrastructure.Windows.FootprintFileRoots>(),
+            sp.GetRequiredService<Virgil.Infrastructure.Windows.IFootprintProcessPaths>()));
         services.AddTransient<IWindowsOldSource>(_ => new Virgil.Infrastructure.Windows.WindowsOldSource());
         services.AddTransient<LeftoverAnalyzer>(_ => new LeftoverAnalyzer());
         services.AddTransient<AdditionalCleanupScanner>(sp => new AdditionalCleanupScanner(

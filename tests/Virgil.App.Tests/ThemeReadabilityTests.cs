@@ -6,6 +6,20 @@ namespace Virgil.Tests;
 
 public sealed class ThemeReadabilityTests
 {
+    [Fact]
+    public void All_eleven_navigation_labels_use_uppercase_theme_resources()
+    {
+        var theme = Load("Themes", "TacticalHudTheme.xaml");
+        var labels = theme.Root!.Elements().Where(e => ((string?)e.Attribute(Xaml + "Key"))?.StartsWith("Navigation.", StringComparison.Ordinal) == true).ToArray();
+        Assert.Equal(11, labels.Length);
+        Assert.All(labels, label => Assert.Equal(label.Value.ToUpperInvariant(), label.Value));
+        var window = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Virgil.App", "MainWindow.xaml"));
+        var navigation = Assert.Single(window.Descendants(Presentation + "StackPanel"), e => (string?)e.Attribute(Xaml + "Name") == "NavigationPanel");
+        var buttons = navigation.Elements(Presentation + "Button").ToArray();
+        Assert.Equal(11, buttons.Length);
+        Assert.All(buttons, button => Assert.Single(button.DescendantsAndSelf().Attributes(), a => a.Value.StartsWith("{DynamicResource Navigation.", StringComparison.Ordinal)));
+    }
+
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 

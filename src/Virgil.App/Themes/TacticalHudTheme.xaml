@@ -1,5 +1,19 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Libellés communs de navigation : casse uniforme, identifiants UI inchangés. -->
+    <system:String x:Key="Navigation.Home">ACCUEIL</system:String>
+    <system:String x:Key="Navigation.Scan">SCAN</system:String>
+    <system:String x:Key="Navigation.Cleanup">NETTOYAGE</system:String>
+    <system:String x:Key="Navigation.Diagnostic">DIAGNOSTIC</system:String>
+    <system:String x:Key="Navigation.Resources">RESSOURCES</system:String>
+    <system:String x:Key="Navigation.Applications">APPLICATIONS</system:String>
+    <system:String x:Key="Navigation.Updates">MISES A JOUR</system:String>
+    <system:String x:Key="Navigation.Startup">DÉMARRAGE</system:String>
+    <system:String x:Key="Navigation.Network">RÉSEAU</system:String>
+    <system:String x:Key="Navigation.Repair">RÉPARATION</system:String>
+    <system:String x:Key="Navigation.Reports">RAPPORTS</system:String>
 
     <Color x:Key="VirgilColorBackground">#06090D</Color>
     <Color x:Key="VirgilColorBackgroundSecondary">#0A0F14</Color>
@@ -301,7 +315,7 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="ButtonBorder" Property="Background" Value="#0E151C" />
                             <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource App.BorderBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource App.TextDisabledBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource App.TextSecondaryBrush}" />
                             <Setter Property="Cursor" Value="Arrow" />
                             <Setter TargetName="ButtonBorder" Property="Effect" Value="{x:Null}" />
                         </Trigger>

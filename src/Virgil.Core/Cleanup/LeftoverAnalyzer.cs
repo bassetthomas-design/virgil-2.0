@@ -13,6 +13,7 @@ public sealed class LeftoverAnalyzer
     {
         var references = snapshot.Installed.SelectMany(s => s.ReferencedPaths).Concat(snapshot.ActivePaths).Concat(snapshot.Evidence.SelectMany(e => e.Paths)).ToArray();
         var accepted = snapshot.Candidates.Where(c => c.Path.Length > 0 && c.Files.Any(f => f.SizeBytes > 0) && !IsProtected(c.Name) &&
+            !DevelopmentCacheCatalog.Contains(c.Name) &&
             !snapshot.Installed.Any(i => MatchesInstalledName(c.Name, i.Name)) &&
             !snapshot.Evidence.Any(e => MatchesInstalledName(c.Name, e.Name) ||
                 (e.RegistryKeys ?? []).Any(k => c.RegistryKeys.Any(ck => RegistryContains(k, ck)))) &&
