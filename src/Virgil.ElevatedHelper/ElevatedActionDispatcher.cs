@@ -120,7 +120,10 @@ public sealed class ElevatedActionDispatcher
         {
             if (!_securityContext.IsAdministrator || !_allowlist.IsMaintenanceAllowed(request.ActionId, request.UpdateIdentity))
                 return Result(request, startedAt, -1, InterventionStatus.Failed, "Action de mise à jour refusée.", false);
-            var maintenance = await UpdateMaintenanceRunner.ExecuteAsync(request, _commandRunner).ConfigureAwait(false);
+            (bool Success, bool Reboot, string Message) maintenance;
+            try { maintenance = await UpdateMaintenanceRunner.ExecuteAsync(request, _commandRunner, cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            { return Result(request, startedAt, 0, InterventionStatus.Cancelled, "Étape terminée après annulation. Étapes suivantes non lancées.", false); }
             return Result(request, startedAt, maintenance.Success ? 0 : -1,
                 maintenance.Success ? (maintenance.Reboot ? InterventionStatus.RebootRequired : InterventionStatus.Completed) : InterventionStatus.Failed,
                 maintenance.Message, maintenance.Reboot);
@@ -141,14 +144,17 @@ public sealed class ElevatedActionDispatcher
         var exitCode = 0;
         var checkFailed = false;
 
+        var commandIndex = 0;
         foreach (var command in spec.Commands)
         {
-            if (cancellationToken.IsCancellationRequested)
-                return Result(request, startedAt, -1, InterventionStatus.Cancelled, "Parcours annulé entre deux commandes.", false);
+            var renewMustRun = request.ActionId == InterventionId.RenewIp && commandIndex > 0;
+            if (cancellationToken.IsCancellationRequested && !renewMustRun)
+                return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs) + "\nParcours annulé entre deux commandes. Commandes suivantes non lancées.", false);
+            commandIndex++;
             progress?.Report(new InterventionProgress { Step = command.FileName });
             var commandResult = await _commandRunner.RunAsync(command,
                 new CommandProgress(value => progress?.Report(new InterventionProgress { Step = command.FileName, Percent = value })),
-                cancellationToken).ConfigureAwait(false);
+                command.NonInterruptible || renewMustRun ? CancellationToken.None : cancellationToken).ConfigureAwait(false);
             exitCode = commandResult.ExitCode;
             checkFailed |= commandResult.ExitCode != 0;
             if (request.ActionId is InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep) outputs.Add(IntegrityFinding(command, commandResult));
@@ -156,7 +162,7 @@ public sealed class ElevatedActionDispatcher
 
             if (commandResult.Cancelled)
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs), false);
-            if (commandResult.ExitCode != 0 && request.ActionId is not (InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep))
+            if (commandResult.ExitCode != 0 && request.ActionId is not (InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep or InterventionId.RenewIp))
             {
                 return Result(request, startedAt, commandResult.ExitCode,
                     InterventionStatus.PartialFailure,
@@ -176,7 +182,8 @@ public sealed class ElevatedActionDispatcher
                 checkFailed ? InterventionStatus.PartialFailure : InterventionStatus.Completed,
                 string.Join("\n", outputs), false);
         }
-        var status = spec.RebootRequiredOnSuccess
+        if (cancellationToken.IsCancellationRequested) outputs.Add("Étape terminée après annulation. Aucune commande suivante lancée.");
+        var status = checkFailed ? InterventionStatus.PartialFailure : spec.RebootRequiredOnSuccess
             ? InterventionStatus.RebootRequired
             : InterventionStatus.Completed;
         return Result(request, startedAt, exitCode, status, string.Join("\n", outputs), spec.RebootRequiredOnSuccess);

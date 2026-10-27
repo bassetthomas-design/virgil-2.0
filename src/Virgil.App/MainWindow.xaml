@@ -187,6 +187,7 @@
                                         Margin="0,18,0,0"
                                         AutomationProperties.Name="Scan complet"
                                         Click="OpenScanProtocol_Click" />
+                                <controls:OperationProgressPanel x:Name="ScanProgressPanel" CancelAutomationId="ScanCancelButton"/>
                                 <TextBlock Text="ANALYSE RAPIDE OU APPROFONDIE"
                                            Style="{StaticResource VirgilHudSecondaryText}"
                                            HorizontalAlignment="Center"

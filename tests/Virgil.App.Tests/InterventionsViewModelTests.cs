@@ -13,6 +13,46 @@ namespace Virgil.Tests;
 public sealed class InterventionsViewModelTests
 {
     [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData("Analyze")]
+    [InlineData("VerifyHealth")]
+    [InlineData("ScanRepair")]
+    [InlineData("RunGuided")]
+    public async Task CancelEachRepairOperationAcknowledgesWithoutStartingNext(string operation)
+    {
+        var f = new Fixture();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var diagnostics = new TaskCompletionSource<IReadOnlyList<InterventionDiagnostic>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<InterventionExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (operation == "Analyze")
+            f.Diagnostics.Handler = async token => { started.SetResult(); return await diagnostics.Task.WaitAsync(token); };
+        else
+        {
+            await f.Analyze();
+            foreach (var item in f.Items) item.IsSelected = true;
+            f.Actions.Handler = (diagnostic, token) => { started.SetResult(); return finish.Task; };
+        }
+        var task = operation switch
+        {
+            "Analyze" => f.Analyze(),
+            "VerifyHealth" => f.Vm.VerifyHealthCommand.ExecuteAsync(null),
+            "ScanRepair" => f.Vm.ScanRepairCommand.ExecuteAsync(null),
+            _ => f.Run()
+        };
+        if (f.Vm.IsValidationOpen) f.Vm.ExecuteDecisionCommand.Execute(null);
+        // ScanRepair may only prepare the guided choice when there is no verification result.
+        if (task.IsCompleted) { Assert.Empty(f.Actions.Executed); return; }
+        await started.Task;
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(!f.Vm.IsBusy || f.Vm.IsCancelling);
+        var count = f.Actions.Executed.Count;
+        finish.TrySetResult(new InterventionExecutionResult { Action = Diagnostic().Definition, Status = InterventionStatus.Completed });
+        await task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Equal(count, f.Actions.Executed.Count);
+        Assert.False(f.Vm.IsBusy);
+    }
+
+    [Theory]
     [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
     [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
     [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]

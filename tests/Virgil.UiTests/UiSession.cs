@@ -178,6 +178,17 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             await ui!.Click("ScanNavButton");
             await WaitVisibleAsync("DeepScanButton");
             await ui.Click("DeepScanButton");
+            await UntilAsync(() => Visible("ScanCancelButton"), TimeSpan.FromSeconds(10), "Panneau de progression absent.");
+            Assert.True(Find("ScanCancelButton")!.IsEnabled);
+            Assert.Contains(window!.FindAllDescendants(), element => element.Name?.StartsWith("Écoulé :", StringComparison.Ordinal) == true);
+            SaveWindow("13-scan-progression.png");
+            await ui.Click("ScanCancelButton");
+            await UntilAsync(() => Find("HomeNavButton")!.IsEnabled && window!.FindAllDescendants().Any(element =>
+                element.Name?.Contains("Analyse annulée", StringComparison.Ordinal) == true),
+                TimeSpan.FromSeconds(1), "Annuler ne rend pas la main en une seconde.");
+            await ui.Click("ScanNavButton");
+            await WaitVisibleAsync("DeepScanButton");
+            await ui.Click("DeepScanButton");
             // Invoke dispatches the async handler. Navigation is disabled synchronously
             // before its first await, so this proves the scan actually started.
             await UntilAsync(() => !Find("HomeNavButton")!.IsEnabled,
@@ -230,7 +241,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
         Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
         var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
-            .Append("12-recap-nettoyage.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
+            .Append("12-recap-nettoyage.png").Append("13-scan-progression.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected, actual);

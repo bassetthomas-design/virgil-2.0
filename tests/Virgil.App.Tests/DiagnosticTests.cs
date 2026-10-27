@@ -13,6 +13,24 @@ namespace Virgil.Tests;
 public sealed class DiagnosticPresentationTests
 {
     [Fact]
+    [Trait("Category", "Safety")]
+    public async Task CancelRefreshStopsSamplingAndPublishesNoPartialSnapshot()
+    {
+        var source = new BlockingSource();
+        var vm = Create(source);
+        vm.SetPresentation(true, false);
+        await source.Started.Task;
+        vm.Operation.CancelCommand.Execute(null);
+        Assert.True(vm.Operation.IsCancelling);
+        await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.False(vm.IsRefreshing);
+        Assert.Null(vm.Snapshot);
+        Assert.Equal(0, source.Active);
+        Assert.Contains("annulée", vm.Status);
+        vm.SetPresentation(false, false);
+    }
+
+    [Fact]
     public async Task HiddenAndMinimizedViewsNeverRead()
     {
         var source = new BlockingSource();

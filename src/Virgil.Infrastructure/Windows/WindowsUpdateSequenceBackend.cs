@@ -53,10 +53,11 @@ public sealed class WindowsUpdateSequenceBackend(
                 return new(step, false, false, "Identité ou version WinGet incomplète. Relancez l’analyse.");
             var detection = await (wingetAvailability ?? new WingetAvailabilityService(runner)).DetectAsync(cancellationToken).ConfigureAwait(false);
             if (!detection.IsAvailable || string.IsNullOrWhiteSpace(detection.ExecutablePath)) return new(step, false, false, "WinGet indisponible.");
+            cancellationToken.ThrowIfCancellationRequested();
             var capabilities = WingetAvailabilityService.GetCapabilities(detection.Version);
             var args = WingetUpdateExecutionService.BuildUpgradeArguments(app.Id, capabilities).ToList();
             args.AddRange(["--version", app.AvailableVersion]);
-            var result = await runner.RunAsync(new(detection.ExecutablePath, args, TimeSpan.FromMinutes(20)), cancellationToken).ConfigureAwait(false);
+            var result = await runner.RunAsync(new(detection.ExecutablePath, args, TimeSpan.FromMinutes(20)), CancellationToken.None).ConfigureAwait(false);
             var success = result.ExitCode == 0 && !result.TimedOut && !result.Cancelled && result.LaunchError is null;
             return new(step, success, result.ExitCode == 3010, success ? "Application mise à jour." : "Mise à jour non terminée.");
         }
@@ -70,13 +71,17 @@ public sealed class WindowsUpdateSequenceBackend(
         if (step.Component == UpdateComponent.Driver && !Guid.TryParseExact(step.Id, "D", out _))
             return new(step, false, false, "Identité du pilote invalide.");
         var file = await store.CreateAsync(action, cancellationToken, step.Component == UpdateComponent.Driver ? step.Id : "", _restoreSessionId).ConfigureAwait(false);
+        var helperFinished = false;
         try
         {
-            await launcher.RunElevatedAsync(helperPath(), file.RequestPath, cancellationToken).ConfigureAwait(false);
-            var result = await store.ReadResultAsync(file, cancellationToken).ConfigureAwait(false);
+            using var registration = cancellationToken.Register(() => store.RequestCancel(file));
+            var launch = launcher.RunElevatedAsync(helperPath(), file.RequestPath, CancellationToken.None);
+            await launch.ConfigureAwait(false);
+            helperFinished = true;
+            var result = await store.ReadResultAsync(file, CancellationToken.None).ConfigureAwait(false);
             return new(step, result?.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired,
                 result?.RebootRequired == true, result?.ReadableError ?? result?.SummaryOutput ?? "Assistant élevé sans résultat.");
         }
-        finally { store.Cleanup(file); }
+        finally { if (helperFinished) store.Cleanup(file); }
     }
 }

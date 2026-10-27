@@ -74,13 +74,14 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
                 "Installation annulee.\n" + validation.Message, validation.Message);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var capabilities = WingetAvailabilityService.GetCapabilities(winget.Version);
         var result = await _processRunner
             .RunAsync(new ProcessRunRequest(
                 winget.ExecutablePath,
                 BuildPinnedUpgradeArguments(item.Id, item.AvailableVersion!, capabilities),
                 TimeSpan.FromMinutes(15)),
-                cancellationToken)
+                CancellationToken.None)
             .ConfigureAwait(false);
 
         stopwatch.Stop();
@@ -109,7 +110,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         if (result.ExitCode == 0)
         {
             return BuildResult(item, UpdateItemStatus.Completed, startedAt, stopwatch.Elapsed,
-                $"Mise a jour terminee : {item.Name}.",
+                cancellationToken.IsCancellationRequested ? $"Mise à jour terminée après annulation : {item.Name}." : $"Mise à jour terminée : {item.Name}.",
                 CompactTechnicalOutput(result));
         }
 

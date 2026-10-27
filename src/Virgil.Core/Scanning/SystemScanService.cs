@@ -39,7 +39,7 @@ public sealed class SystemScanService : ISystemScanService
     }
 
     public Task<SystemScanReport> RunAsync(ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken) =>
-        Task.Run(() => RunCoreAsync(mode, progress, cancellationToken), cancellationToken);
+        Task.Run(() => RunCoreAsync(mode, progress, cancellationToken), cancellationToken).WaitAsync(cancellationToken);
 
     private async Task<SystemScanReport> RunCoreAsync(
         ScanMode mode, IProgress<ScanProgress>? progress, CancellationToken cancellationToken)
@@ -51,22 +51,36 @@ public sealed class SystemScanService : ISystemScanService
 
         Report(progress, "Initialisation", "Scan initialise.", "Systeme", 0);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var windows = ReadWindows(scanDate, progress, errors);
+        cancellationToken.ThrowIfCancellationRequested();
         var processor = await ReadProcessorAsync(progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var memory = ReadMemory(progress, errors, findings);
+        cancellationToken.ThrowIfCancellationRequested();
         var allDisks = ReadDisks(progress, errors, findings);
+        cancellationToken.ThrowIfCancellationRequested();
         var reportDisks = SelectReportDisks(mode, allDisks);
+        cancellationToken.ThrowIfCancellationRequested();
         var network = ReadNetwork(progress, errors, findings);
+        cancellationToken.ThrowIfCancellationRequested();
         var processes = mode == ScanMode.Deep
             ? ReadProcesses(progress, errors, findings)
             : Array.Empty<ProcessScanInfo>();
+        cancellationToken.ThrowIfCancellationRequested();
         var cleanup = mode == ScanMode.Deep
             ? await ReadCleanupAsync(progress, errors, findings, cancellationToken).ConfigureAwait(false)
             : new CleanupScanInfo(false, 0, 0, Array.Empty<string>(), Array.Empty<string>());
+        cancellationToken.ThrowIfCancellationRequested();
         var resources = await ReadResourcesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var updates = await ReadUpdatesAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var interventions = await ReadInterventionsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         var applications = await ReadApplicationsAsync(mode, progress, errors, findings, cancellationToken).ConfigureAwait(false);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var error in errors.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -115,6 +129,7 @@ public sealed class SystemScanService : ISystemScanService
             Resources = resources,
             Applications = applications
         };
+        cancellationToken.ThrowIfCancellationRequested();
         _statusStore?.PublishScan(report);
         return report;
     }

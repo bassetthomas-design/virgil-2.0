@@ -68,7 +68,8 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
             if (!process.Start()) return new ElevatedCommandResult(-1, "", "Processus non démarré.");
             var output = ReadAsync(process.StandardOutput, progress);
             var error = ReadAsync(process.StandardError, null);
-            try { await process.WaitForExitAsync(linked.Token).ConfigureAwait(false); }
+            // Une commande système non interruptible conserve son processus, même après demande d’arrêt.
+            try { await process.WaitForExitAsync(command.NonInterruptible ? CancellationToken.None : linked.Token).ConfigureAwait(false); }
             catch (OperationCanceledException)
             {
                 if (!process.HasExited) process.Kill(entireProcessTree: true);

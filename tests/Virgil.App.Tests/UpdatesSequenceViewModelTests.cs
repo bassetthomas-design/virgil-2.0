@@ -10,6 +10,36 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancelSequenceOrModuleAcknowledgesImmediatelyAndBlocksNext(bool module)
+    {
+        var f = new Fixture();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishStep = new TaskCompletionSource<UpdateSequenceStepResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishModule = new TaskCompletionSource<ProcessRunResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Backend.Handler = (step, token) => { entered.SetResult(); return finishStep.Task; };
+        f.Runner.Handler = async token => { entered.SetResult(); return await finishModule.Task.WaitAsync(token); };
+        var pending = module ? f.Vm.InstallWingetModuleCommand.ExecuteAsync(null) : f.Vm.RunAllCommand.ExecuteAsync(null);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await entered.Task;
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(!f.Vm.IsBusy || f.Vm.IsCancelling);
+        Assert.False(f.Vm.Operation.CanCancel);
+        if (!module)
+        {
+            Assert.Single(f.Backend.Executed);
+            Assert.False(pending.IsCompleted);
+            finishStep.SetResult(new(new("windows", "Windows", UpdateComponent.Windows), true, false, "Terminée"));
+        }
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        if (!module) Assert.Single(f.Backend.Executed);
+        else Assert.Equal(1, f.Runner.Calls);
+        Assert.True(f.Vm.IsIdle);
+    }
+
     [Fact]
     public async Task PreviewAllowsExclusionsAndRunsSelectedComponentsWithOnePlan()
     {
@@ -111,13 +141,14 @@ public sealed class UpdatesSequenceViewModelTests
     {
         public List<UpdateComponent> Executed { get; } = new();
         public Action? OnExecute { get; set; }
+        public Func<UpdateSequenceStep, CancellationToken, Task<UpdateSequenceStepResult>>? Handler { get; set; }
         public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([new("driver", "Pilote facultatif", UpdateComponent.Driver)]);
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken cancellationToken)
         {
             Executed.Add(step.Component);
             OnExecute?.Invoke();
-            return Task.FromResult(new UpdateSequenceStepResult(step, true, true, "Terminé"));
+            return Handler?.Invoke(step, cancellationToken) ?? Task.FromResult(new UpdateSequenceStepResult(step, true, true, "Terminé"));
         }
     }
     private sealed class Scan : IUpdateScanService
@@ -127,11 +158,12 @@ public sealed class UpdatesSequenceViewModelTests
     internal sealed class Runner : IProcessRunner
     {
         public int Calls { get; private set; }
+        public Func<CancellationToken, Task<ProcessRunResult>>? Handler { get; set; }
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
         {
             Calls++;
             Assert.Contains("Install-Module", request.Arguments.Last());
-            return Task.FromResult(new ProcessRunResult(0, "", ""));
+            return Handler?.Invoke(cancellationToken) ?? Task.FromResult(new ProcessRunResult(0, "", ""));
         }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucun lancement autorisé dans ce test.");
     }

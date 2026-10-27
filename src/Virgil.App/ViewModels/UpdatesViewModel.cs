@@ -39,6 +39,7 @@ public partial class UpdatesViewModel : ObservableObject
         IReportHistoryService reportHistoryService, IConfirmationService confirmationService,
         IUpdateSequenceService? sequenceService = null, WingetClientModuleService? wingetModuleService = null)
     {
+        Operation = new LongOperationViewModel(CancelActiveOperation);
         _sequenceService = sequenceService;
         _wingetModuleService = wingetModuleService;
         _scanService = scanService ?? throw new ArgumentNullException(nameof(scanService));
@@ -88,8 +89,13 @@ public partial class UpdatesViewModel : ObservableObject
 
     public event EventHandler? ReportPersisted;
 
+    public LongOperationViewModel Operation { get; }
+    public bool IsCancelling => Operation.IsCancelling;
+
     public void CancelActiveOperation()
     {
+        Operation.AcknowledgeCancellation();
+        OnPropertyChanged(nameof(IsCancelling));
         _operationCancellation?.Cancel();
         CompleteDecision(UpdateDecision.CancelAll);
     }
@@ -164,6 +170,7 @@ public partial class UpdatesViewModel : ObservableObject
                 .ScanAsync(request, new Progress<string>(HandleProgress), _operationCancellation!.Token)
                 .ConfigureAwait(true);
 
+            _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = report;
             _lastItems.Clear();
             _lastItems.AddRange(report.Items);
@@ -194,11 +201,12 @@ public partial class UpdatesViewModel : ObservableObject
     [RelayCommand]
     private async Task InspectDriversAsync()
     {
-        if (!BeginOperation("Inventaire pilotes en cours."))
+        if (!BeginOperation("Recherche Windows Update en cours — ne peut pas être interrompue"))
         {
             return;
         }
 
+        Operation.IsNonInterruptible = true;
         try
         {
             RequestVirgilState(VirgilCoreState.Scanning, "PILOTES");
@@ -256,6 +264,7 @@ public partial class UpdatesViewModel : ObservableObject
         var results = new List<UpdateExecutionResult>();
         var errors = new List<string>();
 
+        Operation.Start(StatusText, immediately: true, nonInterruptible: true);
         try
         {
             RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
@@ -299,6 +308,7 @@ public partial class UpdatesViewModel : ObservableObject
                     .ExecuteAsync(item, plan, _operationCancellation.Token)
                     .ConfigureAwait(true);
 
+                if (Operation.IsCancelling) result = result with { UserMessage = result.UserMessage + " Étape terminée après annulation." };
                 results.Add(result);
                 SetItemStatus(item.Id, result.Status);
                 VirgilMessageRequested?.Invoke(result.Status == UpdateItemStatus.Completed
@@ -318,6 +328,12 @@ public partial class UpdatesViewModel : ObservableObject
         }
         finally
         {
+            if (Operation.IsCancelling)
+            {
+                if (!errors.Any(error => error.Contains("annul", StringComparison.OrdinalIgnoreCase))) errors.Add("Séquence annulée.");
+                errors.AddRange(selectedItems.Where(item => results.All(result => result.Item.Id != item.Id))
+                    .Select(item => item.Name + " : non lancée, annulation demandée."));
+            }
             _lastSessionReport = _executionService.CreateReport(startedAt, results, errors);
             await PersistReportAsync(ReportMapper.FromUpdateSession(_lastSessionReport));
             RenderItems();
@@ -381,6 +397,7 @@ public partial class UpdatesViewModel : ObservableObject
         }
 
         _operationInProgress = true;
+        Operation.Start(status);
         _operationCancellation = new CancellationTokenSource();
         StatusText = status;
         SetButtonsEnabled(false);
@@ -389,6 +406,7 @@ public partial class UpdatesViewModel : ObservableObject
 
     private void EndOperation()
     {
+        Operation.Complete(StatusText);
         _operationInProgress = false;
         _operationCancellation?.Dispose();
         _operationCancellation = null;
@@ -413,6 +431,9 @@ public partial class UpdatesViewModel : ObservableObject
 
     private void HandleProgress(string message)
     {
+        if (Operation.IsCancelling) return;
+        Operation.Report(new Virgil.Core.Operations.OperationProgress(Operation.IsNonInterruptible
+            ? message + " — l’étape en cours ne peut pas être interrompue" : message));
         StatusText = message;
     }
 

@@ -17,6 +17,54 @@ namespace Virgil.Tests;
 public sealed class ApplicationsViewModelTests
 {
     [Theory]
+    [Trait("Category", "Safety")]
+    [InlineData("Inventory")]
+    [InlineData("Single")]
+    [InlineData("Batch")]
+    public async Task CancelApplicationsAcknowledgesImmediatelyAndBlocksNext(string operation)
+    {
+        var f = new Fixture();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inventory = new TaskCompletionSource<ApplicationInventoryReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (operation == "Inventory")
+        {
+            f.Inventory.Handler = async token => { started.SetResult(); return await inventory.Task.WaitAsync(token); };
+            var task = f.Vm.AnalyzeCommand.ExecuteAsync(null);
+            await started.Task;
+            f.Vm.Operation.CancelCommand.Execute(null);
+            Assert.True(!f.Vm.IsBusy || f.Vm.IsCancelling);
+            await task.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.Empty(f.Runner.Requests);
+            Assert.Equal(0, f.Persisted);
+        }
+        else
+        {
+            // The installer adapter deliberately ignores user cancellation once started.
+            var finish = new TaskCompletionSource<ProcessLaunchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.Runner.Handler = (request, token) => { Assert.False(token.CanBeCanceled); started.SetResult(); return finish.Task; };
+            await f.Vm.AnalyzeCommand.ExecuteAsync(null);
+            Task task;
+            f.Dialog.Answers.Enqueue(true);
+            if (operation == "Single") { f.OpenDetails(); task = f.Launch(); }
+            else
+            {
+                foreach (var card in f.Cards) card.IsSelected = true;
+                task = f.Vm.UninstallSelectionCommand.ExecuteAsync(null);
+            }
+            f.Vm.AcceptConfirmationCommand.Execute(null);
+            await started.Task;
+            f.Vm.Operation.CancelCommand.Execute(null);
+            Assert.True(f.Vm.IsCancelling);
+            Assert.False(task.IsCompleted);
+            Assert.Single(f.Runner.Requests);
+            finish.SetResult(new ProcessLaunchResult(true, 0));
+            await task;
+            Assert.Single(f.Runner.Requests);
+            Assert.False(f.Vm.IsBusy);
+        }
+    }
+
+    [Theory]
     [InlineData(InstallationLocationOpenResult.Missing, "Emplacement introuvable.")]
     [InlineData(InstallationLocationOpenResult.Opened, "Emplacement ouvert.\nAucune suppression executee.")]
     [InlineData(InstallationLocationOpenResult.Failed, "Ouverture emplacement impossible.")]
@@ -372,29 +420,29 @@ public sealed class ApplicationsViewModelTests
     }
 
     [Fact]
-    public async Task CancelDuringLaunchReportsExactCancellationAndNoStartedUninstaller()
+    [Trait("Category", "Safety")]
+    public async Task CancelDuringLaunchPreservesInstallerAndReportsCompletionAfterCancellation()
     {
         var f = new Fixture();
-        await f.Analyze();
-        f.OpenDetails();
-        f.Dialog.Answers.Enqueue(true);
-        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        f.Runner.Handler = async (_, token) =>
+        await f.Analyze(); f.OpenDetails(); f.Dialog.Answers.Enqueue(true);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<ProcessLaunchResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Runner.Handler = (_, token) =>
         {
-            entered.SetResult(true);
-            await Task.Delay(Timeout.Infinite, token);
-            return new(false, null);
+            Assert.False(token.CanBeCanceled);
+            entered.SetResult();
+            return finish.Task;
         };
         var launch = f.Launch();
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.True(f.Vm.IsBusy);
-        Assert.False(f.Vm.IsLaunchUninstallEnabled);
-        Assert.False(f.Vm.IsReportButtonEnabled);
+        await entered.Task;
         f.Vm.CancelActiveOperation();
+        Assert.True(f.Vm.IsCancelling);
+        Assert.False(launch.IsCompleted);
+        Assert.Single(f.Runner.Requests);
+        finish.SetResult(new(true, 0));
         await launch;
-        Assert.Equal(0, f.Runner.Started);
-        Assert.Equal("Desinstallation annulee.", f.Vm.StatusText);
-        Assert.Contains("Desinstallation annulee.\nAucun desinstallateur lance.", f.Messages);
+        Assert.Equal(1, f.Runner.Started);
+        Assert.Contains("après annulation", f.Vm.StatusText);
         Assert.Single(f.History.Reports);
         Idle(f.Vm);
     }

@@ -49,6 +49,7 @@ public partial class ApplicationsViewModel : ObservableObject
         _iconLoader = iconLoader;
         _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
         _confirmationService = confirmationService ?? throw new ArgumentNullException(nameof(confirmationService));
+        Operation = new LongOperationViewModel(CancelActiveOperation);
         _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
         _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
@@ -107,8 +108,13 @@ public partial class ApplicationsViewModel : ObservableObject
 
     public event EventHandler? ReportPersisted;
 
+    public LongOperationViewModel Operation { get; }
+    public bool IsCancelling => Operation.IsCancelling;
+
     public void CancelActiveOperation()
     {
+        Operation.AcknowledgeCancellation();
+        OnPropertyChanged(nameof(IsCancelling));
         _confirmationDecision?.TrySetResult(false);
         _operationCancellation?.Cancel();
     }
@@ -184,14 +190,17 @@ public partial class ApplicationsViewModel : ObservableObject
             VirgilMessageRequested?.Invoke("Inventaire applications lance.\nLecture seule.\nAucune desinstallation.");
             var progress = new Progress<ApplicationInventoryProgress>(item =>
             {
+                Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
+                if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
                 StatusText = $"{item.Status} {item.Percent ?? 0} %";
             });
 
             var report = await _inventoryService
                 .InventoryAsync(progress, _operationCancellation!.Token)
-                .ConfigureAwait(true);
+                .WaitAsync(_operationCancellation.Token).ConfigureAwait(true);
 
+            _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastInventoryReport = report;
             _lastUninstallResult = null;
             _batchResults = null;
@@ -271,12 +280,15 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             return;
         }
+        Operation.Start(StatusText, immediately: true, nonInterruptible: true);
 
         try
         {
             RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
             var progress = new Progress<ApplicationUninstallProgress>(item =>
             {
+                Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
+                if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
                 StatusText = item.Status;
             });
@@ -371,7 +383,7 @@ public partial class ApplicationsViewModel : ObservableObject
         var decision = new TaskCompletionSource<bool>();
         _confirmationDecision = decision;
         ConfirmationTitle = title;
-        ConfirmationBody = body;
+        ConfirmationBody = body + "\nCertaines étapes ne peuvent pas être interrompues une fois lancées.";
         IsConfirmationOpen = true;
         try { return await decision.Task.ConfigureAwait(true); }
         finally { IsConfirmationOpen = false; _confirmationDecision = null; }
@@ -394,11 +406,14 @@ public partial class ApplicationsViewModel : ObservableObject
         try { plan = _confirmationService.Issue(preview, new ConfirmationConsent(reinforced ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null)); }
         catch (ConfirmationRefusedException) { ReportUninstallCancelled("Confirmation de la sélection refusée."); return; }
         if (!BeginOperation("Désinstallation de la sélection en cours.")) return;
+        Operation.Start(StatusText, immediately: true, nonInterruptible: true);
         try
         {
             _skipNext = false;
             var progress = new Progress<ApplicationUninstallProgress>(item =>
             {
+                Operation.Report(new Virgil.Core.Operations.OperationProgress(item.Step, Percent: item.Percent));
+                if (Operation.IsCancelling) return;
                 Progress = item.Percent ?? 0;
                 StatusText = item.Status;
                 ElapsedText = "Temps écoulé : " + (DateTimeOffset.Now - _operationStarted).ToString(@"hh\:mm\:ss");
@@ -715,9 +730,10 @@ public partial class ApplicationsViewModel : ObservableObject
         }
 
         _operationInProgress = true;
+        Operation.Start(status);
         _operationStarted = DateTimeOffset.Now;
         _operationCancellation = new CancellationTokenSource();
-        _ = UpdateElapsedAsync(_operationCancellation.Token);
+
         StatusText = status;
         Progress = 0;
         SetInteractionEnabled(false);
@@ -739,6 +755,7 @@ public partial class ApplicationsViewModel : ObservableObject
 
     private void EndOperation()
     {
+        Operation.Complete(StatusText);
         _operationInProgress = false;
         _operationCancellation?.Cancel();
         _operationCancellation?.Dispose();

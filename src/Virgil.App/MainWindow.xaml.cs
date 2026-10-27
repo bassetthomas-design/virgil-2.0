@@ -77,6 +77,8 @@ public partial class MainWindow : Window
         NetworkModuleView = networkView;
         ((Virgil.App.ViewModels.NetworkViewModel)networkView.DataContext).RepairRequested += (_, _) => ShowInterventions();
         InitializeComponent();
+        _scanOperation = new Virgil.App.ViewModels.LongOperationViewModel(() => _activeScanCancellation?.Cancel());
+        ScanProgressPanel.DataContext = _scanOperation;
         StartupModuleView.Visibility = Visibility.Collapsed;
         NetworkModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(StartupModuleView);
@@ -612,6 +614,8 @@ public partial class MainWindow : Window
         MainScanButton.Focus();
     }
 
+    private readonly Virgil.App.ViewModels.LongOperationViewModel _scanOperation;
+
     private async Task RunScanAsync(ScanMode mode)
     {
         if (!BeginScan(mode))
@@ -621,8 +625,10 @@ public partial class MainWindow : Window
 
         try
         {
-            var progress = new Progress<ScanProgress>(HandleProgress);
-            var report = await _systemScanService.RunAsync(mode, progress, _activeScanCancellation!.Token);
+            var token = _activeScanCancellation!.Token;
+            var progress = new Progress<ScanProgress>(value => { if (!token.IsCancellationRequested) HandleProgress(value); });
+            var report = await _systemScanService.RunAsync(mode, progress, token).WaitAsync(token);
+            _activeScanCancellation!.Token.ThrowIfCancellationRequested();
             _lastReport = report;
             await PersistReportSafelyAsync(ReportMapper.FromSystemScan(report));
 
@@ -631,10 +637,10 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "ANNULE";
-            GlobalStatusText.Text = "ANNULE";
+            StatusText.Text = "Analyse annulée. Aucune modification effectuée.";
+            GlobalStatusText.Text = "Analyse annulée. Aucune modification effectuée.";
             SetVirgilState(VirgilCoreState.Idle, "REPOS");
-            AppendVirgilMessage("Analyse annulee.\nAucune modification effectuee.");
+            AppendVirgilMessage("Analyse annulée. Aucune modification effectuée.");
         }
         catch
         {
@@ -660,6 +666,7 @@ public partial class MainWindow : Window
         _scanInProgress = true;
         _reportedProgressSteps.Clear();
         _activeScanCancellation = new CancellationTokenSource();
+        _scanOperation.Start("Analyse en cours…");
         CloseReport();
         CloseScanProtocol();
         SetInterfaceBusy(true);
@@ -680,6 +687,7 @@ public partial class MainWindow : Window
 
     private void FinishScan()
     {
+        _scanOperation.Complete(StatusText.Text);
         SetInterfaceBusy(false);
         _scanInProgress = false;
         _activeScanCancellation?.Dispose();
@@ -689,6 +697,8 @@ public partial class MainWindow : Window
 
     private void HandleProgress(ScanProgress progress)
     {
+        if (!_scanInProgress || _scanOperation.IsCancelling) return;
+        _scanOperation.Report(new Virgil.Core.Operations.OperationProgress(progress.Step, Percent: progress.Percent, Message: progress.Message));
         StatusText.Text = progress.Step.ToUpperInvariant();
 
         if (!_reportedProgressSteps.Add(progress.Step))
