@@ -58,8 +58,11 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
             var blocks = Descendants<TextBlock>(view).Where(IsVisibleText).ToArray();
             Assert.Contains(blocks, b => b.Text.StartsWith("Restes de logiciels désinstallés", StringComparison.Ordinal));
             Assert.Contains(blocks, b => b.Text == "Détails techniques");
-            Assert.Contains(blocks, b => b.Text.Contains("Sélectionner la catégorie", StringComparison.Ordinal));
+            Assert.Contains(blocks, b => b.Text == "Sélectionner toute la catégorie");
             Assert.Contains(blocks, b => b.Text.Contains("Ancien outil", StringComparison.Ordinal));
+            Assert.Contains(blocks, b => b.Text == "TOUT SÉLECTIONNER");
+            Assert.Contains(blocks, b => b.Text == "TOUT DÉSÉLECTIONNER");
+            Assert.Contains(blocks, b => b.Text == "Reste de logiciel · risque faible");
             var failures = blocks.Select(Measure).Where(m => m.Ratio < 4.5).ToArray();
             Assert.True(failures.Length == 0, string.Join(Environment.NewLine, failures.Select(m => m.Message)));
             var header = Measure(Assert.Single(blocks, b => b.Text.StartsWith("Restes de logiciels désinstallés", StringComparison.Ordinal)));
