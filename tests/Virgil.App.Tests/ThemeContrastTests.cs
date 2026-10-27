@@ -93,7 +93,9 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
             var expander = Assert.Single(Descendants<Expander>(fixture));
             expander.Style = new Style(typeof(Expander), (Style)Application.Current.FindResource(typeof(Expander)));
             window.UpdateLayout();
-            var after = Measure(header);
+            // Le changement de style recrée le template : mesurer le nouveau TextBlock attaché.
+            var correctedHeader = Assert.Single(Descendants<TextBlock>(fixture), b => IsVisibleText(b) && b.Text.StartsWith("Restes", StringComparison.Ordinal));
+            var after = Measure(correctedHeader);
             Assert.True(after.Ratio >= 4.5, after.Message);
             output.WriteLine($"En-tête catégorie : {before.Ratio.ToString("F2", CultureInfo.GetCultureInfo("fr-FR"))}:1 avant → {after.Ratio.ToString("F2", CultureInfo.GetCultureInfo("fr-FR"))}:1 après");
             output.WriteLine($"Avant : {before.Message}; après : {after.Message}");
