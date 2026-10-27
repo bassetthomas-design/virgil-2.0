@@ -59,7 +59,7 @@
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="210"
                             Margin="0,0,8,8"
-                            AutomationProperties.Name="Informations sur la liberation de mémoire inactive"
+                            AutomationProperties.Name="Informations sur la libération de mémoire inactive"
                             Command="{Binding ReleaseInactiveMemoryCommand}" />
                     <Button x:Name="RestartExplorerButton"
                             IsEnabled="{Binding IsIdle}"

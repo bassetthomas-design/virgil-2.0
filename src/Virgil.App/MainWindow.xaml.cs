@@ -90,7 +90,7 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(CleanupModuleView, "Module nettoyage sécurisé");
         ModuleHostGrid.Children.Add(CleanupModuleView);
         UpdatesModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(UpdatesModuleView, "Module mises a jour sécurisé");
+        AutomationProperties.SetName(UpdatesModuleView, "Module mises à jour sécurisé");
         ModuleHostGrid.Children.Add(UpdatesModuleView);
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblees");
@@ -363,7 +363,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "MISES À JOUR";
         SetVirgilState(VirgilCoreState.Idle, "MISES À JOUR");
-        AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
+        AppendVirgilMessage("Module mises à jour prêt.\nValidation individuelle requise.");
         UpdatesModuleView.FocusScanButton();
     }
 

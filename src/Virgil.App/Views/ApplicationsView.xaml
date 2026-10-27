@@ -236,7 +236,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="RESTES APRES DÉSINSTALLATION" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="RESTES APRÈS DÉSINSTALLATION" Style="{StaticResource VirgilMicroLabel}" />
                             <ItemsControl x:Name="DetailsRemnantsPanel" ItemsSource="{Binding Remnants}" Margin="0,4,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:ApplicationTextCardViewModel}">

@@ -121,7 +121,7 @@
                         Style="{StaticResource VirgilSecondaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsReviewManualEnabled}"
-                        AutomationProperties.Name="Afficher les éléments a revoir manuellement"
+                        AutomationProperties.Name="Afficher les éléments à revoir manuellement"
                         Command="{Binding ReviewManualCommand}" />
                 <Button x:Name="ViewCleanupReportButton"
                         Content="VOIR LE DERNIER RAPPORT"
