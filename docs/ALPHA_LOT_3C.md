@@ -1,5 +1,7 @@
 # Lot 3c — Réparation et Applications
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 Base : v2.0.0-alpha, f69b3bb. Ce lot n’altère ni les règles de quarantaine ni les dossiers personnels, ni la cible de publication du helper, ni les workflows.
 
 Réparation propose une vérification élevée confirmée séparément : SFC verifyonly, DISM CheckHealth en anglais pour interpréter le résultat, CHKDSK scan, services, redémarrage en attente, passerelle/DNS, audio avec sortie par défaut et tâches d’impression. Un contrôle non interprétable reste « indisponible » et ne permet pas d’annoncer que tout est sain. Les services Store et Windows Update à démarrage à la demande ne sont pas signalés en panne parce qu’ils sont arrêtés.

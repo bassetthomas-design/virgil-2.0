@@ -1,5 +1,7 @@
 # Audit fonctionnel Virgil 2.0
 
+> Document historique — voir [PROJECT_STATUS](PROJECT_STATUS.md) pour l’état actuel.
+
 Date: 2026-06-21
 Base: code present dans `src` et `tests`, sans extrapolation produit.
 

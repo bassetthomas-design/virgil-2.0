@@ -1,5 +1,7 @@
 # Virgil 2.0 - Définition produit
 
+> Spécification produit cible, à répartir dans L5–L13 ; sous-lots non fixés sauf indications explicites dans [ACTIONS](ACTIONS.md). Les formulations de vision ne prouvent pas une capacité livrée. Statut actuel : [PROJECT_STATUS](PROJECT_STATUS.md).
+
 ## 1. Vision
 
 Virgil 2.0 est un assistant PC Windows local.
@@ -84,7 +86,7 @@ Les actions ci-dessous sont des catégories à définir et valider ensemble avan
 
 - Scanner les pilotes disponibles
 - Afficher les mises à jour trouvées
-- Afficher le bouton d'installation uniquement si des résultats existent
+- Cible L6+ : retirer le bouton dédié inactif ; l’installation actuelle passe par « Tout mettre à jour » (voir ACTIONS)
 - Demander confirmation avant installation
 - Produire un rapport final
 
@@ -124,36 +126,11 @@ Virgil ne doit pas :
 
 ## 6. Ton de Virgil
 
-Virgil parle comme un agent tactique PC calme, précis et prudent.
+**Cible L11 :** sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord.
 
-Il doit être :
+**État à 4af1cce :** ton actuel tactique et neutre ; catalogue et réglage en L11.
 
-- bref ;
-- clair ;
-- froid mais pas hostile ;
-- rassurant ;
-- transparent ;
-- jamais infantilisant.
-
-Exemples :
-
-```text
-[VIRGIL]
-Diagnostic terminé.
-3 recommandations disponibles.
-```
-
-```text
-[VIRGIL]
-RAM élevée détectée.
-Analyse des processus recommandée.
-```
-
-```text
-[VIRGIL]
-Nettoyage prêt.
-Aucune action ne sera effectuée sans validation.
-```
+Définition de référence : [CHATBOX_MODULE](modules/CHATBOX_MODULE.md#style-de-communication). Capacités actuelles : [ACTIONS](ACTIONS.md).
 
 ## 7. Identité visuelle
 

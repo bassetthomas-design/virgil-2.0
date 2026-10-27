@@ -1,156 +1,31 @@
 # Virgil 2.0 — Roadmap
 
-Cette roadmap remplace les anciens jalons. L’[architecture](ARCHITECTURE.md) définit les responsabilités et la sécurité ; le [statut](PROJECT_STATUS.md) distingue l’existant des travaux validés. Les spécifications produit figurent dans [ACTIONS.md](ACTIONS.md). Chaque phase se termine par une validation GitHub Actions Windows et une revue de ses critères de sortie.
+Le [statut de référence](PROJECT_STATUS.md) suit les phases et les PR livrées. [ACTIONS.md](ACTIONS.md) est la source des spécifications ; [ARCHITECTURE.md](ARCHITECTURE.md) décrit l'implémentation et les protections. Cette roadmap ne duplique pas le journal des livraisons.
 
-## Phase 0 — Fondations
+## Ordre des cibles après L4c
 
-Refactor sans nouvelle fonctionnalité. Sous-lots obligatoirement ordonnés, une PR par sous-lot :
-
-| Sous-lot | Périmètre |
+| Lot cible | Travail prévu par le cadrage L4c |
 | --- | --- |
-| 0a | Documentation initiale et suppression des workflows/scripts obsolètes (PR #27 fusionnée). |
-| 0a.1 | Corrections documentaires, sans changement C#, csproj ou workflow. |
-| 0b | Introduire Contracts et déplacer les types partagés de Domain vers Contracts ; les modèles d’animation vont dans App. |
-| 0c | Extraire Infrastructure et centraliser les lancements de l’application derrière un seul `IProcessRunner`, en deux PR : 0c-1 (Infrastructure, IProcessRunner, lanceurs Updates/applications/helper) puis 0c-2 (ouverture d’emplacements, Explorer, vues, test de garde). |
-| 0d | 0d-1 : composition Hosting/DI ; 0d-2 : Serilog, settings JSON et gestionnaire global d’exceptions ; 0d-3 : instance unique, manifeste `asInvoker` et `TreatWarningsAsErrors` ; 0d-4+ : vues minces et ViewModels CommunityToolkit.Mvvm injectés. |
-| 0e-1 | Livrer les contrats `RiskLevel`, `ActionPreview`, `ActionResult`, le `ConfirmedPlan` dans Core et la porte unique `ConfirmationService` avec tests de sécurité ; aucun branchement ni changement de comportement des modules. |
-| 0e-2 | Livré (PR #43) : correspondances pures des quatre enums vers RiskLevel, registre de confirmation borné, pilote de désinstallation Applications sur la porte ; dialogues et politiques conservés. |
-| 0e-3 | Livré (PR #44) : Ressources et Mises à jour exigent ConfirmedPlan après les overlays existants ; gardes avant la porte, usage unique avant effet. |
-| 0e-4 | Livré (PR #45) : Interventions et Nettoyage sur ConfirmedPlan, gardes conservés et RequiresReinforcedConfirmation indépendant de l’enum ; lot 0e terminé. 0f livré (PR #47) ; 0g livré (PR #48). |
-| 0f | Livré (PR #47) : helper limité à Contracts, gardes de chemins et racine du protocole partagés ; allowlist et validations préservées. |
-| 0f-bis | Livré (PR #49) : gardes de chemins purs dans Contracts ; disque, dossiers, ACL et fichiers du protocole client dans Infrastructure derrière les ports Core, composition Hosting ; helper inchangé limité à Contracts. |
-| 0g | Livré (PR #48) : tests séparés en `Virgil.Core.Tests` (sans App) et `Virgil.App.Tests` (dont animation), aides non dupliquées et deux tests d’architecture ; 746 cas existants préservés. |
+| L5 | Harmoniser les opérations longues ; L5-2 traiterait les libellés UI restants |
+| L6 / L6+ | Corriger les résultats des lanceurs, compléter les mises à jour ; pilotes cochés par défaut et retrait du bouton mort en L6+ |
+| L7 | Fusionner Ressources dans Diagnostic ; l'écran Ressources est encore présent à la base de L4c |
+| L9 | Traiter les capteurs ; aucune température CPU disponible dans la source actuelle |
+| L11 | Catalogue et réglage du ton ; règle commune dans CHATBOX_MODULE |
+| L12 | Compléter Démarrage : logos, impact, recommandations et temps avant/après |
+| L12b | Compléter Réparation : chkdsk planifié, reset Windows Update complet et wsreset |
 
-Chaque lot préserve les protections existantes ; le code legacy sans rapport reste hors périmètre. Les critères ci-dessous portent sur la fin de la phase complète.
+Le prochain travail est L5. Le fichier `loops/plan-lots.md` cité par le cadrage est absent du dépôt à `4af1cce`. Aucun contenu n'est inventé pour L8, L10 ou L13. Les ambitions sans sous-lot fourni restent des **cibles L5–L13 à affecter** dans ACTIONS : comparaison historique/PDF, compléments Applications/Nettoyage et séparation des accès OS legacy. Agent/Tray et monitoring continu restent reportés, sans sous-lot fixé par ce cadrage.
 
-Critères de sortie :
+## Diagnostic : cadence de référence
 
-- Documentation cohérente et fichiers obsolètes supprimés pour 0a, sans modification C#.
-- Dépendances conformes à la cible, helper ne référençant que Contracts parmi les projets Virgil ; aucun appel OS direct dans Core.
-- Vues minces, services et ViewModels injectés, aucun `new XxxService()` dans les vues/ViewModels ; logs Serilog, settings JSON et stockage des rapports dans Infrastructure.
-- Contrats et validation de ConfirmedPlan disponibles et testés : expiration, hash incorrect, provenance invalide et absence d’effet après refus. Les protections existantes restent actives pendant la transition.
-- Aucune nouvelle fonctionnalité produit ; comportements existants et tests de sécurité préservés, CI Windows verte.
+À `4af1cce`, Diagnostic mesure à l'entrée, puis seulement sur « Actualiser », sans minuteur (`DiagnosticViewModel`). Cette cadence de 3d remplace celle de la livraison initiale 1d ; aucun suivi continu livré. L'architecture en donne le détail. Budget CPU et temps représentatifs sur Windows : non mesuré.
 
-## Phase 1 — Diagnostic + Nettoyage
+## Critères des futurs lots
 
-Actions concernées : [Action 1 — Diagnostic](ACTIONS.md#action-1--diagnostic-validee-2026-10-18), [Action 2 — Nettoyage](ACTIONS.md#action-2--nettoyage-validee-2026-10-18), [Action 6 — Ressources fusionnée dans le Diagnostic](ACTIONS.md#action-6--ressources---fusionnee-dans-laction-1-2026-10-18) ; lien avec les restes après désinstallation de l’[Action 4 — Applications](ACTIONS.md#action-4--applications-validee-2026-10-18).
+Chaque cible devrait conserver les gardes existants, les confirmations et les refus sans effet. Les changements système concernés devraient garder sauvegarde et point de restauration vérifiés ; aucune commande libre ne devrait entrer dans le helper. Les plans devraient rester liés à l'aperçu réellement exécuté.
 
-Migrer Diagnostic et Nettoyage vers IMaintenanceModule/IMaintenanceAction : scan en lecture seule, constats, aperçu, confirmation et résultat.
+Une capacité ne devrait passer de « cible » à « livré » qu'avec ses fichiers de preuve, ses limites, les vérifications adaptées et une CI Windows réussie. La présence d'un écran, d'un tag ou d'un test ne devrait pas attester à elle seule un essai manuel Windows. Les mesures non effectuées devraient rester « non mesuré ».
 
-| Sous-lot | Périmètre |
-| --- | --- |
-| 1a | Contrat commun `Findings` / `IMaintenanceModule` / `IMaintenanceAction` et Nettoyage branché dessus, à comportement identique ; Diagnostic à venir. |
-| 1b | Livré : quarantaine de 7 jours réglable (1–30), restauration taille/SHA-256 vérifiée, purge distincte confirmée ; expiration = proposition de purge confirmée, jamais effacement silencieux. |
-| 1c | Livré (PR #52) : scan en trois groupes : Sûr (coché), À vérifier (décoché), Restes de logiciels désinstallés (taille, fichiers et clés de registre) ; garde-fous sur les dossiers personnels. |
-| 1d | Livré (PR #53) : module Diagnostic en lecture seule ; CI Windows suivie dans la PR. Vue détaillée CPU, RAM, disques, réseau, GPU et processus, en lecture seule. |
-| 1e | Livré (PR #54), validation Windows suivie dans la PR : analyse « ce qui ne va pas », note, top 3 et actions proposées après validation, dont fermeture de processus protégée. |
+## Anciennes phases
 
-1a conserve le parcours existant de suppression/corbeille et les protections ; quarantaine, nouveaux groupes, restes de logiciels, Diagnostic et nouvelle UI restent hors de ce sous-lot.
-
-
-Critères de sortie :
-
-- Les deux modules utilisent le contrat commun et l’unique RiskLevel ; aucune exécution destructive via un simple booléen de confirmation.
-- Plan absent, expiré ou différent de l’aperçu refusé ; tests prouvant qu’aucune écriture destructive ne suit le refus.
-- Nettoyage vers quarantaine/corbeille avec restauration vérifiée ; protections de chemins et classification conservées. Aucun point de restauration requis pour le nettoyage ni pour les actions sur les processus.
-- Créer et vérifier un point de restauration uniquement avant les changements système : pilotes, réparations Windows via le helper, modifications du démarrage, du registre ou des services. Il n’est pas requis pour le nettoyage, protégé par quarantaine/corbeille, ni pour les actions sur les processus. Si la restauration système est désactivée ou limitée, expliquer la situation et proposer de l’activer ; ne permettre de continuer sans cette protection que via une confirmation de niveau Critique indiquant explicitement « aucun point de restauration ». Ne jamais ignorer cette situation en silence. Hors de cette dérogation explicite, un échec de création ou de vérification bloque le changement système.
-- Résultats, erreurs, annulation et rapports compréhensibles en français ; CI Windows verte.
-
-## Phase 2 — Installateur Inno Setup + release v2.0.0-alpha
-
-Distribuer une première version installable centrée sur Diagnostic et Nettoyage.
-
-Critères de sortie :
-
-- `installer/` contient la configuration Inno Setup ; la CI Windows produit l’installateur depuis une publication self-contained win-x64 avec le helper.
-- Installation par machine dans `Program Files` ; le helper ne doit jamais résider dans un dossier modifiable par l’utilisateur standard.
-- Version issue du tag git et workflow de release déclenché sur les tags `v*` ; aucune modification de workflow dans le lot documentaire 0a.1.
-- Signature de code requise, ou exception pour une alpha non signée explicitement acceptée et documentée dans les notes de version.
-- Vérification des mises à jour de Virgil via GitHub Releases, avec état explicite en cas d’indisponibilité.
-- Toute action legacy non migrée vers ConfirmedPlan est désactivée ou bloquée à l’exécution, y compris ses entrées UI, chat et tray ; tests prouvant l’absence de contournement avant publication de l’alpha.
-- Installation, lancement, demande d’élévation, redémarrage de l’application et désinstallation vérifiés sur Windows sans SDK .NET installé.
-- Droits utilisateur standard testés ; données utilisateur, rapports et logs traités explicitement lors de la désinstallation.
-- Tag et release `v2.0.0-alpha`, installateur téléchargeable, notes de version et limites connues publiés ; CI Windows verte.
-
-## Phase 3 — Mises à jour, Applications, Démarrage, Réparations
-
-Actions concernées : [Action 0 — Tout mettre à jour](ACTIONS.md#action-0--tout-mettre-a-jour-exigence), [Action 3 — Mises à jour](ACTIONS.md#action-3--mises-a-jour-pack-all-inclusive-validee-2026-10-18), [Action 4 — Applications](ACTIONS.md#action-4--applications-validee-2026-10-18), [Action 5 — Réparations](ACTIONS.md#action-5--reparations-validee-2026-10-18), [Action 7 — Démarrage](ACTIONS.md#action-7--demarrage-validee-2026-10-18).
-
-Migrer les capacités existantes et livrer les parcours manquants avec le même contrat et les mêmes garanties.
-
-Critères de sortie :
-
-- Mises à jour, Applications, Démarrage et Réparations exposent scan, aperçu, confirmation et résultat via le contrat commun.
-- Dépendances absentes (dont winget), échecs et droits insuffisants donnent des états explicites ; aucune commande libre transmise au helper.
-- Sauvegarde vérifiée avant toute modification du démarrage et restauration testée ; échec de sauvegarde bloquant.
-- Créer et vérifier un point de restauration uniquement avant les changements système : pilotes, réparations Windows via le helper, modifications du démarrage, du registre ou des services. Il n’est pas requis pour le nettoyage, protégé par quarantaine/corbeille, ni pour les actions sur les processus. Si la restauration système est désactivée ou limitée, expliquer la situation et proposer de l’activer ; ne permettre de continuer sans cette protection que via une confirmation de niveau Critique indiquant explicitement « aucun point de restauration ». Ne jamais ignorer cette situation en silence. Hors de cette dérogation explicite, un échec de création ou de vérification bloque le changement système.
-- Tests des refus, désinstallations, protections des processus et allowlist conservés ou renforcés ; CI Windows verte.
-
-## Phase 4 — Monitoring continu
-
-Actions concernées : [Action 1 — Diagnostic : vue en direct continue et historique](ACTIONS.md#action-1--diagnostic-validee-2026-10-18), [Action 8 — Historique (priorité basse)](ACTIONS.md#action-8--historique-validee-priorite-basse).
-
-Stabiliser le suivi CPU, RAM, disque, réseau et processus existant pour une observation continue maîtrisée.
-
-Critères de sortie :
-
-- Échantillonnage, annulation, erreurs de lecture, arrêt et reprise testés ; mesures cohérentes et informations indisponibles signalées.
-- Fréquence et rétention bornées, consommation mesurée selon un budget documenté et validé ; absence de fuite lors d’une session prolongée.
-- Le monitoring observe et recommande ; toute action passe par aperçu et ConfirmationService ; CI Windows verte.
-
-## Phase 5 — Agent barre des tâches
-
-Actions concernées : [Action 9 — Surveillance / Tray](ACTIONS.md#action-9--surveillance-en-arriere-plan--tray-validee-2026-10-18).
-
-Ajouter Virgil.Tray : présence discrète, notifications, ouverture du tableau de bord et démarrage optionnel avec Windows. L’agent n’agit jamais seul.
-
-Critères de sortie :
-
-- Cycle de vie, instance unique, fermeture et démarrage optionnel vérifiés ; arrêt effectif de l’observation à la demande.
-- Notifications contrôlables et limitées ; accès clair aux constats et à l’application.
-- Aucune maintenance déclenchée automatiquement : toute intention d’action ouvre le parcours de ConfirmationService dans App, avec tests de ce passage obligatoire ; CI Windows verte.
-
-## Phase 6 — Personnalité
-
-Actions concernées : [Action 10 — Personnalité](ACTIONS.md#action-10--personnalite-validee-2026-10-18-bonus).
-
-Ajouter avatar, messages `[VIRGIL]` et chat, sans élargir les pouvoirs de l’assistant.
-
-Critères de sortie :
-
-- États d’avatar et messages français cohérents avec les opérations réelles, sans annoncer une réussite avant le résultat.
-- Le chat transforme les intentions reconnues en propositions du catalogue : aperçu puis ConfirmationService avant toute action.
-- Intentions inconnues, ambiguës ou interdites refusées ou clarifiées ; aucun texte libre exécuté comme commande OS et aucun contournement du ConfirmedPlan.
-- Tests des intentions et des refus, accessibilité de l’interface et CI Windows validées.
-
-1b livré : section Quarantaine minimale dans Nettoyage ; 1c livré (PR #52) pour les trois groupes et restes de logiciels ; Diagnostic en lecture seule livré en 1d ; analyse et actions livrées en 1e (PR #54). La CI Windows de la PR est la référence de validation.
-
-
-### 1c — livré (PR #52)
-
-Trois groupes de Nettoyage, sélection par groupe/ligne et confirmation récapitulative unique liée au hash ; téléchargements >90 jours ou >500 Mo uniquement dans le dossier résolu ; restes de logiciels absents avec exclusions des programmes installés, références actives et liste protégée. Ports Windows injectés, politique des dossiers personnels avec sélection individuelle Critical et quarantaine. Clés de registre en lecture seule, suppression reportée à un lot ultérieur avec sauvegarde et point de restauration. Aucun changement Diagnostic, helper ou Applications. La Phase 1 reste ouverte pour 1d/1e. CI Windows du code final (run 176) : 915 tests, Core 625 + App 290, soit 850 + 65 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Dernière CI suivie dans la PR #52.
-
-
-### 1d — livré (PR #53)
-
-Diagnostic détaillé en lecture seule, sampler et port Windows injectés, indisponibilités explicites, catalogue de processus et tri. Actualisation visible toutes les 2 s, sans chevauchement, annulation à la navigation/réduction ; objectif documenté <1 % CPU moyen à mesurer sur Windows. Aucune action, note, fermeture ni histoire ; 1e et Phase 4 restent ouverts. La [CI Windows du code final, run 180](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39515664167) valide 953 tests (Core 655 + App 298), soit 915 + 38 nouveaux, 0 échec, 0 ignoré, 0 warning ; helper présent dans la publication. Dernière CI documentaire suivie dans la PR #53.
-
-### 1e — analyse et actions proposées
-
-Livré dans la PR #54 : signaux ponctuels en lecture seule, analyse pure, note partielle sans pénalité pour les absences, top 3 et propositions validées ; fermeture via le port existant et ses gardes, navigation vers Nettoyage/Mises à jour, démarrage informatif sans écriture. Les sous-lots 1a–1e sont implémentés. Phase 1 terminée : les deux modules utilisent les contrats communs, les plans invalides sont refusés sans effet, la quarantaine et sa restauration sont testées, les résultats français et la CI Windows sont validés. Aucune action de changement système n’est ajoutée dans ce lot. Objectif de performance 1d restant à mesurer sur une session Windows représentative, sans mesure CPU revendiquée. Aucun travail des Phases 2–6 ajouté.
-
-
-La [CI Windows du code 1e, run 188](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/39549633419), commit d90dea2, valide 1 010 tests : Core.Tests 706 (659 + 47 nouveaux), App.Tests 304 (299 + 5 nouveaux), soit 958 + 52 nouveaux. Les logs de chaque projet indiquent 0 échec et 0 ignoré ; build : 0 warning, 0 erreur. Publication : « Publication verifiee : Virgil.ElevatedHelper.exe est present. » ; artefact win-x64 publié. Aucun test existant supprimé ou affaibli. SDK dotnet absent localement ; aucune validation locale de build revendiquée. La dernière mise à jour documentaire est suivie dans la PR #54.
-
-### 2a — livré (PR #55), validation Windows suivie dans la PR
-
-Installateur Inno Setup par machine avec helper dans Program Files, désinstallation conservatrice, production CI et artefact distinct, prerelease sur tags v* avec version et SHA-256, notes alpha non signée et verrou d'architecture des actions legacy. Les parcours non livrés restent bloqués en français ; aucune entrée de chat ou tray active. Base : 1 010 tests (Core 706 + App 304) ; tests Windows du lot : 1 033 (Core 724 + App 309), soit 23 nouveaux, 0 échec, 0 ignoré, 0 warning. Validation complète ISCC et artefact du dernier commit suivis dans la PR #55 ; aucune validation locale revendiquée.
-
-Phase 2 reste ouverte : 2b livré, vérification des mises à jour de Virgil via GitHub Releases ; restent les tests manuels sur Windows sans SDK (installation, compte standard, lancement, élévation du helper, redémarrage, mise à jour avec Virgil ouvert et désinstallation avec/sans suppression des données, quarantaine toujours conservée) ; création du tag v2.0.0-alpha et vérification de sa prerelease. Signature de code hors lot, exception alpha non signée documentée.
-
-
-### 2b — livré, validation Windows suivie dans la PR
-
-Version issue du tag dans l’assembly et le setup, comparaison SemVer 2.0, API publique GitHub derrière un port Core, contrôle manuel et au démarrage au plus une fois par 24 h désactivable, résultats explicites français dans l’application uniquement. Ouverture manuelle de la page, aucun téléchargement ni installation automatique. Notes alpha finalisées, publication stable refusée sans notes stables, mutex global multi-session et BOM UTF-8 testés. Base main : 1 033 tests (Core 724 + App 309) ; nouveaux cas et résultat Windows consignés dans PROJECT_STATUS et la PR.
-
-Restent pour clore la Phase 2 : tests manuels Windows sans SDK (dont deux sessions ouvertes et indisponibilité réseau), puis création du tag v2.0.0-alpha et contrôle de sa release, du setup et du SHA-256. Aucun tag créé par 2b. Signature, tray, notifications, service, démarrage et registre hors lot.
+Les phases 0 à 6 restent des regroupements historiques, pas l'ordre actuel des lots. Leur situation après L4b-5 / REL-1 et les quatre tags publiés sont dans PROJECT_STATUS. Les spécifications historiques ne prouvent pas leur livraison intégrale.

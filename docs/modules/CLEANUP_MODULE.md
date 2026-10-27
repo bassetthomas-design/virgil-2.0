@@ -301,7 +301,7 @@ Action recommandée : examiner les fichiers volumineux.
 
 ### Statut
 
-V2 limitée aux caches connus Battle.net, Visual Studio et INetCache. Les dossiers d'applications et de jeux restent protégés.
+Historique de spécification V2 : caches connus Battle.net, Visual Studio et INetCache ; cette liste ne prouve pas une mise à jour des jeux. Les dossiers d'applications et de jeux restent protégés.
 
 ### Actions possibles
 
