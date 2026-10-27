@@ -29,7 +29,7 @@ jobs:
         run: dotnet build Virgil.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI"
+        run: dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI" --logger "console;verbosity=normal"
 
       - name: Publish app
         run: dotnet publish src/Virgil.App/Virgil.App.csproj --configuration Release --runtime win-x64 --self-contained true --output artifacts/Virgil2 -p:Version=0.0.0-dev -p:InformationalVersion=0.0.0-dev -p:IncludeSourceRevisionInInformationalVersion=false

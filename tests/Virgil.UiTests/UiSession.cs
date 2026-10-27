@@ -185,6 +185,11 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     {
         AssertHealthy();
         files.AssertQuarantineUnchanged();
+        var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
+            .Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
+        var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
+            .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(expected, actual);
     }
 
     private AutomationElement? Find(string id) => window!.FindFirstDescendant(cf => cf.ByAutomationId(id));
