@@ -145,9 +145,10 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                 TimeSpan.FromSeconds(2), "Le scan approfondi n'a pas démarré.");
             await UntilAsync(() => Find("HomeNavButton")!.IsEnabled,
                 TimeSpan.FromSeconds(120), "Le scan approfondi dépasse 120 s.");
-            Assert.True(window!.FindAllDescendants().Any(element =>
-                element.Name?.StartsWith("Analyse approfondie terminee.", StringComparison.Ordinal) == true),
-                "Le scan approfondi n'a pas annoncé sa fin réussie.");
+            // Chat entries prepend "[VIRGIL]\n" to the completion message.
+            await UntilAsync(() => window!.FindAllDescendants().Any(element =>
+                element.Name?.Contains("Analyse approfondie terminee.", StringComparison.Ordinal) == true),
+                TimeSpan.FromSeconds(5), "Le scan approfondi n'a pas annoncé sa fin réussie.");
             AssertHealthy();
         }
         catch (Exception exception)
