@@ -29,6 +29,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     private readonly ConcurrentQueue<(string Screen, double Milliseconds)> latencies = new();
     private readonly Dictionary<string, Exception?> screenResults = new(StringComparer.Ordinal);
     private readonly SessionFiles files = new();
+    private readonly string fixtureTemp = Path.Combine(Path.GetTempPath(), "Virgil-ui-smoke-" + Guid.NewGuid().ToString("N"), "temp-lecture-seule");
     private readonly Lazy<Task> journey;
     private Process? process;
     private UIA3Automation? automation;
@@ -83,7 +84,6 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             executable = Path.GetFullPath(executable);
             Assert.True(File.Exists(executable), $"Exécutable publié introuvable : {executable}");
             // Un fichier ancien déterministe rend le récapitulatif accessible sans effet OS.
-            var fixtureTemp = Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule");
             Directory.CreateDirectory(fixtureTemp);
             var fixtureFile = Path.Combine(fixtureTemp, "temoin-smoke.tmp");
             await File.WriteAllTextAsync(fixtureFile, "Témoin de lecture seule : ne jamais nettoyer.");
@@ -227,7 +227,8 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         AssertHealthy();
         files.AssertQuarantineUnchanged();
         Assert.Equal("Témoin de lecture seule : ne jamais nettoyer.",
-            File.ReadAllText(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule", "temoin-smoke.tmp")));
+            File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
+        Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
         var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
             .Append("12-recap-nettoyage.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
@@ -353,3 +354,4 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         }
     }
 }
+

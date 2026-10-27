@@ -27,13 +27,53 @@ public sealed class CleanupConfirmationSummaryTests
     public void Lists_personal_and_system_items_when_present()
     {
         var personal = Row(CleanupZoneId.OldDownloads, "Téléchargements");
-        var system = Row(CleanupZoneId.WindowsUpdateCache, "Windows Update");
+        var system = Row(CleanupZoneId.WindowsOld, "Ancienne installation Windows");
         var preview = CleanupSelectionAction.CreatePreview([personal, system]);
-        Assert.Equal("Concernés : 1 élément(s) personnel(s) (Téléchargements) et 1 élément(s) système (Windows Update).", preview.Parameters["NatureSummary"]);
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (Téléchargements) et 1 élément(s) système sensible (Ancienne installation Windows).", preview.Parameters["NatureSummary"]);
         Assert.Equal("1", preview.Parameters["NatureCount:Personal"]);
         Assert.Equal("1", preview.Parameters["NatureCount:System"]);
-        Assert.Equal("Concernés : 0 élément(s) personnel(s) () et 1 élément(s) système (Windows Update).", CleanupConfirmationSummary.Create([system]));
-        Assert.Equal("Concernés : 1 élément(s) personnel(s) (Téléchargements) et 0 élément(s) système ().", CleanupConfirmationSummary.Create([personal]));
+        Assert.Equal("Concernés : 1 élément(s) système sensible (Ancienne installation Windows).", CleanupConfirmationSummary.Create([system]));
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (Téléchargements).", CleanupConfirmationSummary.Create([personal]));
+    }
+
+    [Fact]
+    public void Windows_and_user_TEMP_do_not_warn_about_system_or_personal_files()
+    {
+        var windows = Row(CleanupZoneId.WindowsTemporaryFiles, "TEMP Windows");
+        var user = Row(CleanupZoneId.UserTemporaryFiles, "TEMP utilisateur");
+        var preview = CleanupSelectionAction.CreatePreview([windows, user]);
+        Assert.Equal("Aucun fichier système ni personnel n'est concerné.", preview.Parameters["NatureSummary"]);
+        Assert.Equal("1", preview.Parameters["NatureCount:System"]);
+        Assert.Equal("1", preview.Parameters["NatureCount:Cache"]);
+        Assert.Equal(CleanupNature.System, CleanupItemNature.For(windows));
+        Assert.Equal(CleanupNature.Cache, CleanupItemNature.For(user));
+    }
+
+    [Theory]
+    [InlineData(CleanupZoneId.WindowsTemporaryFiles)]
+    [InlineData(CleanupZoneId.WindowsUpdateCache)]
+    [InlineData(CleanupZoneId.DeliveryOptimizationCache)]
+    [InlineData(CleanupZoneId.WindowsErrorReports)]
+    [InlineData(CleanupZoneId.TechnicalLogs)]
+    [InlineData(CleanupZoneId.InstallerTemporaryFiles)]
+    [InlineData(CleanupZoneId.PrefetchInformation)]
+    public void Managed_Windows_temporaries_and_caches_do_not_raise_summary_alert(CleanupZoneId id)
+    {
+        var row = Row(id, id.ToString());
+        Assert.Equal("Aucun fichier système ni personnel n'est concerné.", CleanupConfirmationSummary.Create([row]));
+        Assert.Equal(CleanupNature.System, CleanupItemNature.For(row));
+        var personal = row with { Definition = row.Definition with { IsPersonalFolder = true } };
+        Assert.Equal($"Concernés : 1 élément(s) personnel(s) ({id}).", CleanupConfirmationSummary.Create([personal]));
+    }
+
+    [Fact]
+    public void Empty_categories_are_omitted_from_summary()
+    {
+        var personal = Row(CleanupZoneId.OldDownloads, "Téléchargements");
+        var system = Row(CleanupZoneId.WindowsOld, "Ancienne installation Windows");
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (Téléchargements).", CleanupConfirmationSummary.Create([personal]));
+        Assert.Equal("Concernés : 1 élément(s) système sensible (Ancienne installation Windows).", CleanupConfirmationSummary.Create([system]));
+        Assert.Equal("Aucun fichier système ni personnel n'est concerné.", CleanupConfirmationSummary.Create([]));
     }
 
     [Fact]

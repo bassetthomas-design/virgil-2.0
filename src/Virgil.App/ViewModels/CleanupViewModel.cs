@@ -623,7 +623,7 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Previsualisation terminee.\n{_lastPreview.Count} zones analysees.\n{FormatBytes(totalBytes)} potentiellement recuperables.\n{reviewCount} elements personnels ou ambigus a revoir, aucune suppression proposee.");
+        VirgilMessageRequested?.Invoke($"Prévisualisation terminée.\n{_lastPreview.Count} zones analysées.\n{FormatBytes(totalBytes)} potentiellement récupérables.\n{reviewCount} éléments personnels ou ambigus à revoir, aucune suppression proposée.");
     }
 
     private void AnnounceSessionEnd(CleanupSessionReport report)
@@ -864,3 +864,4 @@ public partial class CleanupViewModel : ObservableObject
         CancelAll
     }
 }
+

@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(UpdatesModuleView, "Module mises à jour sécurisé");
         ModuleHostGrid.Children.Add(UpdatesModuleView);
         InterventionsModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblees");
+        AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblées");
         ModuleHostGrid.Children.Add(InterventionsModuleView);
         ResourcesModuleView.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(ResourcesModuleView, "Module ressources systeme");
@@ -388,7 +388,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "INTERVENTIONS";
         SetVirgilState(VirgilCoreState.Idle, "INTERVENTIONS");
-        AppendVirgilMessage("Interventions ciblees pretes.\nDiagnostic requis avant action.");
+        AppendVirgilMessage("Interventions ciblées prêtes.\nDiagnostic requis avant action.");
         InterventionsModuleView.FocusAnalyzeButton();
     }
 
@@ -777,7 +777,7 @@ public partial class MainWindow : Window
         {
             AppendVirgilMessage(
                 $"Analyse approfondie terminée.\nCPU moyen court : {report.Resources.AverageCpuPercent:0.0} %.\n" +
-                $"Processus lourds : {report.Resources.HeavyProcessCount}.\nAucune action executee.");
+                $"Processus lourds : {report.Resources.HeavyProcessCount}.\nAucune action exécutée.");
             return;
         }
 
@@ -802,11 +802,11 @@ public partial class MainWindow : Window
             $"CPU : {report.Processor.Name} - {report.Processor.LogicalProcessorCount} logiques - {report.Processor.UsagePercent:0.0} % ({report.Processor.Status})",
             $"Memoire : {FormatBytes(report.Memory.UsedPhysicalBytes)} / {FormatBytes(report.Memory.TotalPhysicalBytes)} ({report.Memory.UsedPercent:0.0} %)",
             $"Disque systeme : {FormatDisk(systemDisk)}",
-            $"Reseau : {FormatNetwork(report.Network)}",
+            $"Réseau : {FormatNetwork(report.Network)}",
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
-            $"Ressources systeme : {FormatResources(report.Resources)}",
+            $"Ressources système : {FormatResources(report.Resources)}",
             $"Mises à jour : {FormatUpdates(report.Updates)}",
-            $"Interventions ciblees : {FormatInterventions(report.Interventions)}",
+            $"Interventions ciblées : {FormatInterventions(report.Interventions)}",
             $"Applications : {FormatApplications(report.Applications)}"
         });
         ReportPopupRecommendationsText.Text = report.Recommendations.Count == 0
@@ -1205,3 +1205,4 @@ public partial class MainWindow : Window
 
     private static string FormatBytes(long bytes) => ScanRules.FormatBytes(bytes);
 }
+

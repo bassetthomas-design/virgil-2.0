@@ -229,7 +229,7 @@ public partial class InterventionsViewModel : ObservableObject
         try
         {
             RequestVirgilState(VirgilCoreState.Scanning, "INTERVENTIONS");
-            VirgilMessageRequested?.Invoke("Diagnostic interventions lance.\nAucune action executee.");
+            VirgilMessageRequested?.Invoke("Diagnostic interventions lancé.\nAucune action exécutée.");
 
             var diagnostics = await _diagnosticService
                 .DiagnoseAllAsync(_operationCancellation!.Token)
@@ -242,15 +242,15 @@ public partial class InterventionsViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Diagnostic annule.";
+            StatusText = "Diagnostic annulé.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Diagnostic annule.\nAucune action executee.");
+            VirgilMessageRequested?.Invoke("Diagnostic annulé.\nAucune action exécutée.");
         }
         catch
         {
             StatusText = "Diagnostic indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Diagnostic indisponible.\nAucune action executee.");
+            VirgilMessageRequested?.Invoke("Diagnostic indisponible.\nAucune action exécutée.");
         }
         finally
         {
@@ -315,7 +315,7 @@ public partial class InterventionsViewModel : ObservableObject
                 if (decision == InterventionDecision.Skip)
                 {
                     results.Add(_executionService.Skip(diagnostic));
-                    VirgilMessageRequested?.Invoke("Intervention passee.\nAucune action executee.");
+                    VirgilMessageRequested?.Invoke("Intervention passée.\nAucune action exécutée.");
                     continue;
                 }
 
@@ -674,3 +674,4 @@ public partial class InterventionsViewModel : ObservableObject
         CancelAll
     }
 }
+

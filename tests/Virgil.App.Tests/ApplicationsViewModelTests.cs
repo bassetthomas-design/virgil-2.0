@@ -214,7 +214,7 @@ public sealed class ApplicationsViewModelTests
         f.OpenDetails();
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Equal("1 application(s), 1 desinstallable(s).", f.Vm.ReportSummary);
-        Assert.Contains("Aucune action executee depuis l'inventaire.", f.Vm.ReportDetails);
+        Assert.Contains("Aucune action exécutée depuis l'inventaire.", f.Vm.ReportDetails);
         Assert.Equal("Aucune", f.Vm.ReportErrors);
         Assert.True(f.Vm.TryCloseOverlay());
         Assert.False(f.Vm.IsReportOpen);

@@ -664,7 +664,7 @@ public partial class ApplicationsViewModel : ObservableObject
                 $"Protegees : {_lastInventoryReport.ProtectedCount}",
                 $"Attention : {_lastInventoryReport.CautionCount}",
                 $"Inconnues : {_lastInventoryReport.UnknownCount}",
-                "Aucune action executee depuis l'inventaire.",
+                "Aucune action exécutée depuis l'inventaire.",
                 "Aucune donnee personnelle supprimee automatiquement."
             });
             ReportErrors = _lastInventoryReport.Errors.Count == 0
@@ -805,3 +805,4 @@ public partial class ApplicationsViewModel : ObservableObject
         return bytes.HasValue ? ScanRules.FormatBytes(bytes.Value) : "N/A";
     }
 }
+
