@@ -45,8 +45,8 @@ public partial class ResourcesViewModel : ObservableObject
         _confirmationService = confirmationService;
         _reportHistoryService = reportHistoryService;
         ReleaseInactiveMemoryLabel = _actionService.CanReleaseInactiveMemory
-            ? "LIBERER MEMOIRE INACTIVE"
-            : "MEMOIRE INACTIVE - INFO";
+            ? "LIBÉRER MÉMOIRE INACTIVE"
+            : "MÉMOIRE INACTIVE - INFO";
     }
 
     public event Action<string>? VirgilMessageRequested;
@@ -62,9 +62,9 @@ public partial class ResourcesViewModel : ObservableObject
     public ObservableCollection<ProcessResourceItemViewModel> Items { get; } = new();
 
     [ObservableProperty] private string statusText = "CPU, RAM ET PROCESSUS EN LECTURE SEULE";
-    [ObservableProperty] private string cpuSummaryText = "NON ANALYSE";
-    [ObservableProperty] private string memorySummaryText = "NON ANALYSE";
-    [ObservableProperty] private string sessionSummaryText = "NON ANALYSE";
+    [ObservableProperty] private string cpuSummaryText = "NON ANALYSÉ";
+    [ObservableProperty] private string memorySummaryText = "NON ANALYSÉ";
+    [ObservableProperty] private string sessionSummaryText = "NON ANALYSÉ";
     [ObservableProperty] private string recommendationsText = "Lancez une analyse. Aucune action ne sera executee.";
     [ObservableProperty] private string processSummaryText = "Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.";
     [ObservableProperty] private string processesNotice = "Analyse requise. Les processus systeme critiques, securite, VPN et materiel resteront proteges.";

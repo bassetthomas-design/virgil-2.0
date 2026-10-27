@@ -87,10 +87,10 @@ public partial class MainWindow : Window
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(DiagnosticModuleView);
         CleanupModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(CleanupModuleView, "Module nettoyage securise");
+        AutomationProperties.SetName(CleanupModuleView, "Module nettoyage sécurisé");
         ModuleHostGrid.Children.Add(CleanupModuleView);
         UpdatesModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(UpdatesModuleView, "Module mises a jour securise");
+        AutomationProperties.SetName(UpdatesModuleView, "Module mises a jour sécurisé");
         ModuleHostGrid.Children.Add(UpdatesModuleView);
         InterventionsModuleView.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblees");
@@ -115,7 +115,7 @@ public partial class MainWindow : Window
         WireReportsModule();
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
-        AppendVirgilMessage("Systeme pret.\nAucune analyse recente.\nEn attente d'instruction.");
+        AppendVirgilMessage("Système prêt.\nAucune analyse recente.\nEn attente d'instruction.");
     }
 
     private void OpenScanProtocol_Click(object sender, RoutedEventArgs e) => OpenScanProtocol();
@@ -131,6 +131,9 @@ public partial class MainWindow : Window
     private async void Window_ContentRendered(object? sender, EventArgs e)
     {
         PlayStartupAnimation();
+        // Signal UIA après le premier rendu et le drainage du dispatcher WPF.
+        await Dispatcher.InvokeAsync(() => AutomationProperties.SetItemStatus(this, "Prêt"),
+            DispatcherPriority.ApplicationIdle);
         await _virgilRelease.StartAsync();
         await RefreshPersistentReportStateAsync();
     }
@@ -228,7 +231,7 @@ public partial class MainWindow : Window
     {
         if (_scanInProgress)
         {
-            AppendVirgilMessage("Analyse en cours.\nMises a jour indisponibles.");
+            AppendVirgilMessage("Analyse en cours.\nMises à jour indisponibles.");
             return;
         }
 
@@ -335,7 +338,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "NETTOYAGE";
         SetVirgilState(VirgilCoreState.Idle, "NETTOYAGE");
-        AppendVirgilMessage("Nettoyage securise pret.\nAucune action automatique.");
+        AppendVirgilMessage("Nettoyage sécurisé pret.\nAucune action automatique.");
         CleanupModuleView.FocusAnalyzeButton();
     }
 
@@ -358,8 +361,8 @@ public partial class MainWindow : Window
         ResourcesNavButton.Tag = null;
         ApplicationsNavButton.Tag = null;
         ReportsNavButton.Tag = null;
-        StatusText.Text = "MISES A JOUR";
-        SetVirgilState(VirgilCoreState.Idle, "MISES A JOUR");
+        StatusText.Text = "MISES À JOUR";
+        SetVirgilState(VirgilCoreState.Idle, "MISES À JOUR");
         AppendVirgilMessage("Module mises a jour pret.\nValidation individuelle requise.");
         UpdatesModuleView.FocusScanButton();
     }
@@ -666,7 +669,7 @@ public partial class MainWindow : Window
         ReportCpuText.Text = "EN COURS";
         ReportRamText.Text = "EN COURS";
         ReportDiskText.Text = "EN COURS";
-        ReportCleanupText.Text = mode == ScanMode.Deep ? "EN COURS" : "NON ANALYSE";
+        ReportCleanupText.Text = mode == ScanMode.Deep ? "EN COURS" : "NON ANALYSÉ";
         ReportRecommendationsText.Text = "ANALYSE EN COURS";
         ReportErrorsText.Text = "AUCUNE";
 
@@ -802,7 +805,7 @@ public partial class MainWindow : Window
             $"Reseau : {FormatNetwork(report.Network)}",
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
             $"Ressources systeme : {FormatResources(report.Resources)}",
-            $"Mises a jour : {FormatUpdates(report.Updates)}",
+            $"Mises à jour : {FormatUpdates(report.Updates)}",
             $"Interventions ciblees : {FormatInterventions(report.Interventions)}",
             $"Applications : {FormatApplications(report.Applications)}"
         });
@@ -1027,7 +1030,7 @@ public partial class MainWindow : Window
     private void SetVirgilState(VirgilCoreState state, string label)
     {
         VirgilCore.SetState(state);
-        VirgilStateText.Text = $"ETAT VIRGIL : {label}";
+        VirgilStateText.Text = $"ÉTAT VIRGIL : {label}";
     }
 
     private async Task PersistReportSafelyAsync(ReportEntry report)

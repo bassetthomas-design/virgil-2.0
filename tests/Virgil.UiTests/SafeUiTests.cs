@@ -6,6 +6,19 @@ public sealed class SafeUiTests
 {
     [Fact]
     [Trait("Category", "Safety")]
+    public async Task Cleanup_summary_is_allowed_without_confirmation_or_execution()
+    {
+        var invoked = new List<string>();
+        var ui = new SafeUi(id => { invoked.Add(id); return Task.CompletedTask; });
+        await ui.Click("LaunchCleanupButton");
+        Assert.Equal(new[] { "LaunchCleanupButton" }, invoked);
+        foreach (var id in new[] { "ExecuteZoneButton", "Execute", "Confirmer" })
+            await Assert.ThrowsAsync<InvalidOperationException>(() => ui.Click(id));
+        Assert.Single(invoked);
+    }
+
+    [Fact]
+    [Trait("Category", "Safety")]
     public async Task Click_refuses_any_automation_id_outside_the_read_only_allowlist()
     {
         var invoked = false;
@@ -13,7 +26,7 @@ public sealed class SafeUiTests
         string[] forbidden =
         [
             "", "UnknownButton", "homeNavButton", "HomeNavButton ",
-            "LaunchCleanupButton", "ExecuteZoneButton", "ExecuteResourceActionButton",
+            "ExecuteZoneButton", "ExecuteResourceActionButton",
             "ExecuteInterventionButton", "RunGuidedButton", "LaunchUninstallButton",
             "ExecuteUpdateButton", "UpdateAllButton", "PurgeQuarantineButton",
             "RestoreQuarantineButton", "ApplyStartupChangeButton", "Execute", "Confirmer"

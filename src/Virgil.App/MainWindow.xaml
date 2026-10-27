@@ -42,7 +42,7 @@
                                    FontSize="26"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource App.TextPrimaryBrush}" />
-                        <TextBlock Text="AGENT TACTIQUE SYSTEME"
+                        <TextBlock Text="AGENT TACTIQUE SYSTÈME"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    Margin="0,3,0,0" />
                     </StackPanel>
@@ -131,7 +131,7 @@
                                 <Button x:Name="ApplicationsNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Applications" Click="Applications_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M2,2 H11 V11 H2 Z M5,5 H14 V14 H5 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="{DynamicResource Navigation.Applications}" /></Grid>
                                 </Button>
-                                <Button x:Name="UpdatesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises a jour" Click="Updates_Click">
+                                <Button x:Name="UpdatesNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Mises à jour" Click="Updates_Click">
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Path Data="M8,1 L13,6 H10 V13 H6 V6 H3 Z" Stroke="{DynamicResource App.AccentBrush}" Fill="Transparent" StrokeThickness="1" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="{DynamicResource Navigation.Updates}" /></Grid>
                                 </Button>
                                 <Button x:Name="StartupNavButton" Style="{StaticResource VirgilNavButton}" AutomationProperties.Name="Démarrage" Click="Startup_Click">
@@ -175,7 +175,7 @@
                                                             PlayBootSequence="True"
                                                             AutomationProperties.Name="Noyau Virgil" />
                                 <TextBlock x:Name="VirgilStateText"
-                                           Text="ETAT VIRGIL : REPOS"
+                                           Text="ÉTAT VIRGIL : REPOS"
                                            Style="{StaticResource VirgilHudSectionTitle}"
                                            HorizontalAlignment="Center"
                                            Margin="0,8,0,0" />
@@ -224,7 +224,7 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Margin="18,0,0,0">
                                             <TextBlock Text="NETTOYAGE POTENTIEL" Style="{StaticResource VirgilMicroLabel}" />
-                                            <TextBlock x:Name="ReportCleanupText" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
+                                            <TextBlock x:Name="ReportCleanupText" Text="NON ANALYSÉ" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
                                             <TextBlock Text="RECOMMANDATIONS" Style="{StaticResource VirgilMicroLabel}" />
                                             <TextBlock x:Name="ReportRecommendationsText" Text="AUCUN SCAN" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,8" />
                                             <TextBlock Text="ERREURS" Style="{StaticResource VirgilMicroLabel}" />
@@ -302,7 +302,7 @@
                     </Border.RenderTransform>
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <TextBlock Text="MEMOIRE" Style="{StaticResource VirgilMicroLabel}" />
+                        <TextBlock Text="MÉMOIRE" Style="{StaticResource VirgilMicroLabel}" />
                         <TextBlock x:Name="MemoryValueText" Grid.Row="1" Text="-- %" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
                         <TextBlock x:Name="MemoryDetailText" Grid.Row="2" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" />
                     </Grid>
@@ -313,7 +313,7 @@
                     </Border.RenderTransform>
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <TextBlock Text="DISQUE SYSTEME" Style="{StaticResource VirgilMicroLabel}" />
+                        <TextBlock Text="DISQUE SYSTÈME" Style="{StaticResource VirgilMicroLabel}" />
                         <TextBlock x:Name="DiskValueText" Grid.Row="1" Text="-- %" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
                         <TextBlock x:Name="DiskDetailText" Grid.Row="2" Text="EN ATTENTE" Style="{StaticResource VirgilHudSecondaryText}" />
                     </Grid>
@@ -326,7 +326,7 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <TextBlock Text="NETTOYAGE POTENTIEL" Style="{StaticResource VirgilMicroLabel}" />
                         <TextBlock x:Name="CleanupValueText" FontSize="20" TextWrapping="Wrap" Grid.Row="1" Text="--" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
-                        <TextBlock x:Name="CleanupDetailText" TextWrapping="Wrap" Grid.Row="2" Text="NON ANALYSE" Style="{StaticResource VirgilHudSecondaryText}" />
+                        <TextBlock x:Name="CleanupDetailText" TextWrapping="Wrap" Grid.Row="2" Text="NON ANALYSÉ" Style="{StaticResource VirgilHudSecondaryText}" />
                     </Grid>
                 </Border>
                 <Border x:Name="PriorityMetricCard" Style="{StaticResource VirgilDataCard}">
@@ -335,7 +335,7 @@
                     </Border.RenderTransform>
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <TextBlock Text="PRIORITES" Style="{StaticResource VirgilMicroLabel}" />
+                        <TextBlock Text="PRIORITÉS" Style="{StaticResource VirgilMicroLabel}" />
                         <TextBlock x:Name="PriorityValueText" Grid.Row="1" Text="0" Style="{StaticResource VirgilHudMetric}" Margin="0,10,0,4" />
                         <TextBlock x:Name="PriorityDetailText" Grid.Row="2" Text="AUCUN SCAN" Style="{StaticResource VirgilHudSecondaryText}" />
                     </Grid>

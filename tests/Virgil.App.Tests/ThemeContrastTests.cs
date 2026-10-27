@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Xml.Linq;
+using static Virgil.Tests.TestRepositoryRoot;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
@@ -106,6 +108,59 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
         finally { window.Close(); }
         return Task.CompletedTask;
     });
+
+    [Theory]
+    [InlineData("Accueil", "MainWindow.xaml")]
+    [InlineData("Scan", "MainWindow.xaml")]
+    [InlineData("Nettoyage", "Views/CleanupView.xaml")]
+    [InlineData("Diagnostic", "Views/DiagnosticView.xaml")]
+    [InlineData("Ressources", "Views/ResourcesView.xaml")]
+    [InlineData("Applications", "Views/ApplicationsView.xaml")]
+    [InlineData("Mises à jour", "Views/UpdatesView.xaml")]
+    [InlineData("Démarrage", "Views/StartupView.xaml")]
+    [InlineData("Réseau", "Views/NetworkView.xaml")]
+    [InlineData("Réparation", "Views/InterventionsView.xaml")]
+    [InlineData("Rapports", "Views/ReportsHistoryView.xaml")]
+    public Task All_eleven_views_render_text_with_wcag_aa_contrast(string screen, string path) => OnSta(async () =>
+    {
+        // Charge les vrais XAML et leurs templates, sans code-behind ni service OS.
+        // Le test Nettoyage ci-dessus couvre aussi les lignes liées et dépliées.
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Virgil.App", path));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        foreach (var node in document.Descendants())
+        {
+            foreach (var attribute in node.Attributes().ToArray())
+            {
+                if (attribute.Name == x + "Class" || attribute.Name.LocalName is "Click" or "Loaded" or "Unloaded"
+                    or "IsVisibleChanged" or "KeyDown" or "Closing" or "ContentRendered" or "Sorting")
+                    attribute.Remove();
+                else if (attribute.IsNamespaceDeclaration && attribute.Value.StartsWith("clr-namespace:Virgil.App", StringComparison.Ordinal)
+                    && !attribute.Value.Contains(";assembly=", StringComparison.Ordinal))
+                    attribute.Value += ";assembly=Virgil.App";
+            }
+        }
+        var content = (FrameworkElement)XamlReader.Parse(document.ToString());
+        if (screen == "Scan") ((UIElement)content.FindName("ScanProtocolOverlay")).Visibility = Visibility.Visible;
+        var window = content as Window ?? Show(content);
+        if (content is Window) window.Show();
+        try
+        {
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            window.UpdateLayout();
+            var blocks = Descendants<TextBlock>(content).Where(IsVisibleText).Where(b => b.IsEnabled).ToArray();
+            Assert.NotEmpty(blocks);
+            var normal = blocks.Where(b => !IsLarge(b)).Select(Measure).ToArray();
+            var large = blocks.Where(IsLarge).Select(Measure).ToArray();
+            output.WriteLine($"Contraste {screen} : normal minimum {normal.Select(m => m.Ratio).DefaultIfEmpty(double.NaN).Min():F3}:1 (n={normal.Length}) ; grand minimum {large.Select(m => m.Ratio).DefaultIfEmpty(double.NaN).Min():F3}:1 (n={large.Length})");
+            var failures = normal.Where(m => m.Ratio < 4.5).Concat(large.Where(m => m.Ratio < 3)).ToArray();
+            Assert.True(failures.Length == 0, string.Join(Environment.NewLine, failures.Select(m => m.Message)));
+        }
+        finally { window.Close(); }
+    });
+
+    // WCAG : 18 pt (24 DIP), ou 14 pt (18,667 DIP) en gras.
+    private static bool IsLarge(TextBlock block) => block.FontSize >= 24 ||
+        (block.FontSize >= 56d / 3 && block.FontWeight.ToOpenTypeWeight() >= FontWeights.Bold.ToOpenTypeWeight());
 
     private static Window Show(FrameworkElement content)
     {

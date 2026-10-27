@@ -27,7 +27,7 @@
                                                 AnimationDetailLevel="Compact"
                                                 AutomationProperties.Name="Mini noyau Virgil ressources" />
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="RESSOURCES SYSTEME"
+                        <TextBlock Text="RESSOURCES SYSTÈME"
                                    Style="{StaticResource VirgilHudSectionTitle}" />
                         <TextBlock x:Name="ResourcesStatusText"
                                    Text="{Binding StatusText}"

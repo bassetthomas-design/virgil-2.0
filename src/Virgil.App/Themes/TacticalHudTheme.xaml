@@ -9,7 +9,7 @@
     <system:String x:Key="Navigation.Diagnostic">DIAGNOSTIC</system:String>
     <system:String x:Key="Navigation.Resources">RESSOURCES</system:String>
     <system:String x:Key="Navigation.Applications">APPLICATIONS</system:String>
-    <system:String x:Key="Navigation.Updates">MISES A JOUR</system:String>
+    <system:String x:Key="Navigation.Updates">MISES À JOUR</system:String>
     <system:String x:Key="Navigation.Startup">DÉMARRAGE</system:String>
     <system:String x:Key="Navigation.Network">RÉSEAU</system:String>
     <system:String x:Key="Navigation.Repair">RÉPARATION</system:String>

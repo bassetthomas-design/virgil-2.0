@@ -263,7 +263,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             ReportKind.QuickScan => "SCAN RAPIDE",
             ReportKind.DeepScan => "ANALYSE APPROFONDIE",
             ReportKind.Cleanup => "NETTOYAGE",
-            ReportKind.Updates => "MISES A JOUR",
+            ReportKind.Updates => "MISES À JOUR",
             ReportKind.Interventions => "INTERVENTIONS",
             ReportKind.Resources => "RESSOURCES",
             ReportKind.ApplicationManagement => "APPLICATIONS",

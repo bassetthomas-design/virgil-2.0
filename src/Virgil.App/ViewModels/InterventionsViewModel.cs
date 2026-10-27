@@ -68,7 +68,7 @@ public partial class InterventionsViewModel : ObservableObject
     [RelayCommand] private void CancelOperation() => CancelActiveOperation();
 
     [ObservableProperty] private string statusText = "DIAGNOSTIC, VALIDATION ET EXECUTION";
-    [ObservableProperty] private string overallText = "NON ANALYSE";
+    [ObservableProperty] private string overallText = "NON ANALYSÉ";
     [ObservableProperty] private string recommendedCountText = "0";
     [ObservableProperty] private string systemNotice = string.Empty;
     [ObservableProperty] private string networkNotice = string.Empty;
@@ -501,7 +501,7 @@ public partial class InterventionsViewModel : ObservableObject
             NetworkNotice = "Lancez une analyse pour afficher les actions reseau.";
             StorageNotice = "Lancez une analyse pour afficher les actions stockage.";
             InterfaceNotice = "Lancez une analyse pour afficher les actions interface.";
-            OverallText = "NON ANALYSE";
+            OverallText = "NON ANALYSÉ";
             RecommendedCountText = "0";
             UpdateCommandState();
             return;

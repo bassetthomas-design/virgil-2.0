@@ -575,7 +575,7 @@ public partial class CleanupViewModel : ObservableObject
 
         entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
 
-        entries.Add(new CleanupTextCardItem("A REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
+        entries.Add(new CleanupTextCardItem("À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
         if (_lastStorageAnalysis is not null)
         {
             foreach (var item in _lastStorageAnalysis.Items.Take(20))

@@ -87,7 +87,7 @@ public partial class ApplicationsViewModel : ObservableObject
     [ObservableProperty] private bool isReportOpen;
     [ObservableProperty] private double progress;
     [ObservableProperty] private string statusText = "Inventaire prêt. Sélectionnez les applications à désinstaller.";
-    [ObservableProperty] private string inventorySummary = "NON ANALYSE";
+    [ObservableProperty] private string inventorySummary = "NON ANALYSÉ";
     [ObservableProperty] private string riskSummary = "NON CLASSE";
     [ObservableProperty] private string detailsTitle = "DETAIL APPLICATION";
     [ObservableProperty] private string detailsBody = string.Empty;
