@@ -26,7 +26,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
 
     private readonly CancellationTokenSource stop = new();
     private readonly ConcurrentQueue<string> violations = new();
-    private readonly ConcurrentQueue<double> latencies = new();
+    private readonly ConcurrentQueue<(string Screen, double Milliseconds)> latencies = new();
     private readonly Dictionary<string, Exception?> screenResults = new(StringComparer.Ordinal);
     private readonly SessionFiles files = new();
     private readonly Lazy<Task> journey;
@@ -38,18 +38,28 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     private Exception? scanError;
     private bool disposed;
     private volatile bool measureLatency;
+    private volatile string currentScreen = "accueil";
+    private Exception? recapError;
 
     public UiSession() => journey = new Lazy<Task>(RunJourneyAsync);
 
-    public double MaximumLatency => latencies.DefaultIfEmpty().Max();
+    public double MaximumLatency => latencies.Select(s => s.Milliseconds).DefaultIfEmpty().Max();
     public double MedianLatency
     {
         get
         {
-            var sorted = latencies.Order().ToArray();
+            var sorted = latencies.Select(s => s.Milliseconds).Order().ToArray();
             return sorted.Length == 0 ? 0 : sorted[sorted.Length / 2];
         }
     }
+
+    public IEnumerable<string> LatencyReport() => latencies.GroupBy(s => s.Screen)
+        .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g =>
+        {
+            var samples = g.Select(s => s.Milliseconds).Order().ToArray();
+            var p95 = samples[(int)Math.Ceiling(samples.Length * 0.95) - 1];
+            return $"Latence {g.Key} : max {samples[^1]:F2} ms ; p95 {p95:F2} ms ; n={samples.Length}";
+        });
 
     public async Task InitializeAsync()
     {
@@ -72,10 +82,17 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                 executable = Path.Combine(SessionFiles.RepositoryRoot, "artifacts", "Virgil2", "Virgil.App.exe");
             executable = Path.GetFullPath(executable);
             Assert.True(File.Exists(executable), $"Exécutable publié introuvable : {executable}");
+            // Un fichier ancien déterministe rend le récapitulatif accessible sans effet OS.
+            var fixtureTemp = Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule");
+            Directory.CreateDirectory(fixtureTemp);
+            var fixtureFile = Path.Combine(fixtureTemp, "temoin-smoke.tmp");
+            await File.WriteAllTextAsync(fixtureFile, "Témoin de lecture seule : ne jamais nettoyer.");
+            File.SetLastWriteTimeUtc(fixtureFile, DateTime.UtcNow.AddDays(-7));
             process = Process.Start(new ProcessStartInfo(executable)
             {
                 UseShellExecute = false,
-                WorkingDirectory = Path.GetDirectoryName(executable)!
+                WorkingDirectory = Path.GetDirectoryName(executable)!,
+                Environment = { ["TEMP"] = fixtureTemp, ["TMP"] = fixtureTemp }
             }) ?? throw new InvalidOperationException("Impossible de lancer Virgil.");
             automation = new UIA3Automation();
             await UntilAsync(() =>
@@ -90,6 +107,8 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             window.Patterns.Transform.Pattern.Resize(1600, 900);
             ui = new SafeUi(InvokeAsync);
             await WaitVisibleAsync("HomeNavButton");
+            await UntilAsync(() => window.Properties.ItemStatus.ValueOrDefault == "Prêt",
+                TimeSpan.FromSeconds(60), "Fenêtre non prête après le premier rendu et Idle.");
             AssertHealthy();
         }
         catch
@@ -109,6 +128,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         for (var i = 0; i < Screens.Length; i++)
         {
             var screen = Screens[i];
+            currentScreen = screen.Screen;
             try
             {
                 SampleLatency();
@@ -134,6 +154,25 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             }
         }
 
+        currentScreen = "recap-nettoyage";
+        try
+        {
+            await ui!.Click("CleanupNavButton");
+            await ui.Click("AnalyzeZonesButton");
+            await ui.Click("LaunchCleanupButton");
+            await WaitVisibleAsync("CleanupConfirmationSummaryText");
+            var summary = Find("CleanupConfirmationSummaryText")!;
+            Assert.False(string.IsNullOrWhiteSpace(summary.Name), "Phrase de confirmation vide.");
+            var bounds = summary.BoundingRectangle;
+            Assert.True(bounds.Left >= window!.BoundingRectangle.Left && bounds.Top >= window.BoundingRectangle.Top &&
+                bounds.Right <= window.BoundingRectangle.Right && bounds.Bottom <= window.BoundingRectangle.Bottom, "Phrase de confirmation hors capture.");
+            SaveWindow("12-recap-nettoyage.png");
+            FlaUI.Core.Input.Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.ESCAPE);
+            AssertHealthy();
+        }
+        catch (Exception exception) { recapError = exception; }
+
+        currentScreen = "scan-approfondi";
         try
         {
             await ui!.Click("ScanNavButton");
@@ -147,7 +186,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                 TimeSpan.FromSeconds(120), "Le scan approfondi dépasse 120 s.");
             // Chat entries prepend "[VIRGIL]\n" to the completion message.
             await UntilAsync(() => window!.FindAllDescendants().Any(element =>
-                element.Name?.Contains("Analyse approfondie terminee.", StringComparison.Ordinal) == true),
+                element.Name?.Contains("Analyse approfondie terminée.", StringComparison.Ordinal) == true),
                 TimeSpan.FromSeconds(5), "Le scan approfondi n'a pas annoncé sa fin réussie.");
             AssertHealthy();
         }
@@ -169,6 +208,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     {
         foreach (var screen in Screens) AssertScreen(screen.Screen);
         Assert.True(scanError is null, $"Scan approfondi : {scanError}");
+        Assert.True(recapError is null, $"Récapitulatif : {recapError}");
         Assert.NotEmpty(latencies);
         Assert.True(MaximumLatency <= 500, $"Latence UI max : {MaximumLatency:F0} ms (limite 500 ms)");
     }
@@ -186,8 +226,10 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     {
         AssertHealthy();
         files.AssertQuarantineUnchanged();
+        Assert.Equal("Témoin de lecture seule : ne jamais nettoyer.",
+            File.ReadAllText(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule", "temoin-smoke.tmp")));
         var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
-            .Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
+            .Append("12-recap-nettoyage.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected, actual);
@@ -269,7 +311,11 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
 
     private void SampleLatency()
     {
-        try { latencies.Enqueue(NativeUi.MeasureLatency(process!.MainWindowHandle)); }
+        try
+        {
+            var screen = currentScreen;
+            latencies.Enqueue((screen, NativeUi.MeasureLatency(process!.MainWindowHandle)));
+        }
         catch (Exception exception) { violations.Enqueue(exception.Message); }
     }
 

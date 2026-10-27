@@ -68,7 +68,7 @@
 
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,2,0,8">
                     <StackPanel>
-                        <TextBlock Text="CONFIDENTIALITE" Style="{StaticResource VirgilMicroLabel}" />
+                        <TextBlock Text="CONFIDENTIALITÉ" Style="{StaticResource VirgilMicroLabel}" />
                         <TextBlock Text="Stockage local uniquement. Aucun envoi en ligne, aucune telemetrie, aucun export automatique."
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    TextWrapping="Wrap"
@@ -164,17 +164,17 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,14" />
-                            <TextBlock Text="ACTIONS PROPOSEES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ACTIONS PROPOSÉES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ProposedActionsText" Text="{Binding ProposedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="ACTIONS EXECUTEES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ACTIONS EXÉCUTÉES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ExecutedActionsText" Text="{Binding ExecutedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
-                            <TextBlock Text="ACTIONS PASSEES" Style="{StaticResource VirgilMicroLabel}" />
+                            <TextBlock Text="ACTIONS PASSÉES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="SkippedActionsText" Text="{Binding SkippedActions}"
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
@@ -185,7 +185,7 @@
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,12" />
                             <StackPanel x:Name="TechnicalDetailsPanel" Visibility="{Binding IsTechnicalDetailsVisible, Converter={StaticResource BooleanToVisibility}}">
-                                <TextBlock Text="DETAILS TECHNIQUES" Style="{StaticResource VirgilMicroLabel}" />
+                                <TextBlock Text="DÉTAILS TECHNIQUES" Style="{StaticResource VirgilMicroLabel}" />
                                 <TextBlock x:Name="TechnicalDetailsText" Text="{Binding TechnicalDetails}"
                                            Style="{StaticResource VirgilHudSecondaryText}"
                                            TextWrapping="Wrap"
@@ -198,14 +198,14 @@
                                 Content="{Binding ToggleTechnicalDetailsLabel}"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="0,0,8,0"
-                                AutomationProperties.Name="Afficher ou masquer les details techniques"
+                                AutomationProperties.Name="Afficher ou masquer les détails techniques"
                                 Command="{Binding ToggleTechnicalDetailsCommand}" />
                         <Button x:Name="SaveTransientReportButton"
                                 Content="ENREGISTRER DANS L HISTORIQUE"
                                 Style="{StaticResource VirgilSecondaryButton}"
                                 Margin="0,0,8,0"
                                 Visibility="{Binding CanSaveTransient, Converter={StaticResource BooleanToVisibility}}"
-                                AutomationProperties.Name="Enregistrer le rapport memoire dans l historique local"
+                                AutomationProperties.Name="Enregistrer le rapport mémoire dans l historique local"
                                 Command="{Binding SaveTransientCommand}" />
                         <Button Content="EXPORTER"
                                 Style="{StaticResource VirgilPrimaryButton}"

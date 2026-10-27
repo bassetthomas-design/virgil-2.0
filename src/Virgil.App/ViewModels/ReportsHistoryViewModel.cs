@@ -54,7 +54,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
 
     [ObservableProperty] private string technicalDetails = string.Empty;
 
-    [ObservableProperty] private string toggleTechnicalDetailsLabel = "VOIR DETAILS TECHNIQUES";
+    [ObservableProperty] private string toggleTechnicalDetailsLabel = "VOIR DÉTAILS TECHNIQUES";
 
     [ObservableProperty] private bool hasReports;
 
@@ -117,7 +117,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
     {
         IsTechnicalDetailsVisible = !IsTechnicalDetailsVisible;
         ToggleTechnicalDetailsLabel = IsTechnicalDetailsVisible
-            ? "MASQUER DETAILS TECHNIQUES" : "VOIR DETAILS TECHNIQUES";
+            ? "MASQUER DÉTAILS TECHNIQUES" : "VOIR DÉTAILS TECHNIQUES";
     }
 
     [RelayCommand]
@@ -191,7 +191,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
         SkippedActions = FormatActions(report.SkippedActions);
         Errors = report.Errors.Count == 0 ? "Aucune" : string.Join("\n", report.Errors.Select(error => "- " + error));
         TechnicalDetails = BuildTechnicalDetails(report);
-        ToggleTechnicalDetailsLabel = "VOIR DETAILS TECHNIQUES";
+        ToggleTechnicalDetailsLabel = "VOIR DÉTAILS TECHNIQUES";
         CanSaveTransient = !isPersistent;
         IsExportEnabled = true;
         IsDetailsOpen = true;
@@ -263,7 +263,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             ReportKind.QuickScan => "SCAN RAPIDE",
             ReportKind.DeepScan => "ANALYSE APPROFONDIE",
             ReportKind.Cleanup => "NETTOYAGE",
-            ReportKind.Updates => "MISES A JOUR",
+            ReportKind.Updates => "MISES À JOUR",
             ReportKind.Interventions => "INTERVENTIONS",
             ReportKind.Resources => "RESSOURCES",
             ReportKind.ApplicationManagement => "APPLICATIONS",

@@ -38,8 +38,17 @@ public sealed class UiSmokeTests(UiSession session, ITestOutputHelper output)
         await session.RunAsync();
         output.WriteLine($"Latence UI max : {session.MaximumLatency:F0} ms");
         output.WriteLine($"Latence UI médiane : {session.MedianLatency:F0} ms");
+        foreach (var line in session.LatencyReport()) output.WriteLine(line);
         session.AssertResponsive();
         session.AssertHealthy();
+    }
+
+    [Fact]
+    public async Task Cleanup_summary_is_captured_without_execution()
+    {
+        await session.RunAsync();
+        session.AssertNoSideEffects();
+        Assert.True(File.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "12-recap-nettoyage.png")));
     }
 
     [Fact]

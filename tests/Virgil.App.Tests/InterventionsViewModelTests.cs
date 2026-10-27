@@ -55,7 +55,7 @@ public sealed class InterventionsViewModelTests
     {
         var vm = new Fixture().Vm;
         Assert.Equal("DIAGNOSTIC, VALIDATION ET EXECUTION", vm.StatusText);
-        Assert.Equal("NON ANALYSE", vm.OverallText);
+        Assert.Equal("NON ANALYSÉ", vm.OverallText);
         Assert.Equal("0", vm.RecommendedCountText);
         Assert.Equal("Lancez une analyse pour afficher les actions systeme.", vm.SystemNotice);
         Assert.Equal("Lancez une analyse pour afficher les actions reseau.", vm.NetworkNotice);
@@ -137,7 +137,7 @@ public sealed class InterventionsViewModelTests
         var f = new Fixture();
         f.Diagnostics.Items = Array.Empty<InterventionDiagnostic>();
         await f.Analyze();
-        Assert.Equal("NON ANALYSE", f.Vm.OverallText);
+        Assert.Equal("NON ANALYSÉ", f.Vm.OverallText);
         Assert.Equal("0", f.Vm.RecommendedCountText);
         Assert.StartsWith("Lancez une analyse", f.Vm.SystemNotice);
         Assert.False(f.Vm.IsRunGuidedEnabled);

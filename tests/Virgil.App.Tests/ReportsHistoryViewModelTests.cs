@@ -180,9 +180,9 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Contains("Redemarrage requis : oui", fixture.ViewModel.SimpleDetails);
         Assert.Equal(VirgilCoreState.Warning, fixture.ViewModel.MiniCoreState);
         fixture.ViewModel.ToggleTechnicalDetailsCommand.Execute(null);
-        Assert.Equal("MASQUER DETAILS TECHNIQUES", fixture.ViewModel.ToggleTechnicalDetailsLabel);
+        Assert.Equal("MASQUER DÉTAILS TECHNIQUES", fixture.ViewModel.ToggleTechnicalDetailsLabel);
         fixture.ViewModel.ToggleTechnicalDetailsCommand.Execute(null);
-        Assert.Equal("VOIR DETAILS TECHNIQUES", fixture.ViewModel.ToggleTechnicalDetailsLabel);
+        Assert.Equal("VOIR DÉTAILS TECHNIQUES", fixture.ViewModel.ToggleTechnicalDetailsLabel);
         fixture.ViewModel.CloseDetailsCommand.Execute(null);
         Assert.False(fixture.ViewModel.IsDetailsOpen);
         Assert.Equal(VirgilCoreState.Idle, fixture.ViewModel.MiniCoreState);

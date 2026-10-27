@@ -19,7 +19,7 @@ public sealed class CleanupViewArchitectureTests
         Assert.Contains("Détails techniques", xaml, StringComparison.Ordinal);
         Assert.Contains("OperationProgressPanel", xaml, StringComparison.Ordinal);
         Assert.Contains("NETTOYER LA SÉLECTION", xaml, StringComparison.Ordinal);
-        Assert.Contains("A REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("À REVOIR MANUELLEMENT", xaml, StringComparison.OrdinalIgnoreCase);
     }
 
 

@@ -19,9 +19,9 @@ public sealed class ResourcesViewModelTests
     {
         var vm = new Fixture().ViewModel;
         Assert.Equal("CPU, RAM ET PROCESSUS EN LECTURE SEULE", vm.StatusText);
-        Assert.Equal("NON ANALYSE", vm.CpuSummaryText);
-        Assert.Equal("NON ANALYSE", vm.MemorySummaryText);
-        Assert.Equal("NON ANALYSE", vm.SessionSummaryText);
+        Assert.Equal("NON ANALYSÉ", vm.CpuSummaryText);
+        Assert.Equal("NON ANALYSÉ", vm.MemorySummaryText);
+        Assert.Equal("NON ANALYSÉ", vm.SessionSummaryText);
         Assert.Equal("Lancez une analyse. Aucune action ne sera executee.", vm.RecommendationsText);
         Assert.Equal("Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.", vm.ProcessSummaryText);
         Assert.Equal("Analyse requise. Les processus systeme critiques, securite, VPN et materiel resteront proteges.", vm.ProcessesNotice);
@@ -42,8 +42,8 @@ public sealed class ResourcesViewModelTests
     }
 
     [Theory]
-    [InlineData(false, "MEMOIRE INACTIVE - INFO")]
-    [InlineData(true, "LIBERER MEMOIRE INACTIVE")]
+    [InlineData(false, "MÉMOIRE INACTIVE - INFO")]
+    [InlineData(true, "LIBÉRER MÉMOIRE INACTIVE")]
     public void MemoryLabelReadsCapabilityAtConstruction(bool capability, string expected)
     {
         var f = new Fixture(capability);

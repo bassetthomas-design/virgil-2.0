@@ -52,7 +52,7 @@
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="OUVRIR L'EMPLACEMENT" Style="{StaticResource VirgilSecondaryButton}" Command="{Binding OpenLocationCommand}" />
                         <Button Content="IGNORER" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0" Command="{Binding IgnoreCommand}" />
-                        <Button Content="MARQUER A REVOIR" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0" Command="{Binding MarkCommand}" />
+                        <Button Content="MARQUER À REVOIR" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0" Command="{Binding MarkCommand}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -117,11 +117,11 @@
                         AutomationProperties.Name="Lancer le nettoyage avance guide"
                         Command="{Binding LaunchCleanupAdvancedCommand}" />
                 <Button x:Name="ReviewManualButton"
-                        Content="A REVOIR MANUELLEMENT"
+                        Content="À REVOIR MANUELLEMENT"
                         Style="{StaticResource VirgilSecondaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsReviewManualEnabled}"
-                        AutomationProperties.Name="Afficher les elements a revoir manuellement"
+                        AutomationProperties.Name="Afficher les éléments à revoir manuellement"
                         Command="{Binding ReviewManualCommand}" />
                 <Button x:Name="ViewCleanupReportButton"
                         Content="VOIR LE DERNIER RAPPORT"
@@ -305,7 +305,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,3,0,10"
                                        Text="{Binding ValidationEffect}" />
-                            <TextBlock Text="NON TOUCHE"
+                            <TextBlock Text="NON TOUCHÉ"
                                        Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationNotTouchedText"
                                        Style="{StaticResource VirgilHudSecondaryText}"
@@ -325,14 +325,14 @@
                     </ScrollViewer>
 
                     <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
-                        <TextBlock Text="{Binding ValidationNatureSummary}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                        <TextBlock x:Name="CleanupConfirmationSummaryText" Text="{Binding ValidationNatureSummary}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     KeyboardNavigation.TabNavigation="Continue">
                             <Button x:Name="ExecuteZoneButton"
                                     Content="{Binding ExecuteZoneLabel}"
                                     Style="{StaticResource VirgilPrimaryButton}"
-                                    AutomationProperties.Name="Executer le nettoyage de cette zone"
+                                    AutomationProperties.Name="Exécuter le nettoyage de cette zone"
                                     Command="{Binding ExecuteDecisionCommand}" />
                             <Button x:Name="SkipZoneButton"
                                     Content="PASSER"
