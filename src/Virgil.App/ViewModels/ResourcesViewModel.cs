@@ -148,7 +148,7 @@ public partial class ResourcesViewModel : ObservableObject
             StatusText = "Information seulement. Aucune action memoire executee.";
             RequestVirgilState(VirgilCoreState.Idle, "INFORMATION");
             VirgilMessageRequested?.Invoke(
-                "Memoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action executee.");
+                "Mémoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action exécutée.");
         }
         catch (OperationCanceledException)
         {
@@ -187,7 +187,7 @@ public partial class ResourcesViewModel : ObservableObject
             _completedProcessIds.Clear();
             RequestVirgilState(VirgilCoreState.Scanning, "RESSOURCES");
             VirgilMessageRequested?.Invoke(
-                "Analyse ressources lancee.\nObservation CPU courte et lecture RAM.\nAucune action executee.");
+                "Analyse ressources lancée.\nObservation CPU courte et lecture RAM.\nAucune action exécutée.");
             var progress = new Progress<ResourceProgress>(item =>
             {
                 StatusText = $"{item.Message} {item.Percent} %";
@@ -213,16 +213,16 @@ public partial class ResourcesViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Analyse annulee. Aucune action executee.";
+            StatusText = "Analyse annulée. Aucune action exécutée.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Analyse ressources annulee.\nAucune action executee.");
+            VirgilMessageRequested?.Invoke("Analyse ressources annulée.\nAucune action exécutée.");
         }
         catch
         {
             _errors.Add("Analyse ressources indisponible.");
             StatusText = "Analyse ressources indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Analyse ressources indisponible.\nAucune action executee.");
+            VirgilMessageRequested?.Invoke("Analyse ressources indisponible.\nAucune action exécutée.");
         }
         finally
         {
@@ -455,7 +455,7 @@ public partial class ResourcesViewModel : ObservableObject
         _completedProcessIds.Add(process.ProcessId);
         RenderProcesses(_lastAnalysis);
         IsReportButtonEnabled = true;
-        VirgilMessageRequested?.Invoke("Processus ignore.\nAucune action executee.");
+        VirgilMessageRequested?.Invoke("Processus ignoré.\nAucune action exécutée.");
         await PersistCurrentReportAsync();
     }
 
@@ -640,3 +640,4 @@ public partial class ResourcesViewModel : ObservableObject
         CancelAll
     }
 }
+

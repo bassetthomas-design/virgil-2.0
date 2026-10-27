@@ -131,8 +131,8 @@ public sealed class ResourcesViewModelTests
         Assert.True(f.ViewModel.IsIdle);
         Assert.False(f.ViewModel.IsBusy);
         Assert.Equal(cancel ? VirgilCoreState.Idle : VirgilCoreState.Error, f.ViewModel.MiniCoreState);
-        Assert.Equal(cancel ? "Analyse annulee. Aucune action executee." : "Analyse ressources indisponible.", f.ViewModel.StatusText);
-        Assert.Equal(cancel ? "Analyse ressources annulee.\nAucune action executee." : "Analyse ressources indisponible.\nAucune action executee.", f.Message);
+        Assert.Equal(cancel ? "Analyse annulée. Aucune action exécutée." : "Analyse ressources indisponible.", f.ViewModel.StatusText);
+        Assert.Equal(cancel ? "Analyse ressources annulée.\nAucune action exécutée." : "Analyse ressources indisponible.\nAucune action exécutée.", f.Message);
         Assert.Equal(!cancel, f.ViewModel.IsReportButtonEnabled);
         Assert.Equal(0, f.History.Calls);
     }
@@ -240,7 +240,7 @@ public sealed class ResourcesViewModelTests
         Assert.True(f.ViewModel.TryCloseOverlay());
         await pending;
         Assert.True(f.ViewModel.IsIdle);
-        Assert.Equal("Analyse annulee. Aucune action executee.", f.ViewModel.StatusText);
+        Assert.Equal("Analyse annulée. Aucune action exécutée.", f.ViewModel.StatusText);
     }
 
     [Theory]
@@ -264,7 +264,7 @@ public sealed class ResourcesViewModelTests
         if (action == ProcessActionKind.ReleaseInactiveMemory)
         {
             Assert.Equal("Information seulement. Aucune action memoire executee.", f.ViewModel.StatusText);
-            Assert.Equal("Memoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action executee.", f.Message);
+            Assert.Equal("Mémoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action exécutée.", f.Message);
             Assert.Equal((VirgilCoreState.Idle, "INFORMATION"), f.State);
         }
     }
@@ -280,7 +280,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(0, f.Actions.SkipCalls);
         Assert.Empty(f.ViewModel.Items);
         Assert.False(f.ViewModel.IsValidationOpen);
-        Assert.Equal("Processus ignore.\nAucune action executee.", f.Message);
+        Assert.Equal("Processus ignoré.\nAucune action exécutée.", f.Message);
         Assert.Equal("Processus ignore - Bloc-notes (PID 7)", Assert.Single(f.History.Saved!.SkippedActions).Name);
         Assert.True(f.ViewModel.IsReportButtonEnabled);
         // A fresh analysis resets the treated PID set, as before.
@@ -548,3 +548,4 @@ public sealed class ResourcesViewModelTests
         public Task<ReportEntry?> GetAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
+

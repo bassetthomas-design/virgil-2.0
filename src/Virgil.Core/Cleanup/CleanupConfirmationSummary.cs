@@ -15,10 +15,20 @@ public static class CleanupConfirmationSummary
     public static string Create(IReadOnlyList<CleanupZonePreview> selection)
     {
         var personal = selection.Where(p => CleanupItemNature.For(p) == CleanupNature.Personal).ToArray();
-        var system = selection.Where(p => CleanupItemNature.For(p) == CleanupNature.System).ToArray();
+        // Distinction de présentation uniquement : la nature, les gardes et la sélection restent inchangées.
+        var system = selection.Where(p => CleanupItemNature.For(p) == CleanupNature.System &&
+            p.Definition.Id is not (CleanupZoneId.WindowsTemporaryFiles or CleanupZoneId.WindowsUpdateCache or
+                CleanupZoneId.DeliveryOptimizationCache or CleanupZoneId.WindowsErrorReports or
+                CleanupZoneId.TechnicalLogs or CleanupZoneId.InstallerTemporaryFiles or
+                CleanupZoneId.PrefetchInformation)).ToArray();
         if (personal.Length == 0 && system.Length == 0)
             return "Aucun fichier système ni personnel n'est concerné.";
         static string Names(CleanupZonePreview[] rows) => string.Join(", ", rows.Select(p => p.Definition.DisplayName));
-        return $"Concernés : {personal.Length} élément(s) personnel(s) ({Names(personal)}) et {system.Length} élément(s) système ({Names(system)}).";
+        var categories = new List<string>();
+        if (personal.Length > 0)
+            categories.Add($"{personal.Length} élément(s) personnel(s) ({Names(personal)})");
+        if (system.Length > 0)
+            categories.Add($"{system.Length} élément(s) système sensible ({Names(system)})");
+        return $"Concernés : {string.Join(" et ", categories)}.";
     }
 }

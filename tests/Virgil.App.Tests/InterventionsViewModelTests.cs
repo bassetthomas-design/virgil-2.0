@@ -125,9 +125,9 @@ public sealed class InterventionsViewModelTests
             cancelled ? new OperationCanceledException() : new InvalidOperationException());
         await f.Analyze();
         Assert.True(f.Vm.IsIdle);
-        Assert.Equal(cancelled ? "Diagnostic annule." : "Diagnostic indisponible.", f.Vm.StatusText);
+        Assert.Equal(cancelled ? "Diagnostic annulé." : "Diagnostic indisponible.", f.Vm.StatusText);
         Assert.Equal(cancelled ? VirgilCoreState.Idle : VirgilCoreState.Error, f.Vm.MiniCoreState);
-        Assert.Equal(cancelled ? "Diagnostic annule.\nAucune action executee." : "Diagnostic indisponible.\nAucune action executee.", f.Message);
+        Assert.Equal(cancelled ? "Diagnostic annulé.\nAucune action exécutée." : "Diagnostic indisponible.\nAucune action exécutée.", f.Message);
         Assert.Equal(0, f.History.Calls);
     }
 
@@ -664,3 +664,4 @@ public sealed class InterventionsViewModelTests
         public Task<ReportEntry?> GetAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
+

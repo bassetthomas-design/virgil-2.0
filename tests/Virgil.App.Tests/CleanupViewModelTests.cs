@@ -26,7 +26,7 @@ public sealed class CleanupViewModelTests
         row.IsSelected = true;
         var pending = f.Run();
         Assert.True(f.Vm.RequiresCriticalConfirmation);
-        Assert.Equal("Concernés : 1 élément(s) personnel(s) (UserTemporaryFiles) et 0 élément(s) système ().", f.Vm.ValidationNatureSummary);
+        Assert.Equal("Concernés : 1 élément(s) personnel(s) (UserTemporaryFiles).", f.Vm.ValidationNatureSummary);
         Assert.Contains("dossier personnel", f.Vm.ValidationTitle);
         Assert.Contains("Dossier personnel", f.Vm.ValidationWarning);
         Assert.NotEmpty(f.Vm.ExpectedCriticalConfirmation);
@@ -106,7 +106,7 @@ public sealed class CleanupViewModelTests
         Assert.False(f.Vm.IsReviewManualEnabled);
         Assert.Equal("Previsualisation disponible. Validation par zone requise.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
-        Assert.Contains("5 zones analysees.", f.Messages.Last());
+        Assert.Contains("5 zones analysées.", f.Messages.Last());
         Assert.Equal(9, f.Vm.Entries.Count);
         Assert.Equal("NETTOYAGE SUR", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[0]).Text);
         var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
@@ -722,3 +722,4 @@ public sealed class CleanupViewModelTests
         public Task<ReportEntry?> GetAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
+
