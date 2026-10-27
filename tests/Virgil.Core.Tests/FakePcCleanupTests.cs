@@ -38,8 +38,10 @@ public sealed class FakePcCleanupTests
     {
         using var pc = new FakePc();
         var before = pc.Fingerprint();
+        var registryBefore = pc.Registry.Fingerprint();
         await pc.Scan();
         Assert.Equal(before, pc.Fingerprint());
+        Assert.Equal(registryBefore, pc.Registry.Fingerprint());
         Assert.Equal(0, pc.Registry.WriteCalls);
     }
 
@@ -117,6 +119,7 @@ public sealed class FakePcCleanupTests
             Registry.Seed(RegistryHive.CurrentUser, RegistryView.Registry64, @"SOFTWARE\deluge", "Version", "2");
             Registry.Seed(RegistryHive.CurrentUser, RegistryView.Registry64,
                 @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Deluge", "DisplayName", "Client BitTorrent (par utilisateur)");
+            Registry.SealForScan();
             Source = new(new EmptyFolders(), new EmptyStore(), Registry, Roots, new EmptyProcesses());
         }
 
@@ -132,6 +135,7 @@ public sealed class FakePcCleanupTests
         }
         public async Task<IReadOnlyList<CleanupZonePreview>> Scan()
         {
+            Registry.SealForScan();
             var snapshot = await Source.ReadAsync(CancellationToken.None);
             Assert.True(snapshot.IsComplete);
             return new LeftoverAnalyzer().Analyze(snapshot, DateTimeOffset.UtcNow);
@@ -146,14 +150,25 @@ public sealed class FakePcCleanupTests
     private sealed class MemoryRegistry : IFootprintRegistry
     {
         private readonly Dictionary<(RegistryHive, RegistryView), Node> roots = new();
-        public int WriteCalls => 0; // Aucune capacité d'écriture n'est fournie à la source.
+        public int WriteCalls { get; private set; }
+        public MemoryRegistry()
+        {
+            foreach (var hive in new[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser })
+            foreach (var view in new[] { RegistryView.Default, RegistryView.Registry64, RegistryView.Registry32 })
+                roots[(hive, view)] = new();
+        }
+        public void SealForScan() => WriteCalls = 0;
+        public string[] Fingerprint() => roots.OrderBy(r => r.Key.Item1).ThenBy(r => r.Key.Item2)
+            .SelectMany(r => r.Value.Fingerprint($"{r.Key.Item1}/{r.Key.Item2}")).ToArray();
         public IFootprintRegistryKey OpenBaseKey(RegistryHive hive, RegistryView view)
         {
-            if (!roots.TryGetValue((hive, view), out var node)) roots[(hive, view)] = node = new();
-            return node;
+            return roots[(hive, view)];
         }
         public void Seed(RegistryHive hive, RegistryView view, string path, string name, object value)
         {
+            WriteCalls++;
+            // Les ajouts explicites de données de fixture sont autorisés entre les scans.
+            // Le compteur est remis à zéro avant chaque scan, jamais par le port de lecture.
             var node = (Node)OpenBaseKey(hive, view);
             foreach (var part in path.Split('\\'))
             {
@@ -175,6 +190,13 @@ public sealed class FakePcCleanupTests
                     node = child;
                 }
                 return node;
+            }
+            public IEnumerable<string> Fingerprint(string prefix)
+            {
+                yield return prefix;
+                foreach (var value in Values.OrderBy(v => v.Key, StringComparer.Ordinal)) yield return $"{prefix}/{value.Key}={value.Value}";
+                foreach (var child in Children.OrderBy(c => c.Key, StringComparer.Ordinal))
+                    foreach (var entry in child.Value.Fingerprint(prefix + "/" + child.Key)) yield return entry;
             }
             public string[] GetSubKeyNames() => Children.Keys.ToArray();
             public string[] GetValueNames() => Values.Keys.ToArray();

@@ -142,7 +142,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IDownloadsSource>(_ => new Virgil.Infrastructure.Windows.DownloadsSource());
         services.AddTransient<Virgil.Infrastructure.Windows.IFootprintRegistry>(_ => new Virgil.Infrastructure.Windows.WindowsFootprintRegistry());
         services.AddTransient<Virgil.Infrastructure.Windows.IFootprintProcessPaths>(_ => new Virgil.Infrastructure.Windows.WindowsFootprintProcessPaths());
-        services.AddSingleton(_ => Virgil.Infrastructure.Windows.FootprintFileRoots.Windows());
+        services.AddTransient(_ => Virgil.Infrastructure.Windows.FootprintFileRoots.Windows());
         services.AddTransient<ISoftwareFootprintSource>(sp => new Virgil.Infrastructure.Windows.SoftwareFootprintSource(
             sp.GetRequiredService<IKnownFoldersProvider>(), sp.GetRequiredService<IProcessRunner>(),
             sp.GetRequiredService<Virgil.Infrastructure.Windows.IFootprintRegistry>(),

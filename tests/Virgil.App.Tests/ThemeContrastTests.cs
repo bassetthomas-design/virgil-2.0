@@ -76,6 +76,10 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
             <ListBox xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                      Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch">
               <Expander Header="Restes de logiciels désinstallés — 2,1 Go (20)">
+                <!-- Fond sombre de l'alpha, indépendant du chrome natif clair du runner. -->
+                <Expander.HeaderTemplate><DataTemplate>
+                  <Border Background="{DynamicResource App.BackgroundBrush}"><TextBlock Text="{Binding}"/></Border>
+                </DataTemplate></Expander.HeaderTemplate>
                 <Expander.Style><Style TargetType="Expander"><Setter Property="IsExpanded" Value="False"/></Style></Expander.Style>
               </Expander>
             </ListBox>
