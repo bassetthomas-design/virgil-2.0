@@ -51,7 +51,7 @@ public sealed partial class ReportSanitizer : IReportSanitizer
         clean = SanitizeProfilePaths(clean);
         return clean.Length <= MaximumStoredTextLength
             ? clean
-            : clean[..MaximumStoredTextLength] + "\n[DETAILS TRONQUES]";
+            : clean[..MaximumStoredTextLength] + "\n[DÉTAILS TRONQUES]";
     }
 
     private ReportAction SanitizeAction(ReportAction action)

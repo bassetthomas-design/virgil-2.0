@@ -61,8 +61,8 @@ public sealed class WingetAvailabilityService
                     ExecutablePath = candidate,
                     Version = version,
                     Message = string.IsNullOrWhiteSpace(version)
-                        ? "WinGet detecte."
-                        : $"WinGet detecte ({version})."
+                        ? "WinGet détecté."
+                        : $"WinGet détecté ({version})."
                 };
             }
 
@@ -76,7 +76,7 @@ public sealed class WingetAvailabilityService
             }
         }
 
-        return WingetAvailability.Unavailable("WinGet non detecte.", errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+        return WingetAvailability.Unavailable("WinGet non détecté.", errors.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
     }
 
     public static WingetCapabilities GetCapabilities(string? version)

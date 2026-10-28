@@ -19,9 +19,9 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - SUCCES", item.Header);
         Assert.Equal("Diagnostic", item.Title);
         Assert.Equal("Tout va bien", item.Summary);
-        Assert.Equal("Statut : Termine", item.StatusLine);
+        Assert.Equal("Statut : Terminé", item.StatusLine);
         Assert.Equal("1 rapport(s) local(aux), limite 30.", fixture.ViewModel.HistoryCountText);
-        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - Termine\nTout va bien", fixture.ViewModel.LatestSummaryText);
+        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - Terminé\nTout va bien", fixture.ViewModel.LatestSummaryText);
         Assert.True(fixture.ViewModel.HasReports);
         Assert.True(fixture.ViewModel.IsExportEnabled);
         Assert.Empty(fixture.ViewModel.HistoryNotice);
@@ -67,7 +67,7 @@ public sealed class ReportsHistoryViewModelTests
         await fixture.ViewModel.RefreshAsync();
         await fixture.ViewModel.ExportSelectedCommand.ExecuteAsync(null);
         Assert.Equal(0, fixture.Export.Calls);
-        Assert.Equal("Export annule.\nAucun fichier cree.", fixture.Message);
+        Assert.Equal("Export annulé.\nAucun fichier cree.", fixture.Message);
         Assert.Equal(("Exporter le rapport Virgil", "Rapport texte (*.txt)|*.txt", ".txt", "Virgil-Rapport-20261018-123000.txt"), fixture.Dialog.Arguments);
     }
 
@@ -153,10 +153,10 @@ public sealed class ReportsHistoryViewModelTests
     public async Task SaveTransientFailureUsesReadableErrorWithoutEventOrRefresh()
     {
         var fixture = new Fixture();
-        fixture.History.SaveResult = new() { ReadableError = "Ecriture refusee." };
+        fixture.History.SaveResult = new() { ReadableError = "Ecriture refusée." };
         fixture.ViewModel.ShowTransientReport(fixture.Report);
         await fixture.ViewModel.SaveTransientCommand.ExecuteAsync(null);
-        Assert.Equal("Ecriture refusee.", fixture.Message);
+        Assert.Equal("Ecriture refusée.", fixture.Message);
         Assert.Equal(0, fixture.Persisted);
         Assert.Equal(0, fixture.History.LoadCalls);
         Assert.True(fixture.ViewModel.CanSaveTransient);
@@ -166,18 +166,18 @@ public sealed class ReportsHistoryViewModelTests
     public void DetailsPreserveActionFormattingAndTechnicalContent()
     {
         var fixture = new Fixture();
-        var action = new ReportAction { Name = "Action", Status = ReportActionStatus.Failed, Result = "Resultat", ReadableError = "Erreur", TechnicalDetails = "Trace" };
+        var action = new ReportAction { Name = "Action", Status = ReportActionStatus.Failed, Result = "Résultat", ReadableError = "Erreur", TechnicalDetails = "Trace" };
         fixture.ViewModel.ShowTransientReport(fixture.Report with
         {
             Severity = ReportSeverity.Error, TechnicalDetails = "Diagnostic", RestartRequired = true,
             ProposedActions = new[] { action }, ExecutedActions = new[] { action }, SkippedActions = new[] { action }, Errors = new[] { "Erreur" }
         });
-        Assert.Equal("- Action [Failed] : Resultat - Erreur", fixture.ViewModel.ProposedActions);
+        Assert.Equal("- Action [Failed] : Résultat - Erreur", fixture.ViewModel.ProposedActions);
         Assert.Equal(fixture.ViewModel.ProposedActions, fixture.ViewModel.ExecutedActions);
         Assert.Equal(fixture.ViewModel.ProposedActions, fixture.ViewModel.SkippedActions);
         Assert.Equal("- Erreur", fixture.ViewModel.Errors);
         Assert.Equal("Diagnostic\nAction : Trace\nAction : Trace\nAction : Trace", fixture.ViewModel.TechnicalDetails);
-        Assert.Contains("Redemarrage requis : oui", fixture.ViewModel.SimpleDetails);
+        Assert.Contains("Redémarrage requis : oui", fixture.ViewModel.SimpleDetails);
         Assert.Equal(VirgilCoreState.Warning, fixture.ViewModel.MiniCoreState);
         fixture.ViewModel.ToggleTechnicalDetailsCommand.Execute(null);
         Assert.Equal("MASQUER DÉTAILS TECHNIQUES", fixture.ViewModel.ToggleTechnicalDetailsLabel);
@@ -200,7 +200,7 @@ public sealed class ReportsHistoryViewModelTests
 
     private sealed class Fixture
     {
-        public ReportEntry Report { get; } = new() { Date = new DateTimeOffset(2026, 10, 18, 12, 30, 0, TimeSpan.Zero), Kind = ReportKind.QuickScan, Severity = ReportSeverity.Success, Title = "Diagnostic", Summary = "Tout va bien", Status = "Termine" };
+        public ReportEntry Report { get; } = new() { Date = new DateTimeOffset(2026, 10, 18, 12, 30, 0, TimeSpan.Zero), Kind = ReportKind.QuickScan, Severity = ReportSeverity.Success, Title = "Diagnostic", Summary = "Tout va bien", Status = "Terminé" };
         public FakeHistory History { get; } = new();
         public FakeExport Export { get; } = new();
         public FakeDialog Dialog { get; } = new();

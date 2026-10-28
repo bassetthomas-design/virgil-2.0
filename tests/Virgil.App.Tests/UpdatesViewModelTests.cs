@@ -95,7 +95,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal(UpdateScanRequest.DeepPreview, f.Scan.Request);
         Assert.Equal("PRÊT", f.States.Last().Label);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
-        Assert.Equal("Scan terminé.\n5 mises à jour a verifier.", f.Messages.Last());
+        Assert.Equal("Scan terminé.\n5 mises à jour à vérifier.", f.Messages.Last());
         Assert.Equal(1, f.Persisted);
         Assert.False(f.History.Token.CanBeCanceled);
         Assert.True(f.Vm.IsReportButtonEnabled);
@@ -252,7 +252,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("Opération déjà en cours.", f.Messages.Last());
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
         Assert.Equal("Opération déjà en cours.", f.Messages.Last());
-        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandée.\nSequence en cours d'arrêt.", f.Messages); }
+        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandée.\nSéquence en cours d'arrêt.", f.Messages); }
         else f.Vm.CancelActiveOperation();
         await pending;
         Assert.Contains("Séquence annulée.", f.Actions.Report!.Errors);
@@ -287,7 +287,7 @@ public sealed class UpdatesViewModelTests
         Decide(f.Vm, decision); await pending;
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(decision == "ExecuteDecision" ? 1 : 0, f.Runner.Calls);
-        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lance aucune installation.", f.Messages.Last());
+        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lancé aucune installation.", f.Messages.Last());
         if (f.Runner.Calls != 0)
         {
             Assert.Equal("ms-settings:windowsupdate", f.Runner.Request!.FileName);
@@ -501,7 +501,7 @@ public sealed class UpdatesViewModelTests
     }
 
     private static UpdateItem Item(string id, UpdateRiskLevel risk = UpdateRiskLevel.ValidationRequired) => new() { Id = id, Name = id, InstalledVersion = "1", AvailableVersion = "2", RiskLevel = risk, RiskReason = "Motif", CommandPreview = new() { ExecutablePath = "winget", Arguments = new[] { "upgrade", "app test" } } };
-    private static UpdateScanReport Report(params UpdateItem[] items) => new() { Items = items, OverallStatus = "Pret", Winget = new() { IsAvailable = true, Message = "WinGet disponible" }, WindowsUpdate = new() { Status = "A jour", PendingRebootDetected = true } };
+    private static UpdateScanReport Report(params UpdateItem[] items) => new() { Items = items, OverallStatus = "Prêt", Winget = new() { IsAvailable = true, Message = "WinGet disponible" }, WindowsUpdate = new() { Status = "A jour", PendingRebootDetected = true } };
     private sealed class Fixture
     {
         public RecordingConfirmation Confirmation { get; } = new();
@@ -535,7 +535,7 @@ public sealed class UpdatesViewModelTests
     private sealed class FakeRunner : IProcessRunner
     {
         public int Calls { get; private set; } public int Failure { get; set; } public ProcessLaunchRequest? Request { get; private set; } public CancellationToken Token { get; private set; }
-        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune execution processus attendue.");
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune exécution processus attendue.");
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) { Calls++; Request = request; Token = cancellationToken; if (Failure == 2) throw new InvalidOperationException(); return Task.FromResult(new ProcessLaunchResult(Failure == 0, null, Failure == 1 ? "Erreur" : null)); }
     }
     private sealed class FakeHistory : IReportHistoryService

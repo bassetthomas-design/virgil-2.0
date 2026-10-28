@@ -30,7 +30,7 @@ public sealed class MaintenanceContractTests
         Assert.Throws<NotSupportedException>(() => ((IList)findings.ProposedActions).Clear());
         Assert.All(typeof(Findings).GetProperties(), property => Assert.Null(property.SetMethod));
         Assert.DoesNotContain(typeof(Findings).GetMethods(), method =>
-            method.Name.Contains("Execute", StringComparison.Ordinal) || method.Name.Contains("Confirm", StringComparison.Ordinal));
+            method.Name.Contains("Exécute", StringComparison.Ordinal) || method.Name.Contains("Confirm", StringComparison.Ordinal));
         Assert.Equal(typeof(ActionPreview).Assembly, typeof(Findings).Assembly);
     }
 
@@ -102,12 +102,12 @@ public sealed class MaintenanceContractTests
     [InlineData("expire", false, "expir")]
     [InlineData("utilise", false, "utilis")]
     [InlineData("hash", false, "aperçu")]
-    [InlineData("apercuExpire", false, "Previsualisation expiree")]
+    [InlineData("apercuExpire", false, "Prévisualisation expiree")]
     [InlineData("absent", true, "Plan de confirmation absent")]
     [InlineData("expire", true, "expir")]
     [InlineData("utilise", true, "utilis")]
     [InlineData("hash", true, "aperçu")]
-    [InlineData("apercuExpire", true, "Previsualisation expiree")]
+    [InlineData("apercuExpire", true, "Prévisualisation expiree")]
     public async Task RefusedPlansReturnFrenchReasonBeforeAnyDiskOrRecycleCall(string reason, bool recycle, string message)
     {
         var clock = new Clock();

@@ -46,7 +46,7 @@ public sealed class ApplicationsUninstallViewModelSafetyTests
         System.Xml.Linq.XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var template = Assert.Single(doc.Descendants(p + "DataTemplate"), e => (string?)e.Attribute("DataType") == "{x:Type vm:ApplicationItemViewModel}");
         Assert.Equal(new[] { "{Binding DetailsCommand}", "{Binding OpenLocationCommand}" }, template.Descendants(p + "Button").Select(e => (string?)e.Attribute("Command")).ToArray());
-        Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Content"))?.Contains("DESINSTALL", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Content"))?.Contains("DÉSINSTALL", StringComparison.OrdinalIgnoreCase) == true);
         Assert.DoesNotContain(template.Descendants(p + "Button"), e => ((string?)e.Attribute("Command"))?.Contains("Uninstall", StringComparison.OrdinalIgnoreCase) == true);
     }
 }

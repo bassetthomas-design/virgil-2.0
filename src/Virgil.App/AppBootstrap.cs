@@ -28,7 +28,7 @@ public partial class App : System.Windows.Application
         if (!_instance.TryAcquire())
         {
             if (!_instance.SignalExisting())
-                MessageBox.Show("Virgil est deja ouvert.", "Virgil");
+                MessageBox.Show("Virgil est déjà ouvert.", "Virgil");
             Shutdown(0);
             return;
         }
@@ -54,7 +54,7 @@ public partial class App : System.Windows.Application
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
             _subscribed = true;
             base.OnStartup(e);
-            Log.Information("Demarrage de Virgil {Version}", typeof(App).Assembly.GetName().Version);
+            Log.Information("Démarrage de Virgil {Version}", typeof(App).Assembly.GetName().Version);
             var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
             builder.Services.AddSerilog(Log.Logger, dispose: true);
             builder.Services.AddVirgilDiagnostics(paths, settings, Dispatcher, _reporter);
@@ -78,13 +78,13 @@ public partial class App : System.Windows.Application
             try
             {
                 if (loggerCreated)
-                    Log.Fatal("Echec du demarrage : {ExceptionType}\n{StackTrace}", ex.GetType().FullName, ex.StackTrace);
+                    Log.Fatal("Échec du démarrage : {ExceptionType}\n{StackTrace}", ex.GetType().FullName, ex.StackTrace);
             }
             finally
             {
                 try
                 {
-                    MessageBox.Show("Virgil n'a pas pu demarrer.\nDetails enregistres dans les journaux : "
+                    MessageBox.Show("Virgil n'a pas pu demarrer.\nDétails enregistres dans les journaux : "
                         + (paths?.LogsDirectory ?? "%LOCALAPPDATA%\\Virgil\\logs"), "Virgil", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 finally { Shutdown(1); }

@@ -132,7 +132,7 @@ public sealed class ElevatedActionDispatcher
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètre de mise à jour inattendu.", false);
         if (!_allowlist.TryGet(request.ActionId, GetSystemDrive(), out var spec))
         {
-            return Result(request, startedAt, -1, InterventionStatus.Failed, "Action refusee par la liste blanche.", false);
+            return Result(request, startedAt, -1, InterventionStatus.Failed, "Action refusée par la liste blanche.", false);
         }
 
         if (spec.RequiresAdministrator && !_securityContext.IsAdministrator)

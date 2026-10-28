@@ -71,7 +71,7 @@ public partial class CleanupViewModel : ObservableObject
     }
 
     public ObservableCollection<object> Entries { get; private set; } = new();
-    [ObservableProperty] private string statusText = "Aucune analyse nettoyage lancee.";
+    [ObservableProperty] private string statusText = "Aucune analyse nettoyage lancée.";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     private bool isBusy;
@@ -129,7 +129,7 @@ public partial class CleanupViewModel : ObservableObject
         if (_operationInProgress)
         {
             CancelActiveOperation();
-            VirgilMessageRequested?.Invoke("Annulation demandee.\nOperation en cours d'arret.");
+            VirgilMessageRequested?.Invoke("Annulation demandee.\nOpération en cours d'arret.");
             return true;
         }
 
@@ -251,8 +251,8 @@ public partial class CleanupViewModel : ObservableObject
     {
         var count = _lastStorageAnalysis?.Items.Count ?? 0;
         VirgilMessageRequested?.Invoke(count == 0
-            ? "Aucun element personnel volumineux detecte dans les emplacements analyses."
-            : $"Elements volumineux detectes : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
+            ? "Aucun élément personnel volumineux détecté dans les emplacements analyses."
+            : $"Éléments volumineux détectés : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
     }
 
     [RelayCommand]
@@ -309,21 +309,21 @@ public partial class CleanupViewModel : ObservableObject
             OnPropertyChanged(nameof(SafetySummary));
             await RenderPreviewsAsync();
             UpdateCommandState();
-            StatusText = "Previsualisation disponible. Validation par zone requise.";
-            RequestVirgilState(VirgilCoreState.Success, "PRET");
+            StatusText = "Prévisualisation disponible. Validation par zone requise.";
+            RequestVirgilState(VirgilCoreState.Success, "PRÊT");
             AnnouncePreviewResult();
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Analyse annulee.";
+            StatusText = "Analyse annulée.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.");
+            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas été modifiees.");
         }
         catch
         {
             StatusText = "Analyse nettoyage indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Analyse nettoyage indisponible.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Analyse nettoyage indisponible.\nAucune action effectuée.");
         }
         finally
         {
@@ -385,10 +385,10 @@ public partial class CleanupViewModel : ObservableObject
             if (choice != CleanupZoneDecision.Execute)
             {
                 results.AddRange(selected.Select(p => choice == CleanupZoneDecision.Skip ? _module.SkipZone(p) : _module.CancelZone(p)));
-                if (choice == CleanupZoneDecision.CancelAll) sessionErrors.Add("Session annulee par l'utilisateur.");
+                if (choice == CleanupZoneDecision.CancelAll) sessionErrors.Add("Session annulée par l'utilisateur.");
             }
         }
-        catch (OperationCanceledException) { sessionErrors.Add("Session annulee."); }
+        catch (OperationCanceledException) { sessionErrors.Add("Session annulée."); }
         catch { sessionErrors.Add("Erreur pendant le nettoyage guide."); }
         finally
         {
@@ -421,7 +421,7 @@ public partial class CleanupViewModel : ObservableObject
         var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
-            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conservé en mémoire.");
         }
 
         if (result.Success)
@@ -434,7 +434,7 @@ public partial class CleanupViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return false;
         }
 
@@ -542,7 +542,7 @@ public partial class CleanupViewModel : ObservableObject
         IsValidationOpen = true;
         RequestVirgilState(VirgilCoreState.SensitiveAction, "VALIDATION");
         ValidationCoreState = VirgilCoreState.SensitiveAction;
-        VirgilMessageRequested?.Invoke($"Validation requise.\nZone : {preview.Definition.DisplayName.ToLowerInvariant()}.\nAucune action ne sera effectuee sans confirmation.");
+        VirgilMessageRequested?.Invoke($"Validation requise.\nZone : {preview.Definition.DisplayName.ToLowerInvariant()}.\nAucune action ne sera effectuée sans confirmation.");
     }
 
     private void CompleteDecision(CleanupZoneDecision decision)
@@ -573,7 +573,7 @@ public partial class CleanupViewModel : ObservableObject
         AddCategorySection(entries, "NETTOYAGE SUR", CleanupClassification.Cleanable);
         AddCategorySection(entries, "NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
 
-        entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+        entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown."));
 
         entries.Add(new CleanupTextCardItem("À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
         if (_lastStorageAnalysis is not null)
@@ -584,7 +584,7 @@ public partial class CleanupViewModel : ObservableObject
             }
         }
 
-        entries.Add(new CleanupTextCardItem("PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
+        entries.Add(new CleanupTextCardItem("PROTÉGÉ\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."));
 
         if (entries.Count == 0)
         {
@@ -619,7 +619,7 @@ public partial class CleanupViewModel : ObservableObject
 
         if (totalBytes == 0)
         {
-            VirgilMessageRequested?.Invoke("Analyse terminee.\nAucun nettoyage necessaire.");
+            VirgilMessageRequested?.Invoke("Analyse terminée.\nAucun nettoyage nécessaire.");
             return;
         }
 
@@ -630,7 +630,7 @@ public partial class CleanupViewModel : ObservableObject
     {
         if (IsCancellationReport(report))
         {
-            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.");
+            VirgilMessageRequested?.Invoke("Nettoyage interrompu.\nLes zones restantes n'ont pas été modifiees.");
             return;
         }
 
@@ -640,7 +640,7 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Nettoyage termine.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille : {FormatBytes(report.DeletedBytes)} libérés.\nRapport disponible.");
+        VirgilMessageRequested?.Invoke($"Nettoyage terminé.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille : {FormatBytes(report.DeletedBytes)} libérés.\nRapport disponible.");
     }
 
     private void AnnounceZoneResult(CleanupStepResult result)
@@ -658,7 +658,7 @@ public partial class CleanupViewModel : ObservableObject
 
     private void CompleteSessionState(CleanupSessionReport report)
     {
-        StatusText = $"Rapport pret : {report.QuarantinedFiles} fichiers en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
+        StatusText = $"Rapport prêt : {report.QuarantinedFiles} fichiers en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
 
         if (IsCancellationReport(report))
         {
@@ -678,7 +678,7 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        RequestVirgilState(VirgilCoreState.Success, "TERMINE");
+        RequestVirgilState(VirgilCoreState.Success, "TERMINÉ");
     }
 
     private void ShowReport()
@@ -708,21 +708,21 @@ public partial class CleanupViewModel : ObservableObject
         var partialErrors = report.Errors.Count + report.Results.Sum(result => result.Errors.Count);
         var builder = new StringBuilder();
         builder.AppendLine($"Date : {report.StartedAt:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Duree : {report.Duration.TotalSeconds:0.0} s");
-        builder.AppendLine($"Zones analysees : {analyzedZones}");
-        builder.AppendLine($"Zones executees : {CountExecutedZones(report)}");
-        builder.AppendLine($"Zones passees : {report.SkippedZones}");
+        builder.AppendLine($"Durée : {report.Duration.TotalSeconds:0.0} s");
+        builder.AppendLine($"Zones analysées : {analyzedZones}");
+        builder.AppendLine($"Zones exécutées : {CountExecutedZones(report)}");
+        builder.AppendLine($"Zones passées : {report.SkippedZones}");
         builder.AppendLine($"Annulation : {(IsCancellationReport(report) ? "oui" : "non")}");
         builder.AppendLine($"Fichiers mis en quarantaine : {report.QuarantinedFiles} ({FormatBytes(report.QuarantinedBytes)})");
         foreach (var step in report.Results.Where(r => r.QuarantinedFiles > 0)) builder.AppendLine(step.QuarantineSummary);
         builder.AppendLine($"Fichiers supprimés de la corbeille : {report.DeletedFiles}");
         builder.AppendLine($"Volume libere : {FormatBytes(report.DeletedBytes)}");
-        builder.AppendLine($"Volume estime : {FormatBytes(report.EstimatedBytes)}");
-        builder.AppendLine($"Elements a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
-        builder.AppendLine($"Elements proteges : {report.ProtectedItems}");
+        builder.AppendLine($"Volume estimé : {FormatBytes(report.EstimatedBytes)}");
+        builder.AppendLine($"Éléments a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
+        builder.AppendLine($"Éléments protégés : {report.ProtectedItems}");
         builder.AppendLine($"Zones avancees refusees : {report.AdvancedRefused}");
         builder.AppendLine($"Points de reanalyse ignores : {report.ReparsePointsIgnored}");
-        builder.AppendLine($"Redemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}");
+        builder.AppendLine($"Redémarrage conseillé : {(report.RestartRecommended ? "oui" : "non")}");
         builder.AppendLine("Aucun fichier personnel supprime automatiquement.");
         builder.AppendLine($"Fichiers verrouilles : {report.ErrorFiles}");
         builder.AppendLine($"Fichiers ignores : {ignoredFiles}");
@@ -773,7 +773,7 @@ public partial class CleanupViewModel : ObservableObject
     private static bool IsCancellationReport(CleanupSessionReport report)
     {
         return report.CancelledZones > 0 ||
-            report.Errors.Any(error => error.Contains("annulee", StringComparison.OrdinalIgnoreCase));
+            report.Errors.Any(error => error.Contains("annulée", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool HasBlockingFailure(CleanupSessionReport report)
@@ -786,12 +786,12 @@ public partial class CleanupViewModel : ObservableObject
     {
         return status switch
         {
-            CleanupStepStatus.Completed => "terminee",
-            CleanupStepStatus.Skipped => "passee",
-            CleanupStepStatus.Cancelled => "annulee",
+            CleanupStepStatus.Completed => "terminée",
+            CleanupStepStatus.Skipped => "passée",
+            CleanupStepStatus.Cancelled => "annulée",
             CleanupStepStatus.Expired => "preview expiree",
             CleanupStepStatus.PartialFailure => "partielle",
-            _ => "echec"
+            _ => "échec"
         };
     }
 
@@ -802,7 +802,7 @@ public partial class CleanupViewModel : ObservableObject
             CleanupZoneId.UserTemporaryFiles => "%TEMP% utilisateur",
             CleanupZoneId.UserCrashDumps => "%LOCALAPPDATA%\\CrashDumps",
             CleanupZoneId.DirectXShaderCache => "%LOCALAPPDATA%\\D3DSCache",
-            _ => "Zone autorisee"
+            _ => "Zone autorisée"
         };
     }
 
@@ -831,8 +831,8 @@ public partial class CleanupViewModel : ObservableObject
         {
             CleanupClassification.Cleanable => "nettoyable sur",
             CleanupClassification.AdvancedCleanable => "nettoyable avance",
-            CleanupClassification.ReviewOnly => "a revoir manuellement",
-            CleanupClassification.Protected => "protege",
+            CleanupClassification.ReviewOnly => "à revoir manuellement",
+            CleanupClassification.Protected => "protégé",
             _ => "information seulement"
         };
     }

@@ -293,7 +293,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,3,0,10"
                                        Text="{Binding ValidationRoot}" />
-                            <TextBlock Text="PREVISUALISATION"
+                            <TextBlock Text="PRÉVISUALISATION"
                                        Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationMetricsText"
                                        Style="{StaticResource VirgilHudSecondaryText}"

@@ -15,26 +15,26 @@ public sealed class ResourceReportBuilder
         var analysis = report.Analyses.LastOrDefault();
         if (analysis is not null)
         {
-            builder.AppendLine($"Duree : {analysis.Duration.TotalSeconds:0.0} s");
+            builder.AppendLine($"Durée : {analysis.Duration.TotalSeconds:0.0} s");
             builder.AppendLine($"CPU moyen : {analysis.AverageCpuPercent:0.0} %");
             builder.AppendLine($"CPU max : {analysis.MaximumCpuPercent:0.0} %");
             builder.AppendLine($"RAM moyenne : {analysis.AverageMemoryPercent:0.0} %");
             builder.AppendLine($"RAM max : {analysis.MaximumMemoryPercent:0.0} %");
-            builder.AppendLine($"Etat CPU : {analysis.CpuHealth}");
-            builder.AppendLine($"Etat RAM : {analysis.MemoryHealth}");
-            builder.AppendLine($"Etat global : {analysis.OverallHealth}");
+            builder.AppendLine($"État CPU : {analysis.CpuHealth}");
+            builder.AppendLine($"État RAM : {analysis.MemoryHealth}");
+            builder.AppendLine($"État global : {analysis.OverallHealth}");
             builder.AppendLine($"Uptime : {FormatUptime(analysis.Uptime)}");
             AppendProcesses(builder, "Processus RAM principaux", analysis.TopMemoryProcesses, includeTechnicalDetails);
             AppendProcesses(builder, "Processus CPU principaux", analysis.TopCpuProcesses, includeTechnicalDetails);
         }
 
-        builder.AppendLine($"Actions proposees : {report.ProposedActions.Count}");
-        builder.AppendLine($"Actions executees : {report.ExecutedActions.Count}");
-        builder.AppendLine($"Actions passees : {report.SkippedActions.Count}");
-        builder.AppendLine($"Redemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}");
+        builder.AppendLine($"Actions proposées : {report.ProposedActions.Count}");
+        builder.AppendLine($"Actions exécutées : {report.ExecutedActions.Count}");
+        builder.AppendLine($"Actions passées : {report.SkippedActions.Count}");
+        builder.AppendLine($"Redémarrage conseillé : {(report.RestartRecommended ? "oui" : "non")}");
 
-        AppendList(builder, "Actions proposees", report.ProposedActions);
-        AppendList(builder, "Actions passees", report.SkippedActions);
+        AppendList(builder, "Actions proposées", report.ProposedActions);
+        AppendList(builder, "Actions passées", report.SkippedActions);
 
         foreach (var result in report.ExecutedActions)
         {

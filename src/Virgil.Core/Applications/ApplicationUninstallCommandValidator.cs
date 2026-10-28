@@ -9,7 +9,7 @@ public sealed partial class ApplicationUninstallCommandValidator
     {
         if (application.IsSystemComponent || application.RiskLevel == ApplicationRiskLevel.Protected)
         {
-            return Blocked("Application protegee : aucune desinstallation depuis Virgil V1.");
+            return Blocked("Application protégée : aucune désinstallation depuis Virgil V1.");
         }
 
         if (application.UninstallKind == ApplicationUninstallKind.Winget)
@@ -30,13 +30,13 @@ public sealed partial class ApplicationUninstallCommandValidator
 
         if (application.UninstallKind == ApplicationUninstallKind.StoreSettings)
         {
-            return Blocked("Application Store : ouverture des parametres Windows uniquement en V1.");
+            return Blocked("Application Store : ouverture des paramètres Windows uniquement en V1.");
         }
 
         var command = application.UninstallCommand;
         if (string.IsNullOrWhiteSpace(command))
         {
-            return Blocked("Commande de desinstallation absente.");
+            return Blocked("Commande de désinstallation absente.");
         }
 
         return ValidateCommand(command, application.UninstallKind, application.RiskLevel);
@@ -57,12 +57,12 @@ public sealed partial class ApplicationUninstallCommandValidator
 
         if (ContainsDangerousShell(lower))
         {
-            return Blocked("Commande dangereuse ou chainee bloquee.");
+            return Blocked("Commande dangereuse ou chainee bloquée.");
         }
 
         if (TouchesProtectedPersonalArea(lower))
         {
-            return Blocked("Commande touchant un profil utilisateur bloquee.");
+            return Blocked("Commande touchant un profil utilisateur bloquée.");
         }
 
         if (LooksLikeMsiexec(normalized))
@@ -82,7 +82,7 @@ public sealed partial class ApplicationUninstallCommandValidator
             return lower.Contains("setupapi.dll", StringComparison.OrdinalIgnoreCase)
                 ? WithExecutable(
                     risk,
-                    "Commande rundll32 reconnue comme desinstalleur Windows.",
+                    "Commande rundll32 reconnue comme désinstalleur Windows.",
                     "rundll32.exe",
                     Tokenize(normalized).Skip(1).ToList())
                 : Blocked("Commande rundll32 non reconnue.");
@@ -101,13 +101,13 @@ public sealed partial class ApplicationUninstallCommandValidator
         var fileName = Path.GetFileName(executable);
         if (!LooksLikeOfficialUninstaller(fileName))
         {
-            return Blocked("Executable non reconnu comme desinstalleur officiel.");
+            return Blocked("Executable non reconnu comme désinstalleur officiel.");
         }
 
         return new ApplicationCommandValidationResult
         {
             Status = risk == ApplicationRiskLevel.Caution ? ApplicationCommandValidationStatus.NeedsCaution : ApplicationCommandValidationStatus.Allowed,
-            Reason = "Desinstalleur officiel local valide.",
+            Reason = "Désinstalleur officiel local valide.",
             Executable = executable,
             Arguments = arguments
         };

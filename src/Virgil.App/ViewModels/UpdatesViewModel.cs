@@ -117,7 +117,7 @@ public partial class UpdatesViewModel : ObservableObject
         if (_operationInProgress)
         {
             CancelActiveOperation();
-            VirgilMessageRequested?.Invoke("Annulation demandée.\nSequence en cours d'arrêt.");
+            VirgilMessageRequested?.Invoke("Annulation demandée.\nSéquence en cours d'arrêt.");
             return true;
         }
 
@@ -313,7 +313,7 @@ public partial class UpdatesViewModel : ObservableObject
                 results.Add(result);
                 SetItemStatus(item.Id, result.Status);
                 VirgilMessageRequested?.Invoke(result.Status == UpdateItemStatus.Completed
-                    ? "Mise à jour terminée.\nSequence continue."
+                    ? "Mise à jour terminée.\nSéquence continue."
                     : "Mise à jour non terminée.\nRapport disponible.");
             }
         }
@@ -381,7 +381,7 @@ public partial class UpdatesViewModel : ObservableObject
                 info.SettingsUri, Array.Empty<string>(), UseShellExecute: true), CancellationToken.None);
             VirgilMessageRequested?.Invoke(result.LaunchError is not null
                 ? "Ouverture Windows Update impossible."
-                : "Windows Update ouvert.\nVirgil ne lance aucune installation.");
+                : "Windows Update ouvert.\nVirgil ne lancé aucune installation.");
         }
         catch
         {
@@ -614,7 +614,7 @@ public partial class UpdatesViewModel : ObservableObject
 
         VirgilMessageRequested?.Invoke(report.Items.Count == 0
             ? "Scan terminé.\nAucune mise à jour applicative détectée."
-            : $"Scan terminé.\n{report.Items.Count} mises à jour a verifier.");
+            : $"Scan terminé.\n{report.Items.Count} mises à jour à vérifier.");
     }
 
     private void CompleteSequenceState(UpdateSessionReport report)
@@ -634,7 +634,7 @@ public partial class UpdatesViewModel : ObservableObject
         }
 
         StatusText = "Séquence terminée.";
-        RequestVirgilState(VirgilCoreState.Success, "TERMINE");
+        RequestVirgilState(VirgilCoreState.Success, "TERMINÉ");
     }
 
     private void ShowReport()

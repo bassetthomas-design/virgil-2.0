@@ -25,7 +25,7 @@ public sealed class CleanupZoneItemViewModel
             $"Racine : {CleanupViewModel.LogicalRootLabel(preview.Definition.Id)}",
             $"Risque : {CleanupViewModel.RiskLabel(preview.Definition.RiskLevel)}",
             $"Categorie : {CleanupViewModel.ClassificationLabel(preview.Definition.Classification)}",
-            $"Action : {(preview.Definition.IsExecutable ? "guidee apres validation" : "information seulement")}",
+            $"Action : {(preview.Definition.IsExecutable ? "guidee après validation" : "information seulement")}",
             $"Examines : {preview.ExaminedFileCount} fichiers",
             $"Eligibles : {preview.EligibleFileCount} fichiers, {CleanupViewModel.FormatBytes(preview.EligibleBytes)}",
             $"Exclus : {preview.ExcludedFileCount} fichiers",
@@ -70,7 +70,7 @@ public partial class CleanupReviewItemViewModel : ObservableObject
     private void Ignore() => IsHidden = true;
 
     [RelayCommand]
-    private void Mark() => _message($"Element marque a revoir : {_item.Name}.\nAucune suppression effectuee.");
+    private void Mark() => _message($"Élément marque a revoir : {_item.Name}.\nAucune suppression effectuée.");
 
     [RelayCommand]
     private async Task OpenLocationAsync()
@@ -81,11 +81,11 @@ public partial class CleanupReviewItemViewModel : ObservableObject
                 "explorer.exe", Array.Empty<string>(), UseShellExecute: true,
                 RawArguments: $"/select,\"{_item.FullPath}\""), CancellationToken.None);
             if (result.LaunchError is not null)
-                _message("Emplacement indisponible. Aucune modification effectuee.");
+                _message("Emplacement indisponible. Aucune modification effectuée.");
         }
         catch
         {
-            _message("Emplacement indisponible. Aucune modification effectuee.");
+            _message("Emplacement indisponible. Aucune modification effectuée.");
         }
     }
 }

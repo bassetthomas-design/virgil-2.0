@@ -31,12 +31,12 @@ public sealed class ApplicationRiskClassifier
 
         if (application.IsSystemComponent || application.RiskLevel == ApplicationRiskLevel.Protected)
         {
-            return WithRisk(application, ApplicationRiskLevel.Protected, "Package Store ou composant Windows protege en V1.", false);
+            return WithRisk(application, ApplicationRiskLevel.Protected, "Package Store ou composant Windows protégé en V1.", false);
         }
 
         if (ContainsAny(text, ProtectedTerms))
         {
-            return WithRisk(application, ApplicationRiskLevel.Protected, "Composant systeme, pilote, runtime, securite ou framework protege.", false);
+            return WithRisk(application, ApplicationRiskLevel.Protected, "Composant système, pilote, runtime, sécurité ou framework protégé.", false);
         }
 
         if (application.Source == ApplicationInventorySource.Store)
@@ -48,7 +48,7 @@ public sealed class ApplicationRiskClassifier
 
         if (application.UninstallKind == ApplicationUninstallKind.None || string.IsNullOrWhiteSpace(application.UninstallCommand) && string.IsNullOrWhiteSpace(application.WingetId))
         {
-            return WithRisk(application, ApplicationRiskLevel.Unknown, "Desinstalleur officiel absent ou informations incompletes.", false);
+            return WithRisk(application, ApplicationRiskLevel.Unknown, "Désinstalleur officiel absent ou informations incompletes.", false);
         }
 
         if (ContainsAny(text, CautionTerms))
@@ -58,7 +58,7 @@ public sealed class ApplicationRiskClassifier
 
         if (ContainsAny(text, SafeTerms) || application.UninstallKind is ApplicationUninstallKind.Msi or ApplicationUninstallKind.RegistryUninstallString or ApplicationUninstallKind.Winget)
         {
-            return WithRisk(application, ApplicationRiskLevel.SafeToUninstall, "Application utilisateur avec desinstalleur officiel identifiable.", true);
+            return WithRisk(application, ApplicationRiskLevel.SafeToUninstall, "Application utilisateur avec désinstalleur officiel identifiable.", true);
         }
 
         return WithRisk(application, ApplicationRiskLevel.Unknown, "Application insuffisamment identifiee.", false);

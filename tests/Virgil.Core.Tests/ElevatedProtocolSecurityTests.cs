@@ -231,7 +231,7 @@ public abstract class ElevatedProtocolSecurityCases
 
         Assert.NotNull(result);
         Assert.Equal(InterventionStatus.Failed, result.Status);
-        Assert.Contains("refuse", result.ReadableError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("refusé", result.ReadableError, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

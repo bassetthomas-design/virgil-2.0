@@ -64,7 +64,7 @@ public sealed class ApplicationConfirmedPlanTests
         Assert.True(result.WasCancelled);
         Assert.False(result.WasLaunched);
         Assert.Equal(callsBefore, launcher.Calls);
-        Assert.Equal("Desinstallation annulee.\n" + refusal.Message, result.Result);
+        Assert.Equal("Désinstallation annulée.\n" + refusal.Message, result.Result);
     }
 
     [Theory]

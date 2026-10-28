@@ -114,7 +114,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             errors.Add("Inspection des processus indisponible.");
         }
 
-        progress?.Report(new ResourceProgress("Synthese", 90, "Synthese CPU, RAM et processus."));
+        progress?.Report(new ResourceProgress("Synthèse", 90, "Synthèse CPU, RAM et processus."));
         var cpuValuesFinal = samples.Select(sample => sample.InstantCpuPercent).ToList();
         var memoryValues = samples
             .Where(sample => sample.TotalMemoryBytes > 0)
@@ -137,7 +137,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             processes);
 
         stopwatch.Stop();
-        progress?.Report(new ResourceProgress("Termine", 100, "Analyse ressources terminee."));
+        progress?.Report(new ResourceProgress("Terminé", 100, "Analyse ressources terminée."));
         return new ResourceAnalysisReport
         {
             CapturedAt = _now(),
@@ -184,14 +184,14 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             var memory = _memoryReader();
             if (memory.TotalBytes == 0 || memory.AvailableBytes > memory.TotalBytes)
             {
-                errors.Add("Lecture memoire indisponible ou incoherente.");
+                errors.Add("Lecture mémoire indisponible ou incohérente.");
             }
 
             return memory;
         }
         catch
         {
-            errors.Add("Lecture memoire indisponible.");
+            errors.Add("Lecture mémoire indisponible.");
             return new MemoryStatus(0, 0);
         }
     }
@@ -244,7 +244,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             request.ObservationDuration <= TimeSpan.Zero ||
             request.MaximumProcesses <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(request), "Parametres d'observation invalides.");
+            throw new ArgumentOutOfRangeException(nameof(request), "Paramètres d'observation invalides.");
         }
     }
 }

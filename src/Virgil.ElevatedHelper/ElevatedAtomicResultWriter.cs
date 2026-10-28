@@ -99,7 +99,7 @@ public sealed class ElevatedAtomicResultWriter
             result.ActionId != request.ActionId ||
             !string.Equals(result.Nonce, request.Nonce, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Identite du resultat eleve incoherente.");
+            throw new InvalidOperationException("Identité du résultat élevé incohérente.");
         }
     }
 

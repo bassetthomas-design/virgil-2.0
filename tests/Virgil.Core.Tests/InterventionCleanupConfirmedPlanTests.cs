@@ -47,7 +47,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         }
         var result = await service.ExecuteAsync(diagnostic, plan, CancellationToken.None);
         Assert.Equal(InterventionStatus.Failed, result.Status);
-        Assert.StartsWith("Intervention annulee.\n", result.ReadableError);
+        Assert.StartsWith("Intervention annulée.\n", result.ReadableError);
         Assert.Equal(0, effects.Calls);
     }
 
@@ -125,7 +125,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         if (scenario == "reused") Assert.True(authority.TryConsume(plan, action).IsAccepted);
         var result = await service.ExecuteZoneAsync(preview, plan, null, CancellationToken.None);
         Assert.Equal(CleanupStepStatus.Cancelled, result.Status);
-        Assert.StartsWith("Nettoyage annule.\n", Assert.Single(result.Errors));
+        Assert.StartsWith("Nettoyage annulé.\n", Assert.Single(result.Errors));
         Assert.Equal(0, result.DeletedFiles); Assert.True(File.Exists(files.Path)); Assert.Equal(0, effects.Calls);
     }
 
@@ -175,7 +175,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         var result = await new CleanupExecutionService(new CleanupDisk(), gate, () => now, effects, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, null, null,
             new CancellationToken(scenario == "cancelled"));
         Assert.Equal(scenario == "information" ? CleanupStepStatus.Skipped : scenario == "cancelled" ? CleanupStepStatus.Cancelled : CleanupStepStatus.Expired, result.Status);
-        if (scenario.Contains("expired", StringComparison.Ordinal)) Assert.Equal("Previsualisation expiree. Relancer l'analyse.", Assert.Single(result.Errors));
+        if (scenario.Contains("expired", StringComparison.Ordinal)) Assert.Equal("Prévisualisation expiree. Relancer l'analyse.", Assert.Single(result.Errors));
         Assert.Equal(0, gate.Calls); Assert.Equal(0, effects.Calls); Assert.True(File.Exists(files.Path));
     }
 

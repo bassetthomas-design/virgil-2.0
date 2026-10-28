@@ -167,7 +167,7 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
                 }
                 catch
                 {
-                    errors.Add($"Entree registre ignoree : {subKeyName}.");
+                    errors.Add($"Entree registre ignorée : {subKeyName}.");
                 }
             }
         }

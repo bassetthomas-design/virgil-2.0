@@ -88,6 +88,6 @@ internal sealed class HelperElevatedProtocolRoot
     private static SecurityIdentifier CurrentUserSid()
     {
         using var identity = WindowsIdentity.GetCurrent();
-        return identity.User ?? throw new InvalidOperationException("Identite Windows courante indisponible.");
+        return identity.User ?? throw new InvalidOperationException("Identité Windows courante indisponible.");
     }
 }

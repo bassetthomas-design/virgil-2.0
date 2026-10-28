@@ -74,7 +74,7 @@ public sealed class CleanupSelectAllTests
             if (cancel) f.Vm.CancelDecisionCommand.Execute(null);
             else f.Vm.SkipDecisionCommand.Execute(null);
             await pending;
-            Assert.DoesNotContain(f.Actions.Order, a => a.StartsWith("Execute:", StringComparison.Ordinal));
+            Assert.DoesNotContain(f.Actions.Order, a => a.StartsWith("Exécute:", StringComparison.Ordinal));
             Assert.Equal(0, f.Confirmation.Calls);
             Assert.Equal(0, quarantine.Effects);
         }

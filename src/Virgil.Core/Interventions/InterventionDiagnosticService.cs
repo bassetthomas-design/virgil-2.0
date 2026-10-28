@@ -59,11 +59,11 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
         var errors = new List<string>();
         var technicalData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var available = AreExecutablesAvailable(definition, errors);
-        var state = "Action disponible apres validation explicite.";
+        var state = "Action disponible après validation explicite.";
         var status = available ? InterventionStatus.Available : InterventionStatus.Unavailable;
         var recommendation = available
             ? "Disponible. Aucune panne n'est inventee par le diagnostic."
-            : "Indisponible dans l'etat actuel.";
+            : "Indisponible dans l'état actuel.";
 
         if (definition.Id == InterventionId.RestartExplorer)
         {
@@ -72,12 +72,12 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
             if (explorerCount == 0)
             {
                 status = InterventionStatus.Recommended;
-                recommendation = "Explorer semble absent. Relance possible apres confirmation.";
-                state = "Aucun processus explorer.exe detecte.";
+                recommendation = "Explorer semble absent. Relance possible après confirmation.";
+                state = "Aucun processus explorer.exe détecté.";
             }
             else
             {
-                state = $"{explorerCount} processus explorer.exe detecte(s).";
+                state = $"{explorerCount} processus explorer.exe détecté(s).";
             }
         }
 
@@ -90,10 +90,10 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
             status = available ? InterventionStatus.Available : InterventionStatus.Unavailable;
             state = dhcp.HasActiveDhcpInterface
                 ? $"Interface DHCP active : {dhcp.InterfaceName}."
-                : "Aucune interface DHCP active non VPN detectee.";
+                : "Aucune interface DHCP active non VPN détectée.";
             recommendation = dhcp.HasActiveDhcpInterface
-                ? "Disponible. La connexion peut etre interrompue temporairement."
-                : "Execution non proposee sans interface DHCP active non VPN.";
+                ? "Disponible. La connexion peut être interrompue temporairement."
+                : "Exécution non proposée sans interface DHCP active non VPN.";
         }
 
         if (definition.Id == InterventionId.ChkdskOnlineScan)
@@ -104,7 +104,7 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
             technicalData["SystemDrive"] = drive ?? "Invalide";
             if (drive is null)
             {
-                errors.Add("Lecteur systeme invalide pour CHKDSK /scan.");
+                errors.Add("Lecteur système invalide pour CHKDSK /scan.");
             }
         }
 
@@ -227,17 +227,17 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     {
         if (definition.RequiresAdministrator)
         {
-            yield return "Droits administrateur demandes uniquement apres confirmation.";
+            yield return "Droits administrateur demandes uniquement après confirmation.";
         }
 
         if (definition.RebootPossible)
         {
-            yield return "Redemarrage manuel potentiellement requis. Virgil ne redemarre pas le PC.";
+            yield return "Redémarrage manuel potentiellement requis. Virgil ne redemarre pas le PC.";
         }
 
         if (!definition.CanBeInterruptedAfterStart)
         {
-            yield return "Ne pas interrompre brutalement cette action apres demarrage.";
+            yield return "Ne pas interrompre brutalement cette action après démarrage.";
         }
     }
 

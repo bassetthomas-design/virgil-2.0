@@ -47,9 +47,9 @@ public sealed class ProcessActionService : IProcessActionService
         {
             return Result(
                 action,
-                "Memoire inactive",
+                "Mémoire inactive",
                 ProcessActionStatus.InformationOnly,
-                "Action non executee.",
+                "Action non exécutée.",
                 "Information seulement en V1 : aucune API sure n'est retenue.");
         }
 
@@ -76,7 +76,7 @@ public sealed class ProcessActionService : IProcessActionService
         }
 
         if (action == ProcessActionKind.CloseMainWindow && (!target.CanCloseGracefully || !identity.Value!.HasMainWindow))
-            return Refusal(action, TargetName(target), "Fermeture propre non autorisee.");
+            return Refusal(action, TargetName(target), "Fermeture propre non autorisée.");
         if (action == ProcessActionKind.KillProcess && !target.CanForceClose)
             return Refusal(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
         if (action is not (ProcessActionKind.CloseMainWindow or ProcessActionKind.KillProcess))
@@ -99,15 +99,15 @@ public sealed class ProcessActionService : IProcessActionService
     {
         var validation = _gate.TryConsume(plan, ProcessActionPreviewFactory.Create(action, target));
         if (!validation.IsAccepted)
-            return Refusal(action, TargetName(target), "Action annulee.\n" + validation.Message);
+            return Refusal(action, TargetName(target), "Action annulée.\n" + validation.Message);
         if (action == ProcessActionKind.KillProcess && plan?.ConfirmationLevel != ConfirmationLevel.Reinforced)
-            return Refusal(action, TargetName(target), "Action annulee.\nConsentement insuffisant pour cette action.");
+            return Refusal(action, TargetName(target), "Action annulée.\nConsentement insuffisant pour cette action.");
         return null;
     }
 
     public ProcessActionResult Skip(ProcessActionKind action, string target)
     {
-        return Result(action, target, ProcessActionStatus.Skipped, "Action passee.");
+        return Result(action, target, ProcessActionStatus.Skipped, "Action passée.");
     }
 
     private async Task<ProcessActionResult> CloseGracefullyAsync(
@@ -117,7 +117,7 @@ public sealed class ProcessActionService : IProcessActionService
     {
         if (!target.CanCloseGracefully || !identity.HasMainWindow)
         {
-            return Failure(ProcessActionKind.CloseMainWindow, TargetName(target), "Fermeture propre non autorisee.");
+            return Failure(ProcessActionKind.CloseMainWindow, TargetName(target), "Fermeture propre non autorisée.");
         }
 
         if (!_runtime.CloseMainWindow(target.ProcessId))
@@ -127,7 +127,7 @@ public sealed class ProcessActionService : IProcessActionService
                 TargetName(target),
                 ProcessActionStatus.PartialFailure,
                 "Fermeture propre non confirmee.",
-                "La fermeture forcee reste separee et exige une nouvelle validation.");
+                "La fermeture forcee reste séparée et exige une nouvelle validation.");
         }
 
         var exited = await _runtime.WaitForExitAsync(
@@ -141,7 +141,7 @@ public sealed class ProcessActionService : IProcessActionService
                 TargetName(target),
                 ProcessActionStatus.PartialFailure,
                 "Fermeture propre non confirmee.",
-                "Aucune fermeture forcee automatique n'a ete lancee.");
+                "Aucune fermeture forcee automatique n'a été lancée.");
     }
 
     private async Task<ProcessActionResult> KillAsync(
@@ -194,7 +194,7 @@ public sealed class ProcessActionService : IProcessActionService
             IsAvailable = true,
             Status = InterventionStatus.Available,
             StateBefore = "Relance demandee depuis Ressources.",
-            Recommendation = "Relance Explorer apres validation explicite."
+            Recommendation = "Relance Explorer après validation explicite."
         };
         var result = await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
         var status = result.Status switch
@@ -216,7 +216,7 @@ public sealed class ProcessActionService : IProcessActionService
     {
         if (target.IsCriticalSystemProcess || !target.CanForceClose && !target.CanCloseGracefully)
         {
-            return IdentityValidation.Failed("Processus protege : action refusee.");
+            return IdentityValidation.Failed("Processus protégé : action refusée.");
         }
 
         var current = _runtime.ReadIdentity(target.ProcessId);
@@ -229,7 +229,7 @@ public sealed class ProcessActionService : IProcessActionService
             target.StartedAt is not null && current.StartedAt != target.StartedAt ||
             target.Path is not null && !string.Equals(current.Path, target.Path, StringComparison.OrdinalIgnoreCase))
         {
-            return IdentityValidation.Failed("Identite du processus modifiee depuis l'analyse.");
+            return IdentityValidation.Failed("Identité du processus modifiee depuis l'analyse.");
         }
 
         var observation = new ProcessObservation
@@ -246,7 +246,7 @@ public sealed class ProcessActionService : IProcessActionService
         };
         var protection = _protectionPolicy.Evaluate(observation, target.CpuPercent);
         return protection.IsCritical
-            ? IdentityValidation.Failed("Processus protege lors de la reverification.")
+            ? IdentityValidation.Failed("Processus protégé lors de la reverification.")
             : IdentityValidation.Success(current);
     }
 
@@ -257,7 +257,7 @@ public sealed class ProcessActionService : IProcessActionService
 
     private ProcessActionResult Failure(ProcessActionKind action, string target, string message)
     {
-        return Result(action, target, ProcessActionStatus.Failed, "Aucune action effectuee.", message);
+        return Result(action, target, ProcessActionStatus.Failed, "Aucune action effectuée.", message);
     }
 
     private ProcessActionResult Result(

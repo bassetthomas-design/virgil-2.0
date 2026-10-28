@@ -19,8 +19,8 @@ public partial class InterventionItemViewModel : ObservableObject
             diagnostic.Definition.Description,
             $"Risque : {InterventionsViewModel.RiskLabel(diagnostic.Definition.RiskLevel)}",
             $"Admin : {(diagnostic.Definition.RequiresAdministrator ? "oui" : "non")}",
-            $"Redemarrage possible : {(diagnostic.Definition.RebootPossible ? "oui" : "non")}",
-            $"Duree : {diagnostic.Definition.EstimatedDuration}",
+            $"Redémarrage possible : {(diagnostic.Definition.RebootPossible ? "oui" : "non")}",
+            $"Durée : {diagnostic.Definition.EstimatedDuration}",
             $"Statut : {InterventionsViewModel.StatusLabel(diagnostic.Status)}",
             $"Diagnostic : {diagnostic.StateBefore}"
         };

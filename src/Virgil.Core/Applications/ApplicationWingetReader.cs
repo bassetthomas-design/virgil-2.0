@@ -42,7 +42,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
         {
             return new ApplicationInventorySourceResult(
                 Array.Empty<InstalledApplication>(),
-                ["Source WinGet interrompue : delai depasse."]);
+                ["Source WinGet interrompue : delai dépasse."]);
         }
 
         var parse = Parse(result.StandardOutput);
@@ -77,7 +77,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
             var parts = ColumnSplitter.Split(line).Where(part => !string.IsNullOrWhiteSpace(part)).ToList();
             if (parts.Count < 3)
             {
-                errors.Add($"Ligne WinGet ignoree : {line}");
+                errors.Add($"Ligne WinGet ignorée : {line}");
                 continue;
             }
 
@@ -88,7 +88,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
 
             if (string.IsNullOrWhiteSpace(name) || !LooksLikeWingetId(id))
             {
-                errors.Add($"Ligne WinGet ambigue ignoree : {line}");
+                errors.Add($"Ligne WinGet ambigue ignorée : {line}");
                 continue;
             }
 

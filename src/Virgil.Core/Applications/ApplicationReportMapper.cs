@@ -9,13 +9,13 @@ public static class ApplicationReportMapper
     public static ReportEntry FromInventory(ApplicationInventoryReport report)
     {
         var simple = new StringBuilder()
-            .AppendLine($"Applications detectees : {report.Applications.Count}")
-            .AppendLine($"Desinstallables : {report.UninstallableCount}")
-            .AppendLine($"Protegees : {report.ProtectedCount}")
+            .AppendLine($"Applications détectées : {report.Applications.Count}")
+            .AppendLine($"Désinstallables : {report.UninstallableCount}")
+            .AppendLine($"Protégées : {report.ProtectedCount}")
             .AppendLine($"Inconnues : {report.UnknownCount}")
             .AppendLine($"Attention : {report.CautionCount}")
             .AppendLine("Aucune donnee personnelle supprimee automatiquement.")
-            .AppendLine("Aucune desinstallation executee depuis l'inventaire.")
+            .AppendLine("Aucune désinstallation exécutée depuis l'inventaire.")
             .ToString();
         var technical = string.Join("\n", report.Applications.Take(80).Select(app =>
             $"{app.DisplayName} | {app.Publisher} | {app.Version} | {app.Source} | {app.RiskLevel} | {app.UninstallKind}"));
@@ -25,8 +25,8 @@ public static class ApplicationReportMapper
             Date = report.CapturedAt,
             Kind = ReportKind.ApplicationManagement,
             Title = "Inventaire applications",
-            Summary = $"{report.Applications.Count} application(s), {report.UninstallableCount} desinstallable(s), {report.ProtectedCount} protegee(s).",
-            Status = report.Errors.Count == 0 ? "Termine" : "Termine avec avertissements",
+            Summary = $"{report.Applications.Count} application(s), {report.UninstallableCount} désinstallable(s), {report.ProtectedCount} protégée(s).",
+            Status = report.Errors.Count == 0 ? "Terminé" : "Terminé avec avertissements",
             Severity = report.Errors.Count == 0 ? ReportSeverity.Success : ReportSeverity.Warning,
             Module = "Applications",
             Duration = report.Duration,
@@ -43,13 +43,13 @@ public static class ApplicationReportMapper
         var simple = new StringBuilder()
             .AppendLine($"Application : {result.Application.DisplayName}")
             .AppendLine($"Methode : {result.Method}")
-            .AppendLine($"Resultat : {result.Result}")
+            .AppendLine($"Résultat : {result.Result}")
             .AppendLine($"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}")
             .AppendLine($"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}")
             .AppendLine($"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}")
-            .AppendLine($"Restes detectes : {remnants.Remnants.Count}")
+            .AppendLine($"Restes détectés : {remnants.Remnants.Count}")
             .AppendLine($"Restes techniques : {remnants.TechnicalCount}")
-            .AppendLine($"Restes personnels proteges : {remnants.UserDataCount + remnants.ProtectedCount}")
+            .AppendLine($"Restes personnels protégés : {remnants.UserDataCount + remnants.ProtectedCount}")
             .AppendLine("Aucune donnee personnelle supprimee automatiquement.")
             .ToString();
 
@@ -59,7 +59,7 @@ public static class ApplicationReportMapper
             Kind = ReportKind.ApplicationManagement,
             Title = "Rapport applications",
             Summary = $"{result.Application.DisplayName} : {result.Result}",
-            Status = result.WasCancelled ? "Annule" : result.WasLaunched ? "Desinstalleur lance" : "Non lance",
+            Status = result.WasCancelled ? "Annulé" : result.WasLaunched ? "Désinstalleur lancé" : "Non lancé",
             Severity = result.Errors.Count == 0 ? ReportSeverity.Info : ReportSeverity.Warning,
             Module = "Applications",
             SimpleView = simple,
@@ -72,7 +72,7 @@ public static class ApplicationReportMapper
                     Name = result.Application.DisplayName,
                     Status = ReportActionStatus.Proposed,
                     Risk = result.Application.RiskLevel.ToString(),
-                    Result = "Desinstallation officielle uniquement."
+                    Result = "Désinstallation officielle uniquement."
                 }
             ],
             ExecutedActions = result.WasLaunched

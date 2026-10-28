@@ -51,7 +51,7 @@ public sealed class CleanupViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(1, f.Confirmation.Calls);
         Assert.Equal(new[] { "Cancel:UserTemporaryFiles" }, f.Actions.Order);
-        Assert.Equal("Session annulee par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+        Assert.Equal("Session annulée par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class CleanupViewModelTests
     {
         var f = new Fixture();
         var vm = f.Vm;
-        Assert.Equal("Aucune analyse nettoyage lancee.", vm.StatusText);
+        Assert.Equal("Aucune analyse nettoyage lancée.", vm.StatusText);
         Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
         AssertIdle(vm);
         Assert.False(vm.IsLaunchCleanupEnabled);
@@ -81,7 +81,7 @@ public sealed class CleanupViewModelTests
         vm.CancelActiveOperation();
         Assert.Empty(f.Actions.Order);
         vm.ReviewManualCommand.Execute(null);
-        Assert.Equal("Aucun element personnel volumineux detecte dans les emplacements analyses.", f.Messages.Last());
+        Assert.Equal("Aucun élément personnel volumineux détecté dans les emplacements analyses.", f.Messages.Last());
         vm.ViewReportCommand.Execute(null);
         Assert.Equal("Aucun rapport nettoyage disponible.", f.Messages.Last());
         var home = 0;
@@ -104,7 +104,7 @@ public sealed class CleanupViewModelTests
         Assert.True(f.Vm.IsLaunchCleanupEnabled);
         Assert.True(f.Vm.IsAdvancedCleanupEnabled);
         Assert.False(f.Vm.IsReviewManualEnabled);
-        Assert.Equal("Previsualisation disponible. Validation par zone requise.", f.Vm.StatusText);
+        Assert.Equal("Prévisualisation disponible. Validation par zone requise.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
         Assert.Contains("5 zones analysées.", f.Messages.Last());
         Assert.Equal(9, f.Vm.Entries.Count);
@@ -112,7 +112,7 @@ public sealed class CleanupViewModelTests
         var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
         AssertSnapshot(safeFirst, card.Preview);
         Assert.Equal("USERTEMPORARYFILES", card.Title);
-        Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Categorie : nettoyable sur", "Action : guidee apres validation", "Examines : 3 fichiers", "Eligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Anciennete minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
+        Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Categorie : nettoyable sur", "Action : guidee après validation", "Examines : 3 fichiers", "Eligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Anciennete minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
         AssertSnapshot(safeLater, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Preview);
         Assert.Equal("NETTOYAGE AVANCE", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[3]).Text);
         AssertSnapshot(advanced, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[4]).Preview);
@@ -120,9 +120,9 @@ public sealed class CleanupViewModelTests
         Assert.Contains("Action : information seulement", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Lines);
         Assert.Equal(new[]
         {
-            "NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute reparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown.",
+            "NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown.",
             "À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
-            "PROTEGE\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, reseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."
+            "PROTÉGÉ\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."
         }, f.Vm.Entries.OfType<CleanupTextCardItem>().Select(c => c.Text));
         Assert.Empty(f.Actions.Order);
     }
@@ -136,7 +136,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(5, f.Vm.Entries.Count);
         Assert.Equal(2, f.Vm.Entries.OfType<CleanupSectionTitleItem>().Count());
         Assert.Equal(3, f.Vm.Entries.OfType<CleanupTextCardItem>().Count());
-        Assert.Equal("Analyse terminee.\nAucun nettoyage necessaire.", f.Messages.Last());
+        Assert.Equal("Analyse terminée.\nAucun nettoyage nécessaire.", f.Messages.Last());
         await f.Run();
         Assert.Equal("Aucune zone eligible.\nRelancez une analyse.", f.Messages.Last());
         Assert.False(f.Vm.IsLaunchCleanupEnabled);
@@ -160,10 +160,10 @@ public sealed class CleanupViewModelTests
         else Assert.True(f.Vm.TryCloseOverlay());
         await pending;
         AssertIdle(f.Vm);
-        Assert.Equal(error ? "Analyse nettoyage indisponible." : "Analyse annulee.", f.Vm.StatusText);
+        Assert.Equal(error ? "Analyse nettoyage indisponible." : "Analyse annulée.", f.Vm.StatusText);
         Assert.Equal(error ? VirgilCoreState.Error : VirgilCoreState.Idle, f.Vm.MiniCoreState);
-        Assert.Contains(error ? "Analyse nettoyage indisponible.\nAucune action effectuee." : "Nettoyage interrompu.\nLes zones restantes n'ont pas ete modifiees.", f.Messages);
-        if (!error) Assert.Contains("Annulation demandee.\nOperation en cours d'arret.", f.Messages);
+        Assert.Contains(error ? "Analyse nettoyage indisponible.\nAucune action effectuée." : "Nettoyage interrompu.\nLes zones restantes n'ont pas été modifiees.", f.Messages);
+        if (!error) Assert.Contains("Annulation demandee.\nOpération en cours d'arret.", f.Messages);
         Assert.False(f.Vm.IsLaunchCleanupEnabled);
         Assert.False(f.Vm.IsAdvancedCleanupEnabled);
         Assert.False(f.Vm.IsReviewManualEnabled);
@@ -201,7 +201,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(skip ? VirgilCoreState.Success : VirgilCoreState.Idle, f.Vm.MiniCoreState);
         Assert.Equal(skip ? VirgilCoreState.Success : VirgilCoreState.Warning, f.Vm.ReportCoreState);
         Assert.True(f.Vm.IsReportOpen);
-        Assert.Contains(skip ? "Zones passees : 1" : "Annulation : oui", f.Vm.ReportText);
+        Assert.Contains(skip ? "Zones passées : 1" : "Annulation : oui", f.Vm.ReportText);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         Assert.DoesNotContain(f.Actions.Order, action => action.StartsWith("Execute:"));
     }
@@ -226,9 +226,9 @@ public sealed class CleanupViewModelTests
         Assert.Equal(new[] { "Execute:UserTemporaryFiles", "Execute:TechnicalLogs" }, f.Actions.Order);
         Assert.All(f.Actions.Report!.Results, r => Assert.Equal(CleanupStepStatus.Completed, r.Status));
         Assert.Empty(f.Actions.Report.Errors);
-        Assert.Contains("Volume estime : 4 Ko", f.Vm.ReportText);
-        Assert.Contains("Zones executees : 2", f.Vm.ReportText);
-        Assert.Contains("Zones analysees : 4", f.Vm.ReportText);
+        Assert.Contains("Volume estimé : 4 Ko", f.Vm.ReportText);
+        Assert.Contains("Zones exécutées : 2", f.Vm.ReportText);
+        Assert.Contains("Zones analysées : 4", f.Vm.ReportText);
         Assert.Contains("Fichiers mis en quarantaine : 2", f.Vm.ReportText);
         Assert.Equal(1, f.Persisted);
     }
@@ -257,7 +257,7 @@ public sealed class CleanupViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Equal(new[] { advanced ? "Execute:BrowserChromeCache" : "Execute:UserTemporaryFiles" }, f.Actions.Order);
-        Assert.Contains("Volume estime : 2 Ko", f.Vm.ReportText);
+        Assert.Contains("Volume estimé : 2 Ko", f.Vm.ReportText);
     }
 
     [Theory]
@@ -326,8 +326,8 @@ public sealed class CleanupViewModelTests
         Assert.True(f.Vm.TryCloseOverlay());
         Assert.True(f.Actions.Token.IsCancellationRequested);
         await pending;
-        Assert.Contains("Annulation demandee.\nOperation en cours d'arret.", f.Messages);
-        Assert.Contains("Session annulee.", f.Actions.Report!.Errors);
+        Assert.Contains("Annulation demandee.\nOpération en cours d'arret.", f.Messages);
+        Assert.Contains("Session annulée.", f.Actions.Report!.Errors);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
         Assert.True(f.Vm.IsReportOpen);
@@ -347,7 +347,7 @@ public sealed class CleanupViewModelTests
         var pending = f.Run();
         f.Vm.SkipDecisionCommand.Execute(null);
         await pending;
-        Assert.Contains(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Messages);
+        Assert.Contains(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Messages);
         Assert.Equal(success ? 1 : 0, f.Persisted);
         Assert.True(f.Vm.IsReportOpen);
         Assert.True(f.Vm.IsReportButtonEnabled);
@@ -359,8 +359,8 @@ public sealed class CleanupViewModelTests
         var f = new Fixture();
         f.Previews.Items = new[]
         {
-            Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "Point de reanalyse ignore", "Chemin refuse A" } },
-            Preview(CleanupZoneId.RecycleBin, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "POINT DE REANALYSE ignore", "CHEMIN REFUSE A", "Chemin refuse B" } }
+            Preview(CleanupZoneId.WindowsOld, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "Point de reanalyse ignoré", "Chemin refusé A" } },
+            Preview(CleanupZoneId.RecycleBin, CleanupClassification.AdvancedCleanable) with { Errors = new[] { "POINT DE REANALYSE ignoré", "CHEMIN REFUSÉ A", "Chemin refusé B" } }
         };
         f.Actions.Errors = new[] { "Fichier verrouille" };
         f.Actions.ErrorFiles = 3;
@@ -372,13 +372,13 @@ public sealed class CleanupViewModelTests
         await pending;
         var saved = f.History.Saved!;
         Assert.Contains("Zones avancees refusees : 0", saved.SimpleView);
-        Assert.Contains("Espace estime : 2 Ko", saved.SimpleView);
+        Assert.Contains("Espace estimé : 2 Ko", saved.SimpleView);
         Assert.Contains("Fichiers ignores ou verrouilles : 3", saved.SimpleView);
-        Assert.Contains("Elements a revoir : 0", saved.SimpleView);
-        Assert.Contains("Elements proteges : 0", saved.SimpleView);
+        Assert.Contains("Éléments a revoir : 0", saved.SimpleView);
+        Assert.Contains("Éléments protégés : 0", saved.SimpleView);
         Assert.Contains("Points de reanalyse ignores : 2", saved.TechnicalDetails);
-        Assert.Contains("Chemins refuses : Chemin refuse A | Chemin refuse B", saved.TechnicalDetails);
-        Assert.Contains("Erreurs lisibles : Point de reanalyse ignore | Chemin refuse A", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Lines);
+        Assert.Contains("Chemins refuses : Chemin refusé A | Chemin refusé B", saved.TechnicalDetails);
+        Assert.Contains("Erreurs lisibles : Point de reanalyse ignoré | Chemin refusé A", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Lines);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
         Assert.Contains("Fichiers verrouilles : 3", f.Vm.ReportText);
@@ -435,28 +435,28 @@ public sealed class CleanupViewModelTests
     {
         var runner = new FakeRunner { Failure = failure };
         var messages = new List<string>();
-        var item = new CleanupStorageReviewItem("C:\\Donnees\\Mon fichier.iso", "Mon fichier.iso", "ISO", 2048, new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero), CleanupClassification.ReviewOnly, "A verifier");
+        var item = new CleanupStorageReviewItem("C:\\Données\\Mon fichier.iso", "Mon fichier.iso", "ISO", 2048, new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero), CleanupClassification.ReviewOnly, "à vérifier");
         var card = new CleanupReviewItemViewModel(item, runner, messages.Add);
         Assert.Equal("MON FICHIER.ISO", card.Title);
-        Assert.Equal(new[] { "ISO - 2 Ko - 2026-10-19", "a revoir manuellement - A verifier", "Emplacement : C:\\Donnees\\Mon fichier.iso" }, card.Lines);
+        Assert.Equal(new[] { "ISO - 2 Ko - 2026-10-19", "à revoir manuellement - à vérifier", "Emplacement : C:\\Données\\Mon fichier.iso" }, card.Lines);
         Assert.False(card.IsHidden);
         card.IgnoreCommand.Execute(null);
         Assert.True(card.IsHidden);
         Assert.Equal(0, runner.Calls);
         Assert.Empty(messages);
         card.MarkCommand.Execute(null);
-        Assert.Equal("Element marque a revoir : Mon fichier.iso.\nAucune suppression effectuee.", messages.Last());
+        Assert.Equal("Élément marque a revoir : Mon fichier.iso.\nAucune suppression effectuée.", messages.Last());
         Assert.Equal(0, runner.Calls);
         await card.OpenLocationCommand.ExecuteAsync(null);
         var request = runner.Request!;
         Assert.Equal("explorer.exe", request.FileName);
-        Assert.Equal("/select,\"C:\\Donnees\\Mon fichier.iso\"", request.RawArguments);
+        Assert.Equal("/select,\"C:\\Données\\Mon fichier.iso\"", request.RawArguments);
         Assert.Empty(request.Arguments);
         Assert.True(request.UseShellExecute);
         Assert.False(request.WaitForExit);
         Assert.False(runner.Token.CanBeCanceled);
         Assert.Equal(1, runner.Calls);
-        if (failure != 0) Assert.Equal("Emplacement indisponible. Aucune modification effectuee.", messages.Last());
+        if (failure != 0) Assert.Equal("Emplacement indisponible. Aucune modification effectuée.", messages.Last());
         else Assert.Single(messages);
     }
 
@@ -478,7 +478,7 @@ public sealed class CleanupViewModelTests
             Assert.Equal("ARCHIVE-04.BIN", cards[19].Title);
             Assert.True(f.Vm.IsReviewManualEnabled);
             f.Vm.ReviewManualCommand.Execute(null);
-            Assert.Equal("Elements volumineux detectes : 23.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.", f.Messages.Last());
+            Assert.Equal("Éléments volumineux détectés : 23.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.", f.Messages.Last());
             cards[0].IgnoreCommand.Execute(null);
             Assert.True(cards[0].IsHidden);
             Assert.Empty(f.Actions.Order);
@@ -486,9 +486,9 @@ public sealed class CleanupViewModelTests
             var pending = f.Run();
             f.Vm.SkipDecisionCommand.Execute(null);
             await pending;
-            Assert.Contains("Elements a revoir : 22 (253 o)", f.History.Saved!.SimpleView);
-            Assert.Contains("Elements proteges : 1", f.History.Saved.SimpleView);
-            Assert.Contains("Elements a revoir : 22 - 253 o", f.Vm.ReportText);
+            Assert.Contains("Éléments a revoir : 22 (253 o)", f.History.Saved!.SimpleView);
+            Assert.Contains("Éléments protégés : 1", f.History.Saved.SimpleView);
+            Assert.Contains("Éléments a revoir : 22 - 253 o", f.Vm.ReportText);
             Assert.False(f.Vm.Entries.OfType<CleanupReviewItemViewModel>().First().IsHidden);
             Assert.Equal(23, Directory.GetFiles(directory.FullName).Length);
         }
@@ -597,7 +597,7 @@ public sealed class CleanupViewModelTests
 
     private static CleanupZonePreview Preview(CleanupZoneId id = CleanupZoneId.UserTemporaryFiles,
         CleanupClassification classification = CleanupClassification.Cleanable, int order = 0, bool executable = true, int eligible = 2) =>
-        new(new CleanupZoneDefinition(id, id.ToString(), "Description", "Zone test", TimeSpan.FromDays(2), CleanupRiskLevel.Low, "Attention", "Effet", "Non touche", order)
+        new(new CleanupZoneDefinition(id, id.ToString(), "Description", "Zone test", TimeSpan.FromDays(2), CleanupRiskLevel.Low, "Attention", "Effet", "Non touché", order)
         { Classification = classification, IsExecutable = executable }, DateTimeOffset.Now, 3, eligible, 2048, 1, Array.Empty<CleanupCandidate>(), Array.Empty<string>());
 
     internal sealed class Fixture

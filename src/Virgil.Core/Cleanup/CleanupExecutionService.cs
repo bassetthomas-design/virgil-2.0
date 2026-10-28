@@ -135,7 +135,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
                 preview.EligibleFileCount,
                 0,
                 stopwatch.Elapsed,
-                new[] { "Zone en information seulement : aucune suppression executee." });
+                new[] { "Zone en information seulement : aucune suppression exécutée." });
         }
 
         if (_now() - preview.GeneratedAt > PreviewValidity)
@@ -149,7 +149,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         if (!validation.IsAccepted)
             return CancelZone(preview) with
             {
-                Errors = new[] { "Nettoyage annule.\n" + validation.Message },
+                Errors = new[] { "Nettoyage annulé.\n" + validation.Message },
                 RefusalReason = validation.Message
             };
 
@@ -233,7 +233,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
         Report(
             progress,
             preview.Definition.Id,
-            "Termine",
+            "Terminé",
             eligible.Count,
             eligible.Count,
             preview.Definition.DisplayName,
@@ -350,9 +350,9 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             preview.EligibleFileCount,
             0,
             duration,
-            new[] { "Previsualisation expiree. Relancer l'analyse." })
+            new[] { "Prévisualisation expiree. Relancer l'analyse." })
         {
-            RefusalReason = "Previsualisation expiree. Relancer l'analyse."
+            RefusalReason = "Prévisualisation expiree. Relancer l'analyse."
         };
     }
 

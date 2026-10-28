@@ -147,7 +147,7 @@ public sealed class ElevatedRequestValidator
 
         if (request.ProtocolVersion != 1)
         {
-            throw new InvalidOperationException("Version protocole refusee.");
+            throw new InvalidOperationException("Version protocole refusée.");
         }
 
         if (!NoncePattern.IsMatch(request.Nonce))
@@ -163,7 +163,7 @@ public sealed class ElevatedRequestValidator
 
         if (request.CreatedAt > now + MaximumFutureSkew)
         {
-            throw new InvalidOperationException("Date future de la requete refusee.");
+            throw new InvalidOperationException("Date future de la requete refusée.");
         }
 
         var expectedRequestPath = Path.Combine(
@@ -179,7 +179,7 @@ public sealed class ElevatedRequestValidator
             $"intervention-{request.Nonce}.result.json");
         if (!string.Equals(expectedResultPath, Path.GetFullPath(request.ResultPath), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Nom de resultat non associe au nonce.");
+            throw new InvalidOperationException("Nom de résultat non associe au nonce.");
         }
 
         _pathGuard.ValidateFilePath(localAppData, request.ResultPath, ElevatedPathExistence.Optional);

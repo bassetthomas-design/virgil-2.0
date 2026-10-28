@@ -83,7 +83,7 @@ public sealed class ApplicationsUninstallSafetyTests
         var result = validator.Validate(application);
 
         Assert.Equal(ApplicationCommandValidationStatus.Blocked, result.Status);
-        Assert.Contains("protegee", result.Reason);
+        Assert.Contains("protégée", result.Reason);
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public sealed class ApplicationsUninstallSafetyTests
         Assert.False(protectedApp.WasLaunched);
         Assert.Equal(0, launcher.Calls);
         Assert.Contains("Store", store.Result);
-        Assert.Contains("protegee", protectedApp.Result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("protégée", protectedApp.Result, StringComparison.OrdinalIgnoreCase);
     }
 
     private Task<ApplicationUninstallResult> LaunchWithPlanAsync(

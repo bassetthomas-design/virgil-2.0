@@ -68,7 +68,7 @@ public partial class InterventionsViewModel : ObservableObject
     [ObservableProperty] private string criticalConfirmationPrompt = string.Empty;
     [RelayCommand] private void CancelOperation() => CancelActiveOperation();
 
-    [ObservableProperty] private string statusText = "DIAGNOSTIC, VALIDATION ET EXECUTION";
+    [ObservableProperty] private string statusText = "DIAGNOSTIC, VALIDATION ET EXÉCUTION";
     [ObservableProperty] private string overallText = "NON ANALYSÉ";
     [ObservableProperty] private string recommendedCountText = "0";
     [ObservableProperty] private string systemNotice = string.Empty;
@@ -253,7 +253,7 @@ public partial class InterventionsViewModel : ObservableObject
             _diagnostics.Clear();
             _diagnostics.AddRange(diagnostics);
             RenderDiagnostics();
-            RequestVirgilState(VirgilCoreState.Success, "PRET");
+            RequestVirgilState(VirgilCoreState.Success, "PRÊT");
             AnnounceDiagnostics();
         }
         catch (OperationCanceledException)
@@ -279,14 +279,14 @@ public partial class InterventionsViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return;
         }
 
         var candidates = GuidedCandidates().ToList();
         if (candidates.Count == 0)
         {
-            VirgilMessageRequested?.Invoke("Aucune intervention selectionnee.");
+            VirgilMessageRequested?.Invoke("Aucune intervention sélectionnée.");
             return;
         }
 
@@ -325,7 +325,7 @@ public partial class InterventionsViewModel : ObservableObject
                 if (decision == InterventionDecision.CancelAll)
                 {
                     results.Add(_executionService.Cancel(diagnostic));
-                    errors.Add("Parcours annule par l'utilisateur.");
+                    errors.Add("Parcours annulé par l'utilisateur.");
                     break;
                 }
 
@@ -336,7 +336,7 @@ public partial class InterventionsViewModel : ObservableObject
                     continue;
                 }
 
-                RequestVirgilState(VirgilCoreState.Executing, "EXECUTION");
+                RequestVirgilState(VirgilCoreState.Executing, "EXÉCUTION");
                 SetButtonsEnabled(false);
 
                 var result = await _executionService
@@ -371,7 +371,7 @@ public partial class InterventionsViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            errors.Add("Parcours annule.");
+            errors.Add("Parcours annulé.");
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
         }
         catch
@@ -397,7 +397,7 @@ public partial class InterventionsViewModel : ObservableObject
         var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
-            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conservé en mémoire.");
         }
 
         if (result.Success)
@@ -410,7 +410,7 @@ public partial class InterventionsViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return false;
         }
 
@@ -468,10 +468,10 @@ public partial class InterventionsViewModel : ObservableObject
             definition.Title,
             definition.Description,
             $"Effet attendu : {definition.ExpectedEffect}",
-            $"Non touche : {definition.NotTouched}",
+            $"Non touché : {definition.NotTouched}",
             $"Risque : {RiskLabel(definition.RiskLevel)}",
             $"Admin : {(definition.RequiresAdministrator ? "oui" : "non")}",
-            $"Redemarrage possible : {(definition.RebootPossible ? "oui" : "non")}",
+            $"Redémarrage possible : {(definition.RebootPossible ? "oui" : "non")}",
             $"Diagnostic : {diagnostic.StateBefore}",
             $"Recommandation : {diagnostic.Recommendation}"
         });
@@ -479,9 +479,9 @@ public partial class InterventionsViewModel : ObservableObject
         ValidationSafety = "Certaines étapes ne peuvent pas être interrompues une fois lancées.\n" + string.Join("\n", diagnostic.Warnings
             .Concat(new[]
             {
-                "Validation separee obligatoire.",
+                "Validation séparée obligatoire.",
                 "Aucune commande libre.",
-                "Aucun redemarrage automatique.",
+                "Aucun redémarrage automatique.",
                 "Aucun Take Ownership dans cette PR."
             }));
         ExecuteActionLabel = definition.RiskLevel == InterventionRiskLevel.Sensitive
@@ -521,8 +521,8 @@ public partial class InterventionsViewModel : ObservableObject
 
         if (_diagnostics.Count == 0)
         {
-            SystemNotice = "Lancez une analyse pour afficher les actions systeme.";
-            NetworkNotice = "Lancez une analyse pour afficher les actions reseau.";
+            SystemNotice = "Lancez une analyse pour afficher les actions système.";
+            NetworkNotice = "Lancez une analyse pour afficher les actions réseau.";
             StorageNotice = "Lancez une analyse pour afficher les actions stockage.";
             InterfaceNotice = "Lancez une analyse pour afficher les actions interface.";
             OverallText = "NON ANALYSÉ";
@@ -541,7 +541,7 @@ public partial class InterventionsViewModel : ObservableObject
 
         var available = _diagnostics.Count(diagnostic => diagnostic.IsAvailable);
         var recommended = _diagnostics.Count(diagnostic => diagnostic.Status == InterventionStatus.Recommended);
-        OverallText = $"{available} disponibles. Aucune execution automatique.";
+        OverallText = $"{available} disponibles. Aucune exécution automatique.";
         RecommendedCountText = recommended.ToString();
         UpdateCommandState();
     }
@@ -579,14 +579,14 @@ public partial class InterventionsViewModel : ObservableObject
     {
         var available = _diagnostics.Count(diagnostic => diagnostic.IsAvailable);
         var recommended = _diagnostics.Count(diagnostic => diagnostic.Status == InterventionStatus.Recommended);
-        VirgilMessageRequested?.Invoke($"Diagnostic termine.\n{available} actions disponibles.\n{recommended} recommandees.");
+        VirgilMessageRequested?.Invoke($"Diagnostic terminé.\n{available} actions disponibles.\n{recommended} recommandées.");
     }
 
     private void CompleteSessionState(InterventionSessionReport report)
     {
         if (report.CancelledActions > 0)
         {
-            StatusText = "Parcours annule.";
+            StatusText = "Parcours annulé.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
             return;
         }
@@ -599,8 +599,8 @@ public partial class InterventionsViewModel : ObservableObject
             return;
         }
 
-        StatusText = "Parcours termine.";
-        RequestVirgilState(VirgilCoreState.Success, "TERMINE");
+        StatusText = "Parcours terminé.";
+        RequestVirgilState(VirgilCoreState.Success, "TERMINÉ");
     }
 
     private void ShowReport()
@@ -631,10 +631,10 @@ public partial class InterventionsViewModel : ObservableObject
     {
         return result.Status switch
         {
-            InterventionStatus.Completed => "Intervention terminee.\nRapport mis a jour.",
-            InterventionStatus.RebootRequired => "Intervention terminee.\nRedemarrage manuel probablement requis.",
+            InterventionStatus.Completed => "Intervention terminée.\nRapport mis à jour.",
+            InterventionStatus.RebootRequired => "Intervention terminée.\nRedémarrage manuel probablement requis.",
             InterventionStatus.PartialFailure => "Intervention partielle.\nRapport disponible.",
-            InterventionStatus.Failed => "Intervention en echec.\nRapport disponible.",
+            InterventionStatus.Failed => "Intervention en échec.\nRapport disponible.",
             _ => "Intervention traitee.\nRapport disponible."
         };
     }
@@ -679,14 +679,14 @@ public partial class InterventionsViewModel : ObservableObject
         return status switch
         {
             InterventionStatus.Available => "disponible",
-            InterventionStatus.Recommended => "recommande",
+            InterventionStatus.Recommended => "recommandé",
             InterventionStatus.Unavailable => "indisponible",
-            InterventionStatus.Completed => "terminee",
+            InterventionStatus.Completed => "terminée",
             InterventionStatus.PartialFailure => "partielle",
-            InterventionStatus.Failed => "echec",
-            InterventionStatus.Skipped => "passee",
-            InterventionStatus.Cancelled => "annulee",
-            InterventionStatus.RebootRequired => "redemarrage requis",
+            InterventionStatus.Failed => "échec",
+            InterventionStatus.Skipped => "passée",
+            InterventionStatus.Cancelled => "annulée",
+            InterventionStatus.RebootRequired => "redémarrage requis",
             _ => status.ToString()
         };
     }

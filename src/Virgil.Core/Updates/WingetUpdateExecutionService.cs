@@ -36,15 +36,15 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.InformationOnly, startedAt, stopwatch.Elapsed,
-                "Information uniquement. Aucune installation effectuee.",
-                "Execution bloquee par garde-fou.");
+                "Information uniquement. Aucune installation effectuée.",
+                "Exécution bloquée par garde-fou.");
         }
 
         if (string.IsNullOrWhiteSpace(item.Id))
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-                "Mise a jour ignoree : identifiant manquant.",
+                "Mise à jour ignorée : identifiant manquant.",
                 "Aucun --id exact disponible.");
         }
 
@@ -53,7 +53,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-                "Mise a jour bloquee : version confirmee manquante ou invalide. Aucune installation effectuee.",
+                "Mise à jour bloquée : version confirmee manquante ou invalide. Aucune installation effectuée.",
                 "Aucun --version exact disponible.");
         }
 
@@ -62,7 +62,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-                "WinGet indisponible. Aucune action effectuee.",
+                "WinGet indisponible. Aucune action effectuée.",
                 winget.Message);
         }
 
@@ -71,7 +71,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.Cancelled, startedAt, stopwatch.Elapsed,
-                "Installation annulee.\n" + validation.Message, validation.Message);
+                "Installation annulée.\n" + validation.Message, validation.Message);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -89,21 +89,21 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         if (result.Cancelled)
         {
             return BuildResult(item, UpdateItemStatus.Cancelled, startedAt, stopwatch.Elapsed,
-                "Installation annulee. Aucune autre mise a jour lancee.",
-                "Execution WinGet annulee.");
+                "Installation annulée. Aucune autre mise à jour lancée.",
+                "Exécution WinGet annulée.");
         }
 
         if (result.TimedOut)
         {
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
                 "Installation interrompue par timeout.",
-                "Execution WinGet depassee.");
+                "Exécution WinGet depassee.");
         }
 
         if (!string.IsNullOrWhiteSpace(result.LaunchError))
         {
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-                "WinGet n'a pas pu etre lance.",
+                "WinGet n'a pas pu être lancé.",
                 result.LaunchError);
         }
 
@@ -115,21 +115,21 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         }
 
         return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-            $"Mise a jour non terminee : {item.Name}.",
+            $"Mise à jour non terminée : {item.Name}.",
             CompactTechnicalOutput(result));
     }
 
     public UpdateExecutionResult Skip(UpdateItem item)
     {
         return BuildResult(item, UpdateItemStatus.Skipped, DateTimeOffset.Now, TimeSpan.Zero,
-            $"Mise a jour passee : {item.Name}.",
+            $"Mise à jour passée : {item.Name}.",
             "Choix utilisateur.");
     }
 
     public UpdateExecutionResult Cancel(UpdateItem item)
     {
         return BuildResult(item, UpdateItemStatus.Cancelled, DateTimeOffset.Now, TimeSpan.Zero,
-            "Sequence annulee par l'utilisateur.",
+            "Séquence annulée par l'utilisateur.",
             "Annulation utilisateur.");
     }
 

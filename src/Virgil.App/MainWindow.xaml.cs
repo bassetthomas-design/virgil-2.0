@@ -98,10 +98,10 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(InterventionsModuleView, "Module interventions ciblées");
         ModuleHostGrid.Children.Add(InterventionsModuleView);
         ResourcesModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(ResourcesModuleView, "Module ressources systeme");
+        AutomationProperties.SetName(ResourcesModuleView, "Module ressources système");
         ModuleHostGrid.Children.Add(ResourcesModuleView);
         ApplicationsModuleView.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(ApplicationsModuleView, "Module applications et desinstallateur");
+        AutomationProperties.SetName(ApplicationsModuleView, "Module applications et désinstallateur");
         ModuleHostGrid.Children.Add(ApplicationsModuleView);
         ReportsModuleView.Visibility = Visibility.Collapsed;
         AutomationProperties.SetName(ReportsModuleView, "Module rapports et historique local");
@@ -415,7 +415,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "RESSOURCES";
         SetVirgilState(VirgilCoreState.Idle, "RESSOURCES");
-        AppendVirgilMessage("Module ressources pret.\nAnalyse CPU/RAM en lecture seule.\nAucune fermeture automatique.");
+        AppendVirgilMessage("Module ressources prêt.\nAnalyse CPU/RAM en lecture seule.\nAucune fermeture automatique.");
         ResourcesModuleView.FocusAnalyzeButton();
     }
 
@@ -440,7 +440,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = null;
         StatusText.Text = "APPLICATIONS";
         SetVirgilState(VirgilCoreState.Idle, "APPLICATIONS");
-        AppendVirgilMessage("Module applications pret.\nDesinstallation individuelle uniquement.\nAucune suppression de donnees personnelles.");
+        AppendVirgilMessage("Module applications prêt.\nDésinstallation individuelle uniquement.\nAucune suppression de données personnelles.");
         ApplicationsModuleView.FocusAnalyzeButton();
     }
 
@@ -465,7 +465,7 @@ public partial class MainWindow : Window
         ReportsNavButton.Tag = "Active";
         StatusText.Text = "RAPPORTS";
         SetVirgilState(VirgilCoreState.Idle, "RAPPORTS");
-        AppendVirgilMessage("Historique local pret.\nAucun envoi en ligne.\nExport manuel uniquement.");
+        AppendVirgilMessage("Historique local prêt.\nAucun envoi en ligne.\nExport manuel uniquement.");
         ReportsModuleView.FocusPrimaryButton();
         if (refresh)
         {
@@ -571,7 +571,7 @@ public partial class MainWindow : Window
 
         if (_lastReport is null)
         {
-            AppendVirgilMessage("Aucun rapport disponible.\nLancez une analyse systeme.");
+            AppendVirgilMessage("Aucun rapport disponible.\nLancez une analyse système.");
             return;
         }
 
@@ -583,7 +583,7 @@ public partial class MainWindow : Window
     {
         if (_scanInProgress)
         {
-            AppendVirgilMessage("Analyse deja en cours.");
+            AppendVirgilMessage("Analyse déjà en cours.");
             return;
         }
 
@@ -645,9 +645,9 @@ public partial class MainWindow : Window
         catch
         {
             StatusText.Text = "ERREUR";
-            GlobalStatusText.Text = "ECHEC DU SCAN";
+            GlobalStatusText.Text = "ÉCHEC DU SCAN";
             SetVirgilState(VirgilCoreState.Error, "ERREUR");
-            AppendVirgilMessage("Analyse indisponible.\nAucune modification effectuee.");
+            AppendVirgilMessage("Analyse indisponible.\nAucune modification effectuée.");
         }
         finally
         {
@@ -659,7 +659,7 @@ public partial class MainWindow : Window
     {
         if (_scanInProgress)
         {
-            AppendVirgilMessage("Analyse deja en cours.");
+            AppendVirgilMessage("Analyse déjà en cours.");
             return false;
         }
 
@@ -680,8 +680,8 @@ public partial class MainWindow : Window
         ReportRecommendationsText.Text = "ANALYSE EN COURS";
         ReportErrorsText.Text = "AUCUNE";
 
-        AppendVirgilMessage($"Protocole d'analyse initialise.\nMode : {ModeLabel(mode).ToLowerInvariant()}.");
-        AppendVirgilMessage("Analyse systeme en cours.");
+        AppendVirgilMessage($"Protocole d'analyse initialisé.\nMode : {ModeLabel(mode).ToLowerInvariant()}.");
+        AppendVirgilMessage("Analyse système en cours.");
         return true;
     }
 
@@ -720,14 +720,14 @@ public partial class MainWindow : Window
             ? $"{report.Resources.AverageCpuPercent:0.0} % moyenne courte"
             : $"{report.Processor.UsagePercent:0.0} % - {report.Processor.Status}";
         ReportRamText.Text = report.Memory.TotalPhysicalBytes == 0
-            ? "N/A - lecture memoire indisponible"
-            : $"{report.Memory.UsedPercent:0.0} % utilises";
+            ? "N/A - lecture mémoire indisponible"
+            : $"{report.Memory.UsedPercent:0.0} % utilisés";
         ReportDiskText.Text = systemDisk is null
             ? "N/A - aucun disque fixe accessible"
-            : $"{systemDisk.Name} : {systemDisk.UsedPercent:0.0} % utilises";
+            : $"{systemDisk.Name} : {systemDisk.UsedPercent:0.0} % utilisés";
         ReportCleanupText.Text = report.Cleanup.WasAnalyzed
             ? $"Sans risque : {FormatBytes(report.Cleanup.SafePotentialBytes)} · À vérifier : {FormatBytes(report.Cleanup.AdvancedPotentialBytes)} · {report.Cleanup.ReviewItemCount} éléments à revoir."
-            : "Non analyse pour scan rapide.";
+            : "Non analysé pour scan rapide.";
         ReportRecommendationsText.Text = report.Recommendations.Count == 0
             ? "Aucune recommandation prioritaire."
             : string.Join("\n", report.Recommendations.Take(3));
@@ -774,7 +774,7 @@ public partial class MainWindow : Window
 
         if (IsStable(report))
         {
-            StatusText.Text = "SCAN TERMINE";
+            StatusText.Text = "SCAN TERMINÉ";
             SetVirgilState(VirgilCoreState.Success, "SUCCES");
         }
         else
@@ -791,7 +791,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        AppendVirgilMessage($"Scan rapide termine.\nEtat systeme : {report.OverallStatus.ToLowerInvariant()}.\nPriorites detectees : {priorityCount}.");
+        AppendVirgilMessage($"Scan rapide terminé.\nÉtat système : {report.OverallStatus.ToLowerInvariant()}.\nPriorités détectées : {priorityCount}.");
     }
 
     private void ShowLastReport(SystemScanReport report)
@@ -803,15 +803,15 @@ public partial class MainWindow : Window
         {
             $"Mode : {ModeLabel(report.Mode)}",
             $"Date : {report.CapturedAt:yyyy-MM-dd HH:mm:ss}",
-            $"Duree : {report.Duration.TotalSeconds:0.0} s",
-            $"Etat general : {report.OverallStatus}",
+            $"Durée : {report.Duration.TotalSeconds:0.0} s",
+            $"État général : {report.OverallStatus}",
             $"Windows : {report.Windows.Edition} - {report.Windows.Version} - build {report.Windows.Build}",
-            $"Architecture : systeme {report.Windows.SystemArchitecture}, processus {report.Windows.ProcessArchitecture}",
+            $"Architecture : système {report.Windows.SystemArchitecture}, processus {report.Windows.ProcessArchitecture}",
             $"Machine : {report.Windows.MachineName}",
             $"Uptime : {FormatDuration(report.Windows.Uptime)}",
             $"CPU : {report.Processor.Name} - {report.Processor.LogicalProcessorCount} logiques - {report.Processor.UsagePercent:0.0} % ({report.Processor.Status})",
-            $"Memoire : {FormatBytes(report.Memory.UsedPhysicalBytes)} / {FormatBytes(report.Memory.TotalPhysicalBytes)} ({report.Memory.UsedPercent:0.0} %)",
-            $"Disque systeme : {FormatDisk(systemDisk)}",
+            $"Mémoire : {FormatBytes(report.Memory.UsedPhysicalBytes)} / {FormatBytes(report.Memory.TotalPhysicalBytes)} ({report.Memory.UsedPercent:0.0} %)",
+            $"Disque système : {FormatDisk(systemDisk)}",
             $"Réseau : {FormatNetwork(report.Network)}",
             $"Nettoyage potentiel : {FormatCleanup(report.Cleanup)}",
             $"Ressources système : {FormatResources(report.Resources)}",
@@ -1010,8 +1010,8 @@ public partial class MainWindow : Window
     {
         PriorityValueText.Text = priorityCount.ToString();
         PriorityDetailText.Text = priorityCount == 0
-            ? "AUCUNE PRIORITE"
-            : priorityCount == 1 ? "1 POINT A VERIFIER" : $"{priorityCount} POINTS A VERIFIER";
+            ? "AUCUNE PRIORITÉ"
+            : priorityCount == 1 ? "1 POINT À VÉRIFIER" : $"{priorityCount} POINTS À VÉRIFIER";
     }
 
     private void AppendVirgilMessage(string message)
@@ -1050,7 +1050,7 @@ public partial class MainWindow : Window
         {
             _hasPersistentReport = true;
             LastReportButton.IsEnabled = !_scanInProgress;
-            AppendVirgilMessage("Rapport genere et conserve localement.\nAucun envoi en ligne.");
+            AppendVirgilMessage("Rapport généré et conservé localement.\nAucun envoi en ligne.");
             if (!string.IsNullOrWhiteSpace(result.ReadableError))
             {
                 AppendVirgilMessage(result.ReadableError);
@@ -1059,7 +1059,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        AppendVirgilMessage(result.ReadableError ?? "Historique local indisponible.\nRapport conserve en memoire.");
+        AppendVirgilMessage(result.ReadableError ?? "Historique local indisponible.\nRapport conservé en mémoire.");
     }
 
     private async Task RefreshPersistentReportStateAsync()
@@ -1129,20 +1129,20 @@ public partial class MainWindow : Window
     {
         return cleanup.WasAnalyzed
             ? $"sur {FormatBytes(cleanup.SafePotentialBytes)}, avance {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} a revoir ({FormatBytes(cleanup.ReviewItemBytes)}), protection personnelle active, aucune action, zones : {FormatZones(cleanup.Zones)}"
-            : "Non analyse";
+            : "Non analysé";
     }
 
     private static string FormatUpdates(UpdateScanSummary updates)
     {
         if (!updates.WasAnalyzed)
         {
-            return "Non analyse";
+            return "Non analysé";
         }
 
         return string.Join(", ", new[]
         {
             updates.Status,
-            updates.WingetAvailable ? "WinGet disponible" : "WinGet non detecte",
+            updates.WingetAvailable ? "WinGet disponible" : "WinGet non détecté",
             $"{updates.ApplicationUpdates} applicatives",
             $"{updates.SensitiveUpdates} sensibles",
             $"{updates.DriverCount} pilotes inventories"
@@ -1153,7 +1153,7 @@ public partial class MainWindow : Window
     {
         if (!resources.WasAnalyzed)
         {
-            return "Non analyse";
+            return "Non analysé";
         }
 
         var topMemory = resources.TopMemoryProcesses.Count == 0
@@ -1161,24 +1161,24 @@ public partial class MainWindow : Window
             : string.Join(", ", resources.TopMemoryProcesses);
         return $"CPU moyen {resources.AverageCpuPercent:0.0} %, RAM {resources.MemoryPercent:0.0} %, " +
             $"{resources.HeavyProcessCount} lourds, session {FormatDuration(resources.Uptime)}, " +
-            $"principaux RAM : {topMemory}, aucune action executee";
+            $"principaux RAM : {topMemory}, aucune action exécutée";
     }
 
     private static string FormatInterventions(InterventionScanSummary interventions)
     {
         if (!interventions.WasAnalyzed)
         {
-            return "Non analyse";
+            return "Non analysé";
         }
 
         return string.Join(", ", new[]
         {
             $"{interventions.AvailableActions} disponibles",
-            $"{interventions.RecommendedActions} recommandees",
+            $"{interventions.RecommendedActions} recommandées",
             interventions.RebootPotentiallyRequired
-                ? "redemarrage manuel possible"
-                : "pas de redemarrage attendu",
-            "aucune execution depuis le scan"
+                ? "redémarrage manuel possible"
+                : "pas de redémarrage attendu",
+            "aucune exécution depuis le scan"
         });
     }
 
@@ -1186,14 +1186,14 @@ public partial class MainWindow : Window
     {
         if (!applications.WasAnalyzed)
         {
-            return "Non analyse";
+            return "Non analysé";
         }
 
         return string.Join(", ", new[]
         {
-            $"{applications.DetectedCount} detectees",
-            $"{applications.UninstallableCount} desinstallables",
-            $"{applications.ProtectedCount} protegees",
+            $"{applications.DetectedCount} détectées",
+            $"{applications.UninstallableCount} désinstallables",
+            $"{applications.ProtectedCount} protégées",
             $"{applications.UnknownCount} inconnues",
             $"{applications.LargeApplicationCount} volumineuses"
         });

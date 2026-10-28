@@ -181,9 +181,9 @@ public partial class ReportsHistoryViewModel : ObservableObject
         SimpleDetails = string.Join("\n", new[]
         {
             $"Date : {report.Date:yyyy-MM-dd HH:mm:ss}",
-            $"Etat : {report.Status}",
+            $"État : {report.Status}",
             $"Resume : {report.Summary}",
-            $"Redemarrage requis : {(report.RestartRequired ? "oui" : "non")}",
+            $"Redémarrage requis : {(report.RestartRequired ? "oui" : "non")}",
             string.IsNullOrWhiteSpace(report.SimpleView) ? report.Summary : report.SimpleView
         });
         ProposedActions = FormatActions(report.ProposedActions);
@@ -214,7 +214,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             $"Virgil-Rapport-{report.Date:yyyyMMdd-HHmmss}.txt");
         if (path is null)
         {
-            VirgilMessageRequested?.Invoke("Export annule.\nAucun fichier cree.");
+            VirgilMessageRequested?.Invoke("Export annulé.\nAucun fichier cree.");
             return;
         }
 

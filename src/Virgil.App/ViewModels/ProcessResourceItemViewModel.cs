@@ -34,9 +34,9 @@ public sealed class ProcessResourceItemViewModel
         return status switch
         {
             ProcessResourceStatus.Heavy => "LOURD",
-            ProcessResourceStatus.Review => "A VERIFIER",
-            ProcessResourceStatus.Protected => "PROTEGE",
-            ProcessResourceStatus.System => "SYSTEME PROTEGE",
+            ProcessResourceStatus.Review => "À VÉRIFIER",
+            ProcessResourceStatus.Protected => "PROTÉGÉ",
+            ProcessResourceStatus.System => "SYSTÈME PROTÉGÉ",
             _ => "NORMAL"
         };
     }

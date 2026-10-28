@@ -66,28 +66,28 @@ public sealed class ProcessProtectionPolicy
     {
         if (process.ProcessId <= 4 || process.ProcessId == _currentProcessId || CriticalNames.Contains(process.Name))
         {
-            return Protected(ProcessResourceStatus.System, "Processus systeme critique protege.");
+            return Protected(ProcessResourceStatus.System, "Processus système critique protégé.");
         }
 
         var searchable = $"{process.Name} {process.Path} {process.Publisher}";
         if (ProtectedKeywords.Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
         {
-            return Protected(ProcessResourceStatus.Protected, "Processus securite, VPN ou materiel protege.");
+            return Protected(ProcessResourceStatus.Protected, "Processus sécurité, VPN ou materiel protégé.");
         }
 
         if (IsUnderWindows(process.Path))
         {
-            return Protected(ProcessResourceStatus.System, "Processus installe dans Windows protege.");
+            return Protected(ProcessResourceStatus.System, "Processus installe dans Windows protégé.");
         }
 
         if (process.AccessDenied || string.IsNullOrWhiteSpace(process.Path) || process.StartedAt is null)
         {
-            return Protected(ProcessResourceStatus.Protected, "Identite insuffisante : fermeture non proposee.");
+            return Protected(ProcessResourceStatus.Protected, "Identité insuffisante : fermeture non proposée.");
         }
 
         if (!process.HasMainWindow || string.IsNullOrWhiteSpace(process.MainWindowTitle))
         {
-            return Protected(ProcessResourceStatus.Review, "Processus sans fenetre principale : a verifier.");
+            return Protected(ProcessResourceStatus.Review, "Processus sans fenetre principale : à vérifier.");
         }
 
         var isHeavy = process.WorkingSetBytes >= 512L * 1024 * 1024 || cpuPercent >= 20;

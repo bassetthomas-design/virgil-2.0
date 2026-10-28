@@ -9,14 +9,14 @@ public sealed class InterventionReportBuilder
     {
         var builder = new StringBuilder();
         builder.AppendLine($"Date : {report.StartedAt:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Duree : {report.Duration.TotalSeconds:0.0} s");
-        builder.AppendLine($"Actions proposees : {report.ProposedActions.Count}");
-        builder.AppendLine($"Actions executees : {report.ExecutedActions}");
-        builder.AppendLine($"Actions passees : {report.SkippedActions}");
+        builder.AppendLine($"Durée : {report.Duration.TotalSeconds:0.0} s");
+        builder.AppendLine($"Actions proposées : {report.ProposedActions.Count}");
+        builder.AppendLine($"Actions exécutées : {report.ExecutedActions}");
+        builder.AppendLine($"Actions passées : {report.SkippedActions}");
         builder.AppendLine($"Actions annulees : {report.CancelledActions}");
         builder.AppendLine($"Reussites : {report.Successes}");
-        builder.AppendLine($"Echecs : {report.Failures}");
-        builder.AppendLine($"Redemarrage requis : {(report.RebootRequired ? "oui" : "non")}");
+        builder.AppendLine($"Échecs : {report.Failures}");
+        builder.AppendLine($"Redémarrage requis : {(report.RebootRequired ? "oui" : "non")}");
         builder.AppendLine();
 
         foreach (var result in report.Results)
@@ -26,12 +26,12 @@ public sealed class InterventionReportBuilder
             builder.AppendLine($"  Admin : {(result.WasElevated ? "oui" : "non")}");
             builder.AppendLine($"  Code sortie : {result.ExitCode}");
             builder.AppendLine($"  Avant : {result.StateBefore}");
-            builder.AppendLine($"  Apres : {result.StateAfter}");
-            builder.AppendLine($"  Redemarrage : {(result.RebootRequired ? "oui" : "non")}");
+            builder.AppendLine($"  Après : {result.StateAfter}");
+            builder.AppendLine($"  Redémarrage : {(result.RebootRequired ? "oui" : "non")}");
 
             if (!string.IsNullOrWhiteSpace(result.SummaryOutput))
             {
-                builder.AppendLine($"  Synthese : {result.SummaryOutput}");
+                builder.AppendLine($"  Synthèse : {result.SummaryOutput}");
             }
 
             if (!string.IsNullOrWhiteSpace(result.ReadableError))
@@ -57,12 +57,12 @@ public sealed class InterventionReportBuilder
     {
         return status switch
         {
-            InterventionStatus.Completed => "terminee",
+            InterventionStatus.Completed => "terminée",
             InterventionStatus.PartialFailure => "partielle",
-            InterventionStatus.Failed => "echec",
-            InterventionStatus.Skipped => "passee",
-            InterventionStatus.Cancelled => "annulee",
-            InterventionStatus.RebootRequired => "terminee, redemarrage requis",
+            InterventionStatus.Failed => "échec",
+            InterventionStatus.Skipped => "passée",
+            InterventionStatus.Cancelled => "annulée",
+            InterventionStatus.RebootRequired => "terminée, redémarrage requis",
             InterventionStatus.Unavailable => "indisponible",
             _ => status.ToString()
         };

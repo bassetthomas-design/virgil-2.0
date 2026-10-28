@@ -65,9 +65,9 @@ public partial class ResourcesViewModel : ObservableObject
     [ObservableProperty] private string cpuSummaryText = "NON ANALYSÉ";
     [ObservableProperty] private string memorySummaryText = "NON ANALYSÉ";
     [ObservableProperty] private string sessionSummaryText = "NON ANALYSÉ";
-    [ObservableProperty] private string recommendationsText = "Lancez une analyse. Aucune action ne sera executee.";
+    [ObservableProperty] private string recommendationsText = "Lancez une analyse. Aucune action ne sera exécutée.";
     [ObservableProperty] private string processSummaryText = "Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.";
-    [ObservableProperty] private string processesNotice = "Analyse requise. Les processus systeme critiques, securite, VPN et materiel resteront proteges.";
+    [ObservableProperty] private string processesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.";
     [ObservableProperty] private string releaseInactiveMemoryLabel = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
@@ -131,7 +131,7 @@ public partial class ResourcesViewModel : ObservableObject
     [RelayCommand]
     private async Task ReleaseInactiveMemoryAsync()
     {
-        if (!BeginOperation("Information memoire inactive."))
+        if (!BeginOperation("Information mémoire inactive."))
         {
             return;
         }
@@ -145,14 +145,14 @@ public partial class ResourcesViewModel : ObservableObject
                 _operationCancellation!.Token);
             RecordResult(result);
             await PersistCurrentReportAsync();
-            StatusText = "Information seulement. Aucune action memoire executee.";
+            StatusText = "Information seulement. Aucune action mémoire exécutée.";
             RequestVirgilState(VirgilCoreState.Idle, "INFORMATION");
             VirgilMessageRequested?.Invoke(
                 "Mémoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action exécutée.");
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Information annulee.";
+            StatusText = "Information annulée.";
         }
         finally
         {
@@ -203,7 +203,7 @@ public partial class ResourcesViewModel : ObservableObject
                 report.OverallHealth >= ResourceHealthLevel.InterventionRecommended
                     ? VirgilCoreState.Warning
                     : VirgilCoreState.Success,
-                "ANALYSE TERMINEE");
+                "ANALYSE TERMINÉE");
             VirgilMessageRequested?.Invoke(BuildAnalysisMessage(report));
             await PersistCurrentReportAsync();
             if (scrollToProcesses)
@@ -236,7 +236,7 @@ public partial class ResourcesViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return;
         }
 
@@ -261,9 +261,9 @@ public partial class ResourcesViewModel : ObservableObject
             _skippedActions.Add($"{ActionLabel(action)} - {targetName}");
             IsReportButtonEnabled = true;
             StatusText = decision == ResourceDecision.CancelAll
-                ? "Action annulee."
-                : "Action passee.";
-            VirgilMessageRequested?.Invoke("Action non executee.");
+                ? "Action annulée."
+                : "Action passée.";
+            VirgilMessageRequested?.Invoke("Action non exécutée.");
             await PersistCurrentReportAsync();
             return;
         }
@@ -280,7 +280,7 @@ public partial class ResourcesViewModel : ObservableObject
 
         try
         {
-            RequestVirgilState(VirgilCoreState.Executing, "EXECUTION");
+            RequestVirgilState(VirgilCoreState.Executing, "EXÉCUTION");
             var result = await _actionService.ExecuteAsync(
                 action,
                 target,
@@ -303,19 +303,19 @@ public partial class ResourcesViewModel : ObservableObject
                 result.Status == ProcessActionStatus.Completed
                     ? VirgilCoreState.Success
                     : VirgilCoreState.Warning,
-                result.Status == ProcessActionStatus.Completed ? "TERMINE" : "ATTENTION");
+                result.Status == ProcessActionStatus.Completed ? "TERMINÉ" : "ATTENTION");
             VirgilMessageRequested?.Invoke(ResultMessage(result));
             await PersistCurrentReportAsync();
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Action annulee.";
+            StatusText = "Action annulée.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
         }
         catch
         {
             _errors.Add($"{ActionLabel(action)} indisponible.");
-            StatusText = "Action impossible. Aucune autre action executee.";
+            StatusText = "Action impossible. Aucune autre action exécutée.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
         }
         finally
@@ -349,13 +349,13 @@ public partial class ResourcesViewModel : ObservableObject
                 "Fermeture propre demandee.",
                 $"Application : {TargetName(action, target)}",
                 "Effet : une demande de fermeture sera envoyee a la fenetre principale.",
-                "Des donnees non sauvegardees peuvent etre concernees selon l'application."
+                "Des données non sauvegardees peuvent être concernees selon l'application."
             }),
             ProcessActionKind.KillProcess => string.Join("\n", new[]
             {
                 "Fermeture forcee demandee.",
                 $"Application : {TargetName(action, target)}",
-                "Cette action peut entrainer une perte de donnees non sauvegardees.",
+                "Cette action peut entrainer une perte de données non sauvegardees.",
                 "A utiliser seulement si l'application ne repond plus."
             }),
             ProcessActionKind.RestartExplorer => string.Join("\n", new[]
@@ -368,7 +368,7 @@ public partial class ResourcesViewModel : ObservableObject
         };
         ValidationSafety = reinforced
             ? "Confirmation renforcee obligatoire. Processus critique bloque. Aucun autre processus ne sera ferme."
-            : "Validation explicite obligatoire. Aucune fermeture forcee automatique. Aucun redemarrage force.";
+            : "Validation explicite obligatoire. Aucune fermeture forcee automatique. Aucun redémarrage force.";
         ExecuteActionLabel = reinforced ? "JE CONFIRME" : "EXECUTER";
         IsValidationOpen = true;
         var state = reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning;
@@ -392,16 +392,16 @@ public partial class ResourcesViewModel : ObservableObject
 
     private void RenderAnalysis(ResourceAnalysisReport report)
     {
-        StatusText = $"Analyse terminee en {report.Duration.TotalSeconds:0.0} s.";
+        StatusText = $"Analyse terminée en {report.Duration.TotalSeconds:0.0} s.";
         CpuSummaryText =
             $"Moyenne {report.AverageCpuPercent:0.0} % - maximum {report.MaximumCpuPercent:0.0} % - {HealthLabel(report.CpuHealth)}";
         var sample = report.Samples.LastOrDefault();
         MemorySummaryText = sample is null || sample.TotalMemoryBytes == 0
             ? "Lecture RAM indisponible."
-            : $"{report.AverageMemoryPercent:0.0} % utilisee - {HealthLabel(report.MemoryHealth)} - " +
+            : $"{report.AverageMemoryPercent:0.0} % utilisée - {HealthLabel(report.MemoryHealth)} - " +
               $"{ScanRules.FormatBytes((long)sample.UsedMemoryBytes)} / {ScanRules.FormatBytes((long)sample.TotalMemoryBytes)}";
         SessionSummaryText = $"{FormatUptime(report.Uptime)} - {report.ProcessCount} processus" +
-            (report.RestartRecommended ? " - redemarrage manuel conseille" : string.Empty);
+            (report.RestartRecommended ? " - redémarrage manuel conseillé" : string.Empty);
         RecommendationsText = report.Recommendations.Count == 0
             ? "Ressources stables. Aucune action automatique."
             : string.Join("\n", report.Recommendations.Select(item => "- " + item));
@@ -430,7 +430,7 @@ public partial class ResourcesViewModel : ObservableObject
         var heavyCount = processes.Count(process => process.Status == ProcessResourceStatus.Heavy);
         ProcessSummaryText = heavyCount == 0
             ? "Aucun processus lourd selon les seuils V1. Principaux consommateurs affiches pour information."
-            : $"{heavyCount} processus lourds detectes. Aucune fermeture automatique.";
+            : $"{heavyCount} processus lourds détectés. Aucune fermeture automatique.";
 
         if (processes.Count == 0)
         {
@@ -451,7 +451,7 @@ public partial class ResourcesViewModel : ObservableObject
 
     private async Task IgnoreAsync(ProcessResourceInfo process)
     {
-        _skippedActions.Add($"Processus ignore - {process.Name} (PID {process.ProcessId})");
+        _skippedActions.Add($"Processus ignoré - {process.Name} (PID {process.ProcessId})");
         _completedProcessIds.Add(process.ProcessId);
         RenderProcesses(_lastAnalysis);
         IsReportButtonEnabled = true;
@@ -462,14 +462,14 @@ public partial class ResourcesViewModel : ObservableObject
     private void RenderEmptyProcesses()
     {
         Items.Clear();
-        ProcessesNotice = "Analyse requise. Les processus systeme critiques, securite, VPN et materiel resteront proteges.";
+        ProcessesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.";
     }
 
     private bool BeginOperation(string status)
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération déjà en cours.");
             return false;
         }
 
@@ -557,7 +557,7 @@ public partial class ResourcesViewModel : ObservableObject
             .ConfigureAwait(true);
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
-            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conservé en mémoire.");
         }
 
         if (result.Success)
@@ -583,8 +583,8 @@ public partial class ResourcesViewModel : ObservableObject
             .Concat(report.TopCpuProcesses)
             .GroupBy(process => process.ProcessId)
             .Count(group => group.First().Status == ProcessResourceStatus.Heavy);
-        return $"Analyse ressources terminee.\nRAM : {report.AverageMemoryPercent:0.0} %\n" +
-            $"CPU moyen : {report.AverageCpuPercent:0.0} %\n{heavy} processus lourds detectes.";
+        return $"Analyse ressources terminée.\nRAM : {report.AverageMemoryPercent:0.0} %\n" +
+            $"CPU moyen : {report.AverageCpuPercent:0.0} %\n{heavy} processus lourds détectés.";
     }
 
     private static string ResultMessage(ProcessActionResult result)
@@ -609,7 +609,7 @@ public partial class ResourcesViewModel : ObservableObject
             ProcessActionKind.KillProcess => "Fermeture forcee",
             ProcessActionKind.OpenLocation => "Ouverture emplacement",
             ProcessActionKind.RestartExplorer => "Relance Explorer",
-            ProcessActionKind.ReleaseInactiveMemory => "Memoire inactive",
+            ProcessActionKind.ReleaseInactiveMemory => "Mémoire inactive",
             _ => action.ToString()
         };
     }
@@ -620,7 +620,7 @@ public partial class ResourcesViewModel : ObservableObject
         {
             ResourceHealthLevel.Stable => "STABLE",
             ResourceHealthLevel.Watch => "A SURVEILLER",
-            ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLEE",
+            ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLÉE",
             ResourceHealthLevel.Critical => "CRITIQUE",
             _ => "INCONNU"
         };

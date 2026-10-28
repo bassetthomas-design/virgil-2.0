@@ -201,6 +201,10 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                     bounds.Right <= cardBounds.Right && bounds.Bottom <= cardBounds.Bottom,
                     $"Contrôle Scan rogné par la carte centrale : {element.Name} ({bounds}, carte {cardBounds}).");
             }
+            // The progress screenshot must also prove the Communication messages use accents.
+            var communication = string.Join("\n", window!.FindAllDescendants().Select(element => element.Name));
+            Assert.Contains("Protocole d'analyse initialisé.", communication);
+            Assert.Contains("Analyse système en cours.", communication);
             SaveWindow("13-scan-progression.png");
             await ui.Click("ScanCancelButton");
             await UntilAsync(() => Find("HomeNavButton")!.IsEnabled && window!.FindAllDescendants().Any(element =>

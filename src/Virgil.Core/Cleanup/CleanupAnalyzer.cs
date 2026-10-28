@@ -20,7 +20,7 @@ public sealed class CleanupAnalyzer
         var storage = await _storageAnalyzer.AnalyzeAsync(cancellationToken).ConfigureAwait(false);
         var technicalBlocks = zones
             .Where(zone => zone.Errors.Count > 0 || (zone.Definition.RequiresElevation && zone.EligibleFileCount == 0))
-            .Select(zone => $"{zone.Definition.DisplayName} : acces limite ou action elevee non executee.")
+            .Select(zone => $"{zone.Definition.DisplayName} : acces limite ou action elevee non exécutée.")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var errors = zones.SelectMany(zone => zone.Errors).Concat(storage.Errors).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

@@ -105,7 +105,7 @@ internal static class WindowsInfoReader
         }
         catch
         {
-            errors.Add("Duree depuis le demarrage indisponible.");
+            errors.Add("Durée depuis le démarrage indisponible.");
             return TimeSpan.Zero;
         }
     }

@@ -76,7 +76,7 @@ public sealed class ResourceRecommendationService
 
         if (cpu >= ResourceHealthLevel.InterventionRecommended)
         {
-            recommendations.Add("CPU eleve sur la duree : examiner les processus CPU principaux.");
+            recommendations.Add("CPU élevé sur la durée : examiner les processus CPU principaux.");
         }
         else if (cpu == ResourceHealthLevel.Watch)
         {
@@ -89,12 +89,12 @@ public sealed class ResourceRecommendationService
         }
         else if (memory == ResourceHealthLevel.Watch)
         {
-            recommendations.Add("RAM a surveiller : comparer avec les applications actuellement utilisees.");
+            recommendations.Add("RAM a surveiller : comparer avec les applications actuellement utilisées.");
         }
 
         if (uptime >= TimeSpan.FromDays(7))
         {
-            recommendations.Add("Session Windows longue : envisager un redemarrage manuel si des ralentissements persistent.");
+            recommendations.Add("Session Windows longue : envisager un redémarrage manuel si des ralentissements persistent.");
         }
         else if (uptime >= TimeSpan.FromDays(3))
         {
@@ -103,7 +103,7 @@ public sealed class ResourceRecommendationService
 
         if (processes.Any(process => process.Status == ProcessResourceStatus.Heavy))
         {
-            recommendations.Add("Des processus lourds sont detectes. Aucune fermeture n'est automatique.");
+            recommendations.Add("Des processus lourds sont détectés. Aucune fermeture n'est automatique.");
         }
 
         return recommendations.Distinct(StringComparer.OrdinalIgnoreCase).ToList();

@@ -36,13 +36,13 @@ public sealed class SystemScanServiceTests
         var updates = new CountingUpdateScanService(new UpdateScanReport
         {
             Scope = UpdateScanScope.DeepPreview,
-            OverallStatus = "Mises a jour disponibles",
+            OverallStatus = "Mises à jour disponibles",
             Winget = new WingetAvailability
             {
                 IsAvailable = true,
                 ExecutablePath = "winget.exe",
                 Version = "1.8.0",
-                Message = "WinGet detecte."
+                Message = "WinGet détecté."
             },
             Items = new[]
             {
@@ -233,8 +233,8 @@ public sealed class SystemScanServiceTests
             : this(new UpdateScanReport
             {
                 Scope = UpdateScanScope.AvailabilityOnly,
-                OverallStatus = "WinGet non detecte",
-                Winget = WingetAvailability.Unavailable("WinGet non detecte.")
+                OverallStatus = "WinGet non détecté",
+                Winget = WingetAvailability.Unavailable("WinGet non détecté.")
             })
         {
         }
