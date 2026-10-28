@@ -38,6 +38,12 @@ public sealed class WindowsUpdateSequenceBackend(
         return steps;
     }, cancellationToken);
 
+    public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken cancellationToken) => Task.Run(async () =>
+    {
+        var inventory = await new Virgil.Core.Applications.ApplicationRegistryReader().ReadAsync(cancellationToken).ConfigureAwait(false);
+        return LauncherCatalog.Detect(inventory.Applications.Select(app => app.DisplayName));
+    }, cancellationToken);
+
     public static bool IsSafePackageId(string id) => !string.IsNullOrWhiteSpace(id) && id.Length <= 256 &&
         char.IsAsciiLetterOrDigit(id[0]) && id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_' or '+' or '\\' or '{' or '}');
     public static bool IsSafeVersion(string version) => !string.IsNullOrWhiteSpace(version) && version.Length <= 128 &&
@@ -47,7 +53,7 @@ public sealed class WindowsUpdateSequenceBackend(
     public async Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken cancellationToken)
     {
         if (step.Component == UpdateComponent.Launcher)
-            return new(step, true, false, "À mettre à jour depuis le lanceur.");
+            return new(step, false, false, "À faire dans le lanceur");
         if (step.Component == UpdateComponent.Winget)
         {
             var app = step.Application;

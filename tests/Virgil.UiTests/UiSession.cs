@@ -225,6 +225,25 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                 element.Name?.Contains("Analyse approfondie terminée.", StringComparison.Ordinal) == true),
                 TimeSpan.FromSeconds(5), "Le scan approfondi n'a pas annoncé sa fin réussie.");
             AssertHealthy();
+            // Un rapport a été produit : redémarrer prouve que l’état local n’attend pas le réseau.
+            measureLatency = false;
+            var startInfo = process!.StartInfo;
+            window!.Close();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            process = Process.Start(startInfo) ?? throw new InvalidOperationException("Redémarrage smoke impossible.");
+            await UntilAsync(() =>
+            {
+                process.Refresh();
+                return !process.HasExited && process.MainWindowHandle != IntPtr.Zero;
+            }, TimeSpan.FromSeconds(60), "Fenêtre absente au redémarrage.");
+            window = automation!.FromHandle(process.MainWindowHandle).AsWindow();
+            await UntilAsync(() => window.Properties.ItemStatus.ValueOrDefault == "Prêt",
+                TimeSpan.FromSeconds(60), "Fenêtre non prête au redémarrage.");
+            var readyAt = Stopwatch.StartNew();
+            await UntilAsync(() => Find("LastReportButton")?.IsEnabled == true,
+                TimeSpan.FromSeconds(2), "DERNIER RAPPORT attend plus de 2 s après Prêt.");
+            Assert.True(readyAt.Elapsed <= TimeSpan.FromSeconds(2));
+            AssertHealthy();
         }
         catch (Exception exception)
         {

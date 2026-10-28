@@ -68,6 +68,11 @@ public sealed class L6BehaviorTests
         var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
         snapshot = snapshot with { Processes = [snapshot.Processes[0] with { Name = name, CpuPercent = DiagnosticAnalysisTests.V(0d), WorkingSetBytes = DiagnosticAnalysisTests.V(600d * 1024 * 1024) }] };
         signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([DiagnosticAnalysisTests.Target() with { Name = name, CanCloseGracefully = false, CanForceClose = false, MainWindowTitle = "" }]) };
+        if (name == "Agent.exe")
+        {
+            snapshot = snapshot with { Processes = [snapshot.Processes[0] with { Path = DiagnosticAnalysisTests.V(@"C:\Program Files\Battle.net\Agent.exe") }] };
+            signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([signals.Processes.Value[0] with { Path = @"C:\Program Files\Battle.net\Agent.exe" }]) };
+        }
         var result = DiagnosticAnalyzer.Analyze(snapshot, signals);
         var issue = Assert.Single(result.Issues);
         Assert.Equal((name == "steam" ? "Steam" : name) + " : lanceur gourmand en arrière-plan", issue.Title);
@@ -100,6 +105,35 @@ public sealed class L6BehaviorTests
         Assert.False(result.HasFailures);
         backend.Installed = [];
         Assert.DoesNotContain(await service.ScanAsync([], CancellationToken.None), step => step.Component == UpdateComponent.Launcher);
+    }
+
+    [Theory]
+    [InlineData("CPU")]
+    [InlineData("Mémoire")]
+    [InlineData("Stockage")]
+    public void Failed_scored_category_is_partial_without_penalty(string category)
+    {
+        var snapshot = WithoutSensors();
+        var error = DiagnosticValue<double>.Unavailable("Accès refusé");
+        snapshot = category switch
+        {
+            "CPU" => snapshot with { Cpu = snapshot.Cpu with { TotalPercent = error } },
+            "Mémoire" => snapshot with { Memory = snapshot.Memory with { TotalBytes = error, UsedBytes = error } },
+            _ => snapshot with { Disks = [snapshot.Disks[0] with { ReadBytesPerSecond = error }] }
+        };
+        var result = DiagnosticAnalyzer.Analyze(snapshot, DiagnosticAnalysisTests.Signals());
+        Assert.Equal(100, result.Score.Value);
+        Assert.True(result.Score.IsPartial);
+        Assert.Equal(1, result.Score.FailedReadCount);
+    }
+
+    [Fact]
+    public void Generic_agent_without_Blizzard_evidence_is_not_reported()
+    {
+        var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
+        snapshot = snapshot with { Processes = [snapshot.Processes[0] with { Name = "Agent.exe" }] };
+        signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([DiagnosticAnalysisTests.Target() with { Name = "Agent.exe", CanCloseGracefully = false }]) };
+        Assert.Empty(DiagnosticAnalyzer.Analyze(snapshot, signals).Issues);
     }
 
     internal static DiagnosticSnapshot WithoutSensors()

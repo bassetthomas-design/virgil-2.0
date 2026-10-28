@@ -29,7 +29,19 @@ public partial class StartupViewModel : ObservableObject
         _confirmation = confirmation;
     }
 
-    public string SelectionDetails => Status;
+    public string SelectionDetails => SelectedItem?.ApprovalTarget is null
+        ? "Lecture seule : cette source de démarrage n'est pas modifiable depuis Virgil." : "Autorisation modifiable après confirmation.";
+    public string RestoreHint => _backupId is null ? "Aucune sauvegarde de modification disponible dans cette session." : "Restaurer l’instantané sauvegardé avant la modification.";
+    private bool CanModify() => SelectedItem?.ApprovalTarget is not null && !IsChanging && !IsConfirmationOpen;
+    private bool CanRestore() => _backupId is not null && !IsChanging && !IsConfirmationOpen;
+    partial void OnSelectedItemChanged(StartupItem? value) { OnPropertyChanged(nameof(SelectionDetails)); NotifyActions(); }
+    partial void OnIsChangingChanged(bool value) => NotifyActions();
+    partial void OnIsConfirmationOpenChanged(bool value) => NotifyActions();
+    private void NotifyActions()
+    {
+        EnableCommand.NotifyCanExecuteChanged(); DisableCommand.NotifyCanExecuteChanged(); RestoreCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(RestoreHint));
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -46,13 +58,13 @@ public partial class StartupViewModel : ObservableObject
         finally { IsRefreshing = false; }
     }
 
-    [RelayCommand] private Task EnableAsync() => PrepareAsync(true);
-    [RelayCommand] private Task DisableAsync() => PrepareAsync(false);
+    [RelayCommand(CanExecute = nameof(CanModify))] private Task EnableAsync() => PrepareAsync(true);
+    [RelayCommand(CanExecute = nameof(CanModify))] private Task DisableAsync() => PrepareAsync(false);
     private async Task PrepareAsync(bool enabled)
     {
         if (IsChanging || IsConfirmationOpen) return;
         var target = SelectedItem?.ApprovalTarget;
-        if (target is null) { Status = "Cette entrée reste en lecture seule. Sa modification sera bientôt disponible."; return; }
+        if (target is null) { Status = "Lecture seule : cette source de démarrage n’est pas modifiable depuis Virgil."; return; }
         try
         {
             var change = await _changes.PreviewAsync(target, enabled);
@@ -62,7 +74,7 @@ public partial class StartupViewModel : ObservableObject
         catch (Exception) { Status = "Impossible de préparer cette modification. Aucune entrée modifiée."; }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRestore))]
     private async Task RestoreAsync()
     {
         if (IsChanging || IsConfirmationOpen) return;
@@ -108,7 +120,7 @@ public partial class StartupViewModel : ObservableObject
             IsConfirmationOpen = false;
             _pending = null;
             var result = await _changes.ExecuteAsync(change, plan);
-            if (result.BackupId is not null) _backupId = result.BackupId;
+            if (result.BackupId is not null) { _backupId = result.BackupId; NotifyActions(); }
             await RefreshAsync();
             Status = result.Message;
         }

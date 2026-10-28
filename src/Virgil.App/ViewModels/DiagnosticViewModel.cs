@@ -158,7 +158,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     public event Action<DiagnosticSuggestion>? NavigationRequested;
     public void ApplyFindings(DiagnosticFindings findings)
     {
-        _health = $"Note de santé : {findings.Score.Value}/100" + (findings.Score.IsPartial ? " — partielle" : "");
+        _health = $"Note de santé : {findings.Score.Value}/100" + (findings.Score.IsPartial ? $" — partielle ({findings.Score.FailedReadCount} lecture{(findings.Score.FailedReadCount > 1 ? "s" : "")} en échec)" : "");
         _top3 = findings.Top3.Select(i => i.Title + " : " + i.Description).ToArray();
         _unavailable = findings.Unavailable;
         _startup = findings.Signals.Startup.IsAvailable

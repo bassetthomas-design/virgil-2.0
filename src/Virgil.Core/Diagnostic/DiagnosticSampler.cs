@@ -24,10 +24,10 @@ public sealed class DiagnosticSampler(IDiagnosticSource source, TimeProvider clo
 
     public static DiagnosticValue<double> CalculateCounter(DiagnosticCounter? before, DiagnosticCounter after, double seconds)
     {
-        if (!after.Numerator.IsAvailable) return DiagnosticValue<double>.Unavailable(after.Numerator.Reason!);
+        if (!after.Numerator.IsAvailable) return after.Numerator;
         if (after.Kind == DiagnosticCounterKind.Gauge) return after.Numerator;
         if (before is null) return Missing("nouveau compteur, seconde mesure nécessaire");
-        if (!before.Numerator.IsAvailable) return DiagnosticValue<double>.Unavailable(before.Numerator.Reason!);
+        if (!before.Numerator.IsAvailable) return before.Numerator;
         if (before.Identity != after.Identity) return Missing("identité du compteur modifiée");
         if (before.Kind != after.Kind || seconds <= 0) return Missing("intervalle de mesure invalide");
         var delta = after.Numerator.Value - before.Numerator.Value;
@@ -36,8 +36,8 @@ public sealed class DiagnosticSampler(IDiagnosticSource source, TimeProvider clo
         if (after.Kind == DiagnosticCounterKind.Rate) value = delta / seconds;
         else
         {
-            if (!before.Denominator.IsAvailable) return DiagnosticValue<double>.Unavailable(before.Denominator.Reason!);
-            if (!after.Denominator.IsAvailable) return DiagnosticValue<double>.Unavailable(after.Denominator.Reason!);
+            if (!before.Denominator.IsAvailable) return before.Denominator;
+            if (!after.Denominator.IsAvailable) return after.Denominator;
             var denominator = after.Denominator.Value - before.Denominator.Value;
             if (denominator <= 0) return Missing("compteur sans intervalle exploitable");
             value = after.Kind == DiagnosticCounterKind.AverageMilliseconds

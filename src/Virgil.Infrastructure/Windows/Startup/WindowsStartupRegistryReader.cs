@@ -16,7 +16,7 @@ internal sealed class WindowsStartupRegistryReader : IStartupRegistryReader
         using var root = RegistryKey.OpenBaseKey(registryHive, is32Bit ? RegistryView.Registry32 : RegistryView.Registry64);
         using var run = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false);
         using var approvalRoot = RegistryKey.OpenBaseKey(registryHive, RegistryView.Registry64);
-        var kind = is32Bit ? "Run32" : "Run";
+        var kind = hive == StartupApprovalHive.LocalMachine && is32Bit ? "Run32" : "Run";
         using var approved = approvalRoot.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\" + kind, false);
         return run?.GetValueNames().Select(name => new StartupRunValue(name,
             run.GetValue(name) as string ?? "Chemin indisponible", approved?.GetValue(name) as byte[])).ToArray() ?? [];

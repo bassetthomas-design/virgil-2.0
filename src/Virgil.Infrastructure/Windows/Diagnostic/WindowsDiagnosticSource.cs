@@ -17,7 +17,7 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
     private const string Cache = @"\Memory\Cache Bytes";
     private const string Compressed = @"\Memory\Compressed Page Size";
     private static DiagnosticValue<double> Number(double value) => DiagnosticValue<double>.Available(value);
-    private static DiagnosticValue<T> Missing<T>(string reason = "capteur non exposé par Windows") => DiagnosticValue<T>.Unavailable("Indisponible : " + reason);
+    private static DiagnosticValue<T> Missing<T>(string reason = "capteur non exposé par Windows") => DiagnosticValue<T>.Unmeasured("Indisponible : " + reason);
     private static DiagnosticCounter AbsentCounter(string reason) => new(Missing<double>(reason), Missing<double>(reason), DiagnosticCounterKind.Rate);
     public Task<DiagnosticReading> ReadAsync(CancellationToken cancellationToken) => Task.Run(() => Read(cancellationToken), cancellationToken);
 
@@ -162,13 +162,13 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
     {
         try { return Number(read()); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception or NotSupportedException)
-        { return Missing<double>("lecture refusée ou périphérique indisponible"); }
+        { return DiagnosticValue<double>.Unavailable("Lecture refusée ou périphérique indisponible"); }
     }
     private static DiagnosticValue<string> ReadText(Func<string?> read)
     {
         try { var value = read(); return string.IsNullOrWhiteSpace(value) ? Missing<string>("information non exposée") : DiagnosticValue<string>.Available(value); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception or NotSupportedException)
-        { return Missing<string>("lecture refusée ou processus terminé"); }
+        { return DiagnosticValue<string>.Unavailable("Lecture refusée ou processus terminé"); }
     }
     private static MemoryDiagnostic ReadMemory(PdhReader pdh)
     {
@@ -176,15 +176,17 @@ public sealed class WindowsDiagnosticSource : IDiagnosticSource
         var ok = GlobalMemoryStatusEx(ref status);
         var info = new PerformanceInfo { Size = (uint)Marshal.SizeOf<PerformanceInfo>() };
         var perf = GetPerformanceInfo(ref info, info.Size);
-        return new(ok ? Number(status.TotalPhysical) : Missing<double>(),
-            ok ? Number(status.TotalPhysical - status.AvailablePhysical) : Missing<double>(),
+        return new(ok ? Number(status.TotalPhysical) : DiagnosticValue<double>.Unavailable("Lecture mémoire en échec"),
+            ok ? Number(status.TotalPhysical - status.AvailablePhysical) : DiagnosticValue<double>.Unavailable("Lecture mémoire en échec"),
             perf ? Number(info.SystemCache.ToUInt64() * (double)info.PageSize.ToUInt64()) : pdh.Gauge(Cache), pdh.Gauge(Compressed),
-            ok ? Number(status.AvailablePhysical) : Missing<double>(),
-            perf ? Number(info.CommitTotal.ToUInt64() * (double)info.PageSize.ToUInt64()) : Missing<double>());
+            ok ? Number(status.AvailablePhysical) : DiagnosticValue<double>.Unavailable("Lecture mémoire en échec"),
+            perf ? Number(info.CommitTotal.ToUInt64() * (double)info.PageSize.ToUInt64()) : DiagnosticValue<double>.Unavailable("Lecture mémoire engagée en échec"));
     }
     private static DiagnosticCounter SystemIdle()
     {
-        if (!GetSystemTimes(out var idle, out var kernel, out var user)) return AbsentCounter("temps processeur Windows inaccessible");
+        if (!GetSystemTimes(out var idle, out var kernel, out var user))
+            return new(DiagnosticValue<double>.Unavailable("Lecture du temps processeur Windows en échec"),
+                DiagnosticValue<double>.Unavailable("Lecture du temps processeur Windows en échec"), DiagnosticCounterKind.IdleTime);
         static double T(System.Runtime.InteropServices.ComTypes.FILETIME t) => ((ulong)(uint)t.dwHighDateTime << 32) | (uint)t.dwLowDateTime;
         return new(Number(T(idle)), Number(T(kernel) + T(user)), DiagnosticCounterKind.IdleTime, Identity: "GetSystemTimes");
     }

@@ -35,7 +35,7 @@
      </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
     </ItemsControl>
     <Expander Header="Démarrage" IsExpanded="False"><ItemsControl ItemsSource="{Binding Startup}"/></Expander>
-    <Expander Header="Signaux indisponibles — sans pénalité"><ItemsControl ItemsSource="{Binding Unavailable}"/></Expander>
+    <Expander Header="Signaux indisponibles — non mesurés ou lectures en échec"><ItemsControl ItemsSource="{Binding Unavailable}"/></Expander>
     <Expander Header="Processeur" IsExpanded="True"><ItemsControl ItemsSource="{Binding CpuDetails}"/></Expander>
     <Expander Header="Mémoire" IsExpanded="True"><ItemsControl ItemsSource="{Binding MemoryDetails}"/></Expander>
     <Expander Header="Disques" IsExpanded="True"><ItemsControl ItemsSource="{Binding DiskDetails}"/></Expander>

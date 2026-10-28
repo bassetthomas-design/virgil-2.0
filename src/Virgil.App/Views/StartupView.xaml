@@ -6,11 +6,12 @@
    <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Style="{DynamicResource VirgilSecondaryButton}" />
    <TextBlock Margin="0,12" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Text="Sélectionnez une entrée pour modifier son autorisation. Les tâches planifiées restent en lecture seule. Toute modification nécessite votre confirmation, une sauvegarde vérifiée et un point de restauration." />
    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-    <Button Content="Activer" Command="{Binding EnableCommand}" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
-    <Button Content="Désactiver" Command="{Binding DisableCommand}" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
-    <Button Content="Restaurer la dernière modification" Command="{Binding RestoreCommand}" Style="{DynamicResource VirgilSecondaryButton}" />
+    <Button Content="Activer" Command="{Binding EnableCommand}" ToolTip="{Binding SelectionDetails}" ToolTipService.ShowOnDisabled="True" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
+    <Button Content="Désactiver" Command="{Binding DisableCommand}" ToolTip="{Binding SelectionDetails}" ToolTipService.ShowOnDisabled="True" Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,8,0" />
+    <Button Content="Restaurer la dernière modification" Command="{Binding RestoreCommand}" ToolTip="{Binding RestoreHint}" ToolTipService.ShowOnDisabled="True" Style="{DynamicResource VirgilSecondaryButton}" />
    </StackPanel>
   </StackPanel>
+  <TextBlock DockPanel.Dock="Top" Text="{Binding SelectionDetails}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,0,0,12" />
   <DataGrid ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
    <DataGrid.Columns>
     <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="*" />

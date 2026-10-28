@@ -41,15 +41,16 @@ public sealed class WindowsStartupInventorySource : IStartupInventorySource
         var items = new List<StartupItem>();
         var warnings = new List<string>();
         foreach (var hive in new[] { StartupApprovalHive.CurrentUser, StartupApprovalHive.LocalMachine })
-        foreach (var is32Bit in new[] { false, true })
+        foreach (var is32Bit in hive == StartupApprovalHive.CurrentUser ? new[] { false } : new[] { false, true })
         {
             token.ThrowIfCancellationRequested();
             try
             {
                 foreach (var value in reader.ReadRun(hive, is32Bit))
                 {
-                    var kind = is32Bit ? StartupApprovalKind.Run32 : StartupApprovalKind.Run;
-                    var source = $"{(hive == StartupApprovalHive.CurrentUser ? "Compte actuel" : "Tous les comptes")} · Registre Run ({(is32Bit ? "32" : "64")} bits)";
+                    var kind = hive == StartupApprovalHive.LocalMachine && is32Bit ? StartupApprovalKind.Run32 : StartupApprovalKind.Run;
+                    var source = hive == StartupApprovalHive.CurrentUser ? "Compte actuel · Registre Run"
+                        : $"Tous les comptes · Registre Run ({(is32Bit ? "32" : "64")} bits)";
                     items.Add(new(value.Name, source, value.Command, State(value.Approval), "Éditeur inconnu", "Non vérifiée",
                         "Impact au démarrage non mesuré", new(hive, kind, value.Name)));
                 }

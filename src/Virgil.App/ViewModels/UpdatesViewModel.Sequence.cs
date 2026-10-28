@@ -106,7 +106,7 @@ public partial class UpdatesViewModel
             var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, null));
             IsSequencePreview = false;
             RequestVirgilState(VirgilCoreState.Executing, "MISES À JOUR");
-            var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps, plan,
+            var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(SequenceChoices.Where(choice => choice.Step.IsInformational).Select(choice => choice.Step)).ToArray(), plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
@@ -124,14 +124,18 @@ public partial class UpdatesViewModel
             {
                 Kind = ReportKind.Updates, Module = "Mises à jour", Title = "Tout mettre à jour",
                 Summary = result.Message, SimpleView = _sequenceReport, RestartRequired = result.RebootRequired,
-                Severity = result.WasRefused || result.Steps.Any(step => !step.Succeeded) ? ReportSeverity.Warning : ReportSeverity.Success,
-                ExecutedActions = result.Steps.Select(step => new ReportAction
+                Severity = result.WasRefused || result.HasFailures ? ReportSeverity.Warning : ReportSeverity.Success,
+                SkippedActions = result.Steps.Where(step => step.Step.IsInformational).Select(step => new ReportAction
+                {
+                    Name = step.Step.Title, Status = ReportActionStatus.InformationOnly, Result = step.Message
+                }).ToArray(),
+                ExecutedActions = result.Steps.Where(step => !step.Step.IsInformational).Select(step => new ReportAction
                 {
                     Name = step.Step.Title, Status = step.Succeeded ? ReportActionStatus.Executed : ReportActionStatus.Failed,
                     Result = step.Message, RestartRequired = step.RebootRequired
                 }).ToArray()
             });
-            RequestVirgilState(result.WasRefused || result.Steps.Any(step => !step.Succeeded) ? VirgilCoreState.Warning : result.WasCancelled ? VirgilCoreState.Idle : VirgilCoreState.Success, "MISES À JOUR");
+            RequestVirgilState(result.WasRefused || result.HasFailures ? VirgilCoreState.Warning : result.WasCancelled ? VirgilCoreState.Idle : VirgilCoreState.Success, "MISES À JOUR");
             VirgilMessageRequested?.Invoke(_sequenceReport);
         }
         catch (ConfirmationRefusedException)
@@ -158,7 +162,7 @@ public partial class UpdatesViewModel
 
     private void UpdateSequencePreview()
     {
-        var selected = SequenceChoices.Where(choice => choice.IsSelected).Select(choice => choice.Step).ToArray();
+        var selected = SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
         ValidationDetails = "Décochez les composants à exclure. Les pilotes sont facultatifs et décochés par défaut.";
         if (_sequenceService is null || selected.Length == 0)
         {
@@ -180,12 +184,17 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     {
         Step = step;
         _changed = changed;
-        isSelected = step.Component != UpdateComponent.Driver;
+        isSelected = !step.IsInformational && step.Component != UpdateComponent.Driver;
     }
     public UpdateSequenceStep Step { get; }
+    public bool CanSelect => !Step.IsInformational;
     public string Title => Step.Application is { } app
         ? $"{Step.Title} : {app.InstalledVersion} → {app.AvailableVersion} ({UpdatesViewModel.SourceLabel(app.Source)})"
         : Step.Title;
     [ObservableProperty] private bool isSelected;
-    partial void OnIsSelectedChanged(bool value) => _changed();
+    partial void OnIsSelectedChanged(bool value)
+    {
+        if (value && !CanSelect) { IsSelected = false; return; }
+        _changed();
+    }
 }
