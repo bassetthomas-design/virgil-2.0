@@ -55,9 +55,15 @@ public sealed class L6AppBehaviorTests
     public void Cleanup_has_no_fake_mark_button_or_command()
     {
         var xaml = System.IO.File.ReadAllText(System.IO.Path.Combine(FindRepositoryRoot(), "src", "Virgil.App", "Views", "CleanupView.xaml"));
-        var buttons = System.Xml.Linq.XDocument.Parse(xaml).Descendants().Where(node => node.Name.LocalName == "Button");
+        var document = System.Xml.Linq.XDocument.Parse(xaml);
+        var buttons = document.Descendants().Where(node => node.Name.LocalName == "Button");
         Assert.DoesNotContain(buttons, button => button.Attributes().Any(attribute =>
-            attribute.Value.Contains("Marquer", StringComparison.OrdinalIgnoreCase) || attribute.Value.Contains("revoir", StringComparison.OrdinalIgnoreCase)));
+            attribute.Value.Contains("Marquer", StringComparison.OrdinalIgnoreCase) || attribute.Value.Contains("MarkCommand", StringComparison.Ordinal)));
+        // Le parcours fonctionnel « À revoir manuellement » reste disponible ; la carte ne propose plus de faux marquage.
+        var reviewCard = Assert.Single(document.Descendants(), node => node.Name.LocalName == "DataTemplate" &&
+            node.Attributes().Any(attribute => attribute.Value.Contains("CleanupReviewItemViewModel", StringComparison.Ordinal)));
+        Assert.DoesNotContain(reviewCard.Descendants().Where(node => node.Name.LocalName == "Button"), button =>
+            button.Attributes().Any(attribute => attribute.Value.Contains("revoir", StringComparison.OrdinalIgnoreCase)));
         Assert.DoesNotContain(typeof(CleanupReviewItemViewModel).GetProperties(), p => p.Name.StartsWith("Mark", StringComparison.Ordinal));
     }
 
