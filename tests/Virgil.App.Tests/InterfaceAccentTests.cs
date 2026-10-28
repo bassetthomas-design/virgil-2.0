@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Xunit;
 using static Virgil.Tests.TestRepositoryRoot;
 
@@ -19,12 +20,23 @@ public sealed class InterfaceAccentTests
             "Diagnostic interventions lance.", "Diagnostic annule.", "Intervention passee.",
             "Analyse ressources lancee.", "Analyse ressources annulee.",
             "Analyse annulee. Aucune action exécutée.", "Processus ignore."];
-        var root = Path.Combine(FindRepositoryRoot(), "src", "Virgil.App");
+        string[] words = [@"systeme", @"memoire", @"reseau", @"executees?", @"terminee", @"termine(?=[.!…]?\s*"")", @"proposees?", @"ciblees?", @"annulee?", @"effectuee", @"deja", @"initialise", @"detecte(?:e)?s?", @"desinstall\w*", @"redemarrage", @"parametres", @"previsualisation", @"donnees", @"etre", @"installees", @"utilises", @"recommandees", @"priorites?", @"etat", @"echec", @"operation", @"sequence", @"separee", @"conserve", @"genere", @"selectionnee", @"a verifier", @"mises? a jour"];
+        var root = Path.Combine(FindRepositoryRoot(), "src");
         var sources = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Where(p => new[] { "Virgil.App", "Virgil.Core", "Virgil.ElevatedHelper" }.Contains(Path.GetRelativePath(root, p).Split(Path.DirectorySeparatorChar)[0]))
             .Where(p => Path.GetExtension(p) is ".xaml" or ".resx" or ".cs")
             .Where(p => !p.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin"));
-        var failures = sources.SelectMany(path => forbidden.Where(label => File.ReadAllText(path).Contains(label, StringComparison.Ordinal))
-            .Select(label => $"{Path.GetRelativePath(root, path)} : {label}")).ToArray();
+        // Only literal strings and XAML text are UI candidates: C# identifiers and comments are not labels.
+        var failures = sources.SelectMany(path =>
+        {
+            var code = File.ReadAllText(path);
+            var literals = Path.GetExtension(path) == ".cs"
+                ? Regex.Matches(code, @"""(?:\\.|[^""\\])*""").Select(match => match.Value)
+                : new[] { code };
+            return literals.SelectMany(literal => forbidden.Where(label => literal.Contains(label, StringComparison.OrdinalIgnoreCase))
+                .Concat(words.Where(word => Regex.IsMatch(literal, @"\b(?:" + word + @")\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)))
+                .Select(label => $"{Path.GetRelativePath(root, path)} : {label} : {literal}"));
+        }).ToArray();
         Assert.True(failures.Length == 0, string.Join(Environment.NewLine, failures));
     }
 }
