@@ -6,12 +6,20 @@ using Virgil.Core.Actions;
 namespace Virgil.Core.Updates;
 
 public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher }
-public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null);
+public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
+{
+    public bool IsInformational => Component == UpdateComponent.Launcher;
+}
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status);
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message);
-public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message);
+public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
+{
+    public int SuccessfulCount => Steps.Count(step => step.Succeeded);
+    public bool HasFailures => Steps.Any(step => !step.Succeeded);
+}
 public interface IUpdateSequenceBackend
 {
+    Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>([]);
     void BeginExecution(string restoreSessionId) { }
     Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken cancellationToken);
     Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken cancellationToken);

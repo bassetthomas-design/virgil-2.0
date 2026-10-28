@@ -235,7 +235,7 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
         return ready.Task;
     }
 
-    private static async Task OnSta(Func<Task> action)
+    internal static async Task OnSta(Func<Task> action)
     {
         var dispatcher = await Sta.Value;
         await await dispatcher.InvokeAsync(action);

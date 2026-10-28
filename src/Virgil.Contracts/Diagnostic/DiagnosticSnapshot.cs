@@ -6,11 +6,13 @@ public sealed record DiagnosticValue<T>
     private readonly T? _value;
     private DiagnosticValue(bool available, T? value, string? reason) => (IsAvailable, _value, Reason) = (available, value, reason);
     public bool IsAvailable { get; }
+    public bool IsReadFailure { get; private init; }
     public string? Reason { get; }
     public T Value => IsAvailable ? _value! : throw new InvalidOperationException(Reason);
     public static DiagnosticValue<T> Available(T value) => new(true, value, null);
     public static DiagnosticValue<T> Unavailable(string reason) => new(false, default,
-        string.IsNullOrWhiteSpace(reason) ? throw new ArgumentException("Une raison est requise.", nameof(reason)) : reason);
+        string.IsNullOrWhiteSpace(reason) ? throw new ArgumentException("Une raison est requise.", nameof(reason)) : reason) { IsReadFailure = true };
+    public static DiagnosticValue<T> Unmeasured(string reason) => Unavailable(reason) with { IsReadFailure = false };
 }
 
 public sealed record CpuDiagnostic(DiagnosticValue<double> TotalPercent, IReadOnlyList<DiagnosticValue<double>> CorePercent,

@@ -113,9 +113,25 @@ public sealed class StartupViewModelTests
         Assert.Equal("Impossible de lire les éléments au démarrage.", context.Model.Status);
         context.Model.SelectedItem = Item with { ApprovalTarget = null };
         await context.Model.EnableCommand.ExecuteAsync(null);
-        Assert.Contains("lecture seule", context.Model.Status);
+        Assert.Contains("Lecture seule", context.Model.Status);
         Assert.False(context.Model.IsConfirmationOpen);
         Assert.Empty(context.Confirmation.Plans);
+        context.AssertNoEffects();
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public void Startup_buttons_are_disabled_without_approval_target()
+    {
+        var context = new Context();
+        Assert.True(context.Model.EnableCommand.CanExecute(null));
+        Assert.True(context.Model.DisableCommand.CanExecute(null));
+        Assert.False(context.Model.RestoreCommand.CanExecute(null));
+        context.Model.SelectedItem = Item with { ApprovalTarget = null };
+        Assert.False(context.Model.EnableCommand.CanExecute(null));
+        Assert.False(context.Model.DisableCommand.CanExecute(null));
+        Assert.Contains("Lecture seule", context.Model.SelectionDetails);
+        Assert.Equal(0, context.Store.Reads);
+        Assert.False(context.Model.IsConfirmationOpen);
         context.AssertNoEffects();
     }
 
@@ -162,8 +178,9 @@ public sealed class StartupViewModelTests
         public string Current { get; set; } = Enabled;
         public int Backups { get; private set; }
         public int Writes { get; private set; }
+        public int Reads { get; private set; }
         private readonly Dictionary<string, StartupBackup> _backups = new();
-        public Task<string?> ReadAsync(StartupApprovalTarget target, CancellationToken token) => Task.FromResult<string?>(Current);
+        public Task<string?> ReadAsync(StartupApprovalTarget target, CancellationToken token) { Reads++; return Task.FromResult<string?>(Current); }
         public Task<string?> SaveVerifiedBackupAsync(StartupBackup backup, CancellationToken token)
         {
             var id = (++Backups).ToString(System.Globalization.CultureInfo.InvariantCulture);

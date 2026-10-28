@@ -29,6 +29,8 @@ public partial class StartupViewModel : ObservableObject
         _confirmation = confirmation;
     }
 
+    public string SelectionDetails => Status;
+
     [RelayCommand]
     public async Task RefreshAsync()
     {

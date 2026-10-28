@@ -24,7 +24,10 @@ public interface IDiagnosticSignalSource
 public enum DiagnosticSuggestion { None, Cleanup, Updates, Close, StartupLater }
 public sealed record DiagnosticIssue(string Id, string Title, string Description, int Severity, int Impact,
     string Category, DiagnosticSuggestion Suggestion = DiagnosticSuggestion.None, ProcessResourceInfo? Process = null);
-public sealed record HealthScore(int Value, bool IsPartial);
+public sealed record HealthScore(int Value, bool IsPartial)
+{
+    public int FailedReadCount { get; init; }
+}
 
 /// <summary>Analyse pure. Poids maximaux par catégorie : CPU 20, GPU 20, disque 30,
 /// espace 10, erreurs 10, pilotes 10, processus 5. Le score est borné entre 0 et 100.

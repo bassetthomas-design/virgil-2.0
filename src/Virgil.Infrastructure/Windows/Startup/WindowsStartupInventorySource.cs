@@ -12,23 +12,10 @@ public sealed class WindowsStartupInventorySource : IStartupInventorySource
     {
         var items = new List<StartupItem>();
         var warnings = new List<string>();
-        foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
-        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
-        {
-            token.ThrowIfCancellationRequested();
-            try
-            {
-                using var root = RegistryKey.OpenBaseKey(hive, view);
-                using var run = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false);
-                using var approvalRoot = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
-                using var approved = approvalRoot.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\" + (view == RegistryView.Registry32 ? "Run32" : "Run"), false);
-                if (run is null) continue;
-                foreach (var name in run.GetValueNames())
-                    items.Add(Item(name, $"{(hive == RegistryHive.CurrentUser ? "Compte actuel" : "Tous les comptes")} · Registre Run ({(view == RegistryView.Registry32 ? "32" : "64")} bits)", run.GetValue(name) as string ?? "Chemin indisponible", State(approved?.GetValue(name) as byte[])) with { ApprovalTarget = new(hive == RegistryHive.CurrentUser ? StartupApprovalHive.CurrentUser : StartupApprovalHive.LocalMachine, view == RegistryView.Registry32 ? StartupApprovalKind.Run32 : StartupApprovalKind.Run, name) });
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-            { warnings.Add($"Clé Run inaccessible : {(hive == RegistryHive.CurrentUser ? "compte actuel" : "tous les comptes")} ({(view == RegistryView.Registry32 ? "32" : "64")} bits)."); }
-        }
+        var runInventory = ReadRunEntries(new WindowsStartupRegistryReader(), token);
+        warnings.AddRange(runInventory.Warnings);
+        foreach (var entry in runInventory.Items)
+            items.Add(Item(entry.Name, entry.Source, entry.Path, entry.State) with { ApprovalTarget = entry.ApprovalTarget });
         foreach (var folder in new[] { Environment.SpecialFolder.Startup, Environment.SpecialFolder.CommonStartup })
         {
             token.ThrowIfCancellationRequested();
@@ -47,8 +34,32 @@ public sealed class WindowsStartupInventorySource : IStartupInventorySource
         }
         var tasks = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "Tasks");
         ReadTasks(tasks, items, warnings, token);
-        return new(items.OrderBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToArray(), warnings);
+        return new(StartupInventoryMerger.Merge(items), warnings);
     }
+    public static StartupInventory ReadRunEntries(IStartupRegistryReader reader, CancellationToken token = default)
+    {
+        var items = new List<StartupItem>();
+        var warnings = new List<string>();
+        foreach (var hive in new[] { StartupApprovalHive.CurrentUser, StartupApprovalHive.LocalMachine })
+        foreach (var is32Bit in new[] { false, true })
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                foreach (var value in reader.ReadRun(hive, is32Bit))
+                {
+                    var kind = is32Bit ? StartupApprovalKind.Run32 : StartupApprovalKind.Run;
+                    var source = $"{(hive == StartupApprovalHive.CurrentUser ? "Compte actuel" : "Tous les comptes")} · Registre Run ({(is32Bit ? "32" : "64")} bits)";
+                    items.Add(new(value.Name, source, value.Command, State(value.Approval), "Éditeur inconnu", "Non vérifiée",
+                        "Impact au démarrage non mesuré", new(hive, kind, value.Name)));
+                }
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+            { warnings.Add("Clé Run inaccessible : " + hive + (is32Bit ? " (32 bits)." : ".")); }
+        }
+        return new(StartupInventoryMerger.Merge(items), warnings);
+    }
+
     private static StartupItem Item(string name, string source, string path, string state, bool directFile = false)
     {
         var metadata = StartupFileMetadata.Read(path, directFile);
