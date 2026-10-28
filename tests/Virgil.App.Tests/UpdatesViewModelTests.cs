@@ -206,7 +206,7 @@ public sealed class UpdatesViewModelTests
         Decide(f.Vm, decision);
         await pending;
         Assert.Equal(0, f.Confirmation.Calls);
-        Assert.DoesNotContain(f.Actions.Order, x => x.StartsWith("Execute:"));
+        Assert.DoesNotContain(f.Actions.Order, x => x.StartsWith("Exécute:"));
         Assert.Equal(new[] { decision is "SkipDecision" or "TryCloseOverlay" ? "Skip:app" : "Cancel:app" }, f.Actions.Order);
         Assert.False(f.Vm.IsValidationOpen);
         Assert.True(f.Vm.IsReportOpen);
@@ -252,7 +252,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("Opération déjà en cours.", f.Messages.Last());
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
         Assert.Equal("Opération déjà en cours.", f.Messages.Last());
-        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandée.\nSequence en cours d'arrêt.", f.Messages); }
+        if (escape) { Assert.True(f.Vm.TryCloseOverlay()); Assert.Contains("Annulation demandée.\nSéquence en cours d'arrêt.", f.Messages); }
         else f.Vm.CancelActiveOperation();
         await pending;
         Assert.Contains("Séquence annulée.", f.Actions.Report!.Errors);
@@ -287,7 +287,7 @@ public sealed class UpdatesViewModelTests
         Decide(f.Vm, decision); await pending;
         Assert.False(f.Vm.IsValidationOpen);
         Assert.Equal(decision == "ExecuteDecision" ? 1 : 0, f.Runner.Calls);
-        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lance aucune installation.", f.Messages.Last());
+        Assert.Equal(decision != "ExecuteDecision" ? "Windows Update non ouvert." : failure != 0 ? "Ouverture Windows Update impossible." : "Windows Update ouvert.\nVirgil ne lancé aucune installation.", f.Messages.Last());
         if (f.Runner.Calls != 0)
         {
             Assert.Equal("ms-settings:windowsupdate", f.Runner.Request!.FileName);
@@ -526,7 +526,7 @@ public sealed class UpdatesViewModelTests
         public List<ConfirmedPlan> Plans { get; } = new();
         public List<string> Order { get; } = new(); public UpdateSessionReport? Report { get; private set; }
         public Func<UpdateItem, CancellationToken, Task<UpdateExecutionResult>>? Handler { get; set; }
-        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken) { Assert.NotNull(plan); Plans.Add(plan); Order.Add("Execute:" + item.Id); return Executor?.ExecuteAsync(item, plan, cancellationToken) ?? Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
+        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken) { Assert.NotNull(plan); Plans.Add(plan); Order.Add("Exécute:" + item.Id); return Executor?.ExecuteAsync(item, plan, cancellationToken) ?? Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
         public UpdateExecutionResult Skip(UpdateItem item) { Order.Add("Skip:" + item.Id); return Result(item, UpdateItemStatus.Skipped); }
         public UpdateExecutionResult Cancel(UpdateItem item) { Order.Add("Cancel:" + item.Id); return Result(item, UpdateItemStatus.Cancelled); }
         private static UpdateExecutionResult Result(UpdateItem item, UpdateItemStatus status) => new() { Item = item, Status = status };

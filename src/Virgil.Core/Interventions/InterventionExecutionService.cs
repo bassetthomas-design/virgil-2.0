@@ -42,7 +42,7 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
 
         var validation = _gate.TryConsume(plan, InterventionActionPreviewFactory.Create(diagnostic.Definition));
         if (!validation.IsAccepted)
-            return Failure(diagnostic, "Intervention annulee.\n" + validation.Message);
+            return Failure(diagnostic, "Intervention annulée.\n" + validation.Message);
 
         if (restartExplorer)
             return await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
@@ -84,9 +84,9 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
             Action = diagnostic.Definition,
             Status = InterventionStatus.Skipped,
             ExitCode = 0,
-            SummaryOutput = "Action passee par l'utilisateur.",
+            SummaryOutput = "Action passée par l'utilisateur.",
             StateBefore = diagnostic.StateBefore,
-            StateAfter = "Aucune action effectuee.",
+            StateAfter = "Aucune action effectuée.",
             WasConfirmed = false,
             WasElevated = false
         };
@@ -99,9 +99,9 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
             Action = diagnostic.Definition,
             Status = InterventionStatus.Cancelled,
             ExitCode = -1,
-            SummaryOutput = "Parcours annule par l'utilisateur.",
+            SummaryOutput = "Parcours annulé par l'utilisateur.",
             StateBefore = diagnostic.StateBefore,
-            StateAfter = "Actions restantes non executees.",
+            StateAfter = "Actions restantes non exécutées.",
             WasConfirmed = false,
             WasElevated = false
         };
@@ -135,7 +135,7 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
             Status = InterventionStatus.Failed,
             ReadableError = message,
             StateBefore = diagnostic.StateBefore,
-            StateAfter = "Aucune action effectuee.",
+            StateAfter = "Aucune action effectuée.",
             WasConfirmed = false,
             WasElevated = false
         };
@@ -145,11 +145,11 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
     {
         return result.Status switch
         {
-            InterventionStatus.Completed => "Action terminee.",
-            InterventionStatus.RebootRequired => "Action terminee, redemarrage manuel probablement requis.",
-            InterventionStatus.PartialFailure => "Action terminee partiellement.",
-            InterventionStatus.Cancelled => "Action annulee avant execution.",
-            _ => "Action non terminee."
+            InterventionStatus.Completed => "Action terminée.",
+            InterventionStatus.RebootRequired => "Action terminée, redémarrage manuel probablement requis.",
+            InterventionStatus.PartialFailure => "Action terminée partiellement.",
+            InterventionStatus.Cancelled => "Action annulée avant exécution.",
+            _ => "Action non terminée."
         };
     }
 }

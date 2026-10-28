@@ -113,7 +113,7 @@ public sealed class MonitoringService : IMonitoringService
 
         foreach (var drive in drives.Where(drive => drive.UsedPercent >= 90))
         {
-            result.Add($"Disque {drive.Name} presque plein : nettoyage recommande.");
+            result.Add($"Disque {drive.Name} presque plein : nettoyage recommandé.");
         }
 
         return result;

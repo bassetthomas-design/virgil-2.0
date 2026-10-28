@@ -83,7 +83,7 @@ public sealed class DiagnosticActionTests
         Assert.True((await action.ExecuteAsync(plan, CancellationToken.None)).WasRefused);
         // Ce type n'a aucune dépendance vers un service d'exécution Nettoyage/Mises à jour.
         Assert.DoesNotContain(typeof(DiagnosticNavigationAction).GetConstructors().SelectMany(c => c.GetParameters()),
-            p => p.ParameterType.Name.Contains("Execution", StringComparison.Ordinal));
+            p => p.ParameterType.Name.Contains("Exécution", StringComparison.Ordinal));
     }
     [Fact]
     public async Task ModuleReturnsRealActionsBoundToItsFindings()

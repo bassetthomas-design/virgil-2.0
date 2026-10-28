@@ -77,7 +77,7 @@ public sealed class UpdateRiskClassifier
 
         return new UpdateRiskAssessment(
             UpdateRiskLevel.ValidationRequired,
-            "Application a verifier avant installation.");
+            "Application à vérifier avant installation.");
     }
 
     private static bool ContainsAny(string value, IEnumerable<string> terms)

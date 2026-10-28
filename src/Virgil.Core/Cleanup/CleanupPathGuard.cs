@@ -93,7 +93,7 @@ public static class CleanupPathGuard
 
         if (string.Equals(TrimDirectorySeparator(fullPath), TrimDirectorySeparator(fullRoot), WindowsPathComparison))
         {
-            reason = "Racine de zone refusee.";
+            reason = "Racine de zone refusée.";
             return false;
         }
 

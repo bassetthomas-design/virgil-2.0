@@ -67,7 +67,7 @@ public sealed class ReportsHistoryViewModelTests
         await fixture.ViewModel.RefreshAsync();
         await fixture.ViewModel.ExportSelectedCommand.ExecuteAsync(null);
         Assert.Equal(0, fixture.Export.Calls);
-        Assert.Equal("Export annule.\nAucun fichier cree.", fixture.Message);
+        Assert.Equal("Export annulé.\nAucun fichier cree.", fixture.Message);
         Assert.Equal(("Exporter le rapport Virgil", "Rapport texte (*.txt)|*.txt", ".txt", "Virgil-Rapport-20261018-123000.txt"), fixture.Dialog.Arguments);
     }
 
@@ -166,7 +166,7 @@ public sealed class ReportsHistoryViewModelTests
     public void DetailsPreserveActionFormattingAndTechnicalContent()
     {
         var fixture = new Fixture();
-        var action = new ReportAction { Name = "Action", Status = ReportActionStatus.Failed, Result = "Resultat", ReadableError = "Erreur", TechnicalDetails = "Trace" };
+        var action = new ReportAction { Name = "Action", Status = ReportActionStatus.Failed, Result = "Résultat", ReadableError = "Erreur", TechnicalDetails = "Trace" };
         fixture.ViewModel.ShowTransientReport(fixture.Report with
         {
             Severity = ReportSeverity.Error, TechnicalDetails = "Diagnostic", RestartRequired = true,
@@ -200,7 +200,7 @@ public sealed class ReportsHistoryViewModelTests
 
     private sealed class Fixture
     {
-        public ReportEntry Report { get; } = new() { Date = new DateTimeOffset(2026, 10, 18, 12, 30, 0, TimeSpan.Zero), Kind = ReportKind.QuickScan, Severity = ReportSeverity.Success, Title = "Diagnostic", Summary = "Tout va bien", Status = "Termine" };
+        public ReportEntry Report { get; } = new() { Date = new DateTimeOffset(2026, 10, 18, 12, 30, 0, TimeSpan.Zero), Kind = ReportKind.QuickScan, Severity = ReportSeverity.Success, Title = "Diagnostic", Summary = "Tout va bien", Status = "Terminé" };
         public FakeHistory History { get; } = new();
         public FakeExport Export { get; } = new();
         public FakeDialog Dialog { get; } = new();

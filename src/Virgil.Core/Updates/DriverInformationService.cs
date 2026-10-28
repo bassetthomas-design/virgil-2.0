@@ -49,7 +49,7 @@ public sealed class DriverInformationService
             Recommendations = new[]
             {
                 "Consulter Windows Update pour les pilotes proposes par Microsoft.",
-                "Pour GPU et chipset, verifier l'outil officiel du fabricant avant toute installation."
+                "Pour GPU et chipset, vérifier l'outil officiel du fabricant avant toute installation."
             },
             Errors = errors
         };

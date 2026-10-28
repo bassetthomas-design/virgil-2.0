@@ -105,7 +105,7 @@ public sealed class ProcessLaunchMigrationTests
         Assert.Equal(source.Token, Assert.Single(runner.Tokens));
         // The fake provider still sees no Explorer after launch, as before migration.
         Assert.Equal(InterventionStatus.PartialFailure, result.Status);
-        Assert.Equal("Explorer n'a pas ete detecte apres relance.", result.ReadableError);
+        Assert.Equal("Explorer n'a pas été détecté après relance.", result.ReadableError);
     }
 
     [Fact]

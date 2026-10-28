@@ -94,7 +94,7 @@ public sealed class ResourceRecommendationService
 
         if (uptime >= TimeSpan.FromDays(7))
         {
-            recommendations.Add("Session Windows longue : envisager un redemarrage manuel si des ralentissements persistent.");
+            recommendations.Add("Session Windows longue : envisager un redémarrage manuel si des ralentissements persistent.");
         }
         else if (uptime >= TimeSpan.FromDays(3))
         {
@@ -103,7 +103,7 @@ public sealed class ResourceRecommendationService
 
         if (processes.Any(process => process.Status == ProcessResourceStatus.Heavy))
         {
-            recommendations.Add("Des processus lourds sont detectes. Aucune fermeture n'est automatique.");
+            recommendations.Add("Des processus lourds sont détectés. Aucune fermeture n'est automatique.");
         }
 
         return recommendations.Distinct(StringComparer.OrdinalIgnoreCase).ToList();

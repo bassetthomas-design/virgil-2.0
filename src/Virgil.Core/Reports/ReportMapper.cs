@@ -11,32 +11,32 @@ public static class ReportMapper
         var kind = report.Mode == ScanMode.Deep ? ReportKind.DeepScan : ReportKind.QuickScan;
         var severity = MapScanSeverity(report.Findings.Select(finding => finding.Severity).DefaultIfEmpty(ScanSeverity.Healthy).Max());
         var simple = new StringBuilder()
-            .AppendLine($"Etat general : {report.OverallStatus}")
+            .AppendLine($"État général : {report.OverallStatus}")
             .AppendLine($"CPU : {report.Processor.UsagePercent:0.0} %")
             .AppendLine($"RAM : {report.Memory.UsedPercent:0.0} %")
             .AppendLine($"Disques analyses : {report.Disks.Count}")
-            .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "non analyse")}")
+            .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "Non analysé")}")
             .AppendLine($"Nettoyage sur : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
             .AppendLine($"Nettoyage avance : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
             .AppendLine($"Elements personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
             .AppendLine("Protection personnelle : aucune suppression depuis l'analyse approfondie.")
-            .AppendLine($"Mises a jour disponibles : {report.Updates.ApplicationUpdates}")
-            .AppendLine($"Interventions recommandees : {report.Interventions.RecommendedActions}")
+            .AppendLine($"Mises à jour disponibles : {report.Updates.ApplicationUpdates}")
+            .AppendLine($"Interventions recommandées : {report.Interventions.RecommendedActions}")
             .AppendLine($"Processus lourds : {report.Resources.HeavyProcessCount}")
-            .AppendLine($"Applications detectees : {report.Applications.DetectedCount}")
-            .AppendLine($"Applications desinstallables : {report.Applications.UninstallableCount}")
-            .AppendLine($"Applications protegees : {report.Applications.ProtectedCount}")
+            .AppendLine($"Applications détectées : {report.Applications.DetectedCount}")
+            .AppendLine($"Applications désinstallables : {report.Applications.UninstallableCount}")
+            .AppendLine($"Applications protégées : {report.Applications.ProtectedCount}")
             .AppendLine("Applications : inventaire lecture seule depuis le scan.")
-            .AppendLine("Aucune action executee depuis le scan.")
+            .AppendLine("Aucune action exécutée depuis le scan.")
             .ToString();
         var technical = new StringBuilder()
             .AppendLine($"Windows : {report.Windows.Edition} {report.Windows.Version} build {report.Windows.Build}")
             .AppendLine($"Architecture : {report.Windows.SystemArchitecture} / {report.Windows.ProcessArchitecture}")
             .AppendLine($"CPU logique : {report.Processor.LogicalProcessorCount}")
-            .AppendLine($"Reseau : {report.Network.Name} - {report.Network.Type} - {report.Network.Status}")
+            .AppendLine($"Réseau : {report.Network.Name} - {report.Network.Type} - {report.Network.Status}")
             .AppendLine($"Duree : {report.Duration}")
-            .AppendLine($"Source mises a jour : {(report.Updates.WingetAvailable ? "WinGet disponible" : "WinGet indisponible")}")
-            .AppendLine($"Inventaire applications : {(report.Applications.WasAnalyzed ? $"{report.Applications.DetectedCount} detectees, {report.Applications.UnknownCount} inconnues" : "non analyse")}")
+            .AppendLine($"Source mises à jour : {(report.Updates.WingetAvailable ? "WinGet disponible" : "WinGet indisponible")}")
+            .AppendLine($"Inventaire applications : {(report.Applications.WasAnalyzed ? $"{report.Applications.DetectedCount} détectées, {report.Applications.UnknownCount} inconnues" : "Non analysé")}")
             .ToString();
         return Base(
             kind,
@@ -64,7 +64,7 @@ public static class ReportMapper
             Name = result.Zone.DisplayName,
             Status = ReportActionStatus.Proposed,
             Risk = result.Zone.RiskLevel.ToString(),
-            Result = "Zone proposee dans le parcours guide.",
+            Result = "Zone proposée dans le parcours guide.",
             TechnicalDetails = result.Zone.RootPath
         }).ToList();
         var executed = report.Results
@@ -86,7 +86,7 @@ public static class ReportMapper
                 Name = result.Zone.DisplayName,
                 Status = ReportActionStatus.Skipped,
                 Risk = result.Zone.RiskLevel.ToString(),
-                Result = "Zone passee. Aucune suppression."
+                Result = "Zone passée. Aucune suppression."
             })
             .ToList();
         var severity = report.Errors.Count > 0 || report.ErrorFiles > 0
@@ -96,13 +96,13 @@ public static class ReportMapper
             ReportKind.Cleanup,
             "Rapport nettoyage",
             $"{report.QuarantinedFiles} fichiers mis en quarantaine ({ScanRules.FormatBytes(report.QuarantinedBytes)}). Corbeille : {ScanRules.FormatBytes(report.DeletedBytes)} libérés.",
-            severity == ReportSeverity.Success ? "Termine" : "Termine avec avertissements",
+            severity == ReportSeverity.Success ? "Terminé" : "Terminé avec avertissements",
             severity,
             "Nettoyage",
             report.FinishedAt,
             report.Duration,
-            $"Zones analysees : {analyzedZones}\nZones executees : {executed.Count}\nZones passees : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements proteges : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
-            $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nReparations proposees : {string.Join(" | ", report.PermissionRepairsProposed)}\nReparations executees : {string.Join(" | ", report.PermissionRepairsExecuted)}",
+            $"Zones analysees : {analyzedZones}\nZones exécutées : {executed.Count}\nZones passées : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements protégés : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
+            $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nRéparations proposées : {string.Join(" | ", report.PermissionRepairsProposed)}\nRéparations exécutées : {string.Join(" | ", report.PermissionRepairsExecuted)}",
             "CleanupExecutionService") with
         {
             ProposedActions = proposed,
@@ -128,14 +128,14 @@ public static class ReportMapper
         }).ToList();
         return Base(
             ReportKind.Updates,
-            "Scan mises a jour",
-            $"{report.Items.Count} mise(s) a jour detectee(s). Aucune installation automatique.",
+            "Scan mises à jour",
+            $"{report.Items.Count} mise(s) à jour détectée(s). Aucune installation automatique.",
             report.OverallStatus,
             severity,
-            "Mises a jour",
+            "Mises à jour",
             report.CapturedAt,
             report.Duration,
-            $"Applications : {report.Items.Count}\nComposants sensibles : {report.SensitiveCount}\nPilotes inventories : {report.Drivers.Drivers.Count}\nAucune installation executee.",
+            $"Applications : {report.Items.Count}\nComposants sensibles : {report.SensitiveCount}\nPilotes inventories : {report.Drivers.Drivers.Count}\nAucune installation exécutée.",
             $"Portee : {report.Scope}\nWinGet : {report.Winget.Message}\nDuree : {report.Duration}",
             "WingetUpdateScanService") with
         {
@@ -174,7 +174,7 @@ public static class ReportMapper
                 Name = result.Item.Name,
                 Status = ReportActionStatus.Skipped,
                 Risk = result.Item.RiskLevel.ToString(),
-                Result = "Mise a jour passee."
+                Result = "Mise à jour passée."
             })
             .ToList();
         var severity = report.FailedCount > 0
@@ -182,14 +182,14 @@ public static class ReportMapper
             : report.WasCancelled ? ReportSeverity.Warning : ReportSeverity.Success;
         return Base(
             ReportKind.Updates,
-            "Rapport mises a jour",
-            $"{report.CompletedCount} terminee(s), {report.SkippedCount} passee(s), {report.FailedCount} echec(s).",
-            severity == ReportSeverity.Success ? "Termine" : "Termine avec incidents",
+            "Rapport mises à jour",
+            $"{report.CompletedCount} terminée(s), {report.SkippedCount} passée(s), {report.FailedCount} échec(s).",
+            severity == ReportSeverity.Success ? "Terminé" : "Terminé avec incidents",
             severity,
-            "Mises a jour",
+            "Mises à jour",
             report.StartedAt + report.Duration,
             report.Duration,
-            $"Mises a jour effectuees : {report.CompletedCount}\nActions passees : {report.SkippedCount}\nEchecs : {report.FailedCount}",
+            $"Mises à jour effectuées : {report.CompletedCount}\nActions passées : {report.SkippedCount}\nÉchecs : {report.FailedCount}",
             $"Debut : {report.StartedAt:O}\nDuree : {report.Duration}",
             "WingetUpdateExecutionService") with
         {
@@ -221,7 +221,7 @@ public static class ReportMapper
                 Result = result.SummaryOutput,
                 ReadableError = result.ReadableError,
                 RestartRequired = result.RebootRequired,
-                TechnicalDetails = $"Code sortie : {result.ExitCode}\nAdmin : {(result.WasElevated ? "oui" : "non")}\nDuree : {result.Duration}\nEtat avant : {result.StateBefore}\nEtat apres : {result.StateAfter}"
+                TechnicalDetails = $"Code sortie : {result.ExitCode}\nAdmin : {(result.WasElevated ? "oui" : "non")}\nDuree : {result.Duration}\nÉtat avant : {result.StateBefore}\nÉtat après : {result.StateAfter}"
             })
             .ToList();
         var skipped = report.Results
@@ -243,13 +243,13 @@ public static class ReportMapper
         return Base(
             ReportKind.Interventions,
             "Rapport interventions",
-            $"{report.Successes} reussie(s), {report.Failures} echec(s), {report.SkippedActions} passee(s).",
-            severity == ReportSeverity.Success ? "Termine" : "Termine avec incidents",
+            $"{report.Successes} reussie(s), {report.Failures} échec(s), {report.SkippedActions} passée(s).",
+            severity == ReportSeverity.Success ? "Terminé" : "Terminé avec incidents",
             severity,
             "Interventions",
             report.StartedAt + report.Duration,
             report.Duration,
-            $"Actions executees : {report.ExecutedActions}\nActions passees : {report.SkippedActions}\nErreurs : {report.Errors.Count}\nRedemarrage requis : {(report.RebootRequired ? "oui" : "non")}",
+            $"Actions exécutées : {report.ExecutedActions}\nActions passées : {report.SkippedActions}\nErreurs : {report.Errors.Count}\nRedémarrage requis : {(report.RebootRequired ? "oui" : "non")}",
             $"Debut : {report.StartedAt:O}\nDuree : {report.Duration}",
             "InterventionExecutionService") with
         {
@@ -279,7 +279,7 @@ public static class ReportMapper
             Name = value,
             Status = ReportActionStatus.Skipped,
             Risk = "Information",
-            Result = "Action passee."
+            Result = "Action passée."
         }).ToList();
         var severity = report.Errors.Count > 0
             ? ReportSeverity.Warning
@@ -288,7 +288,7 @@ public static class ReportMapper
                 : ReportSeverity.Success;
         var simple = analysis is null
             ? "Aucune analyse CPU/RAM dans cette session."
-            : $"CPU moyen : {analysis.AverageCpuPercent:0.0} %\nCPU max : {analysis.MaximumCpuPercent:0.0} %\nRAM moyenne : {analysis.AverageMemoryPercent:0.0} %\nRAM max : {analysis.MaximumMemoryPercent:0.0} %\nProcessus lourds : {CountHeavyProcesses(analysis)}\nRedemarrage conseille : {(report.RestartRecommended ? "oui" : "non")}";
+            : $"CPU moyen : {analysis.AverageCpuPercent:0.0} %\nCPU max : {analysis.MaximumCpuPercent:0.0} %\nRAM moyenne : {analysis.AverageMemoryPercent:0.0} %\nRAM max : {analysis.MaximumMemoryPercent:0.0} %\nProcessus lourds : {CountHeavyProcesses(analysis)}\nRedémarrage conseillé : {(report.RestartRecommended ? "oui" : "non")}";
         var technical = analysis is null
             ? string.Empty
             : string.Join("\n", analysis.TopMemoryProcesses.Take(5).Select(process =>

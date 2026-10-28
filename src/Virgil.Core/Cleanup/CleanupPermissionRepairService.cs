@@ -41,7 +41,7 @@ public sealed class CleanupPermissionRepairService
         var root = Path.GetPathRoot(fullPath);
         if (string.Equals(Trim(fullPath), Trim(root ?? string.Empty), StringComparison.OrdinalIgnoreCase))
         {
-            return Refuse(fullPath, "Une racine de lecteur ne peut jamais etre reparee.");
+            return Refuse(fullPath, "Une racine de lecteur ne peut jamais être reparee.");
         }
 
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

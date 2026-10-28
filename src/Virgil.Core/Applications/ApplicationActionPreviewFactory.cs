@@ -23,7 +23,7 @@ public static class ApplicationActionPreviewFactory
 
         return new ActionPreview("applications.uninstall", application.DisplayName,
             application.RiskLevel.ToRiskLevel(), [application.Id, application.DisplayName], parameters,
-            ["Lancement du desinstalleur officiel valide.", "Analyse lecture seule des restes."],
+            ["Lancement du désinstalleur officiel valide.", "Analyse lecture seule des restes."],
             false, false, Reversibility.None, []);
     }
 }

@@ -49,7 +49,7 @@ public sealed class ProcessRunnerAdapterTests
         var result = await new ShellApplicationProcessLauncher(runner).LaunchAsync("uninstall.exe", Array.Empty<string>(), true, CancellationToken.None);
         Assert.False(result.Started);
         Assert.Null(result.ExitCode);
-        Assert.Equal("Desinstalleur officiel impossible a lancer.", result.ReadableError);
+        Assert.Equal("Désinstalleur officiel impossible a lancer.", result.ReadableError);
     }
 
     [Fact]

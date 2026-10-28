@@ -63,7 +63,7 @@ public sealed class ScanRulesTests
     {
         var findings = new[]
         {
-            new ScanFinding("memory", "Memoire", "RAM", "RAM elevee", "75 %", ScanSeverity.Attention, "Surveiller la RAM."),
+            new ScanFinding("memory", "Mémoire", "RAM", "RAM elevee", "75 %", ScanSeverity.Attention, "Surveiller la RAM."),
             new ScanFinding("disk", "Stockage", "Disque", "Disque plein", "91 %", ScanSeverity.Critical, "Liberer le disque."),
             new ScanFinding("disk-duplicate", "Stockage", "Disque", "Disque plein", "92 %", ScanSeverity.Critical, "Liberer le disque.")
         };

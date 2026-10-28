@@ -76,7 +76,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
             {
                 Success = false,
                 Report = report,
-                ReadableError = "Enregistrement du rapport annule. Le rapport reste disponible en memoire."
+                ReadableError = "Enregistrement du rapport annulé. Le rapport reste disponible en mémoire."
             };
         }
         catch
@@ -85,7 +85,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
             {
                 Success = false,
                 Report = report,
-                ReadableError = "Historique local indisponible. Le rapport reste disponible en memoire."
+                ReadableError = "Historique local indisponible. Le rapport reste disponible en mémoire."
             };
         }
         finally
@@ -159,7 +159,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
                     .ConfigureAwait(false);
                 if (report is null || report.Id == Guid.Empty)
                 {
-                    errors.Add($"Rapport ignore car invalide : {Path.GetFileName(path)}.");
+                    errors.Add($"Rapport ignoré car invalide : {Path.GetFileName(path)}.");
                     continue;
                 }
 
@@ -171,7 +171,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
             }
             catch
             {
-                errors.Add($"Rapport corrompu ignore : {Path.GetFileName(path)}.");
+                errors.Add($"Rapport corrompu ignoré : {Path.GetFileName(path)}.");
             }
         }
 
@@ -211,7 +211,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
             }
             catch
             {
-                errors.Add($"Rotation ignore un rapport illisible : {Path.GetFileName(path)}.");
+                errors.Add($"Rotation ignoré un rapport illisible : {Path.GetFileName(path)}.");
             }
         }
 

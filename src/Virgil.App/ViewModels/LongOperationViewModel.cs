@@ -40,7 +40,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
         IsCancelling = true;
         IsVisible = true;
         Step = IsNonInterruptible
-            ? "Annulation demandée — l’étape en cours se termine, rien d’autre ne sera lancé"
+            ? "Annulation demandée — l’étape en cours se terminé, rien d’autre ne sera lancé"
             : "Annulation en cours…";
     }
     public void Start(string label, bool immediately = false, bool nonInterruptible = false)

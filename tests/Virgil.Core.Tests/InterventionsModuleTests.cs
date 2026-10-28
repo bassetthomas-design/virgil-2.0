@@ -276,7 +276,7 @@ public sealed class InterventionsModuleTests
                     WasElevated = true,
                     RebootRequired = true,
                     StateBefore = "Avant",
-                    StateAfter = "Apres"
+                    StateAfter = "Après"
                 },
                 new InterventionExecutionResult
                 {
@@ -494,7 +494,7 @@ public sealed class InterventionsModuleTests
             {
                 Scope = request.Scope,
                 OverallStatus = "A jour",
-                Winget = WingetAvailability.Unavailable("WinGet non detecte.")
+                Winget = WingetAvailability.Unavailable("WinGet non détecté.")
             });
         }
     }

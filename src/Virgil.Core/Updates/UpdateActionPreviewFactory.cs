@@ -24,7 +24,7 @@ public static class UpdateActionPreviewFactory
                 parameters["Argument:" + i.ToString(CultureInfo.InvariantCulture)] = command.Arguments[i];
         // Hash the scanned command, independently of runtime WinGet capability detection.
         return new ActionPreview("updates.winget-upgrade", item.Name, item.RiskLevel.ToRiskLevel(),
-            [item.Id, item.Name], parameters, ["Installation de la mise a jour ciblee par --id exact."],
+            [item.Id, item.Name], parameters, ["Installation de la mise à jour ciblée par --id exact."],
             false, false, Reversibility.None, []);
     }
 }

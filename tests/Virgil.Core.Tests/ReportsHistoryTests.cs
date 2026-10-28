@@ -115,7 +115,7 @@ public sealed class ReportsHistoryTests
 
         Assert.False(result.Success);
         Assert.NotNull(result.Report);
-        Assert.Contains("memoire", result.ReadableError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("mémoire", result.ReadableError, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public sealed class ReportsHistoryTests
         var technical = service.BuildText(report, includeTechnicalDetails: true);
 
         Assert.Contains("VIRGIL 2.0 - RAPPORT", simple);
-        Assert.Contains("Actions proposees", simple);
+        Assert.Contains("Actions proposées", simple);
         Assert.Contains("Masques dans cet export", simple);
         Assert.DoesNotContain("Code sortie : 5", simple);
         Assert.Contains("Code sortie : 5", technical);
@@ -192,7 +192,7 @@ public sealed class ReportsHistoryTests
                 {
                     Name = "Diagnostic",
                     Status = ReportActionStatus.Executed,
-                    Result = "Termine",
+                    Result = "Terminé",
                     TechnicalDetails = "Code sortie : 0 token=private-value"
                 }
             }
@@ -249,7 +249,7 @@ public sealed class ReportsHistoryTests
 
         Assert.Equal(expectedKind, mapped.Kind);
         Assert.Empty(mapped.ExecutedActions);
-        Assert.Contains("Aucune action executee", mapped.SimpleView);
+        Assert.Contains("Aucune action exécutée", mapped.SimpleView);
     }
 
     [Fact]
@@ -390,20 +390,20 @@ public sealed class ReportsHistoryTests
             Kind = kind,
             Title = $"Rapport {index}",
             Summary = "Resume lisible",
-            Status = "Termine",
+            Status = "Terminé",
             Severity = ReportSeverity.Success,
             Module = kind.ToString(),
             ProposedActions = new[]
             {
                 new ReportAction
                 {
-                    Name = "Verifier",
+                    Name = "Vérifier",
                     Status = ReportActionStatus.Proposed,
                     Result = "Proposition uniquement"
                 }
             },
             SimpleView = "Vue simple",
-            TechnicalDetails = "Details techniques"
+            TechnicalDetails = "Détails techniques"
         };
     }
 

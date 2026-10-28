@@ -115,7 +115,7 @@
                     <Border Grid.Column="1" Style="{StaticResource VirgilHudCard}" Margin="6,0,0,8">
                         <StackPanel>
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock Text="Validation separee par action. Aucune commande libre. Aucun redemarrage automatique."
+                            <TextBlock Text="Validation séparée par action. Aucune commande libre. Aucun redémarrage automatique."
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="HELPER ÉLEVÉ" Style="{StaticResource VirgilMicroLabel}" />

@@ -71,7 +71,7 @@ public sealed class ResourceUpdateConfirmedPlanTests
         }
         var result = await service.ExecuteAsync(action, target, plan, CancellationToken.None);
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
-        if (scenario != "runtime-identity") Assert.StartsWith("Action annulee.\n", result.ReadableError);
+        if (scenario != "runtime-identity") Assert.StartsWith("Action annulée.\n", result.ReadableError);
         Assert.Equal(0, runtime.Effects);
         Assert.Equal(0, restarter.Calls);
     }
@@ -154,7 +154,7 @@ public sealed class ResourceUpdateConfirmedPlanTests
         }
         var result = await service.ExecuteAsync(item, plan, CancellationToken.None);
         Assert.Equal(UpdateItemStatus.Cancelled, result.Status);
-        Assert.StartsWith("Installation annulee.\n", result.UserMessage);
+        Assert.StartsWith("Installation annulée.\n", result.UserMessage);
         Assert.Equal(0, runner.Upgrades);
     }
 
@@ -198,7 +198,7 @@ public sealed class ResourceUpdateConfirmedPlanTests
         var service = new WingetUpdateExecutionService(new WingetAvailabilityService(runner, ["winget"]), runner, authority);
         var result = await service.ExecuteAsync(item, Issue(authority, UpdateActionPreviewFactory.Create(Item())), CancellationToken.None);
         Assert.Equal(UpdateItemStatus.Failed, result.Status);
-        Assert.Equal("Mise a jour bloquee : version confirmee manquante ou invalide. Aucune installation effectuee.", result.UserMessage);
+        Assert.Equal("Mise à jour bloquée : version confirmee manquante ou invalide. Aucune installation effectuée.", result.UserMessage);
         Assert.Equal(0, runner.Upgrades);
         Assert.Empty(runner.UpgradeRequests);
     }

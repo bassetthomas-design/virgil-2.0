@@ -94,7 +94,7 @@ public sealed class CleanupStorageAnalyzer
                 new DateTimeOffset(DateTime.SpecifyKind(file.LastWriteTimeUtc, DateTimeKind.Utc)),
                 classification,
                 classification == CleanupClassification.Protected
-                    ? "Donnee personnelle protegee. Aucune suppression proposee."
+                    ? "Donnee personnelle protégée. Aucune suppression proposée."
                     : "Element volumineux ou ambigu a revoir manuellement."));
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { }
@@ -124,7 +124,7 @@ public sealed class CleanupStorageAnalyzer
                 new DateTimeOffset(DateTime.SpecifyKind(info.LastWriteTimeUtc, DateTimeKind.Utc)),
                 classification,
                 classification == CleanupClassification.Protected
-                    ? "Dossier personnel, projet, sauvegarde ou jeu protege."
+                    ? "Dossier personnel, projet, sauvegarde ou jeu protégé."
                     : "Taille partielle du dossier; analyse en lecture seule."));
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { }
@@ -148,7 +148,7 @@ public sealed class CleanupStorageAnalyzer
         var normalized = root.Replace('/', '\\');
         if (CloudFragments.Any(fragment => normalized.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
         {
-            reason = "cloud non analyse par defaut";
+            reason = "cloud Non analysé par defaut";
             return false;
         }
 
@@ -157,7 +157,7 @@ public sealed class CleanupStorageAnalyzer
             var drive = new DriveInfo(Path.GetPathRoot(root)!);
             if (drive.DriveType is DriveType.Network or DriveType.Removable)
             {
-                reason = "lecteur reseau ou externe non analyse par defaut";
+                reason = "lecteur réseau ou externe Non analysé par defaut";
                 return false;
             }
         }

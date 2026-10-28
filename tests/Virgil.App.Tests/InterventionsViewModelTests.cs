@@ -86,18 +86,18 @@ public sealed class InterventionsViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(1, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Executed); Assert.Single(f.Actions.Cancelled);
-        Assert.Equal("Parcours annule par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+        Assert.Equal("Parcours annulé par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
     }
 
     [Fact]
     public void InitialStateMatchesView()
     {
         var vm = new Fixture().Vm;
-        Assert.Equal("DIAGNOSTIC, VALIDATION ET EXECUTION", vm.StatusText);
+        Assert.Equal("DIAGNOSTIC, VALIDATION ET EXÉCUTION", vm.StatusText);
         Assert.Equal("NON ANALYSÉ", vm.OverallText);
         Assert.Equal("0", vm.RecommendedCountText);
-        Assert.Equal("Lancez une analyse pour afficher les actions systeme.", vm.SystemNotice);
-        Assert.Equal("Lancez une analyse pour afficher les actions reseau.", vm.NetworkNotice);
+        Assert.Equal("Lancez une analyse pour afficher les actions système.", vm.SystemNotice);
+        Assert.Equal("Lancez une analyse pour afficher les actions réseau.", vm.NetworkNotice);
         Assert.Equal("Lancez une analyse pour afficher les actions stockage.", vm.StorageNotice);
         Assert.Equal("Lancez une analyse pour afficher les actions interface.", vm.InterfaceNotice);
         Assert.Empty(vm.SystemItems.Concat(vm.NetworkItems).Concat(vm.StorageItems).Concat(vm.InterfaceItems));
@@ -143,7 +143,7 @@ public sealed class InterventionsViewModelTests
         Assert.Equal("8 disponibles. Aucune execution automatique.", f.Vm.OverallText);
         Assert.Equal("9", f.Vm.RecommendedCountText);
         Assert.Equal("Diagnostic termine.\n8 actions disponibles.\n9 recommandees.", f.Message);
-        Assert.Equal((VirgilCoreState.Success, "PRET"), f.State);
+        Assert.Equal((VirgilCoreState.Success, "PRÊT"), f.State);
         Assert.Empty(f.Vm.SystemNotice + f.Vm.NetworkNotice + f.Vm.StorageNotice + f.Vm.InterfaceNotice);
         Assert.True(f.Vm.IsIdle);
         Assert.True(f.Vm.IsRunGuidedEnabled);
@@ -208,7 +208,7 @@ public sealed class InterventionsViewModelTests
         if (expected == 0)
         {
             await pending;
-            Assert.Equal("Aucune intervention selectionnee.", f.Message);
+            Assert.Equal("Aucune intervention sélectionnée.", f.Message);
             Assert.Equal("Diagnostic interventions en cours.", f.Vm.StatusText);
             Assert.True(f.Vm.IsIdle);
             Assert.False(f.Vm.IsValidationOpen);
@@ -325,8 +325,8 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(new[] { "Skip:FlushDns", "Execute:RestartExplorer", "Cancel:SfcScan" }, f.Actions.Order);
         Assert.Equal(f.Diagnostics.Items, f.Actions.Report!.ProposedActions);
         Assert.Equal(new[] { InterventionStatus.Skipped, InterventionStatus.Completed, InterventionStatus.Cancelled }, f.Actions.Report.Results.Select(r => r.Status));
-        Assert.Equal(new[] { "Parcours annule par l'utilisateur." }, f.Actions.Report.Errors);
-        Assert.Equal("Parcours annule.", f.Vm.StatusText);
+        Assert.Equal(new[] { "Parcours annulé par l'utilisateur." }, f.Actions.Report.Errors);
+        Assert.Equal("Parcours annulé.", f.Vm.StatusText);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.MiniCoreState);
         Assert.True(f.Vm.IsReportOpen);
         Assert.Equal(new InterventionReportBuilder().Build(f.Actions.Report), f.Vm.ReportText);
@@ -417,7 +417,7 @@ public sealed class InterventionsViewModelTests
         Assert.True(f.Vm.IsIdle);
         Assert.True(f.Vm.IsReportOpen);
         Assert.Equal(1, f.Persisted);
-        Assert.Contains("Parcours annule.", f.Actions.Report!.Errors);
+        Assert.Contains("Parcours annulé.", f.Actions.Report!.Errors);
     }
 
     [Theory]
@@ -439,9 +439,9 @@ public sealed class InterventionsViewModelTests
             pending = f.Run();
         }
         await f.Analyze();
-        Assert.Equal("Operation deja en cours.", f.Message);
+        Assert.Equal("Opération déjà en cours.", f.Message);
         await f.Run();
-        Assert.Equal("Operation deja en cours.", f.Message);
+        Assert.Equal("Opération déjà en cours.", f.Message);
         Assert.Equal(1, f.Diagnostics.Calls);
         Assert.Empty(f.Actions.Executed);
         f.Vm.CancelActiveOperation();
@@ -493,17 +493,17 @@ public sealed class InterventionsViewModelTests
         f.Vm.SkipDecisionCommand.Execute(null);
         await pending;
         Assert.Equal(success ? 1 : 0, f.Persisted);
-        Assert.Equal(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Message);
+        Assert.Equal(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Message);
         Assert.False(f.History.Token.CanBeCanceled);
         Assert.True(f.Vm.IsReportOpen);
     }
 
     [Theory]
-    [InlineData(InterventionStatus.Completed, "Intervention terminee.\nRapport mis a jour.", "Parcours termine.", VirgilCoreState.Success)]
-    [InlineData(InterventionStatus.RebootRequired, "Intervention terminee.\nRedemarrage manuel probablement requis.", "Parcours termine.", VirgilCoreState.Success)]
+    [InlineData(InterventionStatus.Completed, "Intervention terminée.\nRapport mis à jour.", "Parcours terminé.", VirgilCoreState.Success)]
+    [InlineData(InterventionStatus.RebootRequired, "Intervention terminée.\nRedémarrage manuel probablement requis.", "Parcours terminé.", VirgilCoreState.Success)]
     [InlineData(InterventionStatus.PartialFailure, "Intervention partielle.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
-    [InlineData(InterventionStatus.Failed, "Intervention en echec.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
-    [InlineData(InterventionStatus.Unavailable, "Intervention traitee.\nRapport disponible.", "Parcours termine.", VirgilCoreState.Success)]
+    [InlineData(InterventionStatus.Failed, "Intervention en échec.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
+    [InlineData(InterventionStatus.Unavailable, "Intervention traitee.\nRapport disponible.", "Parcours terminé.", VirgilCoreState.Success)]
     public async Task ExecutionResultKeepsMessagesAndSessionState(InterventionStatus status, string message, string session, VirgilCoreState state)
     {
         var f = new Fixture();
@@ -578,7 +578,7 @@ public sealed class InterventionsViewModelTests
         InterventionRiskLevel risk = InterventionRiskLevel.Low) => new()
     {
         Definition = new() { Id = id, Title = id.ToString(), Category = category, DisplayOrder = order, RiskLevel = risk, CanBeInterruptedAfterStart = true },
-        IsAvailable = available, Status = status, StateBefore = "Etat avant", Recommendation = "Conseil"
+        IsAvailable = available, Status = status, StateBefore = "État avant", Recommendation = "Conseil"
     };
 
     private sealed class Fixture
@@ -634,7 +634,7 @@ public sealed class InterventionsViewModelTests
             Assert.NotNull(plan);
             Assert.True(Authority.TryConsume(plan, InterventionActionPreviewFactory.Create(diagnostic.Definition)).IsAccepted);
             Executed.Add((diagnostic, plan));
-            Order.Add("Execute:" + diagnostic.Definition.Id);
+            Order.Add("Exécute:" + diagnostic.Definition.Id);
             Token = cancellationToken;
             return Handler?.Invoke(diagnostic, cancellationToken) ?? Task.FromResult(new InterventionExecutionResult
             { Action = diagnostic.Definition, Status = ResultStatus, WasConfirmed = plan is not null });

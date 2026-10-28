@@ -66,7 +66,7 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
 
         cancellationToken.ThrowIfCancellationRequested();
         stopwatch.Stop();
-        Report(progress, "Termine", "Synthese", merged.Count, 100, "Inventaire termine.");
+        Report(progress, "Terminé", "Synthèse", merged.Count, 100, "Inventaire terminé.");
 
         return new ApplicationInventoryReport
         {

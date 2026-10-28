@@ -178,7 +178,7 @@
                                                         <Expander Header="Détails techniques" Margin="20,4,0,0">
                                                             <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers>
                                                                 <Trigger Property="IsExpanded" Value="True"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
-                                                                    <TextBlock Text="{Binding Details}" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Détails}" TextWrapping="Wrap"/>
                                                                 </DataTemplate></Setter.Value></Setter></Trigger>
                                                             </Style.Triggers></Style></Expander.Style>
                                                             <Expander.Content><Binding/></Expander.Content>
@@ -213,7 +213,7 @@
                                         <CheckBox IsChecked="{Binding IsSelected}" Margin="0,8">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}" />
-                                                <TextBlock Text="{Binding Details}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Détails}" TextWrapping="Wrap" />
                                                 <TextBlock Text="{Binding ExpirationStatus}" />
                                             </StackPanel>
                                         </CheckBox>
@@ -293,7 +293,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,3,0,10"
                                        Text="{Binding ValidationRoot}" />
-                            <TextBlock Text="PREVISUALISATION"
+                            <TextBlock Text="PRÉVISUALISATION"
                                        Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="ValidationMetricsText"
                                        Style="{StaticResource VirgilHudSecondaryText}"

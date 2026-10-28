@@ -69,7 +69,7 @@ internal static class ProcessReader
         }
         catch
         {
-            return "Processus protege";
+            return "Processus protégé";
         }
     }
 

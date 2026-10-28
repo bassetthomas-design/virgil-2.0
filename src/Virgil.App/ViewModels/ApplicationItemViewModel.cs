@@ -30,7 +30,7 @@ public sealed partial class ApplicationItemViewModel : ObservableObject
         DetailsCommand = new RelayCommand(() => showDetails(application));
         OpenLocationCommand = new AsyncRelayCommand(() => openLocation(application));
         IsLocationVisible = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
-        LocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings ? "PARAMETRES" : "OUVRIR EMPLACEMENT";
+        LocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings ? "PARAMÈTRES" : "OUVRIR EMPLACEMENT";
     }
 
     private readonly Action<InstalledApplication, bool>? _selectionChanged;

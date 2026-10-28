@@ -66,7 +66,7 @@ public sealed class ApplicationsViewModelTests
 
     [Theory]
     [InlineData(InstallationLocationOpenResult.Missing, "Emplacement introuvable.")]
-    [InlineData(InstallationLocationOpenResult.Opened, "Emplacement ouvert.\nAucune suppression executee.")]
+    [InlineData(InstallationLocationOpenResult.Opened, "Emplacement ouvert.\nAucune suppression exécutée.")]
     [InlineData(InstallationLocationOpenResult.Failed, "Ouverture emplacement impossible.")]
     public async Task LocationUsesInjectedPortWithoutAccessingRealFileSystem(
         InstallationLocationOpenResult result, string message)
@@ -111,7 +111,7 @@ public sealed class ApplicationsViewModelTests
         Assert.False(f.Vm.IsDetailsOpen);
         Assert.False(f.Vm.IsReportOpen);
         Assert.False(f.Vm.TryCloseOverlay());
-        Assert.Equal("Lancez un inventaire. Aucune action ne sera executee.", Assert.IsType<ApplicationTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
+        Assert.Equal("Lancez un inventaire. Aucune action ne sera exécutée.", Assert.IsType<ApplicationTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Empty(f.Runner.Requests);
     }
 
@@ -132,7 +132,7 @@ public sealed class ApplicationsViewModelTests
     {
         var f = new Fixture();
         await f.Analyze();
-        Assert.Equal("Inventaire termine.", f.Vm.StatusText);
+        Assert.Equal("Inventaire terminé.", f.Vm.StatusText);
         Assert.Equal("1 detectees, 1 desinstallables, 0 avertissement(s).", f.Vm.InventorySummary);
         Assert.Equal("1 simples, 0 attention, 0 protegees, 0 inconnues.", f.Vm.RiskSummary);
         var card = Assert.Single(f.Cards);
@@ -171,8 +171,8 @@ public sealed class ApplicationsViewModelTests
         Assert.False(f.Vm.IsLaunchUninstallEnabled);
         Assert.True(f.Vm.TryCloseOverlay());
         await analyze;
-        Assert.Equal("Inventaire annule.", f.Vm.StatusText);
-        Assert.Contains("Inventaire applications annule.\nAucune action effectuee.", f.Messages);
+        Assert.Equal("Inventaire annulé.", f.Vm.StatusText);
+        Assert.Contains("Inventaire applications annulé.\nAucune action effectuée.", f.Messages);
         Assert.Empty(f.History.Reports);
         Assert.Empty(f.Runner.Requests);
         Idle(f.Vm);
@@ -185,7 +185,7 @@ public sealed class ApplicationsViewModelTests
         f.Inventory.Handler = _ => throw new InvalidOperationException("Inventaire test.");
         await f.Analyze();
         Assert.Equal("Inventaire applications indisponible.", f.Vm.StatusText);
-        Assert.Contains("Inventaire applications indisponible.\nAucune action effectuee.", f.Messages);
+        Assert.Contains("Inventaire applications indisponible.\nAucune action effectuée.", f.Messages);
         Assert.Contains((VirgilCoreState.Error, "ERREUR"), f.States);
         Assert.Empty(f.History.Reports);
         Idle(f.Vm);
@@ -210,9 +210,9 @@ public sealed class ApplicationsViewModelTests
     [InlineData("  MEDIA  ", "TOUT", 1)]
     [InlineData("example.publisher", "TOUT", 1)]
     [InlineData("videolan.vlc", "TOUT", 1)]
-    [InlineData("", "DESINSTALLABLE", 2)]
+    [InlineData("", "DÉSINSTALLABLE", 2)]
     [InlineData("", "ATTENTION", 1)]
-    [InlineData("", "PROTEGE", 1)]
+    [InlineData("", "PROTÉGÉ", 1)]
     [InlineData("", "INCONNU", 1)]
     [InlineData("media", "ATTENTION", 0)]
     public async Task SearchAndFilterCombineWithoutAddingSelection(string search, string filter, int count)
@@ -241,11 +241,11 @@ public sealed class ApplicationsViewModelTests
         Assert.Contains("Architecture :", f.Vm.DetailsBody);
         Assert.Equal("winget uninstall --id VideoLAN.VLC --exact", f.Vm.DetailsCommand);
         Assert.Contains("Confirmation explicite obligatoire", f.Vm.DetailsSafety);
-        Assert.Equal("Disponibles apres lancement du desinstallateur officiel. Analyse lecture seule uniquement.", Assert.Single(f.Vm.Remnants).Text);
+        Assert.Equal("Disponibles après lancement du désinstallateur officiel. Analyse lecture seule uniquement.", Assert.Single(f.Vm.Remnants).Text);
         Assert.True(f.Vm.TryCloseOverlay());
         Assert.False(f.Vm.IsDetailsOpen);
         await f.Launch();
-        Assert.Contains("Aucune application selectionnee.\nOuvrez les details d'une application avant de lancer une action.", f.Messages);
+        Assert.Contains("Aucune application sélectionnée.\nOuvrez les détails d'une application avant de lancer une action.", f.Messages);
         Assert.Empty(f.Dialog.Calls);
         Assert.Empty(f.Runner.Requests);
         Assert.False(f.Vm.TryCloseOverlay());
@@ -285,7 +285,7 @@ public sealed class ApplicationsViewModelTests
         f.History.Result = new() { Success = success, ReadableError = error };
         await f.Analyze();
         Assert.Equal(persisted, f.Persisted);
-        Assert.Contains(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Messages);
+        Assert.Contains(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Messages);
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Equal("1 application(s), 1 desinstallable(s).", f.Vm.ReportSummary);
         Idle(f.Vm);
@@ -302,7 +302,7 @@ public sealed class ApplicationsViewModelTests
         f.Vm.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(f.Vm.IsBusy)) busy.Add(f.Vm.IsBusy); };
         await f.Launch();
         var call = Assert.Single(f.Dialog.Calls);
-        Assert.Equal("Confirmation desinstallation", call.Title);
+        Assert.Equal("Confirmation désinstallation", call.Title);
         Assert.Contains("Aucune donnee personnelle ne sera supprimee automatiquement.", call.Message);
         Assert.Empty(busy);
         Assert.Empty(f.Runner.Requests);
@@ -372,7 +372,7 @@ public sealed class ApplicationsViewModelTests
         await f.Launch();
         Assert.Empty(f.Dialog.Calls);
         Assert.Empty(f.Runner.Requests);
-        Assert.Equal("Desinstallation bloquee.", f.Vm.StatusText);
+        Assert.Equal("Désinstallation bloquée.", f.Vm.StatusText);
         Idle(f.Vm);
     }
 
@@ -393,7 +393,7 @@ public sealed class ApplicationsViewModelTests
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Contains("Confirmation explicite : oui", f.Vm.ReportDetails);
         Assert.Contains("Suppression automatique : aucune", f.Vm.ReportDetails);
-        Assert.Contains("Desinstalleur officiel lance.", f.Vm.ReportSummary);
+        Assert.Contains("Désinstalleur officiel lancé.", f.Vm.ReportSummary);
         Idle(f.Vm);
     }
 
@@ -457,7 +457,7 @@ public sealed class ApplicationsViewModelTests
         f.Dialog.OnConfirm = () => throw new InvalidOperationException("Dialogue test.");
         await f.Launch();
         Assert.Empty(f.Runner.Requests);
-        Assert.Equal("Desinstallateur officiel indisponible.", f.Vm.StatusText);
+        Assert.Equal("Désinstallateur officiel indisponible.", f.Vm.StatusText);
         Assert.Contains("Desinstallateur officiel indisponible.\nErreur : Dialogue test.", f.Messages);
         Idle(f.Vm);
     }
@@ -481,7 +481,7 @@ public sealed class ApplicationsViewModelTests
             var request = Assert.Single(f.Runner.Requests);
             AssertRequest(request, "explorer.exe", file ? $"/select,\"{location}\"" : $"\"{location}\"");
             Assert.False(f.Runner.Token.CanBeCanceled);
-            Assert.Contains("Emplacement ouvert.\nAucune suppression executee.", f.Messages);
+            Assert.Contains("Emplacement ouvert.\nAucune suppression exécutée.", f.Messages);
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -507,7 +507,7 @@ public sealed class ApplicationsViewModelTests
     {
         var f = new Fixture();
         f.Inventory.Report = new() { Applications = [Safe() with { InstallLocation = Path.GetTempPath() }] };
-        f.Runner.Handler = (_, _) => throws ? throw new InvalidOperationException("Lancement test.") : Task.FromResult(new ProcessLaunchResult(false, null, "Echec"));
+        f.Runner.Handler = (_, _) => throws ? throw new InvalidOperationException("Lancement test.") : Task.FromResult(new ProcessLaunchResult(false, null, "Échec"));
         await f.Analyze();
         await Assert.Single(f.Cards).OpenLocationCommand.ExecuteAsync(null);
         Assert.Contains("Ouverture emplacement impossible.", f.Messages);
@@ -527,9 +527,9 @@ public sealed class ApplicationsViewModelTests
         f.Vm.SelectedFilter = "TOUT";
         var card = Assert.Single(f.Cards);
         Assert.True(card.IsLocationVisible);
-        Assert.Equal("PARAMETRES", card.LocationLabel);
+        Assert.Equal("PARAMÈTRES", card.LocationLabel);
         f.OpenDetails();
-        Assert.Equal("PARAMETRES WINDOWS", f.Vm.OpenApplicationLocationLabel);
+        Assert.Equal("PARAMÈTRES WINDOWS", f.Vm.OpenApplicationLocationLabel);
         Assert.True(f.Vm.IsOpenApplicationLocationEnabled);
         var messages = f.Messages.Count;
         await f.Vm.OpenApplicationLocationCommand.ExecuteAsync(null);
@@ -606,7 +606,7 @@ public sealed class ApplicationsViewModelTests
         await f.Launch();
         Assert.Equal(1, authority.Calls);
         Assert.Empty(f.Runner.Requests);
-        Assert.Equal("Desinstallation annulee.", f.Vm.StatusText);
+        Assert.Equal("Désinstallation annulée.", f.Vm.StatusText);
         Assert.Equal("Desinstallation annulee.\nConsentement insuffisant pour cette action.", f.Messages.Last());
         Idle(f.Vm);
     }

@@ -55,7 +55,7 @@ public partial class ApplicationsViewModel : ObservableObject
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
         _reportHistoryService = reportHistoryService ?? throw new ArgumentNullException(nameof(reportHistoryService));
         ArgumentNullException.ThrowIfNull(confirmationDialog);
-        Entries.Add(new ApplicationTextCardViewModel("Lancez un inventaire. Aucune action ne sera executee."));
+        Entries.Add(new ApplicationTextCardViewModel("Lancez un inventaire. Aucune action ne sera exécutée."));
     }
 
     public ObservableCollection<ApplicationItemViewModel> ProtectedEntries { get; } = new();
@@ -94,7 +94,7 @@ public partial class ApplicationsViewModel : ObservableObject
     [ObservableProperty] private string detailsBody = string.Empty;
     [ObservableProperty] private string detailsCommand = string.Empty;
     [ObservableProperty] private string detailsSafety = string.Empty;
-    [ObservableProperty] private string launchUninstallLabel = "LANCER DESINSTALLATEUR";
+    [ObservableProperty] private string launchUninstallLabel = "LANCER DÉSINSTALLATEUR";
     [ObservableProperty] private string openApplicationLocationLabel = "OUVRIR EMPLACEMENT";
     [ObservableProperty] private string reportSummary = string.Empty;
     [ObservableProperty] private string reportDetails = string.Empty;
@@ -137,7 +137,7 @@ public partial class ApplicationsViewModel : ObservableObject
         if (_operationInProgress)
         {
             CancelActiveOperation();
-            VirgilMessageRequested?.Invoke("Annulation demandee.\nOperation applications en cours d'arret.");
+            VirgilMessageRequested?.Invoke("Annulation demandee.\nOpération applications en cours d'arret.");
             return true;
         }
 
@@ -159,7 +159,7 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             if (_selectedApplication is null)
             {
-                ReportUninstallBlocked("Aucune application selectionnee.\nOuvrez les details d'une application avant de lancer une action.");
+                ReportUninstallBlocked("Aucune application sélectionnée.\nOuvrez les détails d'une application avant de lancer une action.");
                 return;
             }
             await LaunchUninstallAsync(_selectedApplication).ConfigureAwait(true);
@@ -187,7 +187,7 @@ public partial class ApplicationsViewModel : ObservableObject
         try
         {
             RequestVirgilState(VirgilCoreState.Scanning, "APPLICATIONS");
-            VirgilMessageRequested?.Invoke("Inventaire applications lance.\nLecture seule.\nAucune desinstallation.");
+            VirgilMessageRequested?.Invoke("Inventaire applications lancé.\nLecture seule.\nAucune désinstallation.");
             var session = _operationCancellation;
             var progress = new Progress<ApplicationInventoryProgress>(item =>
             {
@@ -214,22 +214,22 @@ public partial class ApplicationsViewModel : ObservableObject
             RenderApplications();
             await PersistReportAsync(ApplicationReportMapper.FromInventory(report)).ConfigureAwait(true);
             IsReportButtonEnabled = true;
-            StatusText = "Inventaire termine.";
+            StatusText = "Inventaire terminé.";
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
             VirgilMessageRequested?.Invoke(
-                $"Inventaire termine.\nApplications : {report.Applications.Count}.\nDesinstallables : {report.UninstallableCount}.");
+                $"Inventaire terminé.\nApplications : {report.Applications.Count}.\nDésinstallables : {report.UninstallableCount}.");
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Inventaire annule.";
+            StatusText = "Inventaire annulé.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Inventaire applications annule.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Inventaire applications annulé.\nAucune action effectuée.");
         }
         catch
         {
             StatusText = "Inventaire applications indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-            VirgilMessageRequested?.Invoke("Inventaire applications indisponible.\nAucune action effectuee.");
+            VirgilMessageRequested?.Invoke("Inventaire applications indisponible.\nAucune action effectuée.");
         }
         finally
         {
@@ -243,13 +243,13 @@ public partial class ApplicationsViewModel : ObservableObject
         var plan = _uninstallService.BuildPlan(application);
         if (!application.CanUninstall)
         {
-            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            ReportUninstallBlocked($"Désinstallation bloquée.\n{plan.Validation.Reason}");
             return;
         }
 
         if (!plan.CanLaunch)
         {
-            ReportUninstallBlocked($"Desinstallation bloquee.\n{plan.Validation.Reason}");
+            ReportUninstallBlocked($"Désinstallation bloquée.\n{plan.Validation.Reason}");
             return;
         }
 
@@ -261,7 +261,7 @@ public partial class ApplicationsViewModel : ObservableObject
         var confirmationDecision = new ApplicationUninstallConfirmationPolicy().Validate(plan, confirmation);
         if (!confirmationDecision.CanProceed)
         {
-            ReportUninstallCancelled($"Desinstallation annulee.\n{confirmationDecision.Reason}");
+            ReportUninstallCancelled($"Désinstallation annulée.\n{confirmationDecision.Reason}");
             return;
         }
 
@@ -274,11 +274,11 @@ public partial class ApplicationsViewModel : ObservableObject
         }
         catch (ConfirmationRefusedException exception)
         {
-            ReportUninstallCancelled($"Desinstallation annulee.\n{exception.Message}");
+            ReportUninstallCancelled($"Désinstallation annulée.\n{exception.Message}");
             return;
         }
 
-        if (!BeginOperation("Desinstallateur officiel en cours de lancement."))
+        if (!BeginOperation("Désinstallateur officiel en cours de lancement."))
         {
             return;
         }
@@ -308,14 +308,14 @@ public partial class ApplicationsViewModel : ObservableObject
             IsReportButtonEnabled = true;
             RequestVirgilState(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
             VirgilMessageRequested?.Invoke(result.WasLaunched
-                ? "Desinstalleur officiel lance.\nLe statut final peut dependre de l'assistant externe.\nRestes analyses en lecture seule."
-                : $"Desinstalleur non lance.\n{result.Result}\nRapport disponible.");
+                ? "Désinstalleur officiel lancé.\nLe statut final peut dépendre de l'assistant externe.\nRestes analyses en lecture seule."
+                : $"Désinstalleur non lancé.\n{result.Result}\nRapport disponible.");
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Desinstallation annulee.";
+            StatusText = "Désinstallation annulée.";
             RequestVirgilState(VirgilCoreState.Idle, "REPOS");
-            VirgilMessageRequested?.Invoke("Desinstallation annulee.\nAucun desinstallateur lance.");
+            VirgilMessageRequested?.Invoke("Désinstallation annulée.\nAucun désinstallateur lancé.");
         }
         catch (Exception exception)
         {
@@ -340,14 +340,14 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Risque : {RiskLabel(application.RiskLevel)} - {application.RiskReason}",
             $"Methode : {UninstallMethodLabel(plan.Method)}",
             string.Empty,
-            "Virgil va uniquement lancer le desinstallateur officiel valide.",
+            "Virgil va uniquement lancer le désinstallateur officiel valide.",
             "Aucun dossier d'application ne sera supprime directement.",
             "Aucune donnee personnelle ne sera supprimee automatiquement.",
             string.Empty,
             "Continuer ?"
         });
 
-        var explicitResponse = await AskConfirmationAsync("Confirmation desinstallation", explicitMessage).ConfigureAwait(true);
+        var explicitResponse = await AskConfirmationAsync("Confirmation désinstallation", explicitMessage).ConfigureAwait(true);
         if (!explicitResponse)
         {
             return ApplicationUninstallConfirmation.None;
@@ -365,7 +365,7 @@ public partial class ApplicationsViewModel : ObservableObject
                 "Elle peut contenir des profils, projets, presets, bibliotheques ou sauvegardes.",
                 string.Empty,
                 "Virgil ne supprime rien lui-meme, mais l'assistant officiel peut modifier ou retirer l'application.",
-                "Ne continuez que si vous avez sauvegarde ce qui doit l'etre.",
+                "Ne continuez que si vous avez sauvegarde ce qui doit l'être.",
                 string.Empty,
                 "Confirmer malgre ce risque ?"
             });
@@ -440,29 +440,29 @@ public partial class ApplicationsViewModel : ObservableObject
 
     private void ReportUninstallBlocked(string message)
     {
-        StatusText = "Desinstallation bloquee.";
+        StatusText = "Désinstallation bloquée.";
         RequestVirgilState(VirgilCoreState.Warning, "APPLICATIONS");
         VirgilMessageRequested?.Invoke(message);
     }
 
     private void ReportUninstallCancelled(string message)
     {
-        StatusText = "Desinstallation annulee.";
+        StatusText = "Désinstallation annulée.";
         RequestVirgilState(VirgilCoreState.Idle, "REPOS");
         VirgilMessageRequested?.Invoke(message);
     }
 
     private void ReportUninstallException(Exception exception)
     {
-        StatusText = "Desinstallateur officiel indisponible.";
+        StatusText = "Désinstallateur officiel indisponible.";
         RequestVirgilState(VirgilCoreState.Error, "ERREUR");
-        VirgilMessageRequested?.Invoke($"Desinstallateur officiel indisponible.\nErreur : {exception.Message}");
+        VirgilMessageRequested?.Invoke($"Désinstallateur officiel indisponible.\nErreur : {exception.Message}");
     }
 
     private void RenderInventory(ApplicationInventoryReport report)
     {
-        InventorySummary = $"{report.Applications.Count} detectees, {report.UninstallableCount} desinstallables, {report.Errors.Count} avertissement(s).";
-        RiskSummary = $"{report.SafeCount} simples, {report.CautionCount} attention, {report.ProtectedCount} protegees, {report.UnknownCount} inconnues.";
+        InventorySummary = $"{report.Applications.Count} détectées, {report.UninstallableCount} désinstallables, {report.Errors.Count} avertissement(s).";
+        RiskSummary = $"{report.SafeCount} simples, {report.CautionCount} attention, {report.ProtectedCount} protégées, {report.UnknownCount} inconnues.";
     }
 
     private void RenderApplications()
@@ -508,9 +508,9 @@ public partial class ApplicationsViewModel : ObservableObject
                 "Jeux" => application.IsGame && application.CanUninstall && !IsProtectedComponent(application),
                 "Store" => application.Source == ApplicationInventorySource.Store && !IsProtectedComponent(application),
                 "Système" => IsProtectedComponent(application),
-                "DESINSTALLABLE" => application.CanUninstall,
+                "DÉSINSTALLABLE" => application.CanUninstall,
                 "ATTENTION" => application.RiskLevel == ApplicationRiskLevel.Caution,
-                "PROTEGE" => application.RiskLevel == ApplicationRiskLevel.Protected,
+                "PROTÉGÉ" => application.RiskLevel == ApplicationRiskLevel.Protected,
                 "INCONNU" => application.RiskLevel == ApplicationRiskLevel.Unknown,
                 _ => true
             };
@@ -549,25 +549,25 @@ public partial class ApplicationsViewModel : ObservableObject
         };
         DetailsSafety = string.Join("\n", new[]
         {
-            "Desinstallation individuelle uniquement depuis cet ecran de details.",
+            "Désinstallation individuelle uniquement depuis cet ecran de détails.",
             "Confirmation explicite obligatoire avant tout lancement.",
-            "Desinstalleur officiel ou WinGet exact uniquement.",
+            "Désinstalleur officiel ou WinGet exact uniquement.",
             "Suppression par dossier interdite.",
-            "Aucune suppression automatique de donnees personnelles.",
-            "Pilotes, securite, runtimes et composants systeme bloques.",
+            "Aucune suppression automatique de données personnelles.",
+            "Pilotes, sécurité, runtimes et composants système bloqués.",
             application.RiskLevel == ApplicationRiskLevel.Caution
                 ? "Attention : confirmation renforcee obligatoire, profils, projets, presets ou sauvegardes possibles."
                 : "Validation stricte appliquee avant lancement."
         });
         LaunchUninstallLabel = !application.CanUninstall
-            ? "DESINSTALLATION BLOQUEE"
+            ? "DÉSINSTALLATION BLOQUÉE"
             : application.RiskLevel == ApplicationRiskLevel.Caution
                 ? "LANCER AVEC VALIDATION RENFORCEE"
-                : "LANCER DESINSTALLATEUR";
+                : "LANCER DÉSINSTALLATEUR";
         IsLaunchUninstallEnabled = !_operationInProgress && application.CanUninstall && !IsProtectedComponent(application);
         IsOpenApplicationLocationEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
         OpenApplicationLocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings
-            ? "PARAMETRES WINDOWS"
+            ? "PARAMÈTRES WINDOWS"
             : "OUVRIR EMPLACEMENT";
         RenderDetailsRemnants(application);
         IsDetailsOpen = true;
@@ -579,13 +579,13 @@ public partial class ApplicationsViewModel : ObservableObject
         var result = _lastUninstallResult;
         if (result?.Application.Id != application.Id)
         {
-            Remnants.Add(new ApplicationTextCardViewModel("Disponibles apres lancement du desinstallateur officiel. Analyse lecture seule uniquement."));
+            Remnants.Add(new ApplicationTextCardViewModel("Disponibles après lancement du désinstallateur officiel. Analyse lecture seule uniquement."));
             return;
         }
 
         if (result.Remnants.Remnants.Count == 0)
         {
-            Remnants.Add(new ApplicationTextCardViewModel("Aucun reste accessible detecte en lecture seule."));
+            Remnants.Add(new ApplicationTextCardViewModel("Aucun reste accessible détecté en lecture seule."));
             return;
         }
 
@@ -603,14 +603,14 @@ public partial class ApplicationsViewModel : ObservableObject
         ReportDetails = string.Join("\n", new[]
         {
             $"Methode : {result.Method}",
-            $"Lance : {(result.WasLaunched ? "oui" : "non")}",
+            $"Lancé : {(result.WasLaunched ? "oui" : "non")}",
             $"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}",
             $"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}",
             $"Statut inconnu : {(result.StatusUnknown ? "oui" : "non")}",
             $"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}",
             $"Restes : {result.Remnants.Remnants.Count}",
             $"Techniques : {result.Remnants.TechnicalCount}",
-            $"Personnels/proteges : {result.Remnants.UserDataCount + result.Remnants.ProtectedCount}",
+            $"Personnels/protégés : {result.Remnants.UserDataCount + result.Remnants.ProtectedCount}",
             "Suppression automatique : aucune"
         });
         ReportErrors = result.Errors.Count == 0
@@ -644,7 +644,7 @@ public partial class ApplicationsViewModel : ObservableObject
 
             VirgilMessageRequested?.Invoke(result == InstallationLocationOpenResult.Failed
                 ? "Ouverture emplacement impossible."
-                : "Emplacement ouvert.\nAucune suppression executee.");
+                : "Emplacement ouvert.\nAucune suppression exécutée.");
         }
         catch
         {
@@ -679,10 +679,10 @@ public partial class ApplicationsViewModel : ObservableObject
         }
         else if (_lastInventoryReport is not null)
         {
-            ReportSummary = $"{_lastInventoryReport.Applications.Count} application(s), {_lastInventoryReport.UninstallableCount} desinstallable(s).";
+            ReportSummary = $"{_lastInventoryReport.Applications.Count} application(s), {_lastInventoryReport.UninstallableCount} désinstallable(s).";
             ReportDetails = string.Join("\n", new[]
             {
-                $"Protegees : {_lastInventoryReport.ProtectedCount}",
+                $"Protégées : {_lastInventoryReport.ProtectedCount}",
                 $"Attention : {_lastInventoryReport.CautionCount}",
                 $"Inconnues : {_lastInventoryReport.UnknownCount}",
                 "Aucune action exécutée depuis l'inventaire.",
@@ -718,7 +718,7 @@ public partial class ApplicationsViewModel : ObservableObject
         var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
         if (!result.Success || !string.IsNullOrWhiteSpace(result.ReadableError))
         {
-            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conserve en memoire.");
+            VirgilMessageRequested?.Invoke(result.ReadableError ?? "Historique local indisponible. Rapport conservé en mémoire.");
         }
 
         if (result.Success)
@@ -731,7 +731,7 @@ public partial class ApplicationsViewModel : ObservableObject
     {
         if (_operationInProgress)
         {
-            VirgilMessageRequested?.Invoke("Operation applications deja en cours.");
+            VirgilMessageRequested?.Invoke("Opération applications déjà en cours.");
             return false;
         }
 
@@ -787,9 +787,9 @@ public partial class ApplicationsViewModel : ObservableObject
     {
         return risk switch
         {
-            ApplicationRiskLevel.SafeToUninstall => "desinstallable",
+            ApplicationRiskLevel.SafeToUninstall => "désinstallable",
             ApplicationRiskLevel.Caution => "attention",
-            ApplicationRiskLevel.Protected => "protege",
+            ApplicationRiskLevel.Protected => "protégé",
             _ => "inconnu"
         };
     }
@@ -800,7 +800,7 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             ApplicationRemnantKind.TechnicalRemnant => "technique",
             ApplicationRemnantKind.UserData => "donnee personnelle",
-            ApplicationRemnantKind.ProtectedRemnant => "protege",
+            ApplicationRemnantKind.ProtectedRemnant => "protégé",
             _ => "inconnu"
         };
     }
@@ -810,10 +810,10 @@ public partial class ApplicationsViewModel : ObservableObject
         return kind switch
         {
             ApplicationUninstallKind.Msi => "MSI officiel",
-            ApplicationUninstallKind.RegistryUninstallString => "desinstalleur officiel",
-            ApplicationUninstallKind.RegistryQuietUninstallString => "desinstalleur officiel silencieux",
+            ApplicationUninstallKind.RegistryUninstallString => "désinstalleur officiel",
+            ApplicationUninstallKind.RegistryQuietUninstallString => "désinstalleur officiel silencieux",
             ApplicationUninstallKind.Winget => "WinGet exact",
-            ApplicationUninstallKind.StoreSettings => "parametres Windows",
+            ApplicationUninstallKind.StoreSettings => "paramètres Windows",
             _ => "inconnue"
         };
     }

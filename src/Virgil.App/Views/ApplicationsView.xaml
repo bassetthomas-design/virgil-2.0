@@ -249,7 +249,7 @@
                         <Button x:Name="LaunchUninstallButton" IsEnabled="{Binding IsLaunchUninstallEnabled}"
                                 Content="{Binding LaunchUninstallLabel}"
                                 Style="{StaticResource VirgilPrimaryButton}"
-                                AutomationProperties.Name="Lancer le desinstallateur officiel"
+                                AutomationProperties.Name="Lancer le désinstallateur officiel"
                                 Command="{Binding LaunchUninstallCommand}" />
                         <Button x:Name="OpenApplicationLocationButton" IsEnabled="{Binding IsOpenApplicationLocationEnabled}"
                                 Content="{Binding OpenApplicationLocationLabel}"

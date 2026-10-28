@@ -365,7 +365,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
                     IsAvailable = true,
                     ExecutablePath = "winget.exe",
                     Version = "1.8.0",
-                    Message = "WinGet detecte."
+                    Message = "WinGet détecté."
                 },
                 Items = new[]
                 {

@@ -47,13 +47,13 @@ public sealed class ExplorerRestarter : IExplorerRestarter
             if (SafeCountExplorer() == 0)
             {
                 status = InterventionStatus.PartialFailure;
-                error = "Explorer n'a pas ete detecte apres relance.";
+                error = "Explorer n'a pas été détecté après relance.";
             }
         }
         catch (OperationCanceledException)
         {
             status = InterventionStatus.Cancelled;
-            error = "Relance Explorer annulee avant execution complete.";
+            error = "Relance Explorer annulée avant exécution complete.";
         }
         catch
         {
@@ -69,10 +69,10 @@ public sealed class ExplorerRestarter : IExplorerRestarter
             FinishedAt = DateTimeOffset.Now,
             ExitCode = status is InterventionStatus.Completed ? 0 : -1,
             Status = status,
-            SummaryOutput = $"Explorer avant : {before}, apres : {after}.",
+            SummaryOutput = $"Explorer avant : {before}, après : {after}.",
             ReadableError = error,
             StateBefore = diagnostic.StateBefore,
-            StateAfter = after > 0 ? "Explorer actif." : "Explorer non detecte.",
+            StateAfter = after > 0 ? "Explorer actif." : "Explorer non détecté.",
             WasConfirmed = true,
             WasElevated = false
         };

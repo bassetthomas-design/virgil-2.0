@@ -70,7 +70,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             previews.Add(PreviewZone(zone, cancellationToken));
         }
 
-        Report(progress, null, "Termine", count, count, "Previsualisation terminee.");
+        Report(progress, null, "Terminé", count, count, "Prévisualisation terminée.");
         return previews;
     }
 
@@ -110,7 +110,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
 
         if (CleanupPathGuard.HasReparsePointAtPath(zone.RootPath))
         {
-            errors.Add("Zone refusee : point de reanalyse detecte.");
+            errors.Add("Zone refusée : point de reanalyse détecté.");
             return CreatePreview(zone, generatedAt, candidates, errors);
         }
 
@@ -216,7 +216,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             {
                 if (CleanupPathGuard.HasReparsePointAtPath(child))
                 {
-                    errors.Add("Sous-dossier refuse : point de reanalyse detecte.");
+                    errors.Add("Sous-dossier refuse : point de reanalyse détecté.");
                     continue;
                 }
 

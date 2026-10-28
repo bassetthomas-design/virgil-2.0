@@ -54,7 +54,7 @@ public sealed class ResourcesModuleTests
         var service = new ResourceRecommendationService();
 
         Assert.Equal(ResourceHealthLevel.InterventionRecommended, service.ClassifyUptime(TimeSpan.FromDays(8)));
-        Assert.Contains("redemarrage manuel", service.BuildRecommendations(
+        Assert.Contains("redémarrage manuel", service.BuildRecommendations(
             ResourceHealthLevel.Stable,
             ResourceHealthLevel.Stable,
             TimeSpan.FromDays(8),
@@ -206,7 +206,7 @@ public sealed class ResourcesModuleTests
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
         Assert.Equal(0, runtime.KillCalls);
-        Assert.Contains("protege", result.ReadableError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("protégé", result.ReadableError, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -417,7 +417,7 @@ public sealed class ResourcesModuleTests
         Assert.Contains("CPU moyen : 35", text);
         Assert.Contains("RAM moyenne : 72", text);
         Assert.Contains("ExampleApp", text);
-        Assert.Contains("Actions proposees", text);
+        Assert.Contains("Actions proposées", text);
         Assert.Contains("Ignorer ExampleApp", text);
         Assert.Contains("Redemarrage conseille : oui", text);
     }

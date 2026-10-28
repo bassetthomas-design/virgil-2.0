@@ -66,7 +66,7 @@ public sealed class CleanupSafetyClassifier
 
         if (!zone.IsExecutable || zone.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
         {
-            reason = "Zone en lecture seule ou protegee.";
+            reason = "Zone en lecture seule ou protégée.";
             return false;
         }
 
@@ -78,7 +78,7 @@ public sealed class CleanupSafetyClassifier
         var extension = Path.GetExtension(normalized);
         if (ProtectedExtensions.Contains(extension))
         {
-            reason = "Fichier personnel protege.";
+            reason = "Fichier personnel protégé.";
             return false;
         }
 
@@ -91,7 +91,7 @@ public sealed class CleanupSafetyClassifier
         var relative = Normalize(Path.GetRelativePath(zone.RootPath, normalized));
         if (ProtectedNameFragments.Any(fragment => ContainsPathSegment(relative, fragment)))
         {
-            reason = "Nom personnel ou sensible detecte.";
+            reason = "Nom personnel ou sensible détecté.";
             return false;
         }
 
@@ -100,7 +100,7 @@ public sealed class CleanupSafetyClassifier
         {
             if (BrowserPersonalFragments.Any(fragment => relative.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
             {
-                reason = "Donnee de profil navigateur protegee.";
+                reason = "Donnee de profil navigateur protégée.";
                 return false;
             }
         }

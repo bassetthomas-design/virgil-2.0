@@ -25,8 +25,8 @@ internal static class NetworkReader
             if (active is null)
             {
                 return new ScanReaderResult<NetworkScanInfo>(
-                    Empty("Aucun reseau actif"),
-                    ["Aucune interface reseau active detectee."]);
+                    Empty("Aucun réseau actif"),
+                    ["Aucune interface réseau active détectée."]);
             }
 
             return ScanReaderResult<NetworkScanInfo>.Success(active.Info);
@@ -35,7 +35,7 @@ internal static class NetworkReader
         {
             return new ScanReaderResult<NetworkScanInfo>(
                 Empty(NotAvailable),
-                ["Lecture reseau indisponible."]);
+                ["Lecture réseau indisponible."]);
         }
     }
 

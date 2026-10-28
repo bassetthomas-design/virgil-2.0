@@ -13,7 +13,7 @@ public sealed class WindowsUpdateStatusService
         var notes = new List<string>
         {
             "Ouverture controlee de la page Windows Update uniquement.",
-            "Aucune recherche, installation ou redemarrage n'est declenche par Virgil."
+            "Aucune recherche, installation ou redémarrage n'est declenche par Virgil."
         };
 
         bool servicePresent;
@@ -39,16 +39,16 @@ public sealed class WindowsUpdateStatusService
         catch
         {
             pendingReboot = false;
-            errors.Add("Lecture du redemarrage en attente indisponible.");
+            errors.Add("Lecture du redémarrage en attente indisponible.");
         }
 
         var status = servicePresent
-            ? "Windows Update accessible via les Parametres Windows."
+            ? "Windows Update accessible via les Paramètres Windows."
             : "Windows Update non confirme localement.";
 
         if (pendingReboot)
         {
-            notes.Add("Un redemarrage en attente semble present.");
+            notes.Add("Un redémarrage en attente semble présent.");
         }
 
         return new WindowsUpdateInformation

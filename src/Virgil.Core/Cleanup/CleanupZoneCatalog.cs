@@ -24,7 +24,7 @@ public static class CleanupZoneCatalog
             Zone(CleanupZoneId.VisualStudioCache, "Cache Visual Studio", "Cache de composants et telemetrie recreable.", Path.Combine(local, "Microsoft", "VisualStudio", "ComponentModelCache"), 168, CleanupRiskLevel.Low, 90),
             Zone(CleanupZoneId.InternetCache, "Cache Internet Windows", "Cache INetCache du profil utilisateur.", Path.Combine(local, "Microsoft", "Windows", "INetCache"), 168, CleanupRiskLevel.Low, 100),
 
-            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers places volontairement dans la corbeille. Ils ne seront plus recuperables depuis Windows.", "::{RecycleBin}", 0, 200, executable: true),
+            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers places volontairement dans la corbeille. Ils ne seront plus récupérables depuis Windows.", "::{RecycleBin}", 0, 200, executable: true),
             Advanced(CleanupZoneId.WindowsUpdateCache, "Cache Windows Update", "Detection de la zone SoftwareDistribution. Action non exposee sans orchestration fiable des services.", Path.Combine(windows, "SoftwareDistribution", "Download"), 168, 210, executable: false, elevation: true),
             Advanced(CleanupZoneId.DeliveryOptimizationCache, "Cache Delivery Optimization", "Detection du cache Microsoft Delivery Optimization.", Path.Combine(programData, "Microsoft", "Windows", "DeliveryOptimization", "Cache"), 168, 220, executable: false, elevation: true),
             Advanced(CleanupZoneId.MicrosoftStoreCache, "Cache Microsoft Store", "Detection uniquement : aucune suppression destructive sans API fiable.", Path.Combine(local, "Packages"), 168, 230, executable: false),
@@ -34,9 +34,9 @@ public static class CleanupZoneCatalog
             Browser(CleanupZoneId.BrowserBraveCache, "Cache Brave", Path.Combine(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache"), 270),
             Browser(CleanupZoneId.BrowserOperaCache, "Cache Opera", Path.Combine(roaming, "Opera Software", "Opera Stable", "Cache"), 280),
             Advanced(CleanupZoneId.InstallerTemporaryFiles, "Restes temporaires d'installation", "Fichiers d'installation temporaires clairement identifies.", Path.Combine(SafeTemp(), "VirgilInstallerCache"), 168, 290, executable: true),
-            Advanced(CleanupZoneId.WindowsOld, "Windows.old", "Ancienne installation Windows detectee. Suppression deleguee aux outils Windows.", Path.Combine(Path.GetPathRoot(windows) ?? "C:\\", "Windows.old"), 720, 300, executable: false, elevation: true),
+            Advanced(CleanupZoneId.WindowsOld, "Windows.old", "Ancienne installation Windows détectée. Suppression deleguee aux outils Windows.", Path.Combine(Path.GetPathRoot(windows) ?? "C:\\", "Windows.old"), 720, 300, executable: false, elevation: true),
 
-            Information(CleanupZoneId.PrefetchInformation, "Prefetch", "Gere par Windows, nettoyage non recommande en routine.", Path.Combine(windows, "Prefetch"), 400)
+            Information(CleanupZoneId.PrefetchInformation, "Prefetch", "Gere par Windows, nettoyage non recommandé en routine.", Path.Combine(windows, "Prefetch"), 400)
         };
     }
 
@@ -46,7 +46,7 @@ public static class CleanupZoneCatalog
             id, name, description, root, TimeSpan.FromHours(minimumAgeHours), risk,
             "Les fichiers recents, personnels, ambigus, verrouilles et points de reanalyse restent exclus.",
             "Suppression definitive des seuls fichiers techniques eligibles.",
-            "La racine, les donnees personnelles, profils, applications, cookies, sessions et favoris.", order)
+            "La racine, les données personnelles, profils, applications, cookies, sessions et favoris.", order)
         {
             Classification = CleanupClassification.Cleanable
         };
@@ -69,7 +69,7 @@ public static class CleanupZoneCatalog
     private static CleanupZoneDefinition Browser(CleanupZoneId id, string name, string root, int order)
     {
         return Advanced(id, name,
-            "Cache navigateur uniquement. Mots de passe, favoris, historique, cookies, sessions, profils et extensions sont proteges.",
+            "Cache navigateur uniquement. Mots de passe, favoris, historique, cookies, sessions, profils et extensions sont protégés.",
             root, 24, order, executable: true) with
         {
             ExcludedPathFragments = new[] { "Login Data", "Bookmarks", "History", "Cookies", "Sessions", "Extensions", "Web Data" }

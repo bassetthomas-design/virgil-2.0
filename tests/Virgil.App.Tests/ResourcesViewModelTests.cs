@@ -22,9 +22,9 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("NON ANALYSÉ", vm.CpuSummaryText);
         Assert.Equal("NON ANALYSÉ", vm.MemorySummaryText);
         Assert.Equal("NON ANALYSÉ", vm.SessionSummaryText);
-        Assert.Equal("Lancez une analyse. Aucune action ne sera executee.", vm.RecommendationsText);
+        Assert.Equal("Lancez une analyse. Aucune action ne sera exécutée.", vm.RecommendationsText);
         Assert.Equal("Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.", vm.ProcessSummaryText);
-        Assert.Equal("Analyse requise. Les processus systeme critiques, securite, VPN et materiel resteront proteges.", vm.ProcessesNotice);
+        Assert.Equal("Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.", vm.ProcessesNotice);
         Assert.Empty(vm.Items);
         Assert.True(vm.IsIdle);
         Assert.False(vm.IsBusy);
@@ -64,14 +64,14 @@ public sealed class ResourcesViewModelTests
         await f.Analyze();
         Assert.Same(ResourceAnalysisRequest.Interactive, f.Monitor.Request);
         Assert.Equal(1, f.Monitor.Calls);
-        Assert.Equal($"Analyse terminee en {2.5:0.0} s.", f.ViewModel.StatusText);
+        Assert.Equal($"Analyse terminée en {2.5:0.0} s.", f.ViewModel.StatusText);
         Assert.Equal($"Moyenne {12.5:0.0} % - maximum {25.0:0.0} % - STABLE", f.ViewModel.CpuSummaryText);
         Assert.Equal($"{50.0:0.0} % utilisee - A SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
         Assert.Equal("Session 8 j 3 h - 42 processus - redemarrage manuel conseille", f.ViewModel.SessionSummaryText);
         Assert.Equal("- Examiner la RAM", f.ViewModel.RecommendationsText);
         Assert.Equal("1 processus lourds detectes. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
-        Assert.Equal($"Analyse ressources terminee.\nRAM : {50.0:0.0} %\nCPU moyen : {12.5:0.0} %\n1 processus lourds detectes.", f.Message);
-        Assert.Equal((expected, "ANALYSE TERMINEE"), f.State);
+        Assert.Equal($"Analyse ressources terminée.\nRAM : {50.0:0.0} %\nCPU moyen : {12.5:0.0} %\n1 processus lourds detectes.", f.Message);
+        Assert.Equal((expected, "ANALYSE TERMINÉE"), f.State);
         Assert.Equal(expected, f.ViewModel.MiniCoreState);
         Assert.True(f.ViewModel.IsIdle);
         Assert.True(f.ViewModel.IsReportButtonEnabled);
@@ -154,7 +154,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.ViewModel.ValidationCoreState);
         Assert.Equal((f.ViewModel.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Contains(action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)", f.ViewModel.ValidationDetails);
-        Assert.Contains(reinforced ? "perte de donnees" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermees" : "demande de fermeture", f.ViewModel.ValidationDetails);
+        Assert.Contains(reinforced ? "perte de données" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermees" : "demande de fermeture", f.ViewModel.ValidationDetails);
         Assert.Contains(reinforced ? "Confirmation renforcee obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
         Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
@@ -202,8 +202,8 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(0, f.Actions.SkipCalls);
         Assert.False(f.ViewModel.IsValidationOpen);
         Assert.Equal(VirgilCoreState.Idle, f.ViewModel.ValidationCoreState);
-        Assert.Equal(decision is "SkipDecision" or "TryCloseOverlay" ? "Action passee." : "Action annulee.", f.ViewModel.StatusText);
-        Assert.Equal("Action non executee.", f.Message);
+        Assert.Equal(decision is "SkipDecision" or "TryCloseOverlay" ? "Action passée." : "Action annulée.", f.ViewModel.StatusText);
+        Assert.Equal("Action non exécutée.", f.Message);
         Assert.True(f.ViewModel.IsReportButtonEnabled);
         Assert.Single(f.ViewModel.Items);
         var skipped = Assert.Single(f.History.Saved!.SkippedActions);
@@ -233,7 +233,7 @@ public sealed class ResourcesViewModelTests
         Assert.False(f.ViewModel.IsIdle);
         Assert.False(f.ViewModel.IsReportButtonEnabled);
         await f.Request(action);
-        Assert.Equal("Operation deja en cours.", f.Message);
+        Assert.Equal("Opération déjà en cours.", f.Message);
         Assert.False(f.ViewModel.IsValidationOpen);
         Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
@@ -263,7 +263,7 @@ public sealed class ResourcesViewModelTests
         Assert.Single(f.ViewModel.Items);
         if (action == ProcessActionKind.ReleaseInactiveMemory)
         {
-            Assert.Equal("Information seulement. Aucune action memoire executee.", f.ViewModel.StatusText);
+            Assert.Equal("Information seulement. Aucune action mémoire exécutée.", f.ViewModel.StatusText);
             Assert.Equal("Mémoire inactive : information seulement.\nAucun boost RAM magique.\nAucune action exécutée.", f.Message);
             Assert.Equal((VirgilCoreState.Idle, "INFORMATION"), f.State);
         }
@@ -350,7 +350,7 @@ public sealed class ResourcesViewModelTests
     {
         var f = new Fixture();
         await f.Analyze();
-        f.Actions.Result = new() { Status = status, Summary = "Refus", ReadableError = "Protege" };
+        f.Actions.Result = new() { Status = status, Summary = "Refus", ReadableError = "Protégé" };
         var pending = f.Request(ProcessActionKind.KillProcess);
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
         await pending;
@@ -358,7 +358,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("Refus Protege", f.ViewModel.StatusText);
         Assert.Equal("Refus\nProtege", f.Message);
         Assert.Single(f.ViewModel.Items);
-        Assert.Contains("Protege", f.History.Saved!.Errors);
+        Assert.Contains("Protégé", f.History.Saved!.Errors);
     }
 
     [Theory]
@@ -372,7 +372,7 @@ public sealed class ResourcesViewModelTests
         await f.ViewModel.Items[0].OpenLocationCommand.ExecuteAsync(null);
         Assert.True(f.ViewModel.IsIdle);
         Assert.Equal(cancel ? VirgilCoreState.Idle : VirgilCoreState.Error, f.ViewModel.MiniCoreState);
-        Assert.Equal(cancel ? "Action annulee." : "Action impossible. Aucune autre action executee.", f.ViewModel.StatusText);
+        Assert.Equal(cancel ? "Action annulée." : "Action impossible. Aucune autre action exécutée.", f.ViewModel.StatusText);
     }
 
     [Fact]
@@ -381,7 +381,7 @@ public sealed class ResourcesViewModelTests
         var f = new Fixture();
         f.Actions.Exception = new OperationCanceledException();
         await f.ViewModel.ReleaseInactiveMemoryCommand.ExecuteAsync(null);
-        Assert.Equal("Information annulee.", f.ViewModel.StatusText);
+        Assert.Equal("Information annulée.", f.ViewModel.StatusText);
         Assert.True(f.ViewModel.IsIdle);
         f.Actions.Exception = new InvalidOperationException();
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.ViewModel.ReleaseInactiveMemoryCommand.ExecuteAsync(null));
@@ -398,7 +398,7 @@ public sealed class ResourcesViewModelTests
         f.History.Result = new() { Success = success, ReadableError = error };
         await f.Analyze();
         Assert.Equal(success ? 1 : 0, f.Persisted);
-        Assert.Equal(error ?? "Historique local indisponible. Rapport conserve en memoire.", f.Message);
+        Assert.Equal(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Message);
     }
 
     [Theory]
@@ -449,8 +449,8 @@ public sealed class ResourcesViewModelTests
         var pending = f.Request(ProcessActionKind.CloseMainWindow);
         f.ViewModel.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(1, f.Confirmation.Calls); Assert.Empty(f.Actions.Calls);
-        Assert.Equal("Action annulee.", f.ViewModel.StatusText);
-        Assert.Equal("Action non executee.", f.Message);
+        Assert.Equal("Action annulée.", f.ViewModel.StatusText);
+        Assert.Equal("Action non exécutée.", f.Message);
         Assert.False(f.ViewModel.IsValidationOpen);
     }
 
@@ -518,7 +518,7 @@ public sealed class ResourcesViewModelTests
         public bool CanReleaseInactiveMemory { get; set; }
         public List<(ProcessActionKind Action, ProcessResourceInfo? Target, ConfirmedPlan? Plan)> Calls { get; } = new();
         public int SkipCalls { get; private set; }
-        public ProcessActionResult Result { get; set; } = new() { Status = ProcessActionStatus.Completed, Summary = "Termine" };
+        public ProcessActionResult Result { get; set; } = new() { Status = ProcessActionStatus.Completed, Summary = "Terminé" };
         public Exception? Exception { get; set; }
         public Task<ProcessActionResult> ExecuteAsync(ProcessActionKind action, ProcessResourceInfo? target, ConfirmedPlan? plan, CancellationToken cancellationToken)
         {

@@ -27,18 +27,18 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine($"Type : {sanitized.Kind}");
         builder.AppendLine($"Titre : {sanitized.Title}");
         builder.AppendLine($"Resume : {sanitized.Summary}");
-        builder.AppendLine($"Etat : {sanitized.Status}");
+        builder.AppendLine($"État : {sanitized.Status}");
         builder.AppendLine($"Module : {sanitized.Module}");
-        builder.AppendLine($"Redemarrage requis : {(sanitized.RestartRequired ? "oui" : "non")}");
+        builder.AppendLine($"Redémarrage requis : {(sanitized.RestartRequired ? "oui" : "non")}");
         builder.AppendLine();
-        AppendActions(builder, "Actions proposees", sanitized.ProposedActions);
-        AppendActions(builder, "Actions executees", sanitized.ExecutedActions);
-        AppendActions(builder, "Actions passees", sanitized.SkippedActions);
+        AppendActions(builder, "Actions proposées", sanitized.ProposedActions);
+        AppendActions(builder, "Actions exécutées", sanitized.ExecutedActions);
+        AppendActions(builder, "Actions passées", sanitized.SkippedActions);
         AppendValues(builder, "Erreurs", sanitized.Errors);
         builder.AppendLine("Vue simple :");
         builder.AppendLine(string.IsNullOrWhiteSpace(sanitized.SimpleView) ? sanitized.Summary : sanitized.SimpleView);
         builder.AppendLine();
-        builder.AppendLine("Details techniques :");
+        builder.AppendLine("Détails techniques :");
         builder.AppendLine(includeTechnicalDetails
             ? BuildTechnicalDetails(sanitized)
             : "Masques dans cet export.");
@@ -58,7 +58,7 @@ public sealed class ReportExportService : IReportExportService
             var destination = ValidateDestination(destinationPath);
             if (File.Exists(destination) && !overwriteConfirmed)
             {
-                return Failure("Un fichier existe deja. Confirmez son remplacement dans la boite de dialogue.");
+                return Failure("Un fichier existe déjà. Confirmez son remplacement dans la boite de dialogue.");
             }
 
             var directory = Path.GetDirectoryName(destination)!;
@@ -90,7 +90,7 @@ public sealed class ReportExportService : IReportExportService
         }
         catch (OperationCanceledException)
         {
-            return Failure("Export annule.");
+            return Failure("Export annulé.");
         }
         catch
         {
