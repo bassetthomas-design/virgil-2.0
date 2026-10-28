@@ -36,7 +36,7 @@ public static class CleanupZoneCatalog
             Advanced(CleanupZoneId.InstallerTemporaryFiles, "Restes temporaires d'installation", "Fichiers d'installation temporaires clairement identifies.", Path.Combine(SafeTemp(), "VirgilInstallerCache"), 168, 290, executable: true),
             Advanced(CleanupZoneId.WindowsOld, "Windows.old", "Ancienne installation Windows détectée. Suppression deleguee aux outils Windows.", Path.Combine(Path.GetPathRoot(windows) ?? "C:\\", "Windows.old"), 720, 300, executable: false, elevation: true),
 
-            Information(CleanupZoneId.PrefetchInformation, "Prefetch", "Gere par Windows, nettoyage non recommandé en routine.", Path.Combine(windows, "Prefetch"), 400)
+            Information(CleanupZoneId.PrefetchInformation, "Prefetch", "Géré par Windows, nettoyage non recommandé en routine.", Path.Combine(windows, "Prefetch"), 400)
         };
     }
 

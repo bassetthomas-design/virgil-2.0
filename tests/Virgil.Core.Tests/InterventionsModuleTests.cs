@@ -242,7 +242,7 @@ public sealed class InterventionsModuleTests
             Diagnostic(InterventionId.FlushDns) with
             {
                 Status = InterventionStatus.Recommended,
-                Recommendation = "DNS a verifier."
+                Recommendation = "DNS à vérifier."
             });
         var service = new SystemScanService(new EmptyCleanupService(), new EmptyUpdateScanService(), interventions,
             new Virgil.Core.Resources.ResourceMonitoringService(), new EmptyApplicationInventoryService());
@@ -253,7 +253,7 @@ public sealed class InterventionsModuleTests
         Assert.Equal(1, interventions.Calls);
         Assert.Equal(1, report.Interventions.RecommendedActions);
         Assert.Contains(report.Recommendations, recommendation =>
-            recommendation.Contains("DNS a verifier.", StringComparison.OrdinalIgnoreCase));
+            recommendation.Contains("DNS à vérifier.", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -295,8 +295,8 @@ public sealed class InterventionsModuleTests
 
         var text = new InterventionReportBuilder().Build(report);
 
-        Assert.Contains("Redemarrage requis : oui", text);
-        Assert.Contains("Echecs : 1", text);
+        Assert.Contains("Redémarrage requis : oui", text);
+        Assert.Contains("Échecs : 1", text);
         Assert.Contains("Erreur : Erreur lisible", text);
         Assert.Contains("Erreur session lisible", text);
     }
@@ -331,7 +331,7 @@ public sealed class InterventionsModuleTests
             Definition = new InterventionCatalog().Get(id),
             IsAvailable = true,
             Status = InterventionStatus.Available,
-            StateBefore = "Etat test",
+            StateBefore = "État test",
             Recommendation = "Action test"
         };
     }

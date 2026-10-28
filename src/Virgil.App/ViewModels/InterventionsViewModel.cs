@@ -468,7 +468,7 @@ public partial class InterventionsViewModel : ObservableObject
             definition.Title,
             definition.Description,
             $"Effet attendu : {definition.ExpectedEffect}",
-            $"Non touche : {definition.NotTouched}",
+            $"Non touché : {definition.NotTouched}",
             $"Risque : {RiskLabel(definition.RiskLevel)}",
             $"Admin : {(definition.RequiresAdministrator ? "oui" : "non")}",
             $"Redémarrage possible : {(definition.RebootPossible ? "oui" : "non")}",

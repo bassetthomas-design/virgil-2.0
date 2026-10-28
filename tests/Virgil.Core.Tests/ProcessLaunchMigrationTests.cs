@@ -136,7 +136,7 @@ public sealed class ProcessLaunchMigrationTests
         Definition = new InterventionCatalog().Get(InterventionId.RestartExplorer),
         IsAvailable = true,
         Status = InterventionStatus.Available,
-        StateBefore = "Etat test"
+        StateBefore = "État test"
     };
 
     private sealed class FakeProcessRunner : IProcessRunner

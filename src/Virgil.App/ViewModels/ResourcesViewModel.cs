@@ -398,7 +398,7 @@ public partial class ResourcesViewModel : ObservableObject
         var sample = report.Samples.LastOrDefault();
         MemorySummaryText = sample is null || sample.TotalMemoryBytes == 0
             ? "Lecture RAM indisponible."
-            : $"{report.AverageMemoryPercent:0.0} % utilisee - {HealthLabel(report.MemoryHealth)} - " +
+            : $"{report.AverageMemoryPercent:0.0} % utilisée - {HealthLabel(report.MemoryHealth)} - " +
               $"{ScanRules.FormatBytes((long)sample.UsedMemoryBytes)} / {ScanRules.FormatBytes((long)sample.TotalMemoryBytes)}";
         SessionSummaryText = $"{FormatUptime(report.Uptime)} - {report.ProcessCount} processus" +
             (report.RestartRecommended ? " - redémarrage manuel conseillé" : string.Empty);
@@ -620,7 +620,7 @@ public partial class ResourcesViewModel : ObservableObject
         {
             ResourceHealthLevel.Stable => "STABLE",
             ResourceHealthLevel.Watch => "A SURVEILLER",
-            ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLEE",
+            ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLÉE",
             ResourceHealthLevel.Critical => "CRITIQUE",
             _ => "INCONNU"
         };

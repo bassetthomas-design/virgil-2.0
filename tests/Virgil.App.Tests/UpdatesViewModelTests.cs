@@ -95,7 +95,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal(UpdateScanRequest.DeepPreview, f.Scan.Request);
         Assert.Equal("PRÊT", f.States.Last().Label);
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
-        Assert.Equal("Scan terminé.\n5 mises à jour a verifier.", f.Messages.Last());
+        Assert.Equal("Scan terminé.\n5 mises à jour à vérifier.", f.Messages.Last());
         Assert.Equal(1, f.Persisted);
         Assert.False(f.History.Token.CanBeCanceled);
         Assert.True(f.Vm.IsReportButtonEnabled);
@@ -206,7 +206,7 @@ public sealed class UpdatesViewModelTests
         Decide(f.Vm, decision);
         await pending;
         Assert.Equal(0, f.Confirmation.Calls);
-        Assert.DoesNotContain(f.Actions.Order, x => x.StartsWith("Exécute:"));
+        Assert.DoesNotContain(f.Actions.Order, x => x.StartsWith("Execute:"));
         Assert.Equal(new[] { decision is "SkipDecision" or "TryCloseOverlay" ? "Skip:app" : "Cancel:app" }, f.Actions.Order);
         Assert.False(f.Vm.IsValidationOpen);
         Assert.True(f.Vm.IsReportOpen);
@@ -501,7 +501,7 @@ public sealed class UpdatesViewModelTests
     }
 
     private static UpdateItem Item(string id, UpdateRiskLevel risk = UpdateRiskLevel.ValidationRequired) => new() { Id = id, Name = id, InstalledVersion = "1", AvailableVersion = "2", RiskLevel = risk, RiskReason = "Motif", CommandPreview = new() { ExecutablePath = "winget", Arguments = new[] { "upgrade", "app test" } } };
-    private static UpdateScanReport Report(params UpdateItem[] items) => new() { Items = items, OverallStatus = "Pret", Winget = new() { IsAvailable = true, Message = "WinGet disponible" }, WindowsUpdate = new() { Status = "A jour", PendingRebootDetected = true } };
+    private static UpdateScanReport Report(params UpdateItem[] items) => new() { Items = items, OverallStatus = "Prêt", Winget = new() { IsAvailable = true, Message = "WinGet disponible" }, WindowsUpdate = new() { Status = "A jour", PendingRebootDetected = true } };
     private sealed class Fixture
     {
         public RecordingConfirmation Confirmation { get; } = new();
@@ -526,7 +526,7 @@ public sealed class UpdatesViewModelTests
         public List<ConfirmedPlan> Plans { get; } = new();
         public List<string> Order { get; } = new(); public UpdateSessionReport? Report { get; private set; }
         public Func<UpdateItem, CancellationToken, Task<UpdateExecutionResult>>? Handler { get; set; }
-        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken) { Assert.NotNull(plan); Plans.Add(plan); Order.Add("Exécute:" + item.Id); return Executor?.ExecuteAsync(item, plan, cancellationToken) ?? Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
+        public Task<UpdateExecutionResult> ExecuteAsync(UpdateItem item, ConfirmedPlan? plan, CancellationToken cancellationToken) { Assert.NotNull(plan); Plans.Add(plan); Order.Add("Execute:" + item.Id); return Executor?.ExecuteAsync(item, plan, cancellationToken) ?? Handler?.Invoke(item, cancellationToken) ?? Task.FromResult(Result(item, UpdateItemStatus.Completed)); }
         public UpdateExecutionResult Skip(UpdateItem item) { Order.Add("Skip:" + item.Id); return Result(item, UpdateItemStatus.Skipped); }
         public UpdateExecutionResult Cancel(UpdateItem item) { Order.Add("Cancel:" + item.Id); return Result(item, UpdateItemStatus.Cancelled); }
         private static UpdateExecutionResult Result(UpdateItem item, UpdateItemStatus status) => new() { Item = item, Status = status };
@@ -535,7 +535,7 @@ public sealed class UpdatesViewModelTests
     private sealed class FakeRunner : IProcessRunner
     {
         public int Calls { get; private set; } public int Failure { get; set; } public ProcessLaunchRequest? Request { get; private set; } public CancellationToken Token { get; private set; }
-        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune execution processus attendue.");
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune exécution processus attendue.");
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) { Calls++; Request = request; Token = cancellationToken; if (Failure == 2) throw new InvalidOperationException(); return Task.FromResult(new ProcessLaunchResult(Failure == 0, null, Failure == 1 ? "Erreur" : null)); }
     }
     private sealed class FakeHistory : IReportHistoryService

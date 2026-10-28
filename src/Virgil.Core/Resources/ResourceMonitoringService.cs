@@ -184,7 +184,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             var memory = _memoryReader();
             if (memory.TotalBytes == 0 || memory.AvailableBytes > memory.TotalBytes)
             {
-                errors.Add("Lecture mémoire indisponible ou incoherente.");
+                errors.Add("Lecture mémoire indisponible ou incohérente.");
             }
 
             return memory;

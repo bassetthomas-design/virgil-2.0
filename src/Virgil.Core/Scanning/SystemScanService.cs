@@ -292,7 +292,7 @@ public sealed class SystemScanService : ISystemScanService
                     "resources-memory-high",
                     "Ressources",
                     "Utilisation RAM elevee",
-                    "La RAM utilisee depasse le seuil d'intervention conseillee.",
+                    "La RAM utilisée dépasse le seuil d'intervention conseillée.",
                     $"{report.AverageMemoryPercent:0.0} %",
                     report.AverageMemoryPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
                     "Examiner les applications lourdes avant toute fermeture."));
@@ -422,7 +422,7 @@ public sealed class SystemScanService : ISystemScanService
                 "memory-usage",
                 "Mémoire",
                 "Utilisation RAM elevee",
-                "La mémoire physique utilisee depasse le seuil de surveillance.",
+                "La mémoire physique utilisée dépasse le seuil de surveillance.",
                 $"{memory.UsedPercent:0.0} %",
                 severity,
                 "Comparer avec les processus actifs. Un ecart avec le Gestionnaire des taches peut venir du moment d'echantillonnage, de la mémoire compressee, du cache ou de la presentation Windows."));
@@ -455,7 +455,7 @@ public sealed class SystemScanService : ISystemScanService
                 $"{disk.UsedPercent:0.0} %",
                 disk.Severity,
                 disk.IsSystemDrive
-                    ? "Liberer de l'espace sur le disque système ou déplacer des données non essentielles."
+                    ? "Libérer de l'espace sur le disque système ou déplacer des données non essentielles."
                     : "Surveiller l'espace disponible et archiver les données non essentielles."));
         }
 

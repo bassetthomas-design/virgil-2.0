@@ -48,7 +48,7 @@ public sealed class DriverInformationService
             Drivers = drivers,
             Recommendations = new[]
             {
-                "Consulter Windows Update pour les pilotes proposes par Microsoft.",
+                "Consulter Windows Update pour les pilotes proposés par Microsoft.",
                 "Pour GPU et chipset, vérifier l'outil officiel du fabricant avant toute installation."
             },
             Errors = errors

@@ -133,8 +133,8 @@ public sealed class ApplicationsViewModelTests
         var f = new Fixture();
         await f.Analyze();
         Assert.Equal("Inventaire terminé.", f.Vm.StatusText);
-        Assert.Equal("1 detectees, 1 desinstallables, 0 avertissement(s).", f.Vm.InventorySummary);
-        Assert.Equal("1 simples, 0 attention, 0 protegees, 0 inconnues.", f.Vm.RiskSummary);
+        Assert.Equal("1 détectées, 1 désinstallables, 0 avertissement(s).", f.Vm.InventorySummary);
+        Assert.Equal("1 simples, 0 attention, 0 protégées, 0 inconnues.", f.Vm.RiskSummary);
         var card = Assert.Single(f.Cards);
         Assert.Equal(f.Inventory.Report.Applications[0].DisplayName, card.DisplayName);
         Assert.Contains("Editeur :", card.Lines);
@@ -261,7 +261,7 @@ public sealed class ApplicationsViewModelTests
         await f.Analyze();
         f.OpenDetails();
         f.Vm.ViewReportCommand.Execute(null);
-        Assert.Equal("1 application(s), 1 desinstallable(s).", f.Vm.ReportSummary);
+        Assert.Equal("1 application(s), 1 désinstallable(s).", f.Vm.ReportSummary);
         Assert.Contains("Aucune action exécutée depuis l'inventaire.", f.Vm.ReportDetails);
         Assert.Equal("Aucune", f.Vm.ReportErrors);
         Assert.True(f.Vm.TryCloseOverlay());
@@ -287,7 +287,7 @@ public sealed class ApplicationsViewModelTests
         Assert.Equal(persisted, f.Persisted);
         Assert.Contains(error ?? "Historique local indisponible. Rapport conservé en mémoire.", f.Messages);
         f.Vm.ViewReportCommand.Execute(null);
-        Assert.Equal("1 application(s), 1 desinstallable(s).", f.Vm.ReportSummary);
+        Assert.Equal("1 application(s), 1 désinstallable(s).", f.Vm.ReportSummary);
         Idle(f.Vm);
     }
 
@@ -307,7 +307,7 @@ public sealed class ApplicationsViewModelTests
         Assert.Empty(busy);
         Assert.Empty(f.Runner.Requests);
         Assert.Single(f.History.Reports);
-        Assert.Contains("Desinstallation annulee.\nConfirmation explicite absente.", f.Messages);
+        Assert.Contains("Désinstallation annulée.\nConfirmation explicite absente.", f.Messages);
         Idle(f.Vm);
     }
 
@@ -339,12 +339,12 @@ public sealed class ApplicationsViewModelTests
             f.Vm.ViewReportCommand.Execute(null);
             Assert.Contains("Confirmation explicite : oui", f.Vm.ReportDetails);
             Assert.Contains("Confirmation renforcee : oui", f.Vm.ReportDetails);
-            Assert.Contains("Lance : oui", f.Vm.ReportDetails);
+            Assert.Contains("Lancé : oui", f.Vm.ReportDetails);
         }
         else
         {
             Assert.Equal(0, f.Runner.Started);
-            Assert.Equal("Desinstallation annulee.\nConfirmation renforcee absente pour une application classee attention.", f.Messages.Last());
+            Assert.Equal("Désinstallation annulée.\nConfirmation renforcee absente pour une application classee attention.", f.Messages.Last());
         }
         Idle(f.Vm);
     }
@@ -403,7 +403,7 @@ public sealed class ApplicationsViewModelTests
         var directory = Path.Combine(Path.GetTempPath(), "Virgil-0d9-remnant-" + Guid.NewGuid());
         Directory.CreateDirectory(directory);
         var file = Path.Combine(directory, "preserved.txt");
-        await File.WriteAllTextAsync(file, "donnees conservees");
+        await File.WriteAllTextAsync(file, "données conservees");
         try
         {
             var f = new Fixture();
@@ -413,7 +413,7 @@ public sealed class ApplicationsViewModelTests
             f.Dialog.Answers.Enqueue(true);
             await f.Launch();
             Assert.Contains(f.Vm.Remnants, r => r.Text.Contains(directory, StringComparison.Ordinal) && r.Text.EndsWith("Action automatique : aucune.", StringComparison.Ordinal));
-            Assert.Equal("donnees conservees", await File.ReadAllTextAsync(file));
+            Assert.Equal("données conservees", await File.ReadAllTextAsync(file));
             Assert.Single(f.Runner.Requests);
         }
         finally { Directory.Delete(directory, true); }
@@ -458,7 +458,7 @@ public sealed class ApplicationsViewModelTests
         await f.Launch();
         Assert.Empty(f.Runner.Requests);
         Assert.Equal("Désinstallateur officiel indisponible.", f.Vm.StatusText);
-        Assert.Contains("Desinstallateur officiel indisponible.\nErreur : Dialogue test.", f.Messages);
+        Assert.Contains("Désinstallateur officiel indisponible.\nErreur : Dialogue test.", f.Messages);
         Idle(f.Vm);
     }
 
@@ -521,7 +521,7 @@ public sealed class ApplicationsViewModelTests
     {
         var f = new Fixture();
         f.Inventory.Report = new() { Applications = [Safe() with { UninstallKind = ApplicationUninstallKind.StoreSettings, CanUninstall = false }] };
-        f.Runner.Handler = (_, _) => throws ? throw new InvalidOperationException("Parametres test.") : Task.FromResult(new ProcessLaunchResult(true, null));
+        f.Runner.Handler = (_, _) => throws ? throw new InvalidOperationException("Paramètres test.") : Task.FromResult(new ProcessLaunchResult(true, null));
         await f.Analyze();
         f.Vm.SelectedFilter = "Store";
         f.Vm.SelectedFilter = "TOUT";
@@ -607,7 +607,7 @@ public sealed class ApplicationsViewModelTests
         Assert.Equal(1, authority.Calls);
         Assert.Empty(f.Runner.Requests);
         Assert.Equal("Désinstallation annulée.", f.Vm.StatusText);
-        Assert.Equal("Desinstallation annulee.\nConsentement insuffisant pour cette action.", f.Messages.Last());
+        Assert.Equal("Désinstallation annulée.\nConsentement insuffisant pour cette action.", f.Messages.Last());
         Idle(f.Vm);
     }
 
@@ -715,7 +715,7 @@ public sealed class ApplicationsViewModelTests
         public CancellationToken Token { get; private set; }
         public int Started { get; private set; }
         public Func<ProcessLaunchRequest, CancellationToken, Task<ProcessLaunchResult>>? Handler { get; set; }
-        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune execution avec capture attendue.");
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucune exécution avec capture attendue.");
         public async Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken)
         {
             Requests.Add(request);

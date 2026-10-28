@@ -304,7 +304,7 @@ public sealed class ReportsHistoryTests
                 {
                     Item = item,
                     Status = UpdateItemStatus.Completed,
-                    UserMessage = "Terminee"
+                    UserMessage = "Terminée"
                 }
             }
         });
@@ -336,7 +336,7 @@ public sealed class ReportsHistoryTests
                     WasConfirmed = true,
                     WasElevated = true,
                     ExitCode = 0,
-                    SummaryOutput = "Terminee"
+                    SummaryOutput = "Terminée"
                 }
             }
         };

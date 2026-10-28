@@ -803,7 +803,7 @@ public partial class MainWindow : Window
         {
             $"Mode : {ModeLabel(report.Mode)}",
             $"Date : {report.CapturedAt:yyyy-MM-dd HH:mm:ss}",
-            $"Duree : {report.Duration.TotalSeconds:0.0} s",
+            $"Durée : {report.Duration.TotalSeconds:0.0} s",
             $"État général : {report.OverallStatus}",
             $"Windows : {report.Windows.Edition} - {report.Windows.Version} - build {report.Windows.Build}",
             $"Architecture : système {report.Windows.SystemArchitecture}, processus {report.Windows.ProcessArchitecture}",

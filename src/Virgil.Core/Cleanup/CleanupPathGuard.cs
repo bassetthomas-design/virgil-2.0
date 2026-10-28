@@ -56,7 +56,7 @@ public static class CleanupPathGuard
 
         if (ContainsReparsePoint(fullPath, fullRoot))
         {
-            reason = "Point de reanalyse refuse.";
+            reason = "Point de reanalyse refusé.";
             return false;
         }
 
@@ -99,7 +99,7 @@ public static class CleanupPathGuard
 
         if (!fullPath.StartsWith(EnsureTrailingSeparator(fullRoot), WindowsPathComparison))
         {
-            reason = "Chemin hors zone autorisee.";
+            reason = "Chemin hors zone autorisée.";
             return false;
         }
 

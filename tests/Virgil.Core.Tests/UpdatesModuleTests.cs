@@ -216,11 +216,11 @@ VLC media player VideoLAN.VLC          3.0.18       3.0.20       winget
                 service.Skip(item),
                 service.Cancel(item)
             },
-            new[] { "Sequence annulee." });
+            new[] { "Séquence annulée." });
 
         Assert.Equal(1, report.SkippedCount);
         Assert.True(report.WasCancelled);
-        Assert.Contains("Sequence annulee.", report.Errors);
+        Assert.Contains("Séquence annulée.", report.Errors);
     }
 
     [Fact]

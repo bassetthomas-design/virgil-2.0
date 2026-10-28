@@ -128,7 +128,7 @@ public sealed class ElevatedHelperRequestStore
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException)
         {
-            return InvalidResult(requestFile, "Résultat eleve refuse : " + ex.Message);
+            return InvalidResult(requestFile, "Résultat élevé refusé : " + ex.Message);
         }
     }
 
@@ -186,33 +186,33 @@ public sealed class ElevatedHelperRequestStore
     {
         if (result is null)
         {
-            return InvalidResult(requestFile, "Résultat eleve vide.");
+            return InvalidResult(requestFile, "Résultat élevé vide.");
         }
 
         if (result.ProtocolVersion != requestFile.ProtocolVersion)
         {
-            return InvalidResult(requestFile, "Version protocole du résultat incoherente.");
+            return InvalidResult(requestFile, "Version protocole du résultat incohérente.");
         }
 
         if (!string.Equals(result.Nonce, requestFile.Nonce, StringComparison.Ordinal))
         {
-            return InvalidResult(requestFile, "Nonce du résultat incoherent.");
+            return InvalidResult(requestFile, "Nonce du résultat incohérent.");
         }
 
         if (result.ActionId != requestFile.ActionId)
         {
-            return InvalidResult(requestFile, "Action du résultat incoherente.");
+            return InvalidResult(requestFile, "Action du résultat incohérente.");
         }
 
         var now = _utcNow();
         if (result.StartedAt < requestFile.CreatedAt - ClockSkew || result.StartedAt > now + ClockSkew)
         {
-            return InvalidResult(requestFile, "Date de debut du résultat incoherente.");
+            return InvalidResult(requestFile, "Date de début du résultat incohérente.");
         }
 
         if (result.FinishedAt < result.StartedAt)
         {
-            return InvalidResult(requestFile, "Chronologie du résultat incoherente.");
+            return InvalidResult(requestFile, "Chronologie du résultat incohérente.");
         }
 
         if (result.FinishedAt > now + ClockSkew)
@@ -254,9 +254,9 @@ public sealed class ElevatedHelperRequestStore
         string message)
     {
         var now = _utcNow();
-        var readableMessage = message.StartsWith("Résultat eleve refuse", StringComparison.OrdinalIgnoreCase)
+        var readableMessage = message.StartsWith("Résultat élevé refusé", StringComparison.OrdinalIgnoreCase)
             ? message
-            : "Résultat eleve refuse : " + message;
+            : "Résultat élevé refusé : " + message;
         return new ElevatedInterventionResult
         {
             ProtocolVersion = requestFile.ProtocolVersion,

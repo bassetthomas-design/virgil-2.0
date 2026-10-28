@@ -18,7 +18,7 @@ public static class ReportMapper
             .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "Non analysé")}")
             .AppendLine($"Nettoyage sur : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
             .AppendLine($"Nettoyage avance : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
-            .AppendLine($"Elements personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
+            .AppendLine($"Éléments personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
             .AppendLine("Protection personnelle : aucune suppression depuis l'analyse approfondie.")
             .AppendLine($"Mises à jour disponibles : {report.Updates.ApplicationUpdates}")
             .AppendLine($"Interventions recommandées : {report.Interventions.RecommendedActions}")
@@ -34,7 +34,7 @@ public static class ReportMapper
             .AppendLine($"Architecture : {report.Windows.SystemArchitecture} / {report.Windows.ProcessArchitecture}")
             .AppendLine($"CPU logique : {report.Processor.LogicalProcessorCount}")
             .AppendLine($"Réseau : {report.Network.Name} - {report.Network.Type} - {report.Network.Status}")
-            .AppendLine($"Duree : {report.Duration}")
+            .AppendLine($"Durée : {report.Duration}")
             .AppendLine($"Source mises à jour : {(report.Updates.WingetAvailable ? "WinGet disponible" : "WinGet indisponible")}")
             .AppendLine($"Inventaire applications : {(report.Applications.WasAnalyzed ? $"{report.Applications.DetectedCount} détectées, {report.Applications.UnknownCount} inconnues" : "Non analysé")}")
             .ToString();
@@ -76,7 +76,7 @@ public static class ReportMapper
                 Risk = result.Zone.RiskLevel.ToString(),
                 Result = result.Zone.Id == CleanupZoneId.RecycleBin ? $"{result.DeletedFiles} fichier(s), {ScanRules.FormatBytes(result.DeletedBytes)} liberes, {result.SkippedFiles} ignores." : result.QuarantineSummary,
                 ReadableError = result.Errors.FirstOrDefault(),
-                TechnicalDetails = $"Duree : {result.Duration}. Fichiers en erreur : {result.ErrorFiles}. Racine : {result.Zone.RootPath}"
+                TechnicalDetails = $"Durée : {result.Duration}. Fichiers en erreur : {result.ErrorFiles}. Racine : {result.Zone.RootPath}"
             })
             .ToList();
         var skipped = report.Results
@@ -101,8 +101,8 @@ public static class ReportMapper
             "Nettoyage",
             report.FinishedAt,
             report.Duration,
-            $"Zones analysees : {analyzedZones}\nZones exécutées : {executed.Count}\nZones passées : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estime : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nElements a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nElements protégés : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
-            $"Debut : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDuree : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nRéparations proposées : {string.Join(" | ", report.PermissionRepairsProposed)}\nRéparations exécutées : {string.Join(" | ", report.PermissionRepairsExecuted)}",
+            $"Zones analysées : {analyzedZones}\nZones exécutées : {executed.Count}\nZones passées : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estimé : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nÉléments a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nÉléments protégés : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
+            $"Début : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDurée : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nRéparations proposées : {string.Join(" | ", report.PermissionRepairsProposed)}\nRéparations exécutées : {string.Join(" | ", report.PermissionRepairsExecuted)}",
             "CleanupExecutionService") with
         {
             ProposedActions = proposed,
@@ -136,7 +136,7 @@ public static class ReportMapper
             report.CapturedAt,
             report.Duration,
             $"Applications : {report.Items.Count}\nComposants sensibles : {report.SensitiveCount}\nPilotes inventories : {report.Drivers.Drivers.Count}\nAucune installation exécutée.",
-            $"Portee : {report.Scope}\nWinGet : {report.Winget.Message}\nDuree : {report.Duration}",
+            $"Portee : {report.Scope}\nWinGet : {report.Winget.Message}\nDurée : {report.Duration}",
             "WingetUpdateScanService") with
         {
             ProposedActions = proposed,
@@ -164,7 +164,7 @@ public static class ReportMapper
                 Risk = result.Item.RiskLevel.ToString(),
                 Result = result.UserMessage,
                 ReadableError = result.Status == UpdateItemStatus.Failed ? result.UserMessage : null,
-                TechnicalDetails = $"{BuildUpdateTechnicalDetails(result.Item)}\n{result.TechnicalDetails}\nDuree : {result.Duration}"
+                TechnicalDetails = $"{BuildUpdateTechnicalDetails(result.Item)}\n{result.TechnicalDetails}\nDurée : {result.Duration}"
             })
             .ToList();
         var skipped = report.Results
@@ -190,7 +190,7 @@ public static class ReportMapper
             report.StartedAt + report.Duration,
             report.Duration,
             $"Mises à jour effectuées : {report.CompletedCount}\nActions passées : {report.SkippedCount}\nÉchecs : {report.FailedCount}",
-            $"Debut : {report.StartedAt:O}\nDuree : {report.Duration}",
+            $"Début : {report.StartedAt:O}\nDurée : {report.Duration}",
             "WingetUpdateExecutionService") with
         {
             ProposedActions = proposed,
@@ -221,7 +221,7 @@ public static class ReportMapper
                 Result = result.SummaryOutput,
                 ReadableError = result.ReadableError,
                 RestartRequired = result.RebootRequired,
-                TechnicalDetails = $"Code sortie : {result.ExitCode}\nAdmin : {(result.WasElevated ? "oui" : "non")}\nDuree : {result.Duration}\nÉtat avant : {result.StateBefore}\nÉtat après : {result.StateAfter}"
+                TechnicalDetails = $"Code sortie : {result.ExitCode}\nAdmin : {(result.WasElevated ? "oui" : "non")}\nDurée : {result.Duration}\nÉtat avant : {result.StateBefore}\nÉtat après : {result.StateAfter}"
             })
             .ToList();
         var skipped = report.Results
@@ -250,7 +250,7 @@ public static class ReportMapper
             report.StartedAt + report.Duration,
             report.Duration,
             $"Actions exécutées : {report.ExecutedActions}\nActions passées : {report.SkippedActions}\nErreurs : {report.Errors.Count}\nRedémarrage requis : {(report.RebootRequired ? "oui" : "non")}",
-            $"Debut : {report.StartedAt:O}\nDuree : {report.Duration}",
+            $"Début : {report.StartedAt:O}\nDurée : {report.Duration}",
             "InterventionExecutionService") with
         {
             ProposedActions = proposed,

@@ -237,7 +237,7 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
 
         if (!definition.CanBeInterruptedAfterStart)
         {
-            yield return "Ne pas interrompre brutalement cette action après demarrage.";
+            yield return "Ne pas interrompre brutalement cette action après démarrage.";
         }
     }
 

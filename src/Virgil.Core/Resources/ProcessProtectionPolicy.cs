@@ -82,7 +82,7 @@ public sealed class ProcessProtectionPolicy
 
         if (process.AccessDenied || string.IsNullOrWhiteSpace(process.Path) || process.StartedAt is null)
         {
-            return Protected(ProcessResourceStatus.Protected, "Identite insuffisante : fermeture non proposée.");
+            return Protected(ProcessResourceStatus.Protected, "Identité insuffisante : fermeture non proposée.");
         }
 
         if (!process.HasMainWindow || string.IsNullOrWhiteSpace(process.MainWindowTitle))

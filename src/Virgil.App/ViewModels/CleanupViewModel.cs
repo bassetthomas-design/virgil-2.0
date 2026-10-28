@@ -251,8 +251,8 @@ public partial class CleanupViewModel : ObservableObject
     {
         var count = _lastStorageAnalysis?.Items.Count ?? 0;
         VirgilMessageRequested?.Invoke(count == 0
-            ? "Aucun element personnel volumineux détecté dans les emplacements analyses."
-            : $"Elements volumineux détectés : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
+            ? "Aucun élément personnel volumineux détecté dans les emplacements analyses."
+            : $"Éléments volumineux détectés : {count}.\nIls semblent personnels ou ambigus. Virgil ne les supprimera pas automatiquement.");
     }
 
     [RelayCommand]
@@ -573,7 +573,7 @@ public partial class CleanupViewModel : ObservableObject
         AddCategorySection(entries, "NETTOYAGE SUR", CleanupClassification.Cleanable);
         AddCategorySection(entries, "NETTOYAGE AVANCE", CleanupClassification.AdvancedCleanable);
 
-        entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper eleve. Aucune commande libre takeown."));
+        entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown."));
 
         entries.Add(new CleanupTextCardItem("À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer."));
         if (_lastStorageAnalysis is not null)
@@ -708,8 +708,8 @@ public partial class CleanupViewModel : ObservableObject
         var partialErrors = report.Errors.Count + report.Results.Sum(result => result.Errors.Count);
         var builder = new StringBuilder();
         builder.AppendLine($"Date : {report.StartedAt:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Duree : {report.Duration.TotalSeconds:0.0} s");
-        builder.AppendLine($"Zones analysees : {analyzedZones}");
+        builder.AppendLine($"Durée : {report.Duration.TotalSeconds:0.0} s");
+        builder.AppendLine($"Zones analysées : {analyzedZones}");
         builder.AppendLine($"Zones exécutées : {CountExecutedZones(report)}");
         builder.AppendLine($"Zones passées : {report.SkippedZones}");
         builder.AppendLine($"Annulation : {(IsCancellationReport(report) ? "oui" : "non")}");
@@ -717,9 +717,9 @@ public partial class CleanupViewModel : ObservableObject
         foreach (var step in report.Results.Where(r => r.QuarantinedFiles > 0)) builder.AppendLine(step.QuarantineSummary);
         builder.AppendLine($"Fichiers supprimés de la corbeille : {report.DeletedFiles}");
         builder.AppendLine($"Volume libere : {FormatBytes(report.DeletedBytes)}");
-        builder.AppendLine($"Volume estime : {FormatBytes(report.EstimatedBytes)}");
-        builder.AppendLine($"Elements a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
-        builder.AppendLine($"Elements protégés : {report.ProtectedItems}");
+        builder.AppendLine($"Volume estimé : {FormatBytes(report.EstimatedBytes)}");
+        builder.AppendLine($"Éléments a revoir : {report.ReviewItems} - {FormatBytes(report.ReviewBytes)}");
+        builder.AppendLine($"Éléments protégés : {report.ProtectedItems}");
         builder.AppendLine($"Zones avancees refusees : {report.AdvancedRefused}");
         builder.AppendLine($"Points de reanalyse ignores : {report.ReparsePointsIgnored}");
         builder.AppendLine($"Redémarrage conseillé : {(report.RestartRecommended ? "oui" : "non")}");
@@ -802,7 +802,7 @@ public partial class CleanupViewModel : ObservableObject
             CleanupZoneId.UserTemporaryFiles => "%TEMP% utilisateur",
             CleanupZoneId.UserCrashDumps => "%LOCALAPPDATA%\\CrashDumps",
             CleanupZoneId.DirectXShaderCache => "%LOCALAPPDATA%\\D3DSCache",
-            _ => "Zone autorisee"
+            _ => "Zone autorisée"
         };
     }
 
@@ -831,7 +831,7 @@ public partial class CleanupViewModel : ObservableObject
         {
             CleanupClassification.Cleanable => "nettoyable sur",
             CleanupClassification.AdvancedCleanable => "nettoyable avance",
-            CleanupClassification.ReviewOnly => "a revoir manuellement",
+            CleanupClassification.ReviewOnly => "à revoir manuellement",
             CleanupClassification.Protected => "protégé",
             _ => "information seulement"
         };

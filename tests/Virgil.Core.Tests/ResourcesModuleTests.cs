@@ -226,7 +226,7 @@ public sealed class ResourcesModuleTests
 
         Assert.Equal(ProcessActionStatus.Failed, result.Status);
         Assert.Equal(0, runtime.KillCalls);
-        Assert.Contains("Identite", result.ReadableError);
+        Assert.Contains("Identité", result.ReadableError);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public sealed class ResourcesModuleTests
         Assert.Contains("ExampleApp", text);
         Assert.Contains("Actions proposées", text);
         Assert.Contains("Ignorer ExampleApp", text);
-        Assert.Contains("Redemarrage conseille : oui", text);
+        Assert.Contains("Redémarrage conseillé : oui", text);
     }
 
     private static ProcessProtectionPolicy Policy()

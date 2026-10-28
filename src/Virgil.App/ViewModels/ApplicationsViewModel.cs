@@ -308,7 +308,7 @@ public partial class ApplicationsViewModel : ObservableObject
             IsReportButtonEnabled = true;
             RequestVirgilState(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
             VirgilMessageRequested?.Invoke(result.WasLaunched
-                ? "Désinstalleur officiel lancé.\nLe statut final peut dépendre de l'assistant externe.\nRestes analyses en lecture seule."
+                ? "Désinstalleur officiel lancé.\nLe statut final peut dépendre de l'assistant externe.\nRestes analysés en lecture seule."
                 : $"Désinstalleur non lancé.\n{result.Result}\nRapport disponible.");
         }
         catch (OperationCanceledException)

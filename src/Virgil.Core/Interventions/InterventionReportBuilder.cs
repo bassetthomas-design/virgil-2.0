@@ -9,7 +9,7 @@ public sealed class InterventionReportBuilder
     {
         var builder = new StringBuilder();
         builder.AppendLine($"Date : {report.StartedAt:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Duree : {report.Duration.TotalSeconds:0.0} s");
+        builder.AppendLine($"Durée : {report.Duration.TotalSeconds:0.0} s");
         builder.AppendLine($"Actions proposées : {report.ProposedActions.Count}");
         builder.AppendLine($"Actions exécutées : {report.ExecutedActions}");
         builder.AppendLine($"Actions passées : {report.SkippedActions}");

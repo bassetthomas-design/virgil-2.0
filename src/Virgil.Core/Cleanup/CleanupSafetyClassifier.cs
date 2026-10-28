@@ -84,7 +84,7 @@ public sealed class CleanupSafetyClassifier
 
         if (ReviewExtensions.Contains(extension))
         {
-            reason = "Archive ou image disque a revoir manuellement.";
+            reason = "Archive ou image disque à revoir manuellement.";
             return false;
         }
 

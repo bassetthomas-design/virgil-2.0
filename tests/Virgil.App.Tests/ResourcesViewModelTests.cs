@@ -66,11 +66,11 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(1, f.Monitor.Calls);
         Assert.Equal($"Analyse terminée en {2.5:0.0} s.", f.ViewModel.StatusText);
         Assert.Equal($"Moyenne {12.5:0.0} % - maximum {25.0:0.0} % - STABLE", f.ViewModel.CpuSummaryText);
-        Assert.Equal($"{50.0:0.0} % utilisee - A SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
-        Assert.Equal("Session 8 j 3 h - 42 processus - redemarrage manuel conseille", f.ViewModel.SessionSummaryText);
+        Assert.Equal($"{50.0:0.0} % utilisée - A SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
+        Assert.Equal("Session 8 j 3 h - 42 processus - redémarrage manuel conseillé", f.ViewModel.SessionSummaryText);
         Assert.Equal("- Examiner la RAM", f.ViewModel.RecommendationsText);
-        Assert.Equal("1 processus lourds detectes. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
-        Assert.Equal($"Analyse ressources terminée.\nRAM : {50.0:0.0} %\nCPU moyen : {12.5:0.0} %\n1 processus lourds detectes.", f.Message);
+        Assert.Equal("1 processus lourds détectés. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
+        Assert.Equal($"Analyse ressources terminée.\nRAM : {50.0:0.0} %\nCPU moyen : {12.5:0.0} %\n1 processus lourds détectés.", f.Message);
         Assert.Equal((expected, "ANALYSE TERMINÉE"), f.State);
         Assert.Equal(expected, f.ViewModel.MiniCoreState);
         Assert.True(f.ViewModel.IsIdle);
@@ -101,7 +101,7 @@ public sealed class ResourcesViewModelTests
         };
         await f.Analyze();
         Assert.Equal(new[] { 15, 12, 9, 6, 3, 16, 14, 13, 11, 10, 8, 7 }, f.ViewModel.Items.Select(i => i.Process.ProcessId));
-        Assert.Equal("5 processus lourds detectes. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
+        Assert.Equal("5 processus lourds détectés. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
         await f.ViewModel.Items[0].IgnoreCommand.ExecuteAsync(null);
         Assert.DoesNotContain(f.ViewModel.Items, i => i.Process.ProcessId == 15);
         Assert.Equal(12, f.ViewModel.Items.Count);
@@ -281,7 +281,7 @@ public sealed class ResourcesViewModelTests
         Assert.Empty(f.ViewModel.Items);
         Assert.False(f.ViewModel.IsValidationOpen);
         Assert.Equal("Processus ignoré.\nAucune action exécutée.", f.Message);
-        Assert.Equal("Processus ignore - Bloc-notes (PID 7)", Assert.Single(f.History.Saved!.SkippedActions).Name);
+        Assert.Equal("Processus ignoré - Bloc-notes (PID 7)", Assert.Single(f.History.Saved!.SkippedActions).Name);
         Assert.True(f.ViewModel.IsReportButtonEnabled);
         // A fresh analysis resets the treated PID set, as before.
         await f.Analyze();
@@ -355,8 +355,8 @@ public sealed class ResourcesViewModelTests
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Equal((VirgilCoreState.Warning, "ATTENTION"), f.State);
-        Assert.Equal("Refus Protege", f.ViewModel.StatusText);
-        Assert.Equal("Refus\nProtege", f.Message);
+        Assert.Equal("Refus Protégé", f.ViewModel.StatusText);
+        Assert.Equal("Refus\nProtégé", f.Message);
         Assert.Single(f.ViewModel.Items);
         Assert.Contains("Protégé", f.History.Saved!.Errors);
     }

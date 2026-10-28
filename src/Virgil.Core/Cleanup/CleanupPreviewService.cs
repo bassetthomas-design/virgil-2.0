@@ -216,7 +216,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             {
                 if (CleanupPathGuard.HasReparsePointAtPath(child))
                 {
-                    errors.Add("Sous-dossier refuse : point de reanalyse détecté.");
+                    errors.Add("Sous-dossier refusé : point de reanalyse détecté.");
                     continue;
                 }
 
@@ -304,7 +304,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
         {
             CleanupRiskLevel.Low => "Faible",
             CleanupRiskLevel.Medium => "Moyen",
-            _ => "Eleve"
+            _ => "Élevé"
         };
     }
 

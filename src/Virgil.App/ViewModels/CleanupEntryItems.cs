@@ -70,7 +70,7 @@ public partial class CleanupReviewItemViewModel : ObservableObject
     private void Ignore() => IsHidden = true;
 
     [RelayCommand]
-    private void Mark() => _message($"Element marque a revoir : {_item.Name}.\nAucune suppression effectuée.");
+    private void Mark() => _message($"Élément marque a revoir : {_item.Name}.\nAucune suppression effectuée.");
 
     [RelayCommand]
     private async Task OpenLocationAsync()

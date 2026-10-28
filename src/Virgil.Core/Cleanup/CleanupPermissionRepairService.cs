@@ -25,7 +25,7 @@ public sealed class CleanupPermissionRepairService
     {
         if (string.IsNullOrWhiteSpace(exactPath))
         {
-            return Refuse(exactPath, "Chemin vide refuse.");
+            return Refuse(exactPath, "Chemin vide refusé.");
         }
 
         string fullPath;
@@ -51,13 +51,13 @@ public sealed class CleanupPermissionRepairService
             IsExact(fullPath, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) ||
             IsExact(fullPath, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)))
         {
-            return Refuse(fullPath, "Profil ou dossier personnel complet refuse.");
+            return Refuse(fullPath, "Profil ou dossier personnel complet refusé.");
         }
 
         var normalized = fullPath.Replace('/', '\\');
         if (ForbiddenFragments.Any(fragment => normalized.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
         {
-            return Refuse(fullPath, "Chemin personnel, applicatif ou sensible refuse.");
+            return Refuse(fullPath, "Chemin personnel, applicatif ou sensible refusé.");
         }
 
         var zone = _allowedZones.FirstOrDefault(candidate => CleanupPathGuard.IsStrictlyUnderRoot(fullPath, candidate.RootPath));
@@ -68,13 +68,13 @@ public sealed class CleanupPermissionRepairService
 
         if (CleanupPathGuard.HasReparsePointAtPath(fullPath))
         {
-            return Refuse(fullPath, "Point de reanalyse refuse.");
+            return Refuse(fullPath, "Point de reanalyse refusé.");
         }
 
         return new CleanupPermissionRepairAssessment(
             fullPath,
             true,
-            $"Sous-dossier technique autorise : {zone.DisplayName}. Validation critique et helper eleve requis.");
+            $"Sous-dossier technique autorise : {zone.DisplayName}. Validation critique et helper élevé requis.");
     }
 
     private static CleanupPermissionRepairAssessment Refuse(string path, string reason) => new(path, false, reason);

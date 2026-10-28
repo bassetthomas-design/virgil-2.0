@@ -42,10 +42,32 @@ public sealed class InterfaceAccentTests
             if (Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/') == "Virgil.Core/Updates/UpdateSequenceService.cs")
                 literals = literals.Where(literal => literal != "\"updates.sequence\"");
             return literals.Select(literal => literal.Replace(@"\n", " ").Replace(@"\r", " ").Replace(@"\t", " ")).SelectMany(literal => forbidden.Where(label => literal.Contains(label, StringComparison.OrdinalIgnoreCase))
-                .Concat(words.Where(word => Regex.IsMatch(literal, @"\b(?:" + word + @")\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)))
+                .Concat(words.Where(word => HasForbiddenWord(literal, word)))
                 .Select(label => $"{Path.GetRelativePath(root, path)} : {label} : {literal}"));
         }).ToArray();
         Assert.True(failures.Length == 0, string.Join(Environment.NewLine, failures));
     }
+    private static bool HasForbiddenWord(string literal, string word) =>
+        Regex.IsMatch(literal, @"\b(?:" + word + @")\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    // Verbatim messages verified with git show 4af1cce:<path> (App and Core).
+    [Theory]
+    [InlineData("Protocole d'analyse initialise.", "initialise")]
+    [InlineData("Analyse systeme en cours.", "systeme")]
+    [InlineData("Scan initialise.", "initialise")]
+    [InlineData("Non analyse", "non analyse")]
+    [InlineData("NON ANALYSE", "non analyse")]
+    public void Baseline4af1cceCommunicationAndCoreLabelsAreRejected(string literal, string word) =>
+        Assert.True(HasForbiddenWord(literal, word));
+
+    [Theory]
+    [InlineData("Protocole d'analyse initialisé.", "initialise")]
+    [InlineData("Analyse système en cours.", "systeme")]
+    [InlineData("opération", "operation")]
+    [InlineData("operational", "operation")]
+    [InlineData("sequences", "sequence")]
+    public void AccentedWordsAndWordBoundariesArePreserved(string literal, string word) =>
+        Assert.False(HasForbiddenWord(literal, word));
+
 }
 

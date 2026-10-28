@@ -146,7 +146,7 @@ public sealed class ApplicationUninstallService
             WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
             WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
             Result = cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
-                ? "Désinstalleur officiel lancé. Statut final potentiellement gere par l'assistant externe."
+                ? "Désinstalleur officiel lancé. Statut final potentiellement géré par l'assistant externe."
                 : launch.ReadableError ?? "Désinstalleur officiel non lancé.",
             Errors = string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
             Remnants = remnants
@@ -265,7 +265,7 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
                 new ProcessLaunchRequest(executable, arguments, useShellExecute, WaitForExit: true), cancellationToken)
                 .ConfigureAwait(false);
             return result.LaunchError is not null
-                ? new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible a lancer.")
+                ? new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible à lancer.")
                 : new ApplicationLaunchResult(result.Started, result.ExitCode, null);
         }
         catch (OperationCanceledException)
@@ -274,7 +274,7 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         }
         catch
         {
-            return new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible a lancer.");
+            return new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible à lancer.");
         }
     }
 }

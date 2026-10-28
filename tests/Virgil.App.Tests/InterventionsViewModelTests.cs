@@ -140,9 +140,9 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(new[] { 2, 6 }, f.Vm.StorageItems.Select(i => i.Diagnostic.Definition.DisplayOrder));
         Assert.Equal(new[] { 1, 5 }, f.Vm.InterfaceItems.Select(i => i.Diagnostic.Definition.DisplayOrder));
         Assert.All(f.Items, i => Assert.False(i.IsSelected));
-        Assert.Equal("8 disponibles. Aucune execution automatique.", f.Vm.OverallText);
+        Assert.Equal("8 disponibles. Aucune exécution automatique.", f.Vm.OverallText);
         Assert.Equal("9", f.Vm.RecommendedCountText);
-        Assert.Equal("Diagnostic termine.\n8 actions disponibles.\n9 recommandees.", f.Message);
+        Assert.Equal("Diagnostic terminé.\n8 actions disponibles.\n9 recommandées.", f.Message);
         Assert.Equal((VirgilCoreState.Success, "PRÊT"), f.State);
         Assert.Empty(f.Vm.SystemNotice + f.Vm.NetworkNotice + f.Vm.StorageNotice + f.Vm.InterfaceNotice);
         Assert.True(f.Vm.IsIdle);
@@ -269,7 +269,7 @@ public sealed class InterventionsViewModelTests
         var f = new Fixture();
         var d = Diagnostic(risk: risk) with
         {
-            Warnings = new[] { "Attention reseau" },
+            Warnings = new[] { "Attention réseau" },
             TechnicalData = new Dictionary<string, string> { ["SystemDrive"] = "C:" },
             Definition = Diagnostic(risk: risk).Definition with
             {
@@ -291,9 +291,9 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(sensitive ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.Vm.ValidationCoreState);
         Assert.Equal((f.Vm.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Equal("outil.exe C: \"deux mots\" /scan", f.Vm.ValidationCommand);
-        Assert.Equal(string.Join("\n", new[] { d.Definition.Title, "Description", "Effet attendu : Effet", "Non touche : Fichiers",
-            sensitive ? "Risque : sensible" : "Risque : faible", "Admin : oui", "Redemarrage possible : oui", "Diagnostic : Etat avant", "Recommandation : Conseil" }), f.Vm.ValidationDetails);
-        Assert.Equal("Certaines étapes ne peuvent pas être interrompues une fois lancées.\nAttention reseau\nValidation separee obligatoire.\nAucune commande libre.\nAucun redemarrage automatique.\nAucun Take Ownership dans cette PR.", f.Vm.ValidationSafety);
+        Assert.Equal(string.Join("\n", new[] { d.Definition.Title, "Description", "Effet attendu : Effet", "Non touché : Fichiers",
+            sensitive ? "Risque : sensible" : "Risque : faible", "Admin : oui", "Redémarrage possible : oui", "Diagnostic : État avant", "Recommandation : Conseil" }), f.Vm.ValidationDetails);
+        Assert.Equal("Certaines étapes ne peuvent pas être interrompues une fois lancées.\nAttention réseau\nValidation séparée obligatoire.\nAucune commande libre.\nAucun redémarrage automatique.\nAucun Take Ownership dans cette PR.", f.Vm.ValidationSafety);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         var call = Assert.Single(f.Actions.Executed);
@@ -534,7 +534,7 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(d.Definition.Title, item.Title);
         Assert.True(item.IsAvailable);
         Assert.False(item.IsSelected);
-        Assert.Equal(new[] { "Description", "Risque : modere", "Admin : oui", "Redemarrage possible : oui", "Duree : 2 min", "Statut : recommande", "Diagnostic : Etat avant" }, item.Lines.Take(7));
+        Assert.Equal(new[] { "Description", "Risque : modere", "Admin : oui", "Redémarrage possible : oui", "Durée : 2 min", "Statut : recommandé", "Diagnostic : État avant" }, item.Lines.Take(7));
         Assert.Equal(errors ? 8 : 7, item.Lines.Count);
         if (errors) Assert.Equal("Erreur : un | deux", item.Lines[7]);
         item.IsSelected = true;
@@ -634,7 +634,7 @@ public sealed class InterventionsViewModelTests
             Assert.NotNull(plan);
             Assert.True(Authority.TryConsume(plan, InterventionActionPreviewFactory.Create(diagnostic.Definition)).IsAccepted);
             Executed.Add((diagnostic, plan));
-            Order.Add("Exécute:" + diagnostic.Definition.Id);
+            Order.Add("Execute:" + diagnostic.Definition.Id);
             Token = cancellationToken;
             return Handler?.Invoke(diagnostic, cancellationToken) ?? Task.FromResult(new InterventionExecutionResult
             { Action = diagnostic.Definition, Status = ResultStatus, WasConfirmed = plan is not null });
@@ -668,7 +668,7 @@ public sealed class InterventionsViewModelTests
         {
             Calls++;
             Actions.Add(definition.Id);
-            if (ThrowOnCall) throw new InvalidOperationException("Le helper ne doit jamais etre appele sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Le helper ne doit jamais être appele sans EXECUTER.");
             return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed });
         }
     }
@@ -680,7 +680,7 @@ public sealed class InterventionsViewModelTests
         public Task<InterventionExecutionResult> RestartAsync(InterventionDiagnostic diagnostic, CancellationToken cancellationToken)
         {
             Calls++;
-            if (ThrowOnCall) throw new InvalidOperationException("Explorer ne doit jamais etre relance sans EXECUTER.");
+            if (ThrowOnCall) throw new InvalidOperationException("Explorer ne doit jamais être relance sans EXECUTER.");
             return Task.FromResult(new InterventionExecutionResult { Action = diagnostic.Definition, Status = InterventionStatus.Completed, WasConfirmed = true });
         }
     }

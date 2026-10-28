@@ -76,7 +76,7 @@ public sealed class ProcessActionService : IProcessActionService
         }
 
         if (action == ProcessActionKind.CloseMainWindow && (!target.CanCloseGracefully || !identity.Value!.HasMainWindow))
-            return Refusal(action, TargetName(target), "Fermeture propre non autorisee.");
+            return Refusal(action, TargetName(target), "Fermeture propre non autorisée.");
         if (action == ProcessActionKind.KillProcess && !target.CanForceClose)
             return Refusal(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
         if (action is not (ProcessActionKind.CloseMainWindow or ProcessActionKind.KillProcess))
@@ -117,7 +117,7 @@ public sealed class ProcessActionService : IProcessActionService
     {
         if (!target.CanCloseGracefully || !identity.HasMainWindow)
         {
-            return Failure(ProcessActionKind.CloseMainWindow, TargetName(target), "Fermeture propre non autorisee.");
+            return Failure(ProcessActionKind.CloseMainWindow, TargetName(target), "Fermeture propre non autorisée.");
         }
 
         if (!_runtime.CloseMainWindow(target.ProcessId))
@@ -229,7 +229,7 @@ public sealed class ProcessActionService : IProcessActionService
             target.StartedAt is not null && current.StartedAt != target.StartedAt ||
             target.Path is not null && !string.Equals(current.Path, target.Path, StringComparison.OrdinalIgnoreCase))
         {
-            return IdentityValidation.Failed("Identite du processus modifiee depuis l'analyse.");
+            return IdentityValidation.Failed("Identité du processus modifiee depuis l'analyse.");
         }
 
         var observation = new ProcessObservation

@@ -104,11 +104,11 @@ public sealed class MonitoringService : IMonitoringService
 
         if (memory.TotalBytes > 0 && memory.UsedPercent >= 85)
         {
-            result.Add("RAM tres utilisee : analyser les processus actifs.");
+            result.Add("RAM tres utilisée : analyser les processus actifs.");
         }
         else if (memory.TotalBytes > 0 && memory.UsedPercent >= 70)
         {
-            result.Add("RAM elevee : surveillance conseillee.");
+            result.Add("RAM elevee : surveillance conseillée.");
         }
 
         foreach (var drive in drives.Where(drive => drive.UsedPercent >= 90))

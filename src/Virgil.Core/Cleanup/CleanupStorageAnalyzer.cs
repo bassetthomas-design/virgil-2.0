@@ -95,7 +95,7 @@ public sealed class CleanupStorageAnalyzer
                 classification,
                 classification == CleanupClassification.Protected
                     ? "Donnee personnelle protégée. Aucune suppression proposée."
-                    : "Element volumineux ou ambigu a revoir manuellement."));
+                    : "Élément volumineux ou ambigu à revoir manuellement."));
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { }
     }

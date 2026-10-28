@@ -15,7 +15,7 @@ public sealed class ResourceReportBuilder
         var analysis = report.Analyses.LastOrDefault();
         if (analysis is not null)
         {
-            builder.AppendLine($"Duree : {analysis.Duration.TotalSeconds:0.0} s");
+            builder.AppendLine($"Durée : {analysis.Duration.TotalSeconds:0.0} s");
             builder.AppendLine($"CPU moyen : {analysis.AverageCpuPercent:0.0} %");
             builder.AppendLine($"CPU max : {analysis.MaximumCpuPercent:0.0} %");
             builder.AppendLine($"RAM moyenne : {analysis.AverageMemoryPercent:0.0} %");

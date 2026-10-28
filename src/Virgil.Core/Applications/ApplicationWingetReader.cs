@@ -42,7 +42,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
         {
             return new ApplicationInventorySourceResult(
                 Array.Empty<InstalledApplication>(),
-                ["Source WinGet interrompue : delai depasse."]);
+                ["Source WinGet interrompue : delai dépasse."]);
         }
 
         var parse = Parse(result.StandardOutput);
