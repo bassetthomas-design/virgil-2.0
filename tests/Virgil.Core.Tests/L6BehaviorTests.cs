@@ -4,6 +4,7 @@ using Virgil.Contracts.Diagnostic;
 using Virgil.Core.Actions;
 using Virgil.Core.Diagnostic;
 using Virgil.Core.Startup;
+using Virgil.Core.Resources;
 using Virgil.Core.Updates;
 using Virgil.Infrastructure.Windows.Startup;
 using Xunit;
@@ -37,6 +38,23 @@ public sealed class L6BehaviorTests
         Assert.Contains(items, i => i.Name == "Machine32" && i.ApprovalTarget!.Kind == StartupApprovalKind.Run32);
     }
 
+    [Fact, Trait("Category", "Safety")]
+    public void Startup_identical_local_machine_Run_and_Run32_keep_separate_approval_targets()
+    {
+        var run = new StartupItem("Identique", "Tous les comptes · Registre Run (64 bits)", "exemple.exe /start",
+            "Activé", "Éditeur", "Non vérifiée", "Non mesuré",
+            new(StartupApprovalHive.LocalMachine, StartupApprovalKind.Run, "Identique"));
+        var run32 = run with
+        {
+            Source = "Tous les comptes · Registre Run (32 bits)",
+            ApprovalTarget = run.ApprovalTarget! with { Kind = StartupApprovalKind.Run32 }
+        };
+        var items = StartupInventoryMerger.Merge([run, run32, run with { Path = "  exemple.exe   /start  " }]);
+        Assert.Equal(2, items.Count);
+        Assert.Equal(run, Assert.Single(items, item => item.ApprovalTarget == run.ApprovalTarget));
+        Assert.Equal(run32, Assert.Single(items, item => item.ApprovalTarget == run32.ApprovalTarget));
+    }
+
     [Fact]
     public void Absent_sensors_do_not_make_health_partial_or_cost_points()
     {
@@ -58,7 +76,7 @@ public sealed class L6BehaviorTests
         Assert.Equal(100, result.Score.Value);
     }
 
-    [Theory]
+    [Theory, Trait("Category", "Safety")]
     [InlineData("steam")]
     [InlineData("Battle.net")]
     [InlineData("Battle.net.exe")]
@@ -66,13 +84,18 @@ public sealed class L6BehaviorTests
     public void Tray_only_launcher_over_threshold_is_reported_without_close_action(string name)
     {
         var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
-        snapshot = snapshot with { Processes = [snapshot.Processes[0] with { Name = name, CpuPercent = DiagnosticAnalysisTests.V(0d), WorkingSetBytes = DiagnosticAnalysisTests.V(600d * 1024 * 1024) }] };
-        signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([DiagnosticAnalysisTests.Target() with { Name = name, CanCloseGracefully = false, CanForceClose = false, MainWindowTitle = "" }]) };
-        if (name == "Agent.exe")
+        var observation = LauncherObservation(name);
+        var target = EvaluateLauncher(observation);
+        Assert.Equal(ProcessResourceStatus.Review, target.Status);
+        Assert.True(target.IsCriticalSystemProcess);
+        Assert.False(target.CanCloseGracefully);
+        Assert.False(target.CanForceClose);
+        snapshot = snapshot with { Processes = [snapshot.Processes[0] with
         {
-            snapshot = snapshot with { Processes = [snapshot.Processes[0] with { Path = DiagnosticAnalysisTests.V(@"C:\Program Files\Battle.net\Agent.exe") }] };
-            signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([signals.Processes.Value[0] with { Path = @"C:\Program Files\Battle.net\Agent.exe" }]) };
-        }
+            Name = name, Path = DiagnosticAnalysisTests.V(observation.Path!), CpuPercent = DiagnosticAnalysisTests.V(0d),
+            WorkingSetBytes = DiagnosticAnalysisTests.V((double)observation.WorkingSetBytes)
+        }] };
+        signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([target]) };
         var result = DiagnosticAnalyzer.Analyze(snapshot, signals);
         var issue = Assert.Single(result.Issues);
         Assert.Equal((name == "steam" ? "Steam" : name) + " : lanceur gourmand en arrière-plan", issue.Title);
@@ -82,6 +105,56 @@ public sealed class L6BehaviorTests
         Assert.DoesNotContain(result.Issues, i => i.Suggestion == DiagnosticSuggestion.Close);
         Assert.Empty(result.ProposedActions);
         Assert.Equal(95, result.Score.Value);
+    }
+
+    [Theory, Trait("Category", "Safety")]
+    [InlineData("security")]
+    [InlineData("system")]
+    [InlineData("identity")]
+    public void Protected_launcher_without_window_does_not_become_a_Review_suggestion(string protection)
+    {
+        var observation = LauncherObservation("steam");
+        observation = protection switch
+        {
+            "security" => observation with { Publisher = "Defender" },
+            "system" => observation with { Path = Path.Combine(PolicySystemDirectory, "steam.exe") },
+            _ => observation with { AccessDenied = true }
+        };
+        var target = EvaluateLauncher(observation);
+        Assert.True(target.IsCriticalSystemProcess);
+        Assert.NotEqual(ProcessResourceStatus.Review, target.Status);
+        Assert.False(target.CanCloseGracefully);
+        Assert.False(target.CanForceClose);
+        var (snapshot, signals) = DiagnosticAnalysisTests.Problem("process");
+        snapshot = snapshot with { Processes = [snapshot.Processes[0] with
+        {
+            Path = DiagnosticAnalysisTests.V(observation.Path!), WorkingSetBytes = DiagnosticAnalysisTests.V(600d * 1024 * 1024)
+        }] };
+        signals = signals with { Processes = DiagnosticAnalysisTests.V<IReadOnlyList<ProcessResourceInfo>>([target]) };
+        var result = DiagnosticAnalyzer.Analyze(snapshot, signals);
+        Assert.Empty(result.Issues);
+        Assert.Empty(result.ProposedActions);
+    }
+
+    private static string PolicySystemDirectory => Path.GetFullPath(Path.Combine("work", "policy", "Windows", "System32"));
+    private static ProcessObservation LauncherObservation(string name) => new()
+    {
+        ProcessId = 42, Name = name,
+        Path = Path.GetFullPath(Path.Combine("work", "policy", "games", name == "Agent.exe" ? "Battle.net" : "Steam", name)),
+        StartedAt = DateTimeOffset.UnixEpoch, HasMainWindow = false, MainWindowTitle = "",
+        WorkingSetBytes = 600L * 1024 * 1024
+    };
+    private static ProcessResourceInfo EvaluateLauncher(ProcessObservation observation)
+    {
+        var decision = new ProcessProtectionPolicy(PolicySystemDirectory, int.MaxValue).Evaluate(observation, 0);
+        // Même projection que WindowsDiagnosticSignals.ReadProcesses, sans modifier les protections.
+        return new ProcessResourceInfo
+        {
+            ProcessId = observation.ProcessId, Name = observation.Name, Path = observation.Path, Publisher = observation.Publisher,
+            StartedAt = observation.StartedAt, MainWindowTitle = observation.MainWindowTitle, WorkingSetBytes = observation.WorkingSetBytes,
+            Status = decision.Status, IsCriticalSystemProcess = decision.IsCritical,
+            CanCloseGracefully = decision.CanCloseGracefully, CanForceClose = decision.CanForceClose
+        };
     }
 
     [Fact, Trait("Category", "Safety")]

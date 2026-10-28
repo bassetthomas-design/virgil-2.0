@@ -15,7 +15,8 @@ public static class StartupInventoryMerger
 
     private static string SourceType(StartupItem item) => item.ApprovalTarget?.Kind switch
     {
-        StartupApprovalKind.Run or StartupApprovalKind.Run32 => "RegistryRun",
+        StartupApprovalKind.Run => "RegistryRun",
+        StartupApprovalKind.Run32 => "RegistryRun32",
         StartupApprovalKind.StartupFolder => "StartupFolder",
         _ => item.Source
     };

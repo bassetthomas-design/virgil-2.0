@@ -104,7 +104,8 @@ public static class DiagnosticAnalyzer
             var target = signals.Processes.Value.FirstOrDefault(t => t.ProcessId == p.Pid && t.Name == p.Name && p.Path.IsAvailable && t.Path == p.Path.Value);
             var overThreshold = (p.CpuPercent.IsAvailable && p.CpuPercent.Value >= 20) ||
                 (p.WorkingSetBytes.IsAvailable && p.WorkingSetBytes.Value >= 512L * 1024 * 1024);
-            if (target is not null && !target.CanCloseGracefully && !target.IsCriticalSystemProcess && overThreshold)
+            // Review interdit la fermeture, mais permet un constat purement informatif sans cible.
+            if (target is { Status: ProcessResourceStatus.Review, CanCloseGracefully: false } && overThreshold)
             {
                 var name = p.Name.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "Steam" : p.Name;
                 issues.Add(new("process." + p.Pid, name + " : lanceur gourmand en arrière-plan",
