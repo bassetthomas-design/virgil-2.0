@@ -72,7 +72,7 @@ public sealed class InterventionCatalog : IInterventionCatalog
             InterventionCategory.System,
             "Exécute DISM ScanHealth en diagnostic approfondi.",
             "Détecte des corruptions possibles de l'image Windows.",
-            "Ne lancé pas RestoreHealth automatiquement.",
+            "Ne lance pas RestoreHealth automatiquement.",
             InterventionRiskLevel.Moderate,
             admin: true,
             reboot: false,

@@ -9,7 +9,7 @@ namespace Virgil.Tests;
 
 public sealed class AppLongOperationArchitectureTests
 {
-    // Explicit inventory: Scan still lives in MainWindow; the other thirteen entries
+    // Explicit inventory: Scan still lives in MainWindow; the other fourteen entries
     // are ViewModel operations (including Diagnostic's action preview).
     public static TheoryData<string, string, string> LongOperations => new()
     {
@@ -44,7 +44,7 @@ public sealed class AppLongOperationArchitectureTests
         var properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var hasOperation = fields.Any(f => f.FieldType == typeof(LongOperationViewModel)) || properties.Any(p => p.PropertyType == typeof(LongOperationViewModel));
         Assert.True(hasOperation || methods.All(m => m.GetParameters().Any(p => p.ParameterType == typeof(CancellationToken))), $"{owner}.{operation}: missing cancellation contract");
-        if (owner != "MainWindow" && operation != "PrepareActionAsync" && operation != "ScanUpdatesAsync")
+        if (owner != "MainWindow" && operation != "PrepareActionAsync")
         {
             var commandName = operation.Replace("Async", "") + "Command";
             Assert.True(properties.Any(p => p.Name == commandName && typeof(IAsyncRelayCommand).IsAssignableFrom(p.PropertyType)), $"{owner}.{operation}: {commandName} missing");

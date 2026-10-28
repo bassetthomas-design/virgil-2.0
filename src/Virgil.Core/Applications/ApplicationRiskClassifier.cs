@@ -7,7 +7,7 @@ public sealed class ApplicationRiskClassifier
     private static readonly string[] ProtectedTerms =
     [
         "driver", "pilote", "nvidia", "amd software", "intel", "realtek", "qualcomm",
-        "antivirus", "security", "sécurité", "vpn", "firewall", "pare-feu",
+        "antivirus", "security", "securite", "vpn", "firewall", "pare-feu",
         "windows", "webview2", ".net", "runtime", "redistributable", "visual c++",
         "directx", "sdk", "framework", "chipset", "firmware", "defender"
     ];
