@@ -66,7 +66,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(1, f.Monitor.Calls);
         Assert.Equal($"Analyse terminée en {2.5:0.0} s.", f.ViewModel.StatusText);
         Assert.Equal($"Moyenne {12.5:0.0} % - maximum {25.0:0.0} % - STABLE", f.ViewModel.CpuSummaryText);
-        Assert.Equal($"{50.0:0.0} % utilisée - A SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
+        Assert.Equal($"{50.0:0.0} % utilisée - À SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
         Assert.Equal("Session 8 j 3 h - 42 processus - redémarrage manuel conseillé", f.ViewModel.SessionSummaryText);
         Assert.Equal("- Examiner la RAM", f.ViewModel.RecommendationsText);
         Assert.Equal("1 processus lourds détectés. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
