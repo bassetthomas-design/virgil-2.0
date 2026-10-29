@@ -356,7 +356,7 @@ public partial class ResourcesViewModel : ObservableObject
                 "Fermeture forcée demandée.",
                 $"Application : {TargetName(action, target)}",
                 "Cette action peut entraîner une perte de données non sauvegardées.",
-                "A utiliser seulement si l'application ne repond plus."
+                "À utiliser seulement si l'application ne répond plus."
             }),
             ProcessActionKind.RestartExplorer => string.Join("\n", new[]
             {
@@ -368,7 +368,7 @@ public partial class ResourcesViewModel : ObservableObject
         };
         ValidationSafety = reinforced
             ? "Confirmation renforcée obligatoire. Processus critique bloqué. Aucun autre processus ne sera fermé."
-            : "Validation explicite obligatoire. Aucune fermeture forcée automatique. Aucun redémarrage force.";
+            : "Validation explicite obligatoire. Aucune fermeture forcée automatique. Aucun redémarrage forcé.";
         ExecuteActionLabel = reinforced ? "JE CONFIRME" : "EXÉCUTER";
         IsValidationOpen = true;
         var state = reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning;
@@ -429,12 +429,12 @@ public partial class ResourcesViewModel : ObservableObject
             .ToList();
         var heavyCount = processes.Count(process => process.Status == ProcessResourceStatus.Heavy);
         ProcessSummaryText = heavyCount == 0
-            ? "Aucun processus lourd selon les seuils V1. Principaux consommateurs affiches pour information."
+            ? "Aucun processus lourd selon les seuils V1. Principaux consommateurs affichés pour information."
             : $"{heavyCount} processus lourds détectés. Aucune fermeture automatique.";
 
         if (processes.Count == 0)
         {
-            ProcessesNotice = "Aucun processus accessible a afficher.";
+            ProcessesNotice = "Aucun processus accessible à afficher.";
             return;
         }
 
@@ -619,7 +619,7 @@ public partial class ResourcesViewModel : ObservableObject
         return health switch
         {
             ResourceHealthLevel.Stable => "STABLE",
-            ResourceHealthLevel.Watch => "A SURVEILLER",
+            ResourceHealthLevel.Watch => "À SURVEILLER",
             ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLÉE",
             ResourceHealthLevel.Critical => "CRITIQUE",
             _ => "INCONNU"

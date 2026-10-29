@@ -338,7 +338,7 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Application : {application.DisplayName}",
             $"Éditeur : {Empty(application.Publisher)}",
             $"Risque : {RiskLabel(application.RiskLevel)} - {application.RiskReason}",
-            $"Methode : {UninstallMethodLabel(plan.Method)}",
+            $"Méthode : {UninstallMethodLabel(plan.Method)}",
             string.Empty,
             "Virgil va uniquement lancer le désinstallateur officiel valide.",
             "Aucun dossier d'application ne sera supprimé directement.",
@@ -365,9 +365,9 @@ public partial class ApplicationsViewModel : ObservableObject
                 "Elle peut contenir des profils, projets, presets, bibliothèques ou sauvegardes.",
                 string.Empty,
                 "Virgil ne supprime rien lui-même, mais l'assistant officiel peut modifier ou retirer l'application.",
-                "Ne continuez que si vous avez sauvegarde ce qui doit l'être.",
+                "Ne continuez que si vous avez sauvegardé ce qui doit l'être.",
                 string.Empty,
-                "Confirmer malgre ce risque ?"
+                "Confirmer malgré ce risque ?"
             });
 
             reinforcedConfirmed = await AskConfirmationAsync("Confirmation renforcée applications", reinforcedMessage).ConfigureAwait(true);
@@ -557,7 +557,7 @@ public partial class ApplicationsViewModel : ObservableObject
             "Pilotes, sécurité, runtimes et composants système bloqués.",
             application.RiskLevel == ApplicationRiskLevel.Caution
                 ? "Attention : confirmation renforcée obligatoire, profils, projets, presets ou sauvegardes possibles."
-                : "Validation stricte appliquee avant lancement."
+                : "Validation stricte appliquée avant lancement."
         });
         LaunchUninstallLabel = !application.CanUninstall
             ? "DÉSINSTALLATION BLOQUÉE"
@@ -602,7 +602,7 @@ public partial class ApplicationsViewModel : ObservableObject
         ReportSummary = $"{result.Application.DisplayName}\n{result.Result}";
         ReportDetails = string.Join("\n", new[]
         {
-            $"Methode : {result.Method}",
+            $"Méthode : {result.Method}",
             $"Lancé : {(result.WasLaunched ? "oui" : "non")}",
             $"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}",
             $"Confirmation renforcée : {(result.WasReinforcedConfirmed ? "oui" : "non")}",

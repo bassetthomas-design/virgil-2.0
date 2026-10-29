@@ -503,7 +503,7 @@ public sealed class InterventionsViewModelTests
     [InlineData(InterventionStatus.RebootRequired, "Intervention terminée.\nRedémarrage manuel probablement requis.", "Parcours terminé.", VirgilCoreState.Success)]
     [InlineData(InterventionStatus.PartialFailure, "Intervention partielle.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
     [InlineData(InterventionStatus.Failed, "Intervention en échec.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
-    [InlineData(InterventionStatus.Unavailable, "Intervention traitee.\nRapport disponible.", "Parcours terminé.", VirgilCoreState.Success)]
+    [InlineData(InterventionStatus.Unavailable, "Intervention traitée.\nRapport disponible.", "Parcours terminé.", VirgilCoreState.Success)]
     public async Task ExecutionResultKeepsMessagesAndSessionState(InterventionStatus status, string message, string session, VirgilCoreState state)
     {
         var f = new Fixture();

@@ -42,7 +42,7 @@ public sealed class ApplicationInventoryService : IApplicationInventoryService
                 cancellationToken.ThrowIfCancellationRequested();
                 all.AddRange(result.Applications);
                 errors.AddRange(result.Errors);
-                Report(progress, "Analyse des applications", reader.SourceName, all.Count, Percent(index + 1, _readers.Count), $"Applications trouvees : {all.Count}");
+                Report(progress, "Analyse des applications", reader.SourceName, all.Count, Percent(index + 1, _readers.Count), $"Applications trouvées : {all.Count}");
             }
             catch (OperationCanceledException)
             {

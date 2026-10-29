@@ -53,7 +53,7 @@ public sealed class ScanRulesTests
     public void OverallStatus_ReturnsHighestSeverityStatus()
     {
         Assert.Equal("Stable", ScanRules.OverallStatus(Array.Empty<ScanSeverity>()));
-        Assert.Equal("A surveiller", ScanRules.OverallStatus([ScanSeverity.Healthy, ScanSeverity.Attention]));
+        Assert.Equal("À surveiller", ScanRules.OverallStatus([ScanSeverity.Healthy, ScanSeverity.Attention]));
         Assert.Equal("Intervention recommandée", ScanRules.OverallStatus([ScanSeverity.Warning, ScanSeverity.Attention]));
         Assert.Equal("Intervention prioritaire", ScanRules.OverallStatus([ScanSeverity.Critical, ScanSeverity.Warning]));
     }

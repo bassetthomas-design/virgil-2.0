@@ -41,7 +41,7 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine("Détails techniques :");
         builder.AppendLine(includeTechnicalDetails
             ? BuildTechnicalDetails(sanitized)
-            : "Masques dans cet export.");
+            : "Masqués dans cet export.");
         return builder.ToString();
     }
 
@@ -58,7 +58,7 @@ public sealed class ReportExportService : IReportExportService
             var destination = ValidateDestination(destinationPath);
             if (File.Exists(destination) && !overwriteConfirmed)
             {
-                return Failure("Un fichier existe déjà. Confirmez son remplacement dans la boite de dialogue.");
+                return Failure("Un fichier existe déjà. Confirmez son remplacement dans la boîte de dialogue.");
             }
 
             var directory = Path.GetDirectoryName(destination)!;

@@ -225,7 +225,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             overwriteConfirmed: true,
             CancellationToken.None).ConfigureAwait(true);
         VirgilMessageRequested?.Invoke(result.Success
-            ? "Rapport exporte manuellement en TXT.\nAucun envoi en ligne."
+            ? "Rapport exporté manuellement en TXT.\nAucun envoi en ligne."
             : result.ReadableError ?? "Export impossible.");
     }
 
@@ -275,7 +275,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
     {
         return severity switch
         {
-            ReportSeverity.Success => "SUCCES",
+            ReportSeverity.Success => "SUCCÈS",
             ReportSeverity.Warning => "ATTENTION",
             ReportSeverity.Error => "ERREUR",
             ReportSeverity.Critical => "CRITIQUE",

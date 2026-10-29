@@ -114,8 +114,8 @@ public sealed class ResourcesViewModelTests
         f.Monitor.Report = new();
         await f.Analyze();
         Assert.Empty(f.ViewModel.Items);
-        Assert.Equal("Aucun processus accessible a afficher.", f.ViewModel.ProcessesNotice);
-        Assert.Equal("Aucun processus lourd selon les seuils V1. Principaux consommateurs affiches pour information.", f.ViewModel.ProcessSummaryText);
+        Assert.Equal("Aucun processus accessible à afficher.", f.ViewModel.ProcessesNotice);
+        Assert.Equal("Aucun processus lourd selon les seuils V1. Principaux consommateurs affichés pour information.", f.ViewModel.ProcessSummaryText);
         Assert.Equal("Ressources stables. Aucune action automatique.", f.ViewModel.RecommendationsText);
         Assert.Equal("Lecture RAM indisponible.", f.ViewModel.MemorySummaryText);
     }

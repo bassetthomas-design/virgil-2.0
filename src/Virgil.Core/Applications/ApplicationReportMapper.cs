@@ -42,7 +42,7 @@ public static class ApplicationReportMapper
         var remnants = result.Remnants;
         var simple = new StringBuilder()
             .AppendLine($"Application : {result.Application.DisplayName}")
-            .AppendLine($"Methode : {result.Method}")
+            .AppendLine($"Méthode : {result.Method}")
             .AppendLine($"Résultat : {result.Result}")
             .AppendLine($"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}")
             .AppendLine($"Confirmation renforcée : {(result.WasReinforcedConfirmed ? "oui" : "non")}")

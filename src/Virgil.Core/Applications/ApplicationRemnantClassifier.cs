@@ -50,7 +50,7 @@ public sealed class ApplicationRemnantClassifier
 
         if (lowerPath.Contains(@"\appdata\", StringComparison.OrdinalIgnoreCase))
         {
-            return Candidate(path, isDirectory, sizeBytes, ApplicationRemnantKind.UnknownRemnant, "Reste AppData non classe : lecture seule et revue manuelle.");
+            return Candidate(path, isDirectory, sizeBytes, ApplicationRemnantKind.UnknownRemnant, "Reste AppData non classé : lecture seule et revue manuelle.");
         }
 
         return Candidate(path, isDirectory, sizeBytes, ApplicationRemnantKind.UnknownRemnant, "Reste non vide ou ambigu : revue manuelle requise.");

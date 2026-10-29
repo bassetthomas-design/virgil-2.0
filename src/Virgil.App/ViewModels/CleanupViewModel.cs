@@ -523,14 +523,14 @@ public partial class CleanupViewModel : ObservableObject
             ? preview.Definition.Id == CleanupZoneId.RecycleBin
                 ? "VIDER LA CORBEILLE - CONFIRMATION RENFORCÉE"
                 : "NETTOYAGE AVANCÉ - CONFIRMATION RENFORCÉE"
-            : "NETTOYAGE SUR - VALIDATION REQUISE";
+            : "NETTOYAGE SÛR - VALIDATION REQUISE";
         ValidationReason = $"Zone : {preview.Definition.DisplayName}\n{preview.Definition.Description}";
         ValidationRoot = LogicalRootLabel(preview.Definition.Id);
         ValidationMetrics = string.Join("\n", new[]
         {
             $"Taille : {FormatBytes(preview.EligibleBytes)}",
             $"Fichiers : {preview.EligibleFileCount}",
-            $"Age minimal : {FormatAge(preview.Definition.MinimumAge)}",
+            $"Âge minimal : {FormatAge(preview.Definition.MinimumAge)}",
             $"Risque : {RiskLabel(preview.Definition.RiskLevel)}"
         });
         ValidationEffect = preview.Definition.Id == CleanupZoneId.RecycleBin
@@ -570,7 +570,7 @@ public partial class CleanupViewModel : ObservableObject
     {
         var entries = new List<object>();
 
-        AddCategorySection(entries, "NETTOYAGE SUR", CleanupClassification.Cleanable);
+        AddCategorySection(entries, "NETTOYAGE SÛR", CleanupClassification.Cleanable);
         AddCategorySection(entries, "NETTOYAGE AVANCÉ", CleanupClassification.AdvancedCleanable);
 
         entries.Add(new CleanupTextCardItem("NETTOYAGE TECHNIQUE BLOQUÉ\nLes accès refusés sont signalés. Toute réparation exige un chemin technique autorisé, une confirmation critique et le helper élevé. Aucune commande libre takeown."));
@@ -588,7 +588,7 @@ public partial class CleanupViewModel : ObservableObject
 
         if (entries.Count == 0)
         {
-            entries.Add(new CleanupTextCardItem("Aucune zone analysee."));
+            entries.Add(new CleanupTextCardItem("Aucune zone analysée."));
         }
         return entries;
     }

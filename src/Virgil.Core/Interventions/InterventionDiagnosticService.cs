@@ -62,7 +62,7 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
         var state = "Action disponible après validation explicite.";
         var status = available ? InterventionStatus.Available : InterventionStatus.Unavailable;
         var recommendation = available
-            ? "Disponible. Aucune panne n'est inventee par le diagnostic."
+            ? "Disponible. Aucune panne n'est inventée par le diagnostic."
             : "Indisponible dans l'état actuel.";
 
         if (definition.Id == InterventionId.RestartExplorer)

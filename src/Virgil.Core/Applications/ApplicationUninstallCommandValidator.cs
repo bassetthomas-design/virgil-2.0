@@ -57,7 +57,7 @@ public sealed partial class ApplicationUninstallCommandValidator
 
         if (ContainsDangerousShell(lower))
         {
-            return Blocked("Commande dangereuse ou chainee bloquée.");
+            return Blocked("Commande dangereuse ou chaînée bloquée.");
         }
 
         if (TouchesProtectedPersonalArea(lower))

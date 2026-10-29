@@ -108,7 +108,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(VirgilCoreState.Success, f.Vm.MiniCoreState);
         Assert.Contains("5 zones analysées.", f.Messages.Last());
         Assert.Equal(9, f.Vm.Entries.Count);
-        Assert.Equal("NETTOYAGE SUR", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[0]).Text);
+        Assert.Equal("NETTOYAGE SÛR", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[0]).Text);
         var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
         AssertSnapshot(safeFirst, card.Preview);
         Assert.Equal("USERTEMPORARYFILES", card.Title);

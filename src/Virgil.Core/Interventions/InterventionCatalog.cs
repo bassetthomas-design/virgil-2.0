@@ -46,7 +46,7 @@ public sealed class InterventionCatalog : IInterventionCatalog
             InterventionRiskLevel.Moderate,
             admin: true,
             reboot: false,
-            "Une a deux minutes",
+            "Une à deux minutes",
             "Disponible seulement si une interface DHCP active non VPN est détectée.",
             3,
             interruptible: false,

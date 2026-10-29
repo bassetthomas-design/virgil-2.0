@@ -245,7 +245,7 @@ public sealed class ElevatedHelperRequestStore
         if (!string.Equals(expectedRequestPath, requestFile.RequestPath, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(expectedResultPath, requestFile.ResultPath, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Noms des fichiers protocole incoherents.");
+            throw new InvalidOperationException("Noms des fichiers protocole incohérents.");
         }
     }
 

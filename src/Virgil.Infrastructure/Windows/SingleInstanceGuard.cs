@@ -30,7 +30,7 @@ public sealed class SingleInstanceGuard(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(onActivate);
-        if (!_ownsMutex) throw new InvalidOperationException("L'instance ne detient pas le mutex.");
+        if (!_ownsMutex) throw new InvalidOperationException("L'instance ne détient pas le mutex.");
         if (_listener is not null) throw new InvalidOperationException("L'écoute est déjà démarrée.");
         var handles = new WaitHandle[] { _stop, _activation! };
         _listener = new Thread(() =>

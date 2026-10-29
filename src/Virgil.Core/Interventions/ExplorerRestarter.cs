@@ -53,7 +53,7 @@ public sealed class ExplorerRestarter : IExplorerRestarter
         catch (OperationCanceledException)
         {
             status = InterventionStatus.Cancelled;
-            error = "Relance Explorer annulée avant exécution complete.";
+            error = "Relance Explorer annulée avant exécution complète.";
         }
         catch
         {

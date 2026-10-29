@@ -16,7 +16,7 @@ public sealed class ReportsHistoryViewModelTests
         await fixture.ViewModel.RefreshAsync();
         var item = Assert.Single(fixture.ViewModel.Items);
         Assert.Same(fixture.Report, item.Report);
-        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - SUCCES", item.Header);
+        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - SUCCÈS", item.Header);
         Assert.Equal("Diagnostic", item.Title);
         Assert.Equal("Tout va bien", item.Summary);
         Assert.Equal("Statut : Terminé", item.StatusLine);
@@ -86,7 +86,7 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Equal("rapport.txt", fixture.Export.Path);
         Assert.True(fixture.Export.Overwrite);
         Assert.Equal(technical, fixture.Export.Technical);
-        Assert.Equal("Rapport exporte manuellement en TXT.\nAucun envoi en ligne.", fixture.Message);
+        Assert.Equal("Rapport exporté manuellement en TXT.\nAucun envoi en ligne.", fixture.Message);
     }
 
     [Fact]

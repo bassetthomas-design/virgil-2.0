@@ -16,9 +16,9 @@ public static class ReportMapper
             .AppendLine($"RAM : {report.Memory.UsedPercent:0.0} %")
             .AppendLine($"Disques analyses : {report.Disks.Count}")
             .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "Non analysé")}")
-            .AppendLine($"Nettoyage sur : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
+            .AppendLine($"Nettoyage sûr : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
             .AppendLine($"Nettoyage avancé : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
-            .AppendLine($"Éléments personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
+            .AppendLine($"Éléments personnels à revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
             .AppendLine("Protection personnelle : aucune suppression depuis l'analyse approfondie.")
             .AppendLine($"Mises à jour disponibles : {report.Updates.ApplicationUpdates}")
             .AppendLine($"Interventions recommandées : {report.Interventions.RecommendedActions}")
@@ -299,7 +299,7 @@ public static class ReportMapper
             analysis is null
                 ? "Session ressources sans analyse."
                 : $"CPU {analysis.AverageCpuPercent:0.0} %, RAM {analysis.AverageMemoryPercent:0.0} %, {CountHeavyProcesses(analysis)} processus lourd(s).",
-            severity == ReportSeverity.Success ? "Stable" : "A surveiller",
+            severity == ReportSeverity.Success ? "Stable" : "À surveiller",
             severity,
             "Ressources",
             report.CapturedAt,

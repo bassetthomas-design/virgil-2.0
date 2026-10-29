@@ -69,11 +69,11 @@
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,2,0,8">
                     <StackPanel>
                         <TextBlock Text="CONFIDENTIALITÉ" Style="{StaticResource VirgilMicroLabel}" />
-                        <TextBlock Text="Stockage local uniquement. Aucun envoi en ligne, aucune telemetrie, aucun export automatique."
+                        <TextBlock Text="Stockage local uniquement. Aucun envoi en ligne, aucune télémétrie, aucun export automatique."
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    TextWrapping="Wrap"
                                    Margin="0,4,0,8" />
-                        <TextBlock Text="Comparer deux scans : prevu en V2"
+                        <TextBlock Text="Comparer deux scans : prévu en V2"
                                    Style="{StaticResource VirgilHudSecondaryText}" />
                     </StackPanel>
                 </Border>

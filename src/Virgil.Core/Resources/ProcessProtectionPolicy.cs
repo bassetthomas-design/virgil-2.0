@@ -77,7 +77,7 @@ public sealed class ProcessProtectionPolicy
 
         if (IsUnderWindows(process.Path))
         {
-            return Protected(ProcessResourceStatus.System, "Processus installe dans Windows protégé.");
+            return Protected(ProcessResourceStatus.System, "Processus installé dans Windows protégé.");
         }
 
         if (process.AccessDenied || string.IsNullOrWhiteSpace(process.Path) || process.StartedAt is null)

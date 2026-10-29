@@ -163,7 +163,7 @@ public sealed class CleanupStorageAnalyzer
         }
         catch
         {
-            reason = "lecteur non verifiable";
+            reason = "lecteur non vérifiable";
             return false;
         }
 

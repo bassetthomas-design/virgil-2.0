@@ -79,7 +79,7 @@ public sealed class ElevatedPathGuard
 
         if (entry.Exists && entry.IsDirectory)
         {
-            throw new InvalidOperationException("Un fichier etait attendu.");
+            throw new InvalidOperationException("Un fichier était attendu.");
         }
 
         if (existence == ElevatedPathExistence.MustExist && !entry.Exists)
@@ -130,7 +130,7 @@ public sealed class ElevatedPathGuard
 
         if (!entry.IsDirectory)
         {
-            throw new InvalidOperationException("Un dossier etait attendu.");
+            throw new InvalidOperationException("Un dossier était attendu.");
         }
 
         if (entry.IsReparsePoint)

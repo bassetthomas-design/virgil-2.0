@@ -134,7 +134,7 @@ public sealed class ApplicationUninstallService
         var remnants = cancellationToken.IsCancellationRequested
             ? new ApplicationRemnantScanReport { Application = application }
             : await _remnantScanner.ScanAsync(application, cancellationToken).ConfigureAwait(false);
-        Report(progress, 5, 5, 100, "rapport", "Rapport final prepare.");
+        Report(progress, 5, 5, 100, "rapport", "Rapport final préparé.");
 
         return new ApplicationUninstallResult
         {

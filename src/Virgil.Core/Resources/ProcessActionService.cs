@@ -246,7 +246,7 @@ public sealed class ProcessActionService : IProcessActionService
         };
         var protection = _protectionPolicy.Evaluate(observation, target.CpuPercent);
         return protection.IsCritical
-            ? IdentityValidation.Failed("Processus protégé lors de la reverification.")
+            ? IdentityValidation.Failed("Processus protégé lors de la revérification.")
             : IdentityValidation.Success(current);
     }
 

@@ -15,16 +15,16 @@ public static class CleanupZoneCatalog
         {
             Zone(CleanupZoneId.UserTemporaryFiles, "TEMP utilisateur", "Fichiers temporaires anciens du profil utilisateur.", SafeTemp(), 24, CleanupRiskLevel.Low, 10),
             Zone(CleanupZoneId.WindowsTemporaryFiles, "TEMP Windows", "Contenu temporaire Windows ancien. Le dossier racine n'est jamais supprimé.", Path.Combine(windows, "Temp"), 48, CleanupRiskLevel.Medium, 20) with { RequiresElevation = true },
-            Zone(CleanupZoneId.WindowsThumbnailCache, "Miniatures Windows", "Bases de miniatures recreees par Windows.", Path.Combine(local, "Microsoft", "Windows", "Explorer"), 168, CleanupRiskLevel.Low, 30) with { AllowedExtensions = new[] { ".db" } },
-            Zone(CleanupZoneId.DirectXShaderCache, "Cache DirectX", "Shaders temporaires recrees par les applications graphiques.", Path.Combine(local, "D3DSCache"), 168, CleanupRiskLevel.Low, 40),
+            Zone(CleanupZoneId.WindowsThumbnailCache, "Miniatures Windows", "Bases de miniatures recréées par Windows.", Path.Combine(local, "Microsoft", "Windows", "Explorer"), 168, CleanupRiskLevel.Low, 30) with { AllowedExtensions = new[] { ".db" } },
+            Zone(CleanupZoneId.DirectXShaderCache, "Cache DirectX", "Shaders temporaires recréés par les applications graphiques.", Path.Combine(local, "D3DSCache"), 168, CleanupRiskLevel.Low, 40),
             Zone(CleanupZoneId.UserCrashDumps, "Crash dumps anciens", "Dumps utilisateur anciens utiles seulement au diagnostic.", Path.Combine(local, "CrashDumps"), 168, CleanupRiskLevel.Medium, 50) with { AllowedExtensions = new[] { ".dmp", ".mdmp", ".tmp" } },
             Zone(CleanupZoneId.WindowsErrorReports, "Rapports d'erreur Windows", "Archives WER anciennes du profil utilisateur.", Path.Combine(local, "Microsoft", "Windows", "WER", "ReportArchive"), 336, CleanupRiskLevel.Medium, 60),
             Zone(CleanupZoneId.TechnicalLogs, "Logs techniques anciens", "Journaux non critiques d'applications connues.", Path.Combine(local, "Battle.net", "Logs"), 720, CleanupRiskLevel.Medium, 70) with { AllowedExtensions = new[] { ".log", ".txt" } },
             Zone(CleanupZoneId.BattleNetCache, "Cache Battle.net", "Cache utilisateur Battle.net clairement identifié.", Path.Combine(local, "Battle.net", "Cache"), 168, CleanupRiskLevel.Low, 80),
-            Zone(CleanupZoneId.VisualStudioCache, "Cache Visual Studio", "Cache de composants et telemetrie recreable.", Path.Combine(local, "Microsoft", "VisualStudio", "ComponentModelCache"), 168, CleanupRiskLevel.Low, 90),
+            Zone(CleanupZoneId.VisualStudioCache, "Cache Visual Studio", "Cache de composants et télémétrie recréable.", Path.Combine(local, "Microsoft", "VisualStudio", "ComponentModelCache"), 168, CleanupRiskLevel.Low, 90),
             Zone(CleanupZoneId.InternetCache, "Cache Internet Windows", "Cache INetCache du profil utilisateur.", Path.Combine(local, "Microsoft", "Windows", "INetCache"), 168, CleanupRiskLevel.Low, 100),
 
-            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers places volontairement dans la corbeille. Ils ne seront plus récupérables depuis Windows.", "::{RecycleBin}", 0, 200, executable: true),
+            Advanced(CleanupZoneId.RecycleBin, "Corbeille", "Fichiers placés volontairement dans la corbeille. Ils ne seront plus récupérables depuis Windows.", "::{RecycleBin}", 0, 200, executable: true),
             Advanced(CleanupZoneId.WindowsUpdateCache, "Cache Windows Update", "Détection de la zone SoftwareDistribution. Action non exposée sans orchestration fiable des services.", Path.Combine(windows, "SoftwareDistribution", "Download"), 168, 210, executable: false, elevation: true),
             Advanced(CleanupZoneId.DeliveryOptimizationCache, "Cache Delivery Optimization", "Détection du cache Microsoft Delivery Optimization.", Path.Combine(programData, "Microsoft", "Windows", "DeliveryOptimization", "Cache"), 168, 220, executable: false, elevation: true),
             Advanced(CleanupZoneId.MicrosoftStoreCache, "Cache Microsoft Store", "Détection uniquement : aucune suppression destructive sans API fiable.", Path.Combine(local, "Packages"), 168, 230, executable: false),
@@ -33,7 +33,7 @@ public static class CleanupZoneCatalog
             Browser(CleanupZoneId.BrowserFirefoxCache, "Cache Firefox", Path.Combine(local, "Mozilla", "Firefox", "Profiles"), 260) with { RequiredPathFragments = new[] { "cache2\\", "startupCache\\", "thumbnails\\" } },
             Browser(CleanupZoneId.BrowserBraveCache, "Cache Brave", Path.Combine(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache"), 270),
             Browser(CleanupZoneId.BrowserOperaCache, "Cache Opera", Path.Combine(roaming, "Opera Software", "Opera Stable", "Cache"), 280),
-            Advanced(CleanupZoneId.InstallerTemporaryFiles, "Restes temporaires d'installation", "Fichiers d'installation temporaires clairement identifies.", Path.Combine(SafeTemp(), "VirgilInstallerCache"), 168, 290, executable: true),
+            Advanced(CleanupZoneId.InstallerTemporaryFiles, "Restes temporaires d'installation", "Fichiers d'installation temporaires clairement identifiés.", Path.Combine(SafeTemp(), "VirgilInstallerCache"), 168, 290, executable: true),
             Advanced(CleanupZoneId.WindowsOld, "Windows.old", "Ancienne installation Windows détectée. Suppression déléguée aux outils Windows.", Path.Combine(Path.GetPathRoot(windows) ?? "C:\\", "Windows.old"), 720, 300, executable: false, elevation: true),
 
             Information(CleanupZoneId.PrefetchInformation, "Prefetch", "Géré par Windows, nettoyage non recommandé en routine.", Path.Combine(windows, "Prefetch"), 400)
@@ -82,7 +82,7 @@ public static class CleanupZoneCatalog
         {
             Classification = CleanupClassification.InformationOnly,
             IsExecutable = false,
-            Warning = "Information uniquement. Aucun nettoyage n'est propose."
+            Warning = "Information uniquement. Aucun nettoyage n'est proposé."
         };
     }
 

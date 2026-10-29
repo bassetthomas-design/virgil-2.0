@@ -635,7 +635,7 @@ public partial class InterventionsViewModel : ObservableObject
             InterventionStatus.RebootRequired => "Intervention terminée.\nRedémarrage manuel probablement requis.",
             InterventionStatus.PartialFailure => "Intervention partielle.\nRapport disponible.",
             InterventionStatus.Failed => "Intervention en échec.\nRapport disponible.",
-            _ => "Intervention traitee.\nRapport disponible."
+            _ => "Intervention traitée.\nRapport disponible."
         };
     }
 

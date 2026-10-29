@@ -122,7 +122,7 @@ public static class ScanRules
         {
             ScanSeverity.Critical => "Intervention prioritaire",
             ScanSeverity.Warning => "Intervention recommandée",
-            ScanSeverity.Attention => "A surveiller",
+            ScanSeverity.Attention => "À surveiller",
             _ => "Stable"
         };
     }

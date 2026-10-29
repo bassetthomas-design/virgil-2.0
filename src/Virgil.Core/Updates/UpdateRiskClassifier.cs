@@ -72,7 +72,7 @@ public sealed class UpdateRiskClassifier
         {
             return new UpdateRiskAssessment(
                 UpdateRiskLevel.Safe,
-                "Application utilisateur courante a faible risque.");
+                "Application utilisateur courante à faible risque.");
         }
 
         return new UpdateRiskAssessment(
