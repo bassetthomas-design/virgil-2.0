@@ -17,7 +17,7 @@ public static class ReportMapper
             .AppendLine($"Disques analyses : {report.Disks.Count}")
             .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "Non analysé")}")
             .AppendLine($"Nettoyage sur : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
-            .AppendLine($"Nettoyage avance : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
+            .AppendLine($"Nettoyage avancé : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
             .AppendLine($"Éléments personnels a revoir : {report.Cleanup.ReviewItemCount} ({ScanRules.FormatBytes(report.Cleanup.ReviewItemBytes)})")
             .AppendLine("Protection personnelle : aucune suppression depuis l'analyse approfondie.")
             .AppendLine($"Mises à jour disponibles : {report.Updates.ApplicationUpdates}")
@@ -64,7 +64,7 @@ public static class ReportMapper
             Name = result.Zone.DisplayName,
             Status = ReportActionStatus.Proposed,
             Risk = result.Zone.RiskLevel.ToString(),
-            Result = "Zone proposée dans le parcours guide.",
+            Result = "Zone proposée dans le parcours guidé.",
             TechnicalDetails = result.Zone.RootPath
         }).ToList();
         var executed = report.Results
@@ -74,7 +74,7 @@ public static class ReportMapper
                 Name = result.Zone.DisplayName,
                 Status = MapCleanupStatus(result.Status),
                 Risk = result.Zone.RiskLevel.ToString(),
-                Result = result.Zone.Id == CleanupZoneId.RecycleBin ? $"{result.DeletedFiles} fichier(s), {ScanRules.FormatBytes(result.DeletedBytes)} liberes, {result.SkippedFiles} ignores." : result.QuarantineSummary,
+                Result = result.Zone.Id == CleanupZoneId.RecycleBin ? $"{result.DeletedFiles} fichier(s), {ScanRules.FormatBytes(result.DeletedBytes)} libérés, {result.SkippedFiles} ignorés." : result.QuarantineSummary,
                 ReadableError = result.Errors.FirstOrDefault(),
                 TechnicalDetails = $"Durée : {result.Duration}. Fichiers en erreur : {result.ErrorFiles}. Racine : {result.Zone.RootPath}"
             })
@@ -101,8 +101,8 @@ public static class ReportMapper
             "Nettoyage",
             report.FinishedAt,
             report.Duration,
-            $"Zones analysées : {analyzedZones}\nZones exécutées : {executed.Count}\nZones passées : {skipped.Count}\nZones avancees refusees : {report.AdvancedRefused}\nEspace estimé : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nÉléments a revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nÉléments protégés : {report.ProtectedItems}\nFichiers ignores ou verrouilles : {report.LockedFilesIgnored}\nAucun fichier personnel supprime automatiquement.",
-            $"Début : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDurée : {report.Duration}\nPoints de reanalyse ignores : {report.ReparsePointsIgnored}\nChemins refuses : {string.Join(" | ", report.RefusedPaths)}\nRéparations proposées : {string.Join(" | ", report.PermissionRepairsProposed)}\nRéparations exécutées : {string.Join(" | ", report.PermissionRepairsExecuted)}",
+            $"Zones analysées : {analyzedZones}\nZones exécutées : {executed.Count}\nZones passées : {skipped.Count}\nZones avancées refusées : {report.AdvancedRefused}\nEspace estimé : {ScanRules.FormatBytes(report.EstimatedBytes)}\nQuarantaine : {ScanRules.FormatBytes(report.QuarantinedBytes)}\n{string.Join("; ", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille — espace libéré : {ScanRules.FormatBytes(report.DeletedBytes)}\nÉléments à revoir : {report.ReviewItems} ({ScanRules.FormatBytes(report.ReviewBytes)})\nÉléments protégés : {report.ProtectedItems}\nFichiers ignorés ou verrouillés : {report.LockedFilesIgnored}\nAucun fichier personnel supprimé automatiquement.",
+            $"Début : {report.StartedAt:O}\nFin : {report.FinishedAt:O}\nDurée : {report.Duration}\nPoints de réanalyse ignorés : {report.ReparsePointsIgnored}\nChemins refusés : {string.Join(" | ", report.RefusedPaths)}\nRéparations proposées : {string.Join(" | ", report.PermissionRepairsProposed)}\nRéparations exécutées : {string.Join(" | ", report.PermissionRepairsExecuted)}",
             "CleanupExecutionService") with
         {
             ProposedActions = proposed,
@@ -135,8 +135,8 @@ public static class ReportMapper
             "Mises à jour",
             report.CapturedAt,
             report.Duration,
-            $"Applications : {report.Items.Count}\nComposants sensibles : {report.SensitiveCount}\nPilotes inventories : {report.Drivers.Drivers.Count}\nAucune installation exécutée.",
-            $"Portee : {report.Scope}\nWinGet : {report.Winget.Message}\nDurée : {report.Duration}",
+            $"Applications : {report.Items.Count}\nComposants sensibles : {report.SensitiveCount}\nPilotes inventoriés : {report.Drivers.Drivers.Count}\nAucune installation exécutée.",
+            $"Portée : {report.Scope}\nWinGet : {report.Winget.Message}\nDurée : {report.Duration}",
             "WingetUpdateScanService") with
         {
             ProposedActions = proposed,
@@ -243,7 +243,7 @@ public static class ReportMapper
         return Base(
             ReportKind.Interventions,
             "Rapport interventions",
-            $"{report.Successes} reussie(s), {report.Failures} échec(s), {report.SkippedActions} passée(s).",
+            $"{report.Successes} réussie(s), {report.Failures} échec(s), {report.SkippedActions} passée(s).",
             severity == ReportSeverity.Success ? "Terminé" : "Terminé avec incidents",
             severity,
             "Interventions",
@@ -362,7 +362,7 @@ public static class ReportMapper
         var command = item.CommandPreview is null
             ? "Aucune commande"
             : item.CommandPreview.ExecutablePath + " " + string.Join(" ", item.CommandPreview.Arguments);
-        return $"Id : {item.Id}\nEditeur : {item.Publisher}\nSource : {item.Source}\nCommande : {command}\n{item.TechnicalDetails}";
+        return $"Id : {item.Id}\nÉditeur : {item.Publisher}\nSource : {item.Source}\nCommande : {command}\n{item.TechnicalDetails}";
     }
 
     private static ReportSeverity MapScanSeverity(ScanSeverity severity)

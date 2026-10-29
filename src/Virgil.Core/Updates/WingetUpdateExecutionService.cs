@@ -53,7 +53,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             stopwatch.Stop();
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
-                "Mise à jour bloquée : version confirmee manquante ou invalide. Aucune installation effectuée.",
+                "Mise à jour bloquée : version confirmée manquante ou invalide. Aucune installation effectuée.",
                 "Aucun --version exact disponible.");
         }
 
@@ -97,7 +97,7 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
         {
             return BuildResult(item, UpdateItemStatus.Failed, startedAt, stopwatch.Elapsed,
                 "Installation interrompue par timeout.",
-                "Exécution WinGet depassee.");
+                "Exécution WinGet dépassée.");
         }
 
         if (!string.IsNullOrWhiteSpace(result.LaunchError))

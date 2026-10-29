@@ -60,7 +60,7 @@ public sealed class CleanupViewModelTests
         var f = new Fixture();
         var vm = f.Vm;
         Assert.Equal("Aucune analyse nettoyage lancée.", vm.StatusText);
-        Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires eligibles. Aucune suppression ne demarre depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
+        Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires éligibles. Aucune suppression ne démarré depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
         AssertIdle(vm);
         Assert.False(vm.IsLaunchCleanupEnabled);
         Assert.False(vm.IsAdvancedCleanupEnabled);
@@ -69,7 +69,7 @@ public sealed class CleanupViewModelTests
         Assert.False(vm.IsValidationOpen);
         Assert.False(vm.IsReportOpen);
         Assert.Equal("VALIDATION REQUISE", vm.ValidationTitle);
-        Assert.Equal("EXECUTER", vm.ExecuteZoneLabel);
+        Assert.Equal("EXÉCUTER", vm.ExecuteZoneLabel);
         Assert.Empty(vm.ValidationReason + vm.ValidationRoot + vm.ValidationMetrics + vm.ValidationEffect + vm.ValidationNotTouched + vm.ValidationWarning + vm.ReportText);
         Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Idle, vm.ValidationCoreState);
@@ -112,17 +112,17 @@ public sealed class CleanupViewModelTests
         var card = Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[1]);
         AssertSnapshot(safeFirst, card.Preview);
         Assert.Equal("USERTEMPORARYFILES", card.Title);
-        Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Categorie : nettoyable sur", "Action : guidee après validation", "Examines : 3 fichiers", "Eligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Anciennete minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
+        Assert.Equal(new[] { "Description", "Racine : %TEMP% utilisateur", "Risque : faible", "Catégorie : nettoyable sûr", "Action : guidée après validation", "Examinés : 3 fichiers", "Éligibles : 2 fichiers, 2 Ko", "Exclus : 1 fichiers", "Ancienneté minimale : 2 jours", "Avertissement : Attention", "Erreurs lisibles : un | deux | trois" }, card.Lines);
         AssertSnapshot(safeLater, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Preview);
-        Assert.Equal("NETTOYAGE AVANCE", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[3]).Text);
+        Assert.Equal("NETTOYAGE AVANCÉ", Assert.IsType<CleanupSectionTitleItem>(f.Vm.Entries[3]).Text);
         AssertSnapshot(advanced, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[4]).Preview);
         AssertSnapshot(info, Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Preview);
         Assert.Contains("Action : information seulement", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Lines);
         Assert.Equal(new[]
         {
-            "NETTOYAGE TECHNIQUE BLOQUE\nLes acces refuses sont signales. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown.",
-            "À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, telechargements, archives, ISO, videos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
-            "PROTÉGÉ\nPhotos, videos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne sont jamais nettoyes automatiquement."
+            "NETTOYAGE TECHNIQUE BLOQUE\nLes accès refusés sont signalés. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown.",
+            "À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, téléchargements, archives, ISO, vidéos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
+            "PROTÉGÉ\nPhotos, vidéos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne sont jamais nettoyés automatiquement."
         }, f.Vm.Entries.OfType<CleanupTextCardItem>().Select(c => c.Text));
         Assert.Empty(f.Actions.Order);
     }
@@ -138,7 +138,7 @@ public sealed class CleanupViewModelTests
         Assert.Equal(3, f.Vm.Entries.OfType<CleanupTextCardItem>().Count());
         Assert.Equal("Analyse terminée.\nAucun nettoyage nécessaire.", f.Messages.Last());
         await f.Run();
-        Assert.Equal("Aucune zone eligible.\nRelancez une analyse.", f.Messages.Last());
+        Assert.Equal("Aucune zone éligible.\nRelancez une analyse.", f.Messages.Last());
         Assert.False(f.Vm.IsLaunchCleanupEnabled);
         Assert.False(f.Vm.IsAdvancedCleanupEnabled);
         Assert.Empty(f.Actions.Order);
@@ -162,8 +162,8 @@ public sealed class CleanupViewModelTests
         AssertIdle(f.Vm);
         Assert.Equal(error ? "Analyse nettoyage indisponible." : "Analyse annulée.", f.Vm.StatusText);
         Assert.Equal(error ? VirgilCoreState.Error : VirgilCoreState.Idle, f.Vm.MiniCoreState);
-        Assert.Contains(error ? "Analyse nettoyage indisponible.\nAucune action effectuée." : "Nettoyage interrompu.\nLes zones restantes n'ont pas été modifiees.", f.Messages);
-        if (!error) Assert.Contains("Annulation demandee.\nOpération en cours d'arret.", f.Messages);
+        Assert.Contains(error ? "Analyse nettoyage indisponible.\nAucune action effectuée." : "Nettoyage interrompu.\nLes zones restantes n'ont pas été modifiées.", f.Messages);
+        if (!error) Assert.Contains("Annulation demandée.\nOpération en cours d'arrêt.", f.Messages);
         Assert.False(f.Vm.IsLaunchCleanupEnabled);
         Assert.False(f.Vm.IsAdvancedCleanupEnabled);
         Assert.False(f.Vm.IsReviewManualEnabled);
@@ -326,7 +326,7 @@ public sealed class CleanupViewModelTests
         Assert.True(f.Vm.TryCloseOverlay());
         Assert.True(f.Actions.Token.IsCancellationRequested);
         await pending;
-        Assert.Contains("Annulation demandee.\nOpération en cours d'arret.", f.Messages);
+        Assert.Contains("Annulation demandée.\nOpération en cours d'arrêt.", f.Messages);
         Assert.Contains("Session annulée.", f.Actions.Report!.Errors);
         Assert.Equal(VirgilCoreState.Idle, f.Vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
@@ -394,7 +394,7 @@ public sealed class CleanupViewModelTests
         var pending = f.Run();
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
-        Assert.Equal(new[] { "Erreur pendant le nettoyage guide." }, f.Actions.Report!.Errors);
+        Assert.Equal(new[] { "Erreur pendant le nettoyage guidé." }, f.Actions.Report!.Errors);
         Assert.Equal(VirgilCoreState.Error, f.Vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
         Assert.Contains("Nettoyage interrompu.\nRapport partiel disponible.", f.Messages);

@@ -24,7 +24,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("NON ANALYSÉ", vm.SessionSummaryText);
         Assert.Equal("Lancez une analyse. Aucune action ne sera exécutée.", vm.RecommendationsText);
         Assert.Equal("Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.", vm.ProcessSummaryText);
-        Assert.Equal("Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.", vm.ProcessesNotice);
+        Assert.Equal("Analyse requise. Les processus système critiques, sécurité, VPN et matériel resteront protégés.", vm.ProcessesNotice);
         Assert.Empty(vm.Items);
         Assert.True(vm.IsIdle);
         Assert.False(vm.IsBusy);
@@ -34,7 +34,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("VALIDATION REQUISE", vm.ValidationTitle);
         Assert.Empty(vm.ValidationDetails);
         Assert.Empty(vm.ValidationSafety);
-        Assert.Equal("EXECUTER", vm.ExecuteActionLabel);
+        Assert.Equal("EXÉCUTER", vm.ExecuteActionLabel);
         Assert.Empty(vm.ReportText);
         Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Idle, vm.ValidationCoreState);
@@ -149,8 +149,8 @@ public sealed class ResourcesViewModelTests
         var reinforced = action == ProcessActionKind.KillProcess;
         Assert.True(f.ViewModel.IsValidationOpen);
         Assert.False(pending.IsCompleted);
-        Assert.Equal(reinforced ? "CONFIRMATION RENFORCEE" : "VALIDATION REQUISE", f.ViewModel.ValidationTitle);
-        Assert.Equal(reinforced ? "JE CONFIRME" : "EXECUTER", f.ViewModel.ExecuteActionLabel);
+        Assert.Equal(reinforced ? "CONFIRMATION RENFORCÉE" : "VALIDATION REQUISE", f.ViewModel.ValidationTitle);
+        Assert.Equal(reinforced ? "JE CONFIRME" : "EXÉCUTER", f.ViewModel.ExecuteActionLabel);
         Assert.Equal(reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.ViewModel.ValidationCoreState);
         Assert.Equal((f.ViewModel.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Contains(action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)", f.ViewModel.ValidationDetails);
@@ -207,7 +207,7 @@ public sealed class ResourcesViewModelTests
         Assert.True(f.ViewModel.IsReportButtonEnabled);
         Assert.Single(f.ViewModel.Items);
         var skipped = Assert.Single(f.History.Saved!.SkippedActions);
-        var label = action switch { ProcessActionKind.CloseMainWindow => "Fermeture propre", ProcessActionKind.KillProcess => "Fermeture forcee", _ => "Relance Explorer" };
+        var label = action switch { ProcessActionKind.CloseMainWindow => "Fermeture propre", ProcessActionKind.KillProcess => "Fermeture forcée", _ => "Relance Explorer" };
         Assert.Equal(label + " - " + (action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)"), skipped.Name);
         Assert.Equal(ReportActionStatus.Skipped, skipped.Status);
         Assert.Empty(f.History.Saved.ExecutedActions);

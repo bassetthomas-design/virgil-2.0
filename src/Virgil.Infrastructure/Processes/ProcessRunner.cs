@@ -31,7 +31,7 @@ public sealed class ProcessRunner : IProcessRunner
             linked.Token.ThrowIfCancellationRequested();
             if (!process.Start())
             {
-                return new ProcessRunResult(-1, string.Empty, string.Empty, LaunchError: "Processus non demarre.");
+                return new ProcessRunResult(-1, string.Empty, string.Empty, LaunchError: "Processus non démarré.");
             }
 
             var outputTask = process.StandardOutput.ReadToEndAsync(linked.Token);

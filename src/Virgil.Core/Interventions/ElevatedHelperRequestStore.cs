@@ -231,7 +231,7 @@ public sealed class ElevatedHelperRequestStore
                 requestFile.LocalAppDataDirectory,
                 StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Racine LocalAppData modifiee.");
+            throw new InvalidOperationException("Racine LocalAppData modifiée.");
         }
 
         var rootDirectory = _pathGuard.GetProtocolRoot(currentLocalAppData);

@@ -82,7 +82,7 @@ internal static class ProcessReader
         }
         catch
         {
-            accessStatus = "Chemin inaccessible sans elevation";
+            accessStatus = "Chemin inaccessible sans élévation";
             return null;
         }
     }

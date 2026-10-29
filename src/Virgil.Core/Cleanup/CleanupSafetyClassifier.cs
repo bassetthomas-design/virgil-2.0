@@ -100,14 +100,14 @@ public sealed class CleanupSafetyClassifier
         {
             if (BrowserPersonalFragments.Any(fragment => relative.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
             {
-                reason = "Donnee de profil navigateur protégée.";
+                reason = "Donnée de profil navigateur protégée.";
                 return false;
             }
         }
 
         if (zone.AllowedExtensions.Count > 0 && !zone.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
-            reason = "Type de fichier non autorise pour cette zone.";
+            reason = "Type de fichier non autorisé pour cette zone.";
             return false;
         }
 

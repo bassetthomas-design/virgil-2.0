@@ -56,7 +56,7 @@
                             MinWidth="165"
                             Margin="0,0,8,8"
                             IsEnabled="{Binding IsExportEnabled}"
-                            AutomationProperties.Name="Exporter manuellement le rapport selectionne"
+                            AutomationProperties.Name="Exporter manuellement le rapport sélectionné"
                             Command="{Binding ExportSelectedCommand}" />
                     <Button Content="RETOUR ACCUEIL"
                             Style="{StaticResource VirgilSecondaryButton}"
@@ -90,7 +90,7 @@
                 </Border>
 
                 <TextBlock x:Name="HistoryHeading"
-                           Text="HISTORIQUE LOCAL - 30 EVENEMENTS MAXIMUM"
+                           Text="HISTORIQUE LOCAL - 30 ÉVÉNEMENTS MAXIMUM"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
                 <TextBlock x:Name="HistoryCountText" Text="{Binding HistoryCountText}"

@@ -279,8 +279,8 @@ public sealed class SystemScanService : ISystemScanService
                 findings.Add(new ScanFinding(
                     "resources-cpu-sustained",
                     "Ressources",
-                    "Charge CPU elevee sur observation courte",
-                    "La moyenne CPU est restee elevee pendant plusieurs echantillons.",
+                    "Charge CPU élevée sur observation courte",
+                    "La moyenne CPU est restée élevée pendant plusieurs échantillons.",
                     $"{report.AverageCpuPercent:0.0} %",
                     report.AverageCpuPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
                     "Examiner les principaux processus CPU dans le module Ressources. Aucune fermeture n'a été exécutée."));
@@ -291,7 +291,7 @@ public sealed class SystemScanService : ISystemScanService
                 findings.Add(new ScanFinding(
                     "resources-memory-high",
                     "Ressources",
-                    "Utilisation RAM elevee",
+                    "Utilisation RAM élevée",
                     "La RAM utilisée dépasse le seuil d'intervention conseillée.",
                     $"{report.AverageMemoryPercent:0.0} %",
                     report.AverageMemoryPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
@@ -368,11 +368,11 @@ public sealed class SystemScanService : ISystemScanService
             findings.Add(new ScanFinding(
                 "cpu-usage",
                 "Processeur",
-                "Utilisation CPU elevee",
-                "La charge CPU est elevee au moment du scan.",
+                "Utilisation CPU élevée",
+                "La charge CPU est élevée au moment du scan.",
                 $"{result.Value.UsagePercent:0.0} %",
                 result.Value.Severity,
-                "Mesure CPU instantanée : si elle reste elevee, identifier les applications actives les plus consommatrices."));
+                "Mesure CPU instantanée : si elle reste élevée, identifier les applications actives les plus consommatrices."));
         }
 
         return result.Value;
@@ -421,11 +421,11 @@ public sealed class SystemScanService : ISystemScanService
             findings.Add(new ScanFinding(
                 "memory-usage",
                 "Mémoire",
-                "Utilisation RAM elevee",
+                "Utilisation RAM élevée",
                 "La mémoire physique utilisée dépasse le seuil de surveillance.",
                 $"{memory.UsedPercent:0.0} %",
                 severity,
-                "Comparer avec les processus actifs. Un ecart avec le Gestionnaire des taches peut venir du moment d'echantillonnage, de la mémoire compressee, du cache ou de la presentation Windows."));
+                "Comparer avec les processus actifs. Un écart avec le Gestionnaire des tâches peut venir du moment d'échantillonnage, de la mémoire compressée, du cache ou de la présentation Windows."));
         }
 
         return memory;
@@ -436,7 +436,7 @@ public sealed class SystemScanService : ISystemScanService
         ICollection<string> errors,
         ICollection<ScanFinding> findings)
     {
-        Report(progress, "Stockage", "Analyse des disques fixes prets.", "Disques", 50);
+        Report(progress, "Stockage", "Analyse des disques fixes prêts.", "Disques", 50);
         var result = DiskReader.ReadFixedDrives();
         AddErrors(errors, result.Errors);
 
@@ -606,7 +606,7 @@ public sealed class SystemScanService : ISystemScanService
             "Mises à jour",
             mode == ScanMode.Deep
                 ? "Prévisualisation lecture seule des mises à jour."
-                : "Detection lecture seule de WinGet.",
+                : "Détection lecture seule de WinGet.",
             "Mises à jour",
             88);
 
@@ -639,7 +639,7 @@ public sealed class SystemScanService : ISystemScanService
                     "Certaines mises à jour touchent a des composants sensibles.",
                     report.SensitiveCount.ToString(),
                     ScanSeverity.Attention,
-                    "Consulter le detail avant toute installation."));
+                    "Consulter le détail avant toute installation."));
             }
 
             return new UpdateScanSummary

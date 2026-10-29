@@ -21,6 +21,39 @@ public sealed class InterfaceAccentTests
     // File + exact literal only. These are matching terms, not user-facing labels.
     private static readonly (string File, string Text, string Reason)[] Exemptions =
     [
+        ("Virgil.ElevatedHelper/RepairScripts.cs", """
+        $ErrorActionPreference='Stop'
+        function Check($key,$ok,$detail) { if($ok){"VIRGIL|$key|OK|$detail"}else{"VIRGIL|$key|FINDING|$detail"} }
+        foreach($name in @('wuauserv','AppXSvc','ClipSVC','Audiosrv','AudioEndpointBuilder','Spooler')) {
+          try { $s=Get-Service -Name $name
+            if($name -in @('wuauserv','AppXSvc','ClipSVC')) {
+              if($s.StartType -eq 'Disabled'){ Check $name $false "$name désactivé : vérifiez la configuration dans Windows" }
+              else { "VIRGIL|$name|INFO|$($s.Status) (démarrage à la demande possible)" }
+            }
+            else { Check $name ($s.Status -eq 'Running') "$name : $($s.Status)" }
+          } catch { "VIRGIL|$name|UNKNOWN|État du service indisponible" }
+        }
+        $pending=(Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
+          (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')
+        Check 'Reboot' (!$pending) 'Redémarrage Windows en attente'
+        try {
+          $net=Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway} | Select-Object -First 1
+          if(!$net){ Check 'Gateway' $false 'Aucune passerelle active' }
+          else { Check 'Gateway' (Test-Connection -ComputerName $net.IPv4DefaultGateway.NextHop -Count 1 -Quiet) 'Réponse de la passerelle' }
+          $dns=Resolve-DnsName 'www.microsoft.com' -DnsOnly -ErrorAction Stop
+          Check 'DNS' ($null -ne $dns) 'Résolution DNS de www.microsoft.com'
+        } catch { Check 'DNS' $false 'Passerelle ou DNS injoignable ; un filtrage réseau est possible' }
+        try {
+          $queues=Get-Printer -ErrorAction Stop
+          $stuck=@(foreach($p in $queues){Get-PrintJob -PrinterName $p.Name -ErrorAction Stop | Where-Object { $_.JobStatus -match 'Error|Blocked|Offline|PaperOut|UserIntervention' -or $_.SubmittedTime -lt (Get-Date).AddHours(-1) }})
+          Check 'PrintQueue' ($stuck.Count -eq 0) "$($stuck.Count) tâche(s) d’impression bloquée(s)"
+        } catch { 'VIRGIL|PrintQueue|UNKNOWN|File d’impression indisponible' }
+        try {
+          $endpoints=@(Get-PnpDevice -Class AudioEndpoint -PresentOnly -ErrorAction Stop | Where-Object Status -eq 'OK')
+          Check 'AudioEndpoint' ($endpoints.Count -gt 0) "$($endpoints.Count) point(s) de sortie audio disponible(s) ; sortie par défaut à vérifier dans Windows"
+        } catch { 'VIRGIL|AudioEndpoint|UNKNOWN|Points de sortie audio indisponibles' }
+        """, "Exact PowerShell Services command: $detail is a technical variable; displayed messages already accented. Any script change invalidates this exemption."),
+        ("Virgil.Core/Cleanup/CleanupSelectionAction.cs", "Selection:", "ConfirmedPlan parameter key; never a label, no renaming permitted."),
         ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "video", "Personal path keyword, deliberately accepts unaccented names."),
         ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "bebe", "Personal path keyword, deliberately accepts unaccented names."),
         ("Virgil.Core/Applications/ApplicationRemnantClassifier.cs", "videos", "Personal path keyword."),
@@ -150,6 +183,36 @@ public sealed class InterfaceAccentTests
     [InlineData("$\"\"\"RAM elevee {count}\"\"\"")]
     public void CSharp_string_forms_are_scanned(string expression) =>
         Assert.Contains(CSharpLabels("test.cs", "var text = " + expression + ";"), label => label.Text.Contains("RAM elevee", StringComparison.Ordinal));
+
+    [Theory]
+    [InlineData("detection", true)]
+    [InlineData("detections", false)]
+    [InlineData("détection", false)]
+    [InlineData("défaut", false)]
+    [InlineData("prédetection", false)]
+    public void Unicode_words_are_never_split_or_matched_as_substrings(string text, bool rejected) =>
+        Assert.Equal(rejected, Violations(text, new(StringComparer.OrdinalIgnoreCase) { ["detection"] = "détection" }).Any());
+
+    [Theory]
+    [InlineData("annule")]
+    [InlineData("conserve")]
+    [InlineData("termine")]
+    [InlineData("initialise")]
+    public void Whitelist_wins_for_ambiguous_masculine_participles(string word)
+    {
+        var dictionary = BuildDictionary([word[..^1] + "é"], ReadPairs("MotsAccentues.txt"), ReadPairs("ValideSansAccent.txt"));
+        Assert.DoesNotContain(word, dictionary.Keys);
+    }
+
+    // These contextual labels were already accented by L5-2 on the required base.
+    // Keep explicit guards because the general whitelist deliberately accepts their verbs.
+    [Theory]
+    [InlineData("Virgil.App/MainWindow.xaml.cs", "Protocole d'analyse initialisé.")]
+    [InlineData("Virgil.Core/Scanning/SystemScanService.cs", "Scan terminé.")]
+    [InlineData("Virgil.App/ViewModels/InterventionsViewModel.cs", "Diagnostic annulé.")]
+    [InlineData("Virgil.App/ViewModels/UpdatesViewModel.cs", "Rapport conservé en mémoire.")]
+    public void Contextual_masculine_participles_remain_accented(string file, string expected) =>
+        Assert.Contains(SourceLabels(), label => label.File == file && label.Text.Contains(expected, StringComparison.Ordinal));
 
     [Theory]
     [InlineData("<TextBlock>systeme</TextBlock>")]

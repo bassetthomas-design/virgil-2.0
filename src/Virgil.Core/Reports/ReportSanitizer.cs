@@ -24,7 +24,7 @@ public sealed partial class ReportSanitizer : IReportSanitizer
         {
             Title = SanitizeText(report.Title),
             Summary = SanitizeText(report.Summary),
-            Status = SanitizeText(report.Status),
+            Status = FrenchDisplayLabels.NormalizeLegacy(SanitizeText(report.Status)),
             Module = SanitizeText(report.Module),
             ProposedActions = report.ProposedActions.Select(SanitizeAction).ToList(),
             ExecutedActions = report.ExecutedActions.Select(SanitizeAction).ToList(),
@@ -59,8 +59,8 @@ public sealed partial class ReportSanitizer : IReportSanitizer
         return action with
         {
             Name = SanitizeText(action.Name),
-            Risk = SanitizeText(action.Risk),
-            Result = SanitizeText(action.Result),
+            Risk = FrenchDisplayLabels.NormalizeLegacy(SanitizeText(action.Risk)),
+            Result = FrenchDisplayLabels.NormalizeLegacy(SanitizeText(action.Result)),
             ReadableError = string.IsNullOrWhiteSpace(action.ReadableError)
                 ? null
                 : SanitizeText(action.ReadableError),

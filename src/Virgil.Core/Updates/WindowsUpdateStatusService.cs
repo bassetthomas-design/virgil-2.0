@@ -12,8 +12,8 @@ public sealed class WindowsUpdateStatusService
         var errors = new List<string>();
         var notes = new List<string>
         {
-            "Ouverture controlee de la page Windows Update uniquement.",
-            "Aucune recherche, installation ou redémarrage n'est declenche par Virgil."
+            "Ouverture contrôlée de la page Windows Update uniquement.",
+            "Aucune recherche, installation ou redémarrage n'est déclenché par Virgil."
         };
 
         bool servicePresent;

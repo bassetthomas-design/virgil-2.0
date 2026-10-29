@@ -21,7 +21,7 @@ public sealed partial class ApplicationItemViewModel : ObservableObject
         DisplayName = application.DisplayName;
         Lines = string.Join("\n", new[]
         {
-            $"Editeur : {ApplicationsViewModel.Empty(application.Publisher)}",
+            $"Éditeur : {ApplicationsViewModel.Empty(application.Publisher)}",
             $"Version : {ApplicationsViewModel.Empty(application.Version)}",
             $"Source : {string.Join(", ", application.Sources.Count == 0 ? [application.Source] : application.Sources)}",
             $"Risque : {ApplicationsViewModel.RiskLabel(application.RiskLevel)} - {application.RiskReason}",

@@ -67,7 +67,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
                 Report = sanitized,
                 ReadableError = rotationErrors.Count == 0
                     ? null
-                    : "Rapport enregistre, rotation partiellement indisponible."
+                    : "Rapport enregistré, rotation partiellement indisponible."
             };
         }
         catch (OperationCanceledException)
@@ -233,7 +233,7 @@ public sealed partial class ReportHistoryService : IReportHistoryService
             }
             catch
             {
-                errors.Add($"Ancien rapport non supprime : {Path.GetFileName(candidate.Path)}.");
+                errors.Add($"Ancien rapport non supprimé : {Path.GetFileName(candidate.Path)}.");
             }
         }
 

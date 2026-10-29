@@ -42,7 +42,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
         {
             return new ApplicationInventorySourceResult(
                 Array.Empty<InstalledApplication>(),
-                ["Source WinGet interrompue : delai dépasse."]);
+                ["Source WinGet interrompue : délai dépasse."]);
         }
 
         var parse = Parse(result.StandardOutput);
@@ -88,7 +88,7 @@ public sealed class ApplicationWingetReader : IApplicationInventorySourceReader
 
             if (string.IsNullOrWhiteSpace(name) || !LooksLikeWingetId(id))
             {
-                errors.Add($"Ligne WinGet ambigue ignorée : {line}");
+                errors.Add($"Ligne WinGet ambiguë ignorée : {line}");
                 continue;
             }
 

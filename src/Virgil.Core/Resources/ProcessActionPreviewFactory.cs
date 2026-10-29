@@ -10,9 +10,9 @@ public static class ProcessActionPreviewFactory
     {
         var (id, title, risk, effect) = action switch
         {
-            ProcessActionKind.CloseMainWindow => ("resources.close", "Fermeture propre", RiskLevel.Low, "Demande de fermeture de la fenetre principale."),
-            ProcessActionKind.KillProcess => ("resources.kill", "Fermeture forcee", RiskLevel.Sensitive, "Fermeture forcee : perte possible de données non sauvegardees."),
-            ProcessActionKind.RestartExplorer => ("resources.restart-explorer", "Relance Explorer", RiskLevel.Low, "Relance du bureau et de la barre des taches."),
+            ProcessActionKind.CloseMainWindow => ("resources.close", "Fermeture propre", RiskLevel.Low, "Demande de fermeture de la fenêtre principale."),
+            ProcessActionKind.KillProcess => ("resources.kill", "Fermeture forcée", RiskLevel.Sensitive, "Fermeture forcée : perte possible de données non sauvegardées."),
+            ProcessActionKind.RestartExplorer => ("resources.restart-explorer", "Relance Explorer", RiskLevel.Low, "Relance du bureau et de la barre des tâches."),
             _ => throw new ArgumentOutOfRangeException(nameof(action))
         };
         // Only stable identity data, never CPU or memory measurements.

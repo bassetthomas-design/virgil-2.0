@@ -42,7 +42,7 @@ public sealed class ElevatedPathGuardInjectionTests
 
         var error = Assert.Throws<InvalidOperationException>(() => guard.ValidateRoot(@"C:\nonexistent", false));
 
-        Assert.Equal("Verification physique du chemin impossible.", error.Message);
+        Assert.Equal("Vérification physique du chemin impossible.", error.Message);
         Assert.Same(failure, error.InnerException);
     }
 }

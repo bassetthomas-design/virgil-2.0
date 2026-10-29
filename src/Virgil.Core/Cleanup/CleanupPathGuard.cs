@@ -56,7 +56,7 @@ public static class CleanupPathGuard
 
         if (ContainsReparsePoint(fullPath, fullRoot))
         {
-            reason = "Point de reanalyse refusé.";
+            reason = "Point de réanalyse refusé.";
             return false;
         }
 

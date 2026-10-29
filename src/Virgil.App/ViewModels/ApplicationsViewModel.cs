@@ -89,8 +89,8 @@ public partial class ApplicationsViewModel : ObservableObject
     [ObservableProperty] private double progress;
     [ObservableProperty] private string statusText = "Inventaire prêt. Sélectionnez les applications à désinstaller.";
     [ObservableProperty] private string inventorySummary = "NON ANALYSÉ";
-    [ObservableProperty] private string riskSummary = "NON CLASSE";
-    [ObservableProperty] private string detailsTitle = "DETAIL APPLICATION";
+    [ObservableProperty] private string riskSummary = "NON CLASSÉ";
+    [ObservableProperty] private string detailsTitle = "DÉTAIL APPLICATION";
     [ObservableProperty] private string detailsBody = string.Empty;
     [ObservableProperty] private string detailsCommand = string.Empty;
     [ObservableProperty] private string detailsSafety = string.Empty;
@@ -137,7 +137,7 @@ public partial class ApplicationsViewModel : ObservableObject
         if (_operationInProgress)
         {
             CancelActiveOperation();
-            VirgilMessageRequested?.Invoke("Annulation demandee.\nOpération applications en cours d'arret.");
+            VirgilMessageRequested?.Invoke("Annulation demandée.\nOpération applications en cours d'arrêt.");
             return true;
         }
 
@@ -336,13 +336,13 @@ public partial class ApplicationsViewModel : ObservableObject
             "Confirmation explicite obligatoire.",
             string.Empty,
             $"Application : {application.DisplayName}",
-            $"Editeur : {Empty(application.Publisher)}",
+            $"Éditeur : {Empty(application.Publisher)}",
             $"Risque : {RiskLabel(application.RiskLevel)} - {application.RiskReason}",
             $"Methode : {UninstallMethodLabel(plan.Method)}",
             string.Empty,
             "Virgil va uniquement lancer le désinstallateur officiel valide.",
-            "Aucun dossier d'application ne sera supprime directement.",
-            "Aucune donnee personnelle ne sera supprimee automatiquement.",
+            "Aucun dossier d'application ne sera supprimé directement.",
+            "Aucune donnée personnelle ne sera supprimée automatiquement.",
             string.Empty,
             "Continuer ?"
         });
@@ -358,19 +358,19 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             var reinforcedMessage = string.Join("\n", new[]
             {
-                "Confirmation renforcee requise.",
+                "Confirmation renforcée requise.",
                 string.Empty,
                 $"Application : {application.DisplayName}",
-                "Cette application est classee ATTENTION.",
-                "Elle peut contenir des profils, projets, presets, bibliotheques ou sauvegardes.",
+                "Cette application est classée ATTENTION.",
+                "Elle peut contenir des profils, projets, presets, bibliothèques ou sauvegardes.",
                 string.Empty,
-                "Virgil ne supprime rien lui-meme, mais l'assistant officiel peut modifier ou retirer l'application.",
+                "Virgil ne supprime rien lui-même, mais l'assistant officiel peut modifier ou retirer l'application.",
                 "Ne continuez que si vous avez sauvegarde ce qui doit l'être.",
                 string.Empty,
                 "Confirmer malgre ce risque ?"
             });
 
-            reinforcedConfirmed = await AskConfirmationAsync("Confirmation renforcee applications", reinforcedMessage).ConfigureAwait(true);
+            reinforcedConfirmed = await AskConfirmationAsync("Confirmation renforcée applications", reinforcedMessage).ConfigureAwait(true);
         }
 
         return new ApplicationUninstallConfirmation
@@ -475,7 +475,7 @@ public partial class ApplicationsViewModel : ObservableObject
         if (items.Count == 0)
         {
             Entries.Add(new ApplicationTextCardViewModel(_applications.Count == 0
-                ? "Aucune application inventoriee."
+                ? "Aucune application inventoriée."
                 : "Aucune application ne correspond au filtre."));
             return;
         }
@@ -531,7 +531,7 @@ public partial class ApplicationsViewModel : ObservableObject
         DetailsTitle = application.DisplayName;
         DetailsBody = string.Join("\n", new[]
         {
-            $"Editeur : {Empty(application.Publisher)}",
+            $"Éditeur : {Empty(application.Publisher)}",
             $"Version : {Empty(application.Version)}",
             $"Source : {string.Join(", ", application.Sources.Count == 0 ? [application.Source] : application.Sources)}",
             $"Architecture : {application.Architecture}",
@@ -549,20 +549,20 @@ public partial class ApplicationsViewModel : ObservableObject
         };
         DetailsSafety = string.Join("\n", new[]
         {
-            "Désinstallation individuelle uniquement depuis cet ecran de détails.",
+            "Désinstallation individuelle uniquement depuis cet écran de détails.",
             "Confirmation explicite obligatoire avant tout lancement.",
             "Désinstalleur officiel ou WinGet exact uniquement.",
             "Suppression par dossier interdite.",
             "Aucune suppression automatique de données personnelles.",
             "Pilotes, sécurité, runtimes et composants système bloqués.",
             application.RiskLevel == ApplicationRiskLevel.Caution
-                ? "Attention : confirmation renforcee obligatoire, profils, projets, presets ou sauvegardes possibles."
+                ? "Attention : confirmation renforcée obligatoire, profils, projets, presets ou sauvegardes possibles."
                 : "Validation stricte appliquee avant lancement."
         });
         LaunchUninstallLabel = !application.CanUninstall
             ? "DÉSINSTALLATION BLOQUÉE"
             : application.RiskLevel == ApplicationRiskLevel.Caution
-                ? "LANCER AVEC VALIDATION RENFORCEE"
+                ? "LANCER AVEC VALIDATION RENFORCÉE"
                 : "LANCER DÉSINSTALLATEUR";
         IsLaunchUninstallEnabled = !_operationInProgress && application.CanUninstall && !IsProtectedComponent(application);
         IsOpenApplicationLocationEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
@@ -605,7 +605,7 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Methode : {result.Method}",
             $"Lancé : {(result.WasLaunched ? "oui" : "non")}",
             $"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}",
-            $"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}",
+            $"Confirmation renforcée : {(result.WasReinforcedConfirmed ? "oui" : "non")}",
             $"Statut inconnu : {(result.StatusUnknown ? "oui" : "non")}",
             $"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}",
             $"Restes : {result.Remnants.Remnants.Count}",
@@ -686,7 +686,7 @@ public partial class ApplicationsViewModel : ObservableObject
                 $"Attention : {_lastInventoryReport.CautionCount}",
                 $"Inconnues : {_lastInventoryReport.UnknownCount}",
                 "Aucune action exécutée depuis l'inventaire.",
-                "Aucune donnee personnelle supprimee automatiquement."
+                "Aucune donnée personnelle supprimée automatiquement."
             });
             ReportErrors = _lastInventoryReport.Errors.Count == 0
                 ? "Aucune"
@@ -799,7 +799,7 @@ public partial class ApplicationsViewModel : ObservableObject
         return kind switch
         {
             ApplicationRemnantKind.TechnicalRemnant => "technique",
-            ApplicationRemnantKind.UserData => "donnee personnelle",
+            ApplicationRemnantKind.UserData => "donnée personnelle",
             ApplicationRemnantKind.ProtectedRemnant => "protégé",
             _ => "inconnu"
         };

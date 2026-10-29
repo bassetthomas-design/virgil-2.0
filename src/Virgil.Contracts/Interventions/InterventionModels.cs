@@ -107,9 +107,15 @@ public sealed record InterventionDiagnostic
 
     public InterventionStatus Status { get; init; } = InterventionStatus.Unavailable;
 
-    public string StateBefore { get; init; } = "Non analyse";
+    private string _stateBefore = FrenchDisplayLabels.NotAnalyzed;
 
-    public string Recommendation { get; init; } = "Disponible apres validation explicite.";
+    public string StateBefore
+    {
+        get => _stateBefore;
+        init => _stateBefore = FrenchDisplayLabels.NormalizeLegacy(value);
+    }
+
+    public string Recommendation { get; init; } = "Disponible après validation explicite.";
 
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
 

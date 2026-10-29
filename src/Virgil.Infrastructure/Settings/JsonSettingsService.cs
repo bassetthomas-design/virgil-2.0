@@ -26,7 +26,7 @@ public sealed class JsonSettingsService : ISettingsService
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             // Never include the JSON or parser exception: these may contain private user data.
-            warning?.Invoke("Settings illisibles ou invalides ; utilisation des valeurs par defaut.");
+            warning?.Invoke("Settings illisibles ou invalides ; utilisation des valeurs par défaut.");
         }
     }
 

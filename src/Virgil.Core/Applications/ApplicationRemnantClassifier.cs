@@ -35,7 +35,7 @@ public sealed class ApplicationRemnantClassifier
 
         if (IsCloudOrPersonalRoot(lowerPath) || ProtectedExtensions.Contains(extension) || ContainsAny(lowerName, ProtectedNames))
         {
-            return Candidate(path, isDirectory, sizeBytes, ApplicationRemnantKind.ProtectedRemnant, "Donnee personnelle, projet, sauvegarde, licence ou dossier ambigu protégé.");
+            return Candidate(path, isDirectory, sizeBytes, ApplicationRemnantKind.ProtectedRemnant, "Donnée personnelle, projet, sauvegarde, licence ou dossier ambigu protégé.");
         }
 
         if (!isDirectory && ContainsAny(lowerName, TechnicalNames))

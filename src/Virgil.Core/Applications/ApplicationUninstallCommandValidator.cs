@@ -71,7 +71,7 @@ public sealed partial class ApplicationUninstallCommandValidator
             return new ApplicationCommandValidationResult
             {
                 Status = risk == ApplicationRiskLevel.Caution ? ApplicationCommandValidationStatus.NeedsCaution : ApplicationCommandValidationStatus.Allowed,
-                Reason = "Commande MSI officielle validee.",
+                Reason = "Commande MSI officielle validée.",
                 Executable = "msiexec.exe",
                 Arguments = args
             };
@@ -117,13 +117,13 @@ public sealed partial class ApplicationUninstallCommandValidator
     {
         if (string.IsNullOrWhiteSpace(packageId) || !exactMatch || !LooksLikeWingetId(packageId))
         {
-            return Blocked("WinGet bloque : identifiant exact requis.");
+            return Blocked("WinGet bloqué : identifiant exact requis.");
         }
 
         return new ApplicationCommandValidationResult
         {
             Status = ApplicationCommandValidationStatus.Allowed,
-            Reason = "WinGet autorise avec ID exact.",
+            Reason = "WinGet autorisé avec ID exact.",
             Executable = "winget",
             Arguments = ["uninstall", "--id", packageId, "--exact"]
         };

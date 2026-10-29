@@ -154,7 +154,7 @@ public sealed class ApplicationsViewModelTests
         var f = new Fixture();
         f.Inventory.Report = new() { Errors = ["Source indisponible."] };
         await f.Analyze();
-        Assert.Equal("Aucune application inventoriee.", Assert.IsType<ApplicationTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
+        Assert.Equal("Aucune application inventoriée.", Assert.IsType<ApplicationTextCardViewModel>(Assert.Single(f.Vm.Entries)).Text);
         Assert.Contains((VirgilCoreState.Warning, "APPLICATIONS"), f.States);
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Equal("Source indisponible.", f.Vm.ReportErrors);
@@ -303,7 +303,7 @@ public sealed class ApplicationsViewModelTests
         await f.Launch();
         var call = Assert.Single(f.Dialog.Calls);
         Assert.Equal("Confirmation désinstallation", call.Title);
-        Assert.Contains("Aucune donnee personnelle ne sera supprimee automatiquement.", call.Message);
+        Assert.Contains("Aucune donnée personnelle ne sera supprimée automatiquement.", call.Message);
         Assert.Empty(busy);
         Assert.Empty(f.Runner.Requests);
         Assert.Single(f.History.Reports);
@@ -320,13 +320,13 @@ public sealed class ApplicationsViewModelTests
         f.Inventory.Report = new() { Applications = [Safe() with { RiskLevel = ApplicationRiskLevel.Caution }] };
         await f.Analyze();
         f.OpenDetails();
-        Assert.Equal("LANCER AVEC VALIDATION RENFORCEE", f.Vm.LaunchUninstallLabel);
+        Assert.Equal("LANCER AVEC VALIDATION RENFORCÉE", f.Vm.LaunchUninstallLabel);
         f.Dialog.Answers.Enqueue(true);
         f.Dialog.Answers.Enqueue(reinforced);
         f.Dialog.OnConfirm = () => { Assert.Empty(f.Runner.Requests); Assert.False(f.Vm.IsBusy); };
         await f.Launch();
         Assert.Equal(2, f.Dialog.Calls.Count);
-        Assert.Equal("Confirmation renforcee applications", f.Dialog.Calls[1].Title);
+        Assert.Equal("Confirmation renforcée applications", f.Dialog.Calls[1].Title);
         Assert.Contains("profils, projets, presets, bibliotheques ou sauvegardes", f.Dialog.Calls[1].Message);
         Assert.Equal(launches, f.Runner.Requests.Count);
         if (reinforced)

@@ -227,12 +227,12 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     {
         if (definition.RequiresAdministrator)
         {
-            yield return "Droits administrateur demandes uniquement après confirmation.";
+            yield return "Droits administrateur demandés uniquement après confirmation.";
         }
 
         if (definition.RebootPossible)
         {
-            yield return "Redémarrage manuel potentiellement requis. Virgil ne redemarre pas le PC.";
+            yield return "Redémarrage manuel potentiellement requis. Virgil ne redémarre pas le PC.";
         }
 
         if (!definition.CanBeInterruptedAfterStart)

@@ -19,7 +19,7 @@ public sealed class ProcessResourceItemViewModel
     public ProcessResourceInfo Process { get; }
     public string Header => $"{Process.Name} (PID {Process.ProcessId}) - {StatusLabel(Process.Status)}";
     public string UsageLine => $"RAM {ScanRules.FormatBytes(Process.WorkingSetBytes)} - CPU {Process.CpuPercent:0.0} %";
-    public string PublisherLine => $"Editeur : {Process.Publisher ?? "non disponible"}";
+    public string PublisherLine => $"Éditeur : {Process.Publisher ?? "non disponible"}";
     public string UserMessage => Process.UserMessage;
     public bool CanOpenLocation => !string.IsNullOrWhiteSpace(Process.Path);
     public bool CanCloseGracefully => Process.CanCloseGracefully;

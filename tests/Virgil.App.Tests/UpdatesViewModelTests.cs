@@ -173,7 +173,7 @@ public sealed class UpdatesViewModelTests
         Assert.Contains("Application : app\nID : app\nVersion : 1 -> 2\nSource : WinGet\nRisque :", f.Vm.ValidationDetails);
         Assert.EndsWith("\nMotif : Motif", f.Vm.ValidationDetails);
         Assert.Equal("winget upgrade \"app test\"", f.Vm.ValidationCommand);
-        Assert.Equal("Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandee par Virgil.", f.Vm.ValidationSafety);
+        Assert.Equal("Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandée par Virgil.", f.Vm.ValidationSafety);
         Assert.Empty(f.Actions.Order);
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;

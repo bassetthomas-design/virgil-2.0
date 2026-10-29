@@ -13,7 +13,7 @@ public sealed class InterventionReportBuilder
         builder.AppendLine($"Actions proposées : {report.ProposedActions.Count}");
         builder.AppendLine($"Actions exécutées : {report.ExecutedActions}");
         builder.AppendLine($"Actions passées : {report.SkippedActions}");
-        builder.AppendLine($"Actions annulees : {report.CancelledActions}");
+        builder.AppendLine($"Actions annulées : {report.CancelledActions}");
         builder.AppendLine($"Reussites : {report.Successes}");
         builder.AppendLine($"Échecs : {report.Failures}");
         builder.AppendLine($"Redémarrage requis : {(report.RebootRequired ? "oui" : "non")}");

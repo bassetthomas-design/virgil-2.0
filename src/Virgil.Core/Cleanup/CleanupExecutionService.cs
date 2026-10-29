@@ -324,7 +324,7 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             }
             if (_now() - lastWrite < zone.MinimumAge)
             {
-                reason = "Fichier devenu recent.";
+                reason = "Fichier devenu récent.";
                 return false;
             }
 
@@ -350,9 +350,9 @@ public sealed class CleanupExecutionService : ICleanupExecutionService
             preview.EligibleFileCount,
             0,
             duration,
-            new[] { "Prévisualisation expiree. Relancer l'analyse." })
+            new[] { "Prévisualisation expirée. Relancer l'analyse." })
         {
-            RefusalReason = "Prévisualisation expiree. Relancer l'analyse."
+            RefusalReason = "Prévisualisation expirée. Relancer l'analyse."
         };
     }
 

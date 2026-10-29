@@ -72,7 +72,7 @@ public sealed class ProcessProtectionPolicy
         var searchable = $"{process.Name} {process.Path} {process.Publisher}";
         if (ProtectedKeywords.Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
         {
-            return Protected(ProcessResourceStatus.Protected, "Processus sécurité, VPN ou materiel protégé.");
+            return Protected(ProcessResourceStatus.Protected, "Processus sécurité, VPN ou matériel protégé.");
         }
 
         if (IsUnderWindows(process.Path))
@@ -87,7 +87,7 @@ public sealed class ProcessProtectionPolicy
 
         if (!process.HasMainWindow || string.IsNullOrWhiteSpace(process.MainWindowTitle))
         {
-            return Protected(ProcessResourceStatus.Review, "Processus sans fenetre principale : à vérifier.");
+            return Protected(ProcessResourceStatus.Review, "Processus sans fenêtre principale : à vérifier.");
         }
 
         var isHeavy = process.WorkingSetBytes >= 512L * 1024 * 1024 || cpuPercent >= 20;

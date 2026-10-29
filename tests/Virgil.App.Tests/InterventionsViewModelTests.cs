@@ -52,9 +52,9 @@ public sealed class InterventionsViewModelTests
     }
 
     [Theory]
-    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXÉCUTER")]
     [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
-    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXÉCUTER")]
     public async Task ExistingOverlayIssuesPlanThenRealServiceReachesExactlyOneAdapter(
         InterventionId id, InterventionRiskLevel risk, string label)
     {
@@ -110,7 +110,7 @@ public sealed class InterventionsViewModelTests
         Assert.Empty(vm.ValidationDetails);
         Assert.Empty(vm.ValidationCommand);
         Assert.Empty(vm.ValidationSafety);
-        Assert.Equal("EXECUTER", vm.ExecuteActionLabel);
+        Assert.Equal("EXÉCUTER", vm.ExecuteActionLabel);
         Assert.False(vm.IsReportOpen);
         Assert.Empty(vm.ReportText);
         Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
@@ -287,7 +287,7 @@ public sealed class InterventionsViewModelTests
         Assert.Empty(f.Actions.Executed);
         var sensitive = risk == InterventionRiskLevel.Sensitive;
         Assert.Equal(sensitive ? "ACTION SENSIBLE" : "VALIDATION REQUISE", f.Vm.ValidationTitle);
-        Assert.Equal(sensitive ? "JE CONFIRME" : "EXECUTER", f.Vm.ExecuteActionLabel);
+        Assert.Equal(sensitive ? "JE CONFIRME" : "EXÉCUTER", f.Vm.ExecuteActionLabel);
         Assert.Equal(sensitive ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.Vm.ValidationCoreState);
         Assert.Equal((f.Vm.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Equal("outil.exe C: \"deux mots\" /scan", f.Vm.ValidationCommand);

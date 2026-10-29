@@ -24,12 +24,12 @@ public sealed class CleanupZoneItemViewModel
             preview.Definition.Description,
             $"Racine : {CleanupViewModel.LogicalRootLabel(preview.Definition.Id)}",
             $"Risque : {CleanupViewModel.RiskLabel(preview.Definition.RiskLevel)}",
-            $"Categorie : {CleanupViewModel.ClassificationLabel(preview.Definition.Classification)}",
-            $"Action : {(preview.Definition.IsExecutable ? "guidee après validation" : "information seulement")}",
-            $"Examines : {preview.ExaminedFileCount} fichiers",
-            $"Eligibles : {preview.EligibleFileCount} fichiers, {CleanupViewModel.FormatBytes(preview.EligibleBytes)}",
+            $"Catégorie : {CleanupViewModel.ClassificationLabel(preview.Definition.Classification)}",
+            $"Action : {(preview.Definition.IsExecutable ? "guidée après validation" : "information seulement")}",
+            $"Examinés : {preview.ExaminedFileCount} fichiers",
+            $"Éligibles : {preview.EligibleFileCount} fichiers, {CleanupViewModel.FormatBytes(preview.EligibleBytes)}",
             $"Exclus : {preview.ExcludedFileCount} fichiers",
-            $"Anciennete minimale : {CleanupViewModel.FormatAge(preview.Definition.MinimumAge)}",
+            $"Ancienneté minimale : {CleanupViewModel.FormatAge(preview.Definition.MinimumAge)}",
             $"Avertissement : {preview.Definition.Warning}"
         };
         if (preview.Errors.Count > 0)

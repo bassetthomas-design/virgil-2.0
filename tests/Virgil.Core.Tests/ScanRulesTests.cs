@@ -54,7 +54,7 @@ public sealed class ScanRulesTests
     {
         Assert.Equal("Stable", ScanRules.OverallStatus(Array.Empty<ScanSeverity>()));
         Assert.Equal("A surveiller", ScanRules.OverallStatus([ScanSeverity.Healthy, ScanSeverity.Attention]));
-        Assert.Equal("Intervention recommandee", ScanRules.OverallStatus([ScanSeverity.Warning, ScanSeverity.Attention]));
+        Assert.Equal("Intervention recommandée", ScanRules.OverallStatus([ScanSeverity.Warning, ScanSeverity.Attention]));
         Assert.Equal("Intervention prioritaire", ScanRules.OverallStatus([ScanSeverity.Critical, ScanSeverity.Warning]));
     }
 
@@ -63,7 +63,7 @@ public sealed class ScanRulesTests
     {
         var findings = new[]
         {
-            new ScanFinding("memory", "Mémoire", "RAM", "RAM elevee", "75 %", ScanSeverity.Attention, "Surveiller la RAM."),
+            new ScanFinding("memory", "Mémoire", "RAM", "RAM élevée", "75 %", ScanSeverity.Attention, "Surveiller la RAM."),
             new ScanFinding("disk", "Stockage", "Disque", "Disque plein", "91 %", ScanSeverity.Critical, "Libérer le disque."),
             new ScanFinding("disk-duplicate", "Stockage", "Disque", "Disque plein", "92 %", ScanSeverity.Critical, "Libérer le disque.")
         };

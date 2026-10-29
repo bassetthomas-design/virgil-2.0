@@ -8,9 +8,9 @@ public sealed class InterventionRiskClassifier
     {
         return definition.RiskLevel switch
         {
-            InterventionRiskLevel.Low => "Risque faible : action courte et limitee.",
-            InterventionRiskLevel.Moderate => "Risque modere : vérifier l'impact avant exécution.",
-            _ => "Action sensible : confirmation renforcee requise."
+            InterventionRiskLevel.Low => "Risque faible : action courte et limitée.",
+            InterventionRiskLevel.Moderate => "Risque modéré : vérifier l'impact avant exécution.",
+            _ => "Action sensible : confirmation renforcée requise."
         };
     }
 }

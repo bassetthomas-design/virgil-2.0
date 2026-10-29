@@ -168,7 +168,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
         _selectedReportIsPersistent = true;
         ReportPersisted?.Invoke(this, EventArgs.Empty);
         CanSaveTransient = false;
-        VirgilMessageRequested?.Invoke("Rapport enregistre localement.\nAucun envoi en ligne.");
+        VirgilMessageRequested?.Invoke("Rapport enregistré localement.\nAucun envoi en ligne.");
         await RefreshAsync().ConfigureAwait(true);
     }
 
@@ -182,7 +182,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
         {
             $"Date : {report.Date:yyyy-MM-dd HH:mm:ss}",
             $"État : {report.Status}",
-            $"Resume : {report.Summary}",
+            $"Résumé : {report.Summary}",
             $"Redémarrage requis : {(report.RestartRequired ? "oui" : "non")}",
             string.IsNullOrWhiteSpace(report.SimpleView) ? report.Summary : report.SimpleView
         });
@@ -205,7 +205,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
     {
         if (report is null)
         {
-            VirgilMessageRequested?.Invoke("Aucun rapport selectionne pour l export.");
+            VirgilMessageRequested?.Invoke("Aucun rapport sélectionné pour l export.");
             return;
         }
 
@@ -214,7 +214,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             $"Virgil-Rapport-{report.Date:yyyyMMdd-HHmmss}.txt");
         if (path is null)
         {
-            VirgilMessageRequested?.Invoke("Export annulé.\nAucun fichier cree.");
+            VirgilMessageRequested?.Invoke("Export annulé.\nAucun fichier créé.");
             return;
         }
 
@@ -252,7 +252,7 @@ public partial class ReportsHistoryViewModel : ObservableObject
             .Where(action => !string.IsNullOrWhiteSpace(action.TechnicalDetails))
             .Select(action => $"{action.Name} : {action.TechnicalDetails}"));
         return values.Count == 0
-            ? "Aucun detail technique supplementaire."
+            ? "Aucun détail technique supplémentaire."
             : string.Join("\n", values);
     }
 

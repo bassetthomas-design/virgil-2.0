@@ -37,7 +37,7 @@ public sealed class ApplicationUninstallConfirmationPolicy
                 CanProceed = false,
                 WasCancelled = true,
                 RequiredLevel = plan.RequiredConfirmationLevel,
-                Reason = "Confirmation renforcee absente pour une application classee attention."
+                Reason = "Confirmation renforcée absente pour une application classée attention."
             };
         }
 
@@ -46,7 +46,7 @@ public sealed class ApplicationUninstallConfirmationPolicy
             CanProceed = true,
             WasCancelled = false,
             RequiredLevel = plan.RequiredConfirmationLevel,
-            Reason = "Confirmation utilisateur validee."
+            Reason = "Confirmation utilisateur validée."
         };
     }
 }

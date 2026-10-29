@@ -79,7 +79,7 @@
                                             AutomationProperties.Name="Mini noyau Virgil nettoyage" />
                 <StackPanel Grid.Column="1"
                             VerticalAlignment="Center">
-                    <TextBlock Text="NETTOYAGE COMPLET GUIDE V2"
+                    <TextBlock Text="NETTOYAGE COMPLET GUIDÉ V2"
                                Style="{StaticResource VirgilHudSectionTitle}"
                                FontSize="22" />
                     <TextBlock Text="SÉLECTION PAR GROUPE OU LIGNE, PUIS CONFIRMATION RÉCAPITULATIVE"
@@ -106,14 +106,14 @@
                         Style="{StaticResource VirgilPrimaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsLaunchCleanupEnabled}"
-                        AutomationProperties.Name="Lancer le nettoyage guide"
+                        AutomationProperties.Name="Lancer le nettoyage guidé"
                         Command="{Binding LaunchCleanupSafeCommand}" />
                 <Button x:Name="AdvancedCleanupButton"
                         Content="CONFIRMER LA SÉLECTION" Visibility="Collapsed"
                         Style="{StaticResource VirgilPrimaryButton}"
                         Margin="8,0,0,0"
                         IsEnabled="{Binding IsAdvancedCleanupEnabled}"
-                        AutomationProperties.Name="Lancer le nettoyage avance guide"
+                        AutomationProperties.Name="Lancer le nettoyage avancé guidé"
                         Command="{Binding LaunchCleanupAdvancedCommand}" />
                 <Button x:Name="ReviewManualButton"
                         Content="À REVOIR MANUELLEMENT"
@@ -343,7 +343,7 @@
                                     Content="ANNULER TOUT"
                                     Style="{StaticResource VirgilSecondaryButton}"
                                     Margin="10,0,0,0"
-                                    AutomationProperties.Name="Annuler tout le nettoyage guide"
+                                    AutomationProperties.Name="Annuler tout le nettoyage guidé"
                                     Command="{Binding CancelDecisionCommand}" />
                         </StackPanel>
                     </StackPanel>

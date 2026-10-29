@@ -72,7 +72,7 @@ public sealed class WingetAvailabilityService
             }
             else if (result.TimedOut)
             {
-                errors.Add("Detection WinGet interrompue par timeout.");
+                errors.Add("Détection WinGet interrompue par timeout.");
             }
         }
 

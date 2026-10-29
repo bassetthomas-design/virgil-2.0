@@ -198,7 +198,7 @@ public sealed class ResourceUpdateConfirmedPlanTests
         var service = new WingetUpdateExecutionService(new WingetAvailabilityService(runner, ["winget"]), runner, authority);
         var result = await service.ExecuteAsync(item, Issue(authority, UpdateActionPreviewFactory.Create(Item())), CancellationToken.None);
         Assert.Equal(UpdateItemStatus.Failed, result.Status);
-        Assert.Equal("Mise à jour bloquée : version confirmee manquante ou invalide. Aucune installation effectuée.", result.UserMessage);
+        Assert.Equal("Mise à jour bloquée : version confirmée manquante ou invalide. Aucune installation effectuée.", result.UserMessage);
         Assert.Equal(0, runner.Upgrades);
         Assert.Empty(runner.UpgradeRequests);
     }

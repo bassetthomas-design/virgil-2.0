@@ -26,7 +26,7 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine($"Date : {sanitized.Date:yyyy-MM-dd HH:mm:ss}");
         builder.AppendLine($"Type : {sanitized.Kind}");
         builder.AppendLine($"Titre : {sanitized.Title}");
-        builder.AppendLine($"Resume : {sanitized.Summary}");
+        builder.AppendLine($"Résumé : {sanitized.Summary}");
         builder.AppendLine($"État : {sanitized.Status}");
         builder.AppendLine($"Module : {sanitized.Module}");
         builder.AppendLine($"Redémarrage requis : {(sanitized.RestartRequired ? "oui" : "non")}");
@@ -160,7 +160,7 @@ public sealed class ReportExportService : IReportExportService
             builder.AppendLine($"{action.Name} : {action.TechnicalDetails}");
         }
 
-        return builder.Length == 0 ? "Aucun detail technique supplementaire." : builder.ToString().TrimEnd();
+        return builder.Length == 0 ? "Aucun détail technique supplémentaire." : builder.ToString().TrimEnd();
     }
 
     private static string ValidateDestination(string path)

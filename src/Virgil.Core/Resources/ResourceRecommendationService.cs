@@ -85,7 +85,7 @@ public sealed class ResourceRecommendationService
 
         if (memory >= ResourceHealthLevel.InterventionRecommended)
         {
-            recommendations.Add("RAM elevee : examiner les applications lourdes avant toute fermeture.");
+            recommendations.Add("RAM élevée : examiner les applications lourdes avant toute fermeture.");
         }
         else if (memory == ResourceHealthLevel.Watch)
         {

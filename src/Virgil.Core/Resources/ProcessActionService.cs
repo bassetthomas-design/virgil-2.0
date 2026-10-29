@@ -50,7 +50,7 @@ public sealed class ProcessActionService : IProcessActionService
                 "Mémoire inactive",
                 ProcessActionStatus.InformationOnly,
                 "Action non exécutée.",
-                "Information seulement en V1 : aucune API sure n'est retenue.");
+                "Information seulement en V1 : aucune API sûre n'est retenue.");
         }
 
         if (action == ProcessActionKind.RestartExplorer)
@@ -78,7 +78,7 @@ public sealed class ProcessActionService : IProcessActionService
         if (action == ProcessActionKind.CloseMainWindow && (!target.CanCloseGracefully || !identity.Value!.HasMainWindow))
             return Refusal(action, TargetName(target), "Fermeture propre non autorisée.");
         if (action == ProcessActionKind.KillProcess && !target.CanForceClose)
-            return Refusal(action, TargetName(target), "Confirmation renforcee absente ou fermeture forcee interdite.");
+            return Refusal(action, TargetName(target), "Confirmation renforcée absente ou fermeture forcée interdite.");
         if (action is not (ProcessActionKind.CloseMainWindow or ProcessActionKind.KillProcess))
             return Refusal(action, TargetName(target), "Action non prise en charge.");
 
@@ -126,8 +126,8 @@ public sealed class ProcessActionService : IProcessActionService
                 ProcessActionKind.CloseMainWindow,
                 TargetName(target),
                 ProcessActionStatus.PartialFailure,
-                "Fermeture propre non confirmee.",
-                "La fermeture forcee reste séparée et exige une nouvelle validation.");
+                "Fermeture propre non confirmée.",
+                "La fermeture forcée reste séparée et exige une nouvelle validation.");
         }
 
         var exited = await _runtime.WaitForExitAsync(
@@ -135,13 +135,13 @@ public sealed class ProcessActionService : IProcessActionService
             GracefulCloseTimeout,
             cancellationToken).ConfigureAwait(false);
         return exited
-            ? Result(ProcessActionKind.CloseMainWindow, TargetName(target), ProcessActionStatus.Completed, "Application fermee proprement.")
+            ? Result(ProcessActionKind.CloseMainWindow, TargetName(target), ProcessActionStatus.Completed, "Application fermée proprement.")
             : Result(
                 ProcessActionKind.CloseMainWindow,
                 TargetName(target),
                 ProcessActionStatus.PartialFailure,
-                "Fermeture propre non confirmee.",
-                "Aucune fermeture forcee automatique n'a été lancée.");
+                "Fermeture propre non confirmée.",
+                "Aucune fermeture forcée automatique n'a été lancée.");
     }
 
     private async Task<ProcessActionResult> KillAsync(
@@ -156,16 +156,16 @@ public sealed class ProcessActionService : IProcessActionService
                 ForcedCloseTimeout,
                 cancellationToken).ConfigureAwait(false);
             return exited
-                ? Result(ProcessActionKind.KillProcess, TargetName(target), ProcessActionStatus.Completed, "Application fermee de force.")
+                ? Result(ProcessActionKind.KillProcess, TargetName(target), ProcessActionStatus.Completed, "Application fermée de force.")
                 : Result(
                     ProcessActionKind.KillProcess,
                     TargetName(target),
                     ProcessActionStatus.PartialFailure,
-                    "Fermeture forcee non confirmee.");
+                    "Fermeture forcée non confirmée.");
         }
         catch
         {
-            return Failure(ProcessActionKind.KillProcess, TargetName(target), "Fermeture forcee impossible.");
+            return Failure(ProcessActionKind.KillProcess, TargetName(target), "Fermeture forcée impossible.");
         }
     }
 
@@ -193,7 +193,7 @@ public sealed class ProcessActionService : IProcessActionService
             Definition = definition,
             IsAvailable = true,
             Status = InterventionStatus.Available,
-            StateBefore = "Relance demandee depuis Ressources.",
+            StateBefore = "Relance demandée depuis Ressources.",
             Recommendation = "Relance Explorer après validation explicite."
         };
         var result = await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
@@ -229,7 +229,7 @@ public sealed class ProcessActionService : IProcessActionService
             target.StartedAt is not null && current.StartedAt != target.StartedAt ||
             target.Path is not null && !string.Equals(current.Path, target.Path, StringComparison.OrdinalIgnoreCase))
         {
-            return IdentityValidation.Failed("Identité du processus modifiee depuis l'analyse.");
+            return IdentityValidation.Failed("Identité du processus modifiée depuis l'analyse.");
         }
 
         var observation = new ProcessObservation

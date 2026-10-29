@@ -110,7 +110,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
 
         if (CleanupPathGuard.HasReparsePointAtPath(zone.RootPath))
         {
-            errors.Add("Zone refusée : point de reanalyse détecté.");
+            errors.Add("Zone refusée : point de réanalyse détecté.");
             return CreatePreview(zone, generatedAt, candidates, errors);
         }
 
@@ -143,7 +143,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             var fileInfo = new FileInfo(fullPath);
             var lastWrite = ToUtcOffset(fileInfo.LastWriteTimeUtc);
             var isOldEnough = generatedAt - lastWrite >= zone.MinimumAge;
-            var exclusion = isOldEnough ? null : "Fichier recent.";
+            var exclusion = isOldEnough ? null : "Fichier récent.";
 
             return new CleanupCandidate(
                 zone.Id,
@@ -216,7 +216,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
             {
                 if (CleanupPathGuard.HasReparsePointAtPath(child))
                 {
-                    errors.Add("Sous-dossier refusé : point de reanalyse détecté.");
+                    errors.Add("Sous-dossier refusé : point de réanalyse détecté.");
                     continue;
                 }
 
@@ -304,7 +304,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
         {
             CleanupRiskLevel.Low => "Faible",
             CleanupRiskLevel.Medium => "Moyen",
-            _ => "Élevé"
+            _ => FrenchDisplayLabels.High
         };
     }
 
