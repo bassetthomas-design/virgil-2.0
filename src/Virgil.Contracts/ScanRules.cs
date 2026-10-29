@@ -107,7 +107,7 @@ public static class ScanRules
         return severity switch
         {
             ScanSeverity.Critical => "Critique",
-            ScanSeverity.Warning => "Eleve",
+            ScanSeverity.Warning => FrenchDisplayLabels.High,
             ScanSeverity.Attention => "Attention",
             ScanSeverity.Information => "Information",
             _ => "Normal"
@@ -121,8 +121,8 @@ public static class ScanRules
         return highestSeverity switch
         {
             ScanSeverity.Critical => "Intervention prioritaire",
-            ScanSeverity.Warning => "Intervention recommandee",
-            ScanSeverity.Attention => "A surveiller",
+            ScanSeverity.Warning => "Intervention recommandée",
+            ScanSeverity.Attention => "À surveiller",
             _ => "Stable"
         };
     }

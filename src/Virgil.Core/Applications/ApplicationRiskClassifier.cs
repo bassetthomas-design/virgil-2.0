@@ -48,12 +48,12 @@ public sealed class ApplicationRiskClassifier
 
         if (application.UninstallKind == ApplicationUninstallKind.None || string.IsNullOrWhiteSpace(application.UninstallCommand) && string.IsNullOrWhiteSpace(application.WingetId))
         {
-            return WithRisk(application, ApplicationRiskLevel.Unknown, "Désinstalleur officiel absent ou informations incompletes.", false);
+            return WithRisk(application, ApplicationRiskLevel.Unknown, "Désinstalleur officiel absent ou informations incomplètes.", false);
         }
 
         if (ContainsAny(text, CautionTerms))
         {
-            return WithRisk(application, ApplicationRiskLevel.Caution, "Application pouvant contenir profils, projets, presets, bibliotheques ou sauvegardes.", true);
+            return WithRisk(application, ApplicationRiskLevel.Caution, "Application pouvant contenir profils, projets, presets, bibliothèques ou sauvegardes.", true);
         }
 
         if (ContainsAny(text, SafeTerms) || application.UninstallKind is ApplicationUninstallKind.Msi or ApplicationUninstallKind.RegistryUninstallString or ApplicationUninstallKind.Winget)
@@ -61,7 +61,7 @@ public sealed class ApplicationRiskClassifier
             return WithRisk(application, ApplicationRiskLevel.SafeToUninstall, "Application utilisateur avec désinstalleur officiel identifiable.", true);
         }
 
-        return WithRisk(application, ApplicationRiskLevel.Unknown, "Application insuffisamment identifiee.", false);
+        return WithRisk(application, ApplicationRiskLevel.Unknown, "Application insuffisamment identifiée.", false);
     }
 
     private static InstalledApplication WithRisk(

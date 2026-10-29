@@ -175,7 +175,7 @@ public sealed class ReportsHistoryTests
 
         Assert.Contains("VIRGIL 2.0 - RAPPORT", simple);
         Assert.Contains("Actions proposées", simple);
-        Assert.Contains("Masques dans cet export", simple);
+        Assert.Contains("Masqués dans cet export", simple);
         Assert.DoesNotContain("Code sortie : 5", simple);
         Assert.Contains("Code sortie : 5", technical);
     }

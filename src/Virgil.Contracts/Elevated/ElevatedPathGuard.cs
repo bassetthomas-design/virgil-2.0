@@ -68,18 +68,18 @@ public sealed class ElevatedPathGuard
 
         if (!string.Equals(parent, rootDirectory, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Chemin hors racine Virgil autorisee.");
+            throw new InvalidOperationException("Chemin hors racine Virgil autorisée.");
         }
 
         var entry = Inspect(fullPath);
         if (entry.Exists && entry.IsReparsePoint)
         {
-            throw new InvalidOperationException("Point de reanalyse refuse.");
+            throw new InvalidOperationException("Point de réanalyse refusé.");
         }
 
         if (entry.Exists && entry.IsDirectory)
         {
-            throw new InvalidOperationException("Un fichier etait attendu.");
+            throw new InvalidOperationException("Un fichier était attendu.");
         }
 
         if (existence == ElevatedPathExistence.MustExist && !entry.Exists)
@@ -89,7 +89,7 @@ public sealed class ElevatedPathGuard
 
         if (existence == ElevatedPathExistence.MustNotExist && entry.Exists)
         {
-            throw new IOException("Le fichier protocole existe deja.");
+            throw new IOException("Le fichier protocole existe déjà.");
         }
 
         return fullPath;
@@ -130,12 +130,12 @@ public sealed class ElevatedPathGuard
 
         if (!entry.IsDirectory)
         {
-            throw new InvalidOperationException("Un dossier etait attendu.");
+            throw new InvalidOperationException("Un dossier était attendu.");
         }
 
         if (entry.IsReparsePoint)
         {
-            throw new InvalidOperationException("Dossier point de reanalyse refuse.");
+            throw new InvalidOperationException("Dossier point de réanalyse refusé.");
         }
     }
 
@@ -147,7 +147,7 @@ public sealed class ElevatedPathGuard
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            throw new InvalidOperationException("Verification physique du chemin impossible.", ex);
+            throw new InvalidOperationException("Vérification physique du chemin impossible.", ex);
         }
     }
 

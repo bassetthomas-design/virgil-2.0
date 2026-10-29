@@ -129,7 +129,7 @@ public sealed class ElevatedProtocolRoot : IElevatedProtocolRoot
 
             if (!allowed.SetEquals(fullControlSids))
             {
-                throw new InvalidOperationException("ACL du dossier temporaire Virgil incomplete.");
+                throw new InvalidOperationException("ACL du dossier temporaire Virgil incomplète.");
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or InvalidOperationException or SystemException)
@@ -151,6 +151,6 @@ public sealed class ElevatedProtocolRoot : IElevatedProtocolRoot
     private static SecurityIdentifier CurrentUserSid()
     {
         using var identity = WindowsIdentity.GetCurrent();
-        return identity.User ?? throw new InvalidOperationException("Identite Windows courante indisponible.");
+        return identity.User ?? throw new InvalidOperationException("Identité Windows courante indisponible.");
     }
 }

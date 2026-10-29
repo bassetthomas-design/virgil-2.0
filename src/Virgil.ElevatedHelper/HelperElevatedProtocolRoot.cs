@@ -76,7 +76,7 @@ internal sealed class HelperElevatedProtocolRoot
 
             if (!allowed.SetEquals(fullControlSids))
             {
-                throw new InvalidOperationException("ACL du dossier temporaire Virgil incomplete.");
+                throw new InvalidOperationException("ACL du dossier temporaire Virgil incomplète.");
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or InvalidOperationException or SystemException)

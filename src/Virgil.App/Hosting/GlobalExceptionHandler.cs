@@ -15,8 +15,8 @@ public sealed class MessageBoxUserNotifier(VirgilPaths paths, Dispatcher dispatc
     public void Notify(bool fatal)
     {
         void Show() => MessageBox.Show(
-            (fatal ? "Virgil doit se fermer suite a une erreur inattendue.\n" : "Une erreur inattendue s'est produite.\n")
-            + "Détails enregistres dans les journaux : " + paths.LogsDirectory,
+            (fatal ? "Virgil doit se fermer suite à une erreur inattendue.\n" : "Une erreur inattendue s'est produite.\n")
+            + "Détails enregistrés dans les journaux : " + paths.LogsDirectory,
             "Virgil", MessageBoxButton.OK, MessageBoxImage.Error);
         if (dispatcher.CheckAccess()) Show();
         else dispatcher.Invoke(Show);

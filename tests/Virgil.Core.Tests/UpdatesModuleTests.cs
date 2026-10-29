@@ -22,7 +22,7 @@ public sealed class UpdatesModuleTests
         var availability = await service.DetectAsync(CancellationToken.None);
 
         Assert.False(availability.IsAvailable);
-        Assert.Contains("WinGet non executable", availability.Errors[0]);
+        Assert.Contains("WinGet non exécutable", availability.Errors[0]);
     }
 
     [Theory]
@@ -256,7 +256,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
 
         Assert.True(report.WasAnalyzed);
         Assert.False(report.CanInstallDrivers);
-        Assert.Contains("Masque en V1", report.InstallButtonVisibilityReason);
+        Assert.Contains("Masqué en V1", report.InstallButtonVisibilityReason);
     }
 
     [Fact]

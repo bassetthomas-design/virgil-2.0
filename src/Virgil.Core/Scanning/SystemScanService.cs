@@ -178,7 +178,7 @@ public sealed class SystemScanService : ISystemScanService
                 findings.Add(new ScanFinding(
                     "applications-unknown",
                     "Applications",
-                    "Applications a classification incertaine",
+                    "Applications à classification incertaine",
                     "Certaines applications ne disposent pas d'une source ou d'une commande de désinstallation suffisamment fiable.",
                     report.UnknownCount.ToString(),
                     ScanSeverity.Attention,
@@ -191,7 +191,7 @@ public sealed class SystemScanService : ISystemScanService
                     "applications-large",
                     "Applications",
                     "Applications volumineuses",
-                    "Des applications representent un volume disque significatif.",
+                    "Des applications représentent un volume disque significatif.",
                     largeCount.ToString(),
                     ScanSeverity.Information,
                     "Utiliser le module Applications pour analyser individuellement. Aucune désinstallation n'est exécutée depuis le scan."));
@@ -205,7 +205,7 @@ public sealed class SystemScanService : ISystemScanService
 
             if (report.CautionCount > 0)
             {
-                recommendations.Add("Valider explicitement les applications marquees attention avant de lancer leur désinstalleur officiel.");
+                recommendations.Add("Valider explicitement les applications marquées attention avant de lancer leur désinstalleur officiel.");
             }
 
             if (report.UnknownCount > 0)
@@ -279,8 +279,8 @@ public sealed class SystemScanService : ISystemScanService
                 findings.Add(new ScanFinding(
                     "resources-cpu-sustained",
                     "Ressources",
-                    "Charge CPU elevee sur observation courte",
-                    "La moyenne CPU est restee elevee pendant plusieurs echantillons.",
+                    "Charge CPU élevée sur observation courte",
+                    "La moyenne CPU est restée élevée pendant plusieurs échantillons.",
                     $"{report.AverageCpuPercent:0.0} %",
                     report.AverageCpuPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
                     "Examiner les principaux processus CPU dans le module Ressources. Aucune fermeture n'a été exécutée."));
@@ -291,7 +291,7 @@ public sealed class SystemScanService : ISystemScanService
                 findings.Add(new ScanFinding(
                     "resources-memory-high",
                     "Ressources",
-                    "Utilisation RAM elevee",
+                    "Utilisation RAM élevée",
                     "La RAM utilisée dépasse le seuil d'intervention conseillée.",
                     $"{report.AverageMemoryPercent:0.0} %",
                     report.AverageMemoryPercent >= 95 ? ScanSeverity.Critical : ScanSeverity.Warning,
@@ -304,7 +304,7 @@ public sealed class SystemScanService : ISystemScanService
                     "resources-heavy-processes",
                     "Ressources",
                     "Processus lourds détectés",
-                    "Des processus depassent les seuils CPU ou RAM du module Ressources.",
+                    "Des processus dépassent les seuils CPU ou RAM du module Ressources.",
                     heavyCount.ToString(),
                     ScanSeverity.Attention,
                     "Ouvrir le module Ressources pour vérifier chaque processus. Aucune action n'est exécutée depuis le scan."));
@@ -368,11 +368,11 @@ public sealed class SystemScanService : ISystemScanService
             findings.Add(new ScanFinding(
                 "cpu-usage",
                 "Processeur",
-                "Utilisation CPU elevee",
-                "La charge CPU est elevee au moment du scan.",
+                "Utilisation CPU élevée",
+                "La charge CPU est élevée au moment du scan.",
                 $"{result.Value.UsagePercent:0.0} %",
                 result.Value.Severity,
-                "Mesure CPU instantanée : si elle reste elevee, identifier les applications actives les plus consommatrices."));
+                "Mesure CPU instantanée : si elle reste élevée, identifier les applications actives les plus consommatrices."));
         }
 
         return result.Value;
@@ -401,7 +401,7 @@ public sealed class SystemScanService : ISystemScanService
         }
         else if (memoryStatus.AvailableBytes > memoryStatus.TotalBytes)
         {
-            errors.Add("Valeurs mémoire incoherentes.");
+            errors.Add("Valeurs mémoire incohérentes.");
         }
 
         var severity = memoryStatus.TotalBytes == 0
@@ -421,11 +421,11 @@ public sealed class SystemScanService : ISystemScanService
             findings.Add(new ScanFinding(
                 "memory-usage",
                 "Mémoire",
-                "Utilisation RAM elevee",
+                "Utilisation RAM élevée",
                 "La mémoire physique utilisée dépasse le seuil de surveillance.",
                 $"{memory.UsedPercent:0.0} %",
                 severity,
-                "Comparer avec les processus actifs. Un ecart avec le Gestionnaire des taches peut venir du moment d'echantillonnage, de la mémoire compressee, du cache ou de la presentation Windows."));
+                "Comparer avec les processus actifs. Un écart avec le Gestionnaire des tâches peut venir du moment d'échantillonnage, de la mémoire compressée, du cache ou de la présentation Windows."));
         }
 
         return memory;
@@ -436,7 +436,7 @@ public sealed class SystemScanService : ISystemScanService
         ICollection<string> errors,
         ICollection<ScanFinding> findings)
     {
-        Report(progress, "Stockage", "Analyse des disques fixes prets.", "Disques", 50);
+        Report(progress, "Stockage", "Analyse des disques fixes prêts.", "Disques", 50);
         var result = DiskReader.ReadFixedDrives();
         AddErrors(errors, result.Errors);
 
@@ -491,7 +491,7 @@ public sealed class SystemScanService : ISystemScanService
                 "Virgil n'a pas détecté d'interface réseau active avec une adresse IPv4 locale.",
                 null,
                 ScanSeverity.Attention,
-                "Vérifier la connexion réseau si une connectivite est attendue."));
+                "Vérifier la connexion réseau si une connectivité est attendue."));
         }
 
         return result.Value;
@@ -513,10 +513,10 @@ public sealed class SystemScanService : ISystemScanService
                 "process-memory",
                 "Processus",
                 "Processus consommant beaucoup de mémoire",
-                $"Le processus {heavyProcess.Name} utilise une quantite importante de mémoire physique.",
+                $"Le processus {heavyProcess.Name} utilise une quantité importante de mémoire physique.",
                 ScanRules.FormatBytes(heavyProcess.WorkingSetBytes),
                 ScanSeverity.Attention,
-                "Vérifier si cette consommation correspond a une application attendue. Aucun processus n'a été modifie."));
+                "Vérifier si cette consommation correspond à une application attendue. Aucun processus n'a été modifié."));
         }
 
         return result.Value;
@@ -576,7 +576,7 @@ public sealed class SystemScanService : ISystemScanService
                     "Des fichiers temporaires récupérables ont été détectés en lecture seule.",
                     ScanRules.FormatBytes(cleanup.PotentialBytes),
                     ScanSeverity.Attention,
-                    "Un nettoyage pourra être envisage après validation explicite."));
+                    "Un nettoyage pourra être envisagé après validation explicite."));
             }
 
             return cleanup;
@@ -606,7 +606,7 @@ public sealed class SystemScanService : ISystemScanService
             "Mises à jour",
             mode == ScanMode.Deep
                 ? "Prévisualisation lecture seule des mises à jour."
-                : "Detection lecture seule de WinGet.",
+                : "Détection lecture seule de WinGet.",
             "Mises à jour",
             88);
 
@@ -636,10 +636,10 @@ public sealed class SystemScanService : ISystemScanService
                     "updates-sensitive-preview",
                     "Mises à jour",
                     "Composants sensibles à vérifier",
-                    "Certaines mises à jour touchent a des composants sensibles.",
+                    "Certaines mises à jour touchent à des composants sensibles.",
                     report.SensitiveCount.ToString(),
                     ScanSeverity.Attention,
-                    "Consulter le detail avant toute installation."));
+                    "Consulter le détail avant toute installation."));
             }
 
             return new UpdateScanSummary
@@ -711,7 +711,7 @@ public sealed class SystemScanService : ISystemScanService
                     "interventions-recommended",
                     "Interventions",
                     "Interventions ciblées recommandées",
-                    "Des diagnostics lecture seule suggerent une ou plusieurs interventions.",
+                    "Des diagnostics lecture seule suggèrent une ou plusieurs interventions.",
                     recommended.ToString(),
                     ScanSeverity.Attention,
                     "Ouvrir le module Interventions ciblées. Aucune action n'est exécutée depuis le rapport de scan."));

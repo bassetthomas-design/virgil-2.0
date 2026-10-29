@@ -71,7 +71,7 @@
                             MinWidth="205"
                             Margin="0,0,8,8"
 
-                            AutomationProperties.Name="Lancer le parcours guide"
+                            AutomationProperties.Name="Lancer le parcours guidé"
                             Command="{Binding ScanRepairCommand}" />
                     <Button x:Name="ViewInterventionsReportButton"
                             IsEnabled="{Binding IsReportButtonEnabled}"

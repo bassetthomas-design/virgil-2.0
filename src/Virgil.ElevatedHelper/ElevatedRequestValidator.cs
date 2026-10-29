@@ -81,7 +81,7 @@ public sealed class ElevatedRequestValidator
             ValidateRequest(claimedRequest, fullRequestPath, rootDirectory, localAppData);
             if (claimedRequest != request)
             {
-                throw new InvalidOperationException("Requete modifiee pendant sa validation.");
+                throw new InvalidOperationException("Requête modifiée pendant sa validation.");
             }
 
             _pathGuard.ValidateFilePath(localAppData, request.ResultPath, ElevatedPathExistence.MustNotExist);
@@ -133,7 +133,7 @@ public sealed class ElevatedRequestValidator
         });
         return await JsonSerializer.DeserializeAsync<ElevatedInterventionRequest>(stream, JsonOptions())
             .ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Requete invalide.");
+            ?? throw new InvalidOperationException("Requête invalide.");
     }
 
     private void ValidateRequest(
@@ -158,12 +158,12 @@ public sealed class ElevatedRequestValidator
         var now = _utcNow();
         if (request.CreatedAt < now - MaximumAge)
         {
-            throw new InvalidOperationException("Requete expiree.");
+            throw new InvalidOperationException("Requête expirée.");
         }
 
         if (request.CreatedAt > now + MaximumFutureSkew)
         {
-            throw new InvalidOperationException("Date future de la requete refusée.");
+            throw new InvalidOperationException("Date future de la requête refusée.");
         }
 
         var expectedRequestPath = Path.Combine(
@@ -171,7 +171,7 @@ public sealed class ElevatedRequestValidator
             $"intervention-{request.Nonce}.request.json");
         if (!string.Equals(expectedRequestPath, originalRequestPath, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Nom de requete non associe au nonce.");
+            throw new InvalidOperationException("Nom de requête non associé au nonce.");
         }
 
         var expectedResultPath = Path.Combine(
@@ -179,7 +179,7 @@ public sealed class ElevatedRequestValidator
             $"intervention-{request.Nonce}.result.json");
         if (!string.Equals(expectedResultPath, Path.GetFullPath(request.ResultPath), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Nom de résultat non associe au nonce.");
+            throw new InvalidOperationException("Nom de résultat non associé au nonce.");
         }
 
         _pathGuard.ValidateFilePath(localAppData, request.ResultPath, ElevatedPathExistence.Optional);

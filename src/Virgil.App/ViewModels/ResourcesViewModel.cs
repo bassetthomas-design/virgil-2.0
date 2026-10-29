@@ -67,7 +67,7 @@ public partial class ResourcesViewModel : ObservableObject
     [ObservableProperty] private string sessionSummaryText = "NON ANALYSÉ";
     [ObservableProperty] private string recommendationsText = "Lancez une analyse. Aucune action ne sera exécutée.";
     [ObservableProperty] private string processSummaryText = "Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.";
-    [ObservableProperty] private string processesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.";
+    [ObservableProperty] private string processesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et matériel resteront protégés.";
     [ObservableProperty] private string releaseInactiveMemoryLabel = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
@@ -78,7 +78,7 @@ public partial class ResourcesViewModel : ObservableObject
     [ObservableProperty] private string validationTitle = "VALIDATION REQUISE";
     [ObservableProperty] private string validationDetails = string.Empty;
     [ObservableProperty] private string validationSafety = string.Empty;
-    [ObservableProperty] private string executeActionLabel = "EXECUTER";
+    [ObservableProperty] private string executeActionLabel = "EXÉCUTER";
     [ObservableProperty] private bool isReportOpen;
     [ObservableProperty] private string reportText = string.Empty;
     [ObservableProperty] private VirgilCoreState miniCoreState = VirgilCoreState.Idle;
@@ -341,35 +341,35 @@ public partial class ResourcesViewModel : ObservableObject
     private void ShowValidation(ProcessActionKind action, ProcessResourceInfo? target)
     {
         var reinforced = action == ProcessActionKind.KillProcess;
-        ValidationTitle = reinforced ? "CONFIRMATION RENFORCEE" : "VALIDATION REQUISE";
+        ValidationTitle = reinforced ? "CONFIRMATION RENFORCÉE" : "VALIDATION REQUISE";
         ValidationDetails = action switch
         {
             ProcessActionKind.CloseMainWindow => string.Join("\n", new[]
             {
-                "Fermeture propre demandee.",
+                "Fermeture propre demandée.",
                 $"Application : {TargetName(action, target)}",
-                "Effet : une demande de fermeture sera envoyee a la fenetre principale.",
-                "Des données non sauvegardees peuvent être concernees selon l'application."
+                "Effet : une demande de fermeture sera envoyée à la fenêtre principale.",
+                "Des données non sauvegardées peuvent être concernées selon l'application."
             }),
             ProcessActionKind.KillProcess => string.Join("\n", new[]
             {
-                "Fermeture forcee demandee.",
+                "Fermeture forcée demandée.",
                 $"Application : {TargetName(action, target)}",
-                "Cette action peut entrainer une perte de données non sauvegardees.",
-                "A utiliser seulement si l'application ne repond plus."
+                "Cette action peut entraîner une perte de données non sauvegardées.",
+                "À utiliser seulement si l'application ne répond plus."
             }),
             ProcessActionKind.RestartExplorer => string.Join("\n", new[]
             {
-                "Relance d'Explorer Windows demandee.",
-                "Le bureau et la barre des taches peuvent disparaitre quelques secondes.",
-                "Les applications ouvertes ne seront pas fermees."
+                "Relance d'Explorer Windows demandée.",
+                "Le bureau et la barre des tâches peuvent disparaître quelques secondes.",
+                "Les applications ouvertes ne seront pas fermées."
             }),
             _ => ActionLabel(action)
         };
         ValidationSafety = reinforced
-            ? "Confirmation renforcee obligatoire. Processus critique bloque. Aucun autre processus ne sera ferme."
-            : "Validation explicite obligatoire. Aucune fermeture forcee automatique. Aucun redémarrage force.";
-        ExecuteActionLabel = reinforced ? "JE CONFIRME" : "EXECUTER";
+            ? "Confirmation renforcée obligatoire. Processus critique bloqué. Aucun autre processus ne sera fermé."
+            : "Validation explicite obligatoire. Aucune fermeture forcée automatique. Aucun redémarrage forcé.";
+        ExecuteActionLabel = reinforced ? "JE CONFIRME" : "EXÉCUTER";
         IsValidationOpen = true;
         var state = reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning;
         ValidationCoreState = state;
@@ -429,12 +429,12 @@ public partial class ResourcesViewModel : ObservableObject
             .ToList();
         var heavyCount = processes.Count(process => process.Status == ProcessResourceStatus.Heavy);
         ProcessSummaryText = heavyCount == 0
-            ? "Aucun processus lourd selon les seuils V1. Principaux consommateurs affiches pour information."
+            ? "Aucun processus lourd selon les seuils V1. Principaux consommateurs affichés pour information."
             : $"{heavyCount} processus lourds détectés. Aucune fermeture automatique.";
 
         if (processes.Count == 0)
         {
-            ProcessesNotice = "Aucun processus accessible a afficher.";
+            ProcessesNotice = "Aucun processus accessible à afficher.";
             return;
         }
 
@@ -462,7 +462,7 @@ public partial class ResourcesViewModel : ObservableObject
     private void RenderEmptyProcesses()
     {
         Items.Clear();
-        ProcessesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.";
+        ProcessesNotice = "Analyse requise. Les processus système critiques, sécurité, VPN et matériel resteront protégés.";
     }
 
     private bool BeginOperation(string status)
@@ -606,7 +606,7 @@ public partial class ResourcesViewModel : ObservableObject
         return action switch
         {
             ProcessActionKind.CloseMainWindow => "Fermeture propre",
-            ProcessActionKind.KillProcess => "Fermeture forcee",
+            ProcessActionKind.KillProcess => "Fermeture forcée",
             ProcessActionKind.OpenLocation => "Ouverture emplacement",
             ProcessActionKind.RestartExplorer => "Relance Explorer",
             ProcessActionKind.ReleaseInactiveMemory => "Mémoire inactive",
@@ -619,7 +619,7 @@ public partial class ResourcesViewModel : ObservableObject
         return health switch
         {
             ResourceHealthLevel.Stable => "STABLE",
-            ResourceHealthLevel.Watch => "A SURVEILLER",
+            ResourceHealthLevel.Watch => "À SURVEILLER",
             ResourceHealthLevel.InterventionRecommended => "INTERVENTION CONSEILLÉE",
             ResourceHealthLevel.Critical => "CRITIQUE",
             _ => "INCONNU"

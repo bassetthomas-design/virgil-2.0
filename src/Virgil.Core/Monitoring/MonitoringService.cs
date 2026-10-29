@@ -17,7 +17,7 @@ public sealed class MonitoringService : IMonitoringService
         var memory = ReadMemory();
         var drives = ReadFixedDrives();
         var recommendations = BuildRecommendations(memory, drives);
-        var overallStatus = recommendations.Count == 0 ? "Stable" : "Attention recommandee";
+        var overallStatus = recommendations.Count == 0 ? "Stable" : "Attention recommandée";
 
         return new SystemHealthSnapshot(
             DateTimeOffset.Now,
@@ -104,11 +104,11 @@ public sealed class MonitoringService : IMonitoringService
 
         if (memory.TotalBytes > 0 && memory.UsedPercent >= 85)
         {
-            result.Add("RAM tres utilisée : analyser les processus actifs.");
+            result.Add("RAM très utilisée : analyser les processus actifs.");
         }
         else if (memory.TotalBytes > 0 && memory.UsedPercent >= 70)
         {
-            result.Add("RAM elevee : surveillance conseillée.");
+            result.Add("RAM élevée : surveillance conseillée.");
         }
 
         foreach (var drive in drives.Where(drive => drive.UsedPercent >= 90))

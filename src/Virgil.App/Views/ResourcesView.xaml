@@ -116,7 +116,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock Text="Aucune fermeture automatique. Processus critiques bloqués. Aucun redémarrage force."
+                            <TextBlock Text="Aucune fermeture automatique. Processus critiques bloqués. Aucun redémarrage forcé."
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,0" />

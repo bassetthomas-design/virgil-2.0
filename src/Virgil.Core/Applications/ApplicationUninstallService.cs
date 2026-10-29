@@ -103,8 +103,8 @@ public sealed class ApplicationUninstallService
                 Method = application.UninstallKind,
                 WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-                Result = "Executable officiel absent après validation.",
-                Errors = ["Executable officiel absent après validation."]
+                Result = "Exécutable officiel absent après validation.",
+                Errors = ["Exécutable officiel absent après validation."]
             };
         }
 
@@ -129,12 +129,12 @@ public sealed class ApplicationUninstallService
             .LaunchAsync(executable, arguments, useShellExecute: true, CancellationToken.None)
             .ConfigureAwait(false);
 
-        Report(progress, 3, 5, 55, "assistant officiel", "Suivre l'assistant officiel si une fenetre s'ouvre.");
+        Report(progress, 3, 5, 55, "assistant officiel", "Suivre l'assistant officiel si une fenêtre s'ouvre.");
         Report(progress, 4, 5, 78, "restes", "Analyse lecture seule des restes.");
         var remnants = cancellationToken.IsCancellationRequested
             ? new ApplicationRemnantScanReport { Application = application }
             : await _remnantScanner.ScanAsync(application, cancellationToken).ConfigureAwait(false);
-        Report(progress, 5, 5, 100, "rapport", "Rapport final prepare.");
+        Report(progress, 5, 5, 100, "rapport", "Rapport final préparé.");
 
         return new ApplicationUninstallResult
         {

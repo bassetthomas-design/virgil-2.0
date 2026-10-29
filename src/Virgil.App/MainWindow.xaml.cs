@@ -778,7 +778,7 @@ public partial class MainWindow : Window
         if (IsStable(report))
         {
             StatusText.Text = "SCAN TERMINÉ";
-            SetVirgilState(VirgilCoreState.Success, "SUCCES");
+            SetVirgilState(VirgilCoreState.Success, "SUCCÈS");
         }
         else
         {
@@ -1131,7 +1131,7 @@ public partial class MainWindow : Window
     private static string FormatCleanup(CleanupScanInfo cleanup)
     {
         return cleanup.WasAnalyzed
-            ? $"sur {FormatBytes(cleanup.SafePotentialBytes)}, avance {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} a revoir ({FormatBytes(cleanup.ReviewItemBytes)}), protection personnelle active, aucune action, zones : {FormatZones(cleanup.Zones)}"
+            ? $"sur {FormatBytes(cleanup.SafePotentialBytes)}, avancé {FormatBytes(cleanup.AdvancedPotentialBytes)}, {cleanup.ReviewItemCount} à revoir ({FormatBytes(cleanup.ReviewItemBytes)}), protection personnelle active, aucune action, zones : {FormatZones(cleanup.Zones)}"
             : "Non analysé";
     }
 
@@ -1148,7 +1148,7 @@ public partial class MainWindow : Window
             updates.WingetAvailable ? "WinGet disponible" : "WinGet non détecté",
             $"{updates.ApplicationUpdates} applicatives",
             $"{updates.SensitiveUpdates} sensibles",
-            $"{updates.DriverCount} pilotes inventories"
+            $"{updates.DriverCount} pilotes inventoriés"
         });
     }
 

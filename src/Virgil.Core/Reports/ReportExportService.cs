@@ -26,7 +26,7 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine($"Date : {sanitized.Date:yyyy-MM-dd HH:mm:ss}");
         builder.AppendLine($"Type : {sanitized.Kind}");
         builder.AppendLine($"Titre : {sanitized.Title}");
-        builder.AppendLine($"Resume : {sanitized.Summary}");
+        builder.AppendLine($"Résumé : {sanitized.Summary}");
         builder.AppendLine($"État : {sanitized.Status}");
         builder.AppendLine($"Module : {sanitized.Module}");
         builder.AppendLine($"Redémarrage requis : {(sanitized.RestartRequired ? "oui" : "non")}");
@@ -41,7 +41,7 @@ public sealed class ReportExportService : IReportExportService
         builder.AppendLine("Détails techniques :");
         builder.AppendLine(includeTechnicalDetails
             ? BuildTechnicalDetails(sanitized)
-            : "Masques dans cet export.");
+            : "Masqués dans cet export.");
         return builder.ToString();
     }
 
@@ -58,7 +58,7 @@ public sealed class ReportExportService : IReportExportService
             var destination = ValidateDestination(destinationPath);
             if (File.Exists(destination) && !overwriteConfirmed)
             {
-                return Failure("Un fichier existe déjà. Confirmez son remplacement dans la boite de dialogue.");
+                return Failure("Un fichier existe déjà. Confirmez son remplacement dans la boîte de dialogue.");
             }
 
             var directory = Path.GetDirectoryName(destination)!;
@@ -160,7 +160,7 @@ public sealed class ReportExportService : IReportExportService
             builder.AppendLine($"{action.Name} : {action.TechnicalDetails}");
         }
 
-        return builder.Length == 0 ? "Aucun detail technique supplementaire." : builder.ToString().TrimEnd();
+        return builder.Length == 0 ? "Aucun détail technique supplémentaire." : builder.ToString().TrimEnd();
     }
 
     private static string ValidateDestination(string path)

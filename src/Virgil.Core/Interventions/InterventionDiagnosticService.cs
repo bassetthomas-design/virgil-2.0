@@ -62,7 +62,7 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
         var state = "Action disponible après validation explicite.";
         var status = available ? InterventionStatus.Available : InterventionStatus.Unavailable;
         var recommendation = available
-            ? "Disponible. Aucune panne n'est inventee par le diagnostic."
+            ? "Disponible. Aucune panne n'est inventée par le diagnostic."
             : "Indisponible dans l'état actuel.";
 
         if (definition.Id == InterventionId.RestartExplorer)
@@ -227,12 +227,12 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     {
         if (definition.RequiresAdministrator)
         {
-            yield return "Droits administrateur demandes uniquement après confirmation.";
+            yield return "Droits administrateur demandés uniquement après confirmation.";
         }
 
         if (definition.RebootPossible)
         {
-            yield return "Redémarrage manuel potentiellement requis. Virgil ne redemarre pas le PC.";
+            yield return "Redémarrage manuel potentiellement requis. Virgil ne redémarre pas le PC.";
         }
 
         if (!definition.CanBeInterruptedAfterStart)

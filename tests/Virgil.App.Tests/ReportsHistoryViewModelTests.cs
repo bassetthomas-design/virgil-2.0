@@ -16,7 +16,7 @@ public sealed class ReportsHistoryViewModelTests
         await fixture.ViewModel.RefreshAsync();
         var item = Assert.Single(fixture.ViewModel.Items);
         Assert.Same(fixture.Report, item.Report);
-        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - SUCCES", item.Header);
+        Assert.Equal("2026-10-18 12:30 - SCAN RAPIDE - SUCCÈS", item.Header);
         Assert.Equal("Diagnostic", item.Title);
         Assert.Equal("Tout va bien", item.Summary);
         Assert.Equal("Statut : Terminé", item.StatusLine);
@@ -67,7 +67,7 @@ public sealed class ReportsHistoryViewModelTests
         await fixture.ViewModel.RefreshAsync();
         await fixture.ViewModel.ExportSelectedCommand.ExecuteAsync(null);
         Assert.Equal(0, fixture.Export.Calls);
-        Assert.Equal("Export annulé.\nAucun fichier cree.", fixture.Message);
+        Assert.Equal("Export annulé.\nAucun fichier créé.", fixture.Message);
         Assert.Equal(("Exporter le rapport Virgil", "Rapport texte (*.txt)|*.txt", ".txt", "Virgil-Rapport-20261018-123000.txt"), fixture.Dialog.Arguments);
     }
 
@@ -86,7 +86,7 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Equal("rapport.txt", fixture.Export.Path);
         Assert.True(fixture.Export.Overwrite);
         Assert.Equal(technical, fixture.Export.Technical);
-        Assert.Equal("Rapport exporte manuellement en TXT.\nAucun envoi en ligne.", fixture.Message);
+        Assert.Equal("Rapport exporté manuellement en TXT.\nAucun envoi en ligne.", fixture.Message);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Equal((VirgilCoreState.Communicating, "RAPPORT"), requested);
         Assert.False(fixture.ViewModel.IsTechnicalDetailsVisible);
         Assert.Equal("Aucune", fixture.ViewModel.Errors);
-        Assert.Equal("Aucun detail technique supplementaire.", fixture.ViewModel.TechnicalDetails);
+        Assert.Equal("Aucun détail technique supplémentaire.", fixture.ViewModel.TechnicalDetails);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class ReportsHistoryViewModelTests
         Assert.Same(fixture.Report, fixture.History.SavedReport);
         Assert.False(fixture.ViewModel.CanSaveTransient);
         Assert.Single(fixture.ViewModel.Items);
-        Assert.Equal("Rapport enregistre localement.\nAucun envoi en ligne.", fixture.Message);
+        Assert.Equal("Rapport enregistré localement.\nAucun envoi en ligne.", fixture.Message);
         await fixture.ViewModel.SaveTransientCommand.ExecuteAsync(null);
         Assert.Equal(1, fixture.History.SaveCalls);
     }

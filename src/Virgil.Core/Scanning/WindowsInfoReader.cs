@@ -21,7 +21,7 @@ internal static class WindowsInfoReader
 
         if (edition == NotAvailable)
         {
-            errors.Add("Edition Windows indisponible.");
+            errors.Add("Édition Windows indisponible.");
         }
 
         var info = new WindowsScanInfo(

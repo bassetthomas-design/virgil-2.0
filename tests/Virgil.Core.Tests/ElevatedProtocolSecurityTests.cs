@@ -358,7 +358,7 @@ public abstract class ElevatedProtocolSecurityCases
         var error = Assert.Throws<InvalidOperationException>(() => RootValidator(guard)(sandbox.Root));
         Assert.Equal("Permissions du dossier temporaire Virgil non garanties.", error.Message);
         var cause = Assert.IsType<InvalidOperationException>(error.InnerException);
-        Assert.Equal(foreignSid ? "ACL du dossier temporaire Virgil trop large." : "ACL du dossier temporaire Virgil incomplete.", cause.Message);
+        Assert.Equal(foreignSid ? "ACL du dossier temporaire Virgil trop large." : "ACL du dossier temporaire Virgil incomplète.", cause.Message);
     }
 
     private static ElevatedActionDispatcher CreateDispatcher(

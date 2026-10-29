@@ -111,7 +111,7 @@
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="GARDE-FOUS" Style="{StaticResource VirgilMicroLabel}" />
-                            <TextBlock Text="Aucune suppression automatique. Aucun dossier d'application supprime directement."
+                            <TextBlock Text="Aucune suppression automatique. Aucun dossier d'application supprimé directement."
                                        Style="{StaticResource VirgilHudSecondaryText}"
                                        TextWrapping="Wrap"
                                        Margin="0,4,0,0" />

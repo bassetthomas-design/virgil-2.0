@@ -80,16 +80,16 @@ public sealed class ResourceRecommendationService
         }
         else if (cpu == ResourceHealthLevel.Watch)
         {
-            recommendations.Add("CPU a surveiller : aucun pic isole ne justifie une action automatique.");
+            recommendations.Add("CPU à surveiller : aucun pic isolé ne justifie une action automatique.");
         }
 
         if (memory >= ResourceHealthLevel.InterventionRecommended)
         {
-            recommendations.Add("RAM elevee : examiner les applications lourdes avant toute fermeture.");
+            recommendations.Add("RAM élevée : examiner les applications lourdes avant toute fermeture.");
         }
         else if (memory == ResourceHealthLevel.Watch)
         {
-            recommendations.Add("RAM a surveiller : comparer avec les applications actuellement utilisées.");
+            recommendations.Add("RAM à surveiller : comparer avec les applications actuellement utilisées.");
         }
 
         if (uptime >= TimeSpan.FromDays(7))
@@ -98,7 +98,7 @@ public sealed class ResourceRecommendationService
         }
         else if (uptime >= TimeSpan.FromDays(3))
         {
-            recommendations.Add("Session Windows active depuis plusieurs jours : surveiller la stabilite.");
+            recommendations.Add("Session Windows active depuis plusieurs jours : surveiller la stabilité.");
         }
 
         if (processes.Any(process => process.Status == ProcessResourceStatus.Heavy))

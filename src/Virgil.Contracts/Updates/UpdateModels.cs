@@ -64,7 +64,7 @@ public sealed record WingetAvailability
 
     public string? Version { get; init; }
 
-    public string Message { get; init; } = "WinGet non detecte.";
+    public string Message { get; init; } = "WinGet non détecté.";
 
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 
@@ -145,7 +145,7 @@ public sealed record UpdateItem
 
 public sealed record WindowsUpdateInformation
 {
-    public string Status { get; init; } = "A examiner dans Windows Update.";
+    public string Status { get; init; } = "À examiner dans Windows Update.";
 
     public string SettingsUri { get; init; } = "ms-settings:windowsupdate";
 
@@ -172,7 +172,13 @@ public sealed record DriverInformation
 
     public string Signer { get; init; } = string.Empty;
 
-    public string Status { get; init; } = "Inventorie";
+    private string _status = FrenchDisplayLabels.Inventoried;
+
+    public string Status
+    {
+        get => _status;
+        init => _status = FrenchDisplayLabels.NormalizeLegacy(value);
+    }
 }
 
 public sealed record DriverInventoryReport
@@ -182,7 +188,7 @@ public sealed record DriverInventoryReport
     public bool CanInstallDrivers { get; init; }
 
     public string InstallButtonVisibilityReason { get; init; } =
-        "Masque en V1 : aucune source fiable d'installation pilote n'est executee.";
+        "Masqué en V1 : aucune source fiable d'installation pilote n'est exécutée.";
 
     public IReadOnlyList<DriverInformation> Drivers { get; init; } = Array.Empty<DriverInformation>();
 
@@ -199,10 +205,16 @@ public sealed record UpdateScanReport
 
     public TimeSpan Duration { get; init; }
 
-    public string OverallStatus { get; init; } = "Non analyse";
+    private string _overallStatus = FrenchDisplayLabels.NotAnalyzed;
+
+    public string OverallStatus
+    {
+        get => _overallStatus;
+        init => _overallStatus = FrenchDisplayLabels.NormalizeLegacy(value);
+    }
 
     public WingetAvailability Winget { get; init; } =
-        WingetAvailability.Unavailable("WinGet non detecte.");
+        WingetAvailability.Unavailable("WinGet non détecté.");
 
     public IReadOnlyList<UpdateItem> Items { get; init; } = Array.Empty<UpdateItem>();
 
@@ -272,7 +284,13 @@ public sealed record UpdateScanSummary
 
     public int DriverCount { get; init; }
 
-    public string Status { get; init; } = "Non analyse";
+    private string _status = FrenchDisplayLabels.NotAnalyzed;
+
+    public string Status
+    {
+        get => _status;
+        init => _status = FrenchDisplayLabels.NormalizeLegacy(value);
+    }
 
     public IReadOnlyList<string> Recommendations { get; init; } = Array.Empty<string>();
 

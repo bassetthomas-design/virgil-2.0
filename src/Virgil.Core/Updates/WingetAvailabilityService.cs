@@ -68,11 +68,11 @@ public sealed class WingetAvailabilityService
 
             if (!string.IsNullOrWhiteSpace(result.LaunchError))
             {
-                errors.Add($"WinGet non executable : {result.LaunchError}");
+                errors.Add($"WinGet non exécutable : {result.LaunchError}");
             }
             else if (result.TimedOut)
             {
-                errors.Add("Detection WinGet interrompue par timeout.");
+                errors.Add("Détection WinGet interrompue par timeout.");
             }
         }
 

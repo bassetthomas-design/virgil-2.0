@@ -479,7 +479,7 @@ public partial class UpdatesViewModel : ObservableObject
             ? "Aucune commande exécutable préparée."
             : FormatCommand(item.CommandPreview);
         ValidationSafety =
-            "Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandee par Virgil.";
+            "Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandée par Virgil.";
         ExecuteLabel = item.RiskLevel == UpdateRiskLevel.Sensitive ? "JE CONFIRME" : "INSTALLER";
         SkipLabel = "PASSER";
         IsCancelSequenceVisible = true;

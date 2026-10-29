@@ -55,7 +55,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
         var errors = new List<string>();
         var samples = new List<ResourceSample>();
         var interval = TimeSpan.FromTicks(request.ObservationDuration.Ticks / request.SampleCount);
-        progress?.Report(new ResourceProgress("Initialisation", 0, "Observation ressources initialisee."));
+        progress?.Report(new ResourceProgress("Initialisation", 0, "Observation ressources initialisée."));
 
         var processTask = _processInspectionService.InspectAsync(
             request.ObservationDuration,
@@ -95,7 +95,7 @@ public sealed class ResourceMonitoringService : IResourceMonitoringService
             progress?.Report(new ResourceProgress(
                 "Observation CPU",
                 percent,
-                $"Echantillon CPU {index + 1}/{request.SampleCount}."));
+                $"Échantillon CPU {index + 1}/{request.SampleCount}."));
         }
 
         ProcessInspectionResult inspection;

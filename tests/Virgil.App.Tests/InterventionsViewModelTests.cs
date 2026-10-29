@@ -52,9 +52,9 @@ public sealed class InterventionsViewModelTests
     }
 
     [Theory]
-    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.FlushDns, InterventionRiskLevel.Low, "EXÉCUTER")]
     [InlineData(InterventionId.ResetWinsock, InterventionRiskLevel.Sensitive, "JE CONFIRME")]
-    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXECUTER")]
+    [InlineData(InterventionId.RestartExplorer, InterventionRiskLevel.Low, "EXÉCUTER")]
     public async Task ExistingOverlayIssuesPlanThenRealServiceReachesExactlyOneAdapter(
         InterventionId id, InterventionRiskLevel risk, string label)
     {
@@ -110,7 +110,7 @@ public sealed class InterventionsViewModelTests
         Assert.Empty(vm.ValidationDetails);
         Assert.Empty(vm.ValidationCommand);
         Assert.Empty(vm.ValidationSafety);
-        Assert.Equal("EXECUTER", vm.ExecuteActionLabel);
+        Assert.Equal("EXÉCUTER", vm.ExecuteActionLabel);
         Assert.False(vm.IsReportOpen);
         Assert.Empty(vm.ReportText);
         Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
@@ -287,7 +287,7 @@ public sealed class InterventionsViewModelTests
         Assert.Empty(f.Actions.Executed);
         var sensitive = risk == InterventionRiskLevel.Sensitive;
         Assert.Equal(sensitive ? "ACTION SENSIBLE" : "VALIDATION REQUISE", f.Vm.ValidationTitle);
-        Assert.Equal(sensitive ? "JE CONFIRME" : "EXECUTER", f.Vm.ExecuteActionLabel);
+        Assert.Equal(sensitive ? "JE CONFIRME" : "EXÉCUTER", f.Vm.ExecuteActionLabel);
         Assert.Equal(sensitive ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.Vm.ValidationCoreState);
         Assert.Equal((f.Vm.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Equal("outil.exe C: \"deux mots\" /scan", f.Vm.ValidationCommand);
@@ -503,7 +503,7 @@ public sealed class InterventionsViewModelTests
     [InlineData(InterventionStatus.RebootRequired, "Intervention terminée.\nRedémarrage manuel probablement requis.", "Parcours terminé.", VirgilCoreState.Success)]
     [InlineData(InterventionStatus.PartialFailure, "Intervention partielle.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
     [InlineData(InterventionStatus.Failed, "Intervention en échec.\nRapport disponible.", "Parcours terminé avec erreurs.", VirgilCoreState.Warning)]
-    [InlineData(InterventionStatus.Unavailable, "Intervention traitee.\nRapport disponible.", "Parcours terminé.", VirgilCoreState.Success)]
+    [InlineData(InterventionStatus.Unavailable, "Intervention traitée.\nRapport disponible.", "Parcours terminé.", VirgilCoreState.Success)]
     public async Task ExecutionResultKeepsMessagesAndSessionState(InterventionStatus status, string message, string session, VirgilCoreState state)
     {
         var f = new Fixture();
@@ -534,7 +534,7 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(d.Definition.Title, item.Title);
         Assert.True(item.IsAvailable);
         Assert.False(item.IsSelected);
-        Assert.Equal(new[] { "Description", "Risque : modere", "Admin : oui", "Redémarrage possible : oui", "Durée : 2 min", "Statut : recommandé", "Diagnostic : État avant" }, item.Lines.Take(7));
+        Assert.Equal(new[] { "Description", "Risque : modéré", "Admin : oui", "Redémarrage possible : oui", "Durée : 2 min", "Statut : recommandé", "Diagnostic : État avant" }, item.Lines.Take(7));
         Assert.Equal(errors ? 8 : 7, item.Lines.Count);
         if (errors) Assert.Equal("Erreur : un | deux", item.Lines[7]);
         item.IsSelected = true;

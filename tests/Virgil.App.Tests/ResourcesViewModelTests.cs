@@ -24,7 +24,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("NON ANALYSÉ", vm.SessionSummaryText);
         Assert.Equal("Lancez une analyse. Aucune action ne sera exécutée.", vm.RecommendationsText);
         Assert.Equal("Lancez une analyse pour identifier les principaux consommateurs CPU et RAM.", vm.ProcessSummaryText);
-        Assert.Equal("Analyse requise. Les processus système critiques, sécurité, VPN et materiel resteront protégés.", vm.ProcessesNotice);
+        Assert.Equal("Analyse requise. Les processus système critiques, sécurité, VPN et matériel resteront protégés.", vm.ProcessesNotice);
         Assert.Empty(vm.Items);
         Assert.True(vm.IsIdle);
         Assert.False(vm.IsBusy);
@@ -34,7 +34,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal("VALIDATION REQUISE", vm.ValidationTitle);
         Assert.Empty(vm.ValidationDetails);
         Assert.Empty(vm.ValidationSafety);
-        Assert.Equal("EXECUTER", vm.ExecuteActionLabel);
+        Assert.Equal("EXÉCUTER", vm.ExecuteActionLabel);
         Assert.Empty(vm.ReportText);
         Assert.Equal(VirgilCoreState.Idle, vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Idle, vm.ValidationCoreState);
@@ -66,7 +66,7 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(1, f.Monitor.Calls);
         Assert.Equal($"Analyse terminée en {2.5:0.0} s.", f.ViewModel.StatusText);
         Assert.Equal($"Moyenne {12.5:0.0} % - maximum {25.0:0.0} % - STABLE", f.ViewModel.CpuSummaryText);
-        Assert.Equal($"{50.0:0.0} % utilisée - A SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
+        Assert.Equal($"{50.0:0.0} % utilisée - À SURVEILLER - 2 Go / 4 Go", f.ViewModel.MemorySummaryText);
         Assert.Equal("Session 8 j 3 h - 42 processus - redémarrage manuel conseillé", f.ViewModel.SessionSummaryText);
         Assert.Equal("- Examiner la RAM", f.ViewModel.RecommendationsText);
         Assert.Equal("1 processus lourds détectés. Aucune fermeture automatique.", f.ViewModel.ProcessSummaryText);
@@ -114,8 +114,8 @@ public sealed class ResourcesViewModelTests
         f.Monitor.Report = new();
         await f.Analyze();
         Assert.Empty(f.ViewModel.Items);
-        Assert.Equal("Aucun processus accessible a afficher.", f.ViewModel.ProcessesNotice);
-        Assert.Equal("Aucun processus lourd selon les seuils V1. Principaux consommateurs affiches pour information.", f.ViewModel.ProcessSummaryText);
+        Assert.Equal("Aucun processus accessible à afficher.", f.ViewModel.ProcessesNotice);
+        Assert.Equal("Aucun processus lourd selon les seuils V1. Principaux consommateurs affichés pour information.", f.ViewModel.ProcessSummaryText);
         Assert.Equal("Ressources stables. Aucune action automatique.", f.ViewModel.RecommendationsText);
         Assert.Equal("Lecture RAM indisponible.", f.ViewModel.MemorySummaryText);
     }
@@ -149,13 +149,13 @@ public sealed class ResourcesViewModelTests
         var reinforced = action == ProcessActionKind.KillProcess;
         Assert.True(f.ViewModel.IsValidationOpen);
         Assert.False(pending.IsCompleted);
-        Assert.Equal(reinforced ? "CONFIRMATION RENFORCEE" : "VALIDATION REQUISE", f.ViewModel.ValidationTitle);
-        Assert.Equal(reinforced ? "JE CONFIRME" : "EXECUTER", f.ViewModel.ExecuteActionLabel);
+        Assert.Equal(reinforced ? "CONFIRMATION RENFORCÉE" : "VALIDATION REQUISE", f.ViewModel.ValidationTitle);
+        Assert.Equal(reinforced ? "JE CONFIRME" : "EXÉCUTER", f.ViewModel.ExecuteActionLabel);
         Assert.Equal(reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.ViewModel.ValidationCoreState);
         Assert.Equal((f.ViewModel.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Contains(action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)", f.ViewModel.ValidationDetails);
-        Assert.Contains(reinforced ? "perte de données" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermees" : "demande de fermeture", f.ViewModel.ValidationDetails);
-        Assert.Contains(reinforced ? "Confirmation renforcee obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
+        Assert.Contains(reinforced ? "perte de données" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermées" : "demande de fermeture", f.ViewModel.ValidationDetails);
+        Assert.Contains(reinforced ? "Confirmation renforcée obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
         Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
@@ -207,7 +207,7 @@ public sealed class ResourcesViewModelTests
         Assert.True(f.ViewModel.IsReportButtonEnabled);
         Assert.Single(f.ViewModel.Items);
         var skipped = Assert.Single(f.History.Saved!.SkippedActions);
-        var label = action switch { ProcessActionKind.CloseMainWindow => "Fermeture propre", ProcessActionKind.KillProcess => "Fermeture forcee", _ => "Relance Explorer" };
+        var label = action switch { ProcessActionKind.CloseMainWindow => "Fermeture propre", ProcessActionKind.KillProcess => "Fermeture forcée", _ => "Relance Explorer" };
         Assert.Equal(label + " - " + (action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)"), skipped.Name);
         Assert.Equal(ReportActionStatus.Skipped, skipped.Status);
         Assert.Empty(f.History.Saved.ExecutedActions);
@@ -413,7 +413,7 @@ public sealed class ResourcesViewModelTests
         var item = Assert.Single(f.ViewModel.Items);
         Assert.Equal("Bloc-notes (PID 7) - LOURD", item.Header);
         Assert.Equal($"RAM {ScanRules.FormatBytes(f.Process.WorkingSetBytes)} - CPU {1.5:0.0} %", item.UsageLine);
-        Assert.Equal("Editeur : non disponible", item.PublisherLine);
+        Assert.Equal("Éditeur : non disponible", item.PublisherLine);
         Assert.Equal("Application utilisateur", item.UserMessage);
         Assert.Equal(canOpen, item.CanOpenLocation);
         Assert.True(item.CanCloseGracefully);

@@ -41,7 +41,7 @@ public sealed class CleanupPermissionRepairService
         var root = Path.GetPathRoot(fullPath);
         if (string.Equals(Trim(fullPath), Trim(root ?? string.Empty), StringComparison.OrdinalIgnoreCase))
         {
-            return Refuse(fullPath, "Une racine de lecteur ne peut jamais être reparee.");
+            return Refuse(fullPath, "Une racine de lecteur ne peut jamais être réparée.");
         }
 
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -68,13 +68,13 @@ public sealed class CleanupPermissionRepairService
 
         if (CleanupPathGuard.HasReparsePointAtPath(fullPath))
         {
-            return Refuse(fullPath, "Point de reanalyse refusé.");
+            return Refuse(fullPath, "Point de réanalyse refusé.");
         }
 
         return new CleanupPermissionRepairAssessment(
             fullPath,
             true,
-            $"Sous-dossier technique autorise : {zone.DisplayName}. Validation critique et helper élevé requis.");
+            $"Sous-dossier technique autorisé : {zone.DisplayName}. Validation critique et helper élevé requis.");
     }
 
     private static CleanupPermissionRepairAssessment Refuse(string path, string reason) => new(path, false, reason);

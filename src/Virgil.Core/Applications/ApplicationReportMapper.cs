@@ -14,7 +14,7 @@ public static class ApplicationReportMapper
             .AppendLine($"Protégées : {report.ProtectedCount}")
             .AppendLine($"Inconnues : {report.UnknownCount}")
             .AppendLine($"Attention : {report.CautionCount}")
-            .AppendLine("Aucune donnee personnelle supprimee automatiquement.")
+            .AppendLine("Aucune donnée personnelle supprimée automatiquement.")
             .AppendLine("Aucune désinstallation exécutée depuis l'inventaire.")
             .ToString();
         var technical = string.Join("\n", report.Applications.Take(80).Select(app =>
@@ -42,15 +42,15 @@ public static class ApplicationReportMapper
         var remnants = result.Remnants;
         var simple = new StringBuilder()
             .AppendLine($"Application : {result.Application.DisplayName}")
-            .AppendLine($"Methode : {result.Method}")
+            .AppendLine($"Méthode : {result.Method}")
             .AppendLine($"Résultat : {result.Result}")
             .AppendLine($"Confirmation explicite : {(result.WasExplicitlyConfirmed ? "oui" : "non")}")
-            .AppendLine($"Confirmation renforcee : {(result.WasReinforcedConfirmed ? "oui" : "non")}")
+            .AppendLine($"Confirmation renforcée : {(result.WasReinforcedConfirmed ? "oui" : "non")}")
             .AppendLine($"Code sortie : {(result.ExitCode.HasValue ? result.ExitCode.Value.ToString() : "N/A")}")
             .AppendLine($"Restes détectés : {remnants.Remnants.Count}")
             .AppendLine($"Restes techniques : {remnants.TechnicalCount}")
             .AppendLine($"Restes personnels protégés : {remnants.UserDataCount + remnants.ProtectedCount}")
-            .AppendLine("Aucune donnee personnelle supprimee automatiquement.")
+            .AppendLine("Aucune donnée personnelle supprimée automatiquement.")
             .ToString();
 
         return new ReportEntry

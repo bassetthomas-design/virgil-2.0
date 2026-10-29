@@ -102,12 +102,12 @@ public sealed class MaintenanceContractTests
     [InlineData("expire", false, "expir")]
     [InlineData("utilise", false, "utilis")]
     [InlineData("hash", false, "aperçu")]
-    [InlineData("apercuExpire", false, "Prévisualisation expiree")]
+    [InlineData("apercuExpire", false, "Prévisualisation expirée")]
     [InlineData("absent", true, "Plan de confirmation absent")]
     [InlineData("expire", true, "expir")]
     [InlineData("utilise", true, "utilis")]
     [InlineData("hash", true, "aperçu")]
-    [InlineData("apercuExpire", true, "Prévisualisation expiree")]
+    [InlineData("apercuExpire", true, "Prévisualisation expirée")]
     public async Task RefusedPlansReturnFrenchReasonBeforeAnyDiskOrRecycleCall(string reason, bool recycle, string message)
     {
         var clock = new Clock();

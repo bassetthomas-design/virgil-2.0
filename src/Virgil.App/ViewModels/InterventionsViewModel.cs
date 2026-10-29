@@ -86,7 +86,7 @@ public partial class InterventionsViewModel : ObservableObject
     [ObservableProperty] private string validationDetails = string.Empty;
     [ObservableProperty] private string validationCommand = string.Empty;
     [ObservableProperty] private string validationSafety = string.Empty;
-    [ObservableProperty] private string executeActionLabel = "EXECUTER";
+    [ObservableProperty] private string executeActionLabel = "EXÉCUTER";
     [ObservableProperty] private bool isReportOpen;
     [ObservableProperty] private string reportText = string.Empty;
     [ObservableProperty] private VirgilCoreState miniCoreState = VirgilCoreState.Idle;
@@ -290,7 +290,7 @@ public partial class InterventionsViewModel : ObservableObject
             return;
         }
 
-        if (!BeginOperation("Parcours guide en attente de validation."))
+        if (!BeginOperation("Parcours guidé en attente de validation."))
         {
             return;
         }
@@ -376,7 +376,7 @@ public partial class InterventionsViewModel : ObservableObject
         }
         catch
         {
-            errors.Add("Erreur pendant le parcours guide.");
+            errors.Add("Erreur pendant le parcours guidé.");
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
         }
         finally
@@ -486,7 +486,7 @@ public partial class InterventionsViewModel : ObservableObject
             }));
         ExecuteActionLabel = definition.RiskLevel == InterventionRiskLevel.Sensitive
             ? "JE CONFIRME"
-            : "EXECUTER";
+            : "EXÉCUTER";
         IsValidationOpen = true;
         ValidationCoreState = definition.RiskLevel == InterventionRiskLevel.Sensitive
             ? VirgilCoreState.SensitiveAction
@@ -635,7 +635,7 @@ public partial class InterventionsViewModel : ObservableObject
             InterventionStatus.RebootRequired => "Intervention terminée.\nRedémarrage manuel probablement requis.",
             InterventionStatus.PartialFailure => "Intervention partielle.\nRapport disponible.",
             InterventionStatus.Failed => "Intervention en échec.\nRapport disponible.",
-            _ => "Intervention traitee.\nRapport disponible."
+            _ => "Intervention traitée.\nRapport disponible."
         };
     }
 
@@ -669,7 +669,7 @@ public partial class InterventionsViewModel : ObservableObject
         return risk switch
         {
             InterventionRiskLevel.Low => "faible",
-            InterventionRiskLevel.Moderate => "modere",
+            InterventionRiskLevel.Moderate => FrenchDisplayLabels.Moderate,
             _ => "sensible"
         };
     }

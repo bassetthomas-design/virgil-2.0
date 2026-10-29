@@ -175,7 +175,7 @@ public sealed class InterventionCleanupConfirmedPlanTests
         var result = await new CleanupExecutionService(new CleanupDisk(), gate, () => now, effects, quarantine: new TestQuarantineStore()).ExecuteZoneAsync(preview, null, null,
             new CancellationToken(scenario == "cancelled"));
         Assert.Equal(scenario == "information" ? CleanupStepStatus.Skipped : scenario == "cancelled" ? CleanupStepStatus.Cancelled : CleanupStepStatus.Expired, result.Status);
-        if (scenario.Contains("expired", StringComparison.Ordinal)) Assert.Equal("Prévisualisation expiree. Relancer l'analyse.", Assert.Single(result.Errors));
+        if (scenario.Contains("expired", StringComparison.Ordinal)) Assert.Equal("Prévisualisation expirée. Relancer l'analyse.", Assert.Single(result.Errors));
         Assert.Equal(0, gate.Calls); Assert.Equal(0, effects.Calls); Assert.True(File.Exists(files.Path));
     }
 

@@ -84,7 +84,7 @@ public partial class App : System.Windows.Application
             {
                 try
                 {
-                    MessageBox.Show("Virgil n'a pas pu demarrer.\nDétails enregistres dans les journaux : "
+                    MessageBox.Show("Virgil n'a pas pu démarrer.\nDétails enregistrés dans les journaux : "
                         + (paths?.LogsDirectory ?? "%LOCALAPPDATA%\\Virgil\\logs"), "Virgil", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 finally { Shutdown(1); }
@@ -96,7 +96,7 @@ public partial class App : System.Windows.Application
     {
         var window = MainWindow;
         if (window is null || _mainWindowClosed) return;
-        Log.Information("Activation demandee par une seconde instance");
+        Log.Information("Activation demandée par une seconde instance");
         if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
         window.Show();
         window.Activate();
@@ -134,7 +134,7 @@ public partial class App : System.Windows.Application
     {
         try
         {
-            Log.Information("Arret de Virgil");
+            Log.Information("Arrêt de Virgil");
             _host?.StopAsync().GetAwaiter().GetResult();
         }
         finally
