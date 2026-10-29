@@ -68,7 +68,7 @@ public sealed class WingetAvailabilityService
 
             if (!string.IsNullOrWhiteSpace(result.LaunchError))
             {
-                errors.Add($"WinGet non executable : {result.LaunchError}");
+                errors.Add($"WinGet non exécutable : {result.LaunchError}");
             }
             else if (result.TimedOut)
             {

@@ -95,13 +95,13 @@ public sealed partial class ApplicationUninstallCommandValidator
 
         if (!Path.IsPathRooted(executable) && !File.Exists(executable))
         {
-            return Blocked("Executable relatif ou introuvable.");
+            return Blocked("Exécutable relatif ou introuvable.");
         }
 
         var fileName = Path.GetFileName(executable);
         if (!LooksLikeOfficialUninstaller(fileName))
         {
-            return Blocked("Executable non reconnu comme désinstalleur officiel.");
+            return Blocked("Exécutable non reconnu comme désinstalleur officiel.");
         }
 
         return new ApplicationCommandValidationResult

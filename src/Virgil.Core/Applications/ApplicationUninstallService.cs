@@ -103,8 +103,8 @@ public sealed class ApplicationUninstallService
                 Method = application.UninstallKind,
                 WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-                Result = "Executable officiel absent après validation.",
-                Errors = ["Executable officiel absent après validation."]
+                Result = "Exécutable officiel absent après validation.",
+                Errors = ["Exécutable officiel absent après validation."]
             };
         }
 

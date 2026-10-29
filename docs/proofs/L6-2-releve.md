@@ -100,3 +100,115 @@ Le contrôle du squelette C# (contenus de chaînes retirés) avant/après est id
 ## Limites connues
 
 Ce relevé couvre les littéraux du commit indiqué, pas les textes produits par Windows ou un logiciel tiers. Les homographes et les participes masculins demandent une analyse de la phrase : la liste blanche générale n’offre pas une vérification grammaticale exhaustive. Les assertions nominatives verrouillent les usages corrigés connus. Une liste de fréquences finie ne prouve pas à elle seule l’absence de toute faute future ; le dictionnaire, l’auto-alimentation et la revue contextuelle se complètent. Les résultats Windows et les 14 PNG régénérés sont cités dans la description de PR.
+
+## Correctif b — revue grammaticale de la liste blanche sur `f019e6c`
+
+Le contrôle reprend **les 62 mots** de la liste blanche de cette tête, dans tous les segments de littéraux C# et labels XAML des cinq assemblages. Recherche insensible à la casse, mots entiers, puis examen du contexte gauche : après `non`, `été`, `est`, `n'a`/`n’a`, `avez` (jusqu’à deux mots intermédiaires), ou après un mot se terminant par `s`/`x`, afin de repérer les emplois après un nom pluriel. Ce dernier critère est volontairement large : il sélectionne aussi « après », « sans » ou « Windows » ; la décision finale repose sur la phrase, pas sur cette seule terminaison. Les noms propres, clés, chemins et groupes regex sont vérifiés séparément.
+
+**681 occurrences**, **36 mots présents**, **26 absents**, **20 candidats grammaticaux** après exclusion des mots-outils a/ou/la/des/du/sur/mais dans cette sélection prioritaire. Les occurrences des mots-outils sont néanmoins incluses dans le relevé et la revue générale. Les autres occurrences des mots ambigus ont été relues pour ne pas dépendre uniquement des deux motifs heuristiques.
+
+### Résultats
+
+- « Disques analyses : » est un participe qualifiant le nom pluriel : correction en « Disques analysés : », assertion nominative dans `Contextual_masculine_participles_remain_accented`.
+- « Windows Update non confirme localement. » est un participe après `non` : correction en « non confirmé », assertion nominative.
+- Les **cinq occurrences affichées** de Executable/executable (deux erreurs du validateur, le résultat et l’erreur d’absence dans ApplicationUninstallService, et le message WinGet) deviennent Exécutable/exécutable. Elles ont quatre assertions nominatives distinctes, plus une assertion de multiplicité exigeant les deux occurrences du service.
+- Aucun autre emploi fautif découvert. Exemples conservés : « interfaces actives » et « applications actives » (adjectifs féminins), « disque système est valide » (adjectif), « Processus cible » (nom), « Inventaire pilotes retourne » (verbe), « Tous les comptes » (nom pluriel), « Session ressources sans analyse » (nom), « Analyses : » dans ResourceReportBuilder (nom désignant les analyses).
+- `executable` sort de la liste blanche : le dictionnaire contient désormais `executable=exécutable` et `executables=exécutables`. Les deux paramètres `['Executable']` (ApplicationActionPreviewFactory et UpdateActionPreviewFactory) et le groupe de regex `Groups['executable']` restent strictement inchangés, avec trois exemptions nominatives exactes et trois tests exigeant leur présence inchangée. Le groupe nommé dans GeneratedRegex reste lui aussi inchangé et relève de la règle des jetons techniques.
+- La recherche croisée de « Disques analyses » dans le dépôt ne trouve que le producteur ReportMapper (et les assertions ajoutées). Le chargement JSON de ReportHistoryService conserve SimpleView comme texte, ReportExportService le rend sans parser ce préfixe. Il n’existe aucune comparaison, StartsWith, découpe ou clé basée sur cet en-tête : les anciens rapports continuent donc à se lire sans migration ni modification de leurs données. La même vérification ne trouve aucun consommateur comparant « Windows Update non confirme localement. » ni les messages Exécutable corrigés.
+- Aucun accès réel au registre n’est ajouté dans les tests : le libellé de WindowsUpdateStatusService est vérifié dans la source, sans appeler ReadStatus. Aucun changement de `.github`, de logique L6-1/L6+, de binding, de nom de membre, de clé JSON ou de paramètre.
+
+### Candidats grammaticaux examinés (références de `f019e6c`)
+
+| Fichier:ligne | Mot | Contexte | Décision |
+| --- | --- | --- | --- |
+| `Virgil.App/ViewModels/CleanupViewModel.cs:587` | sauvegardes | PROTÉGÉ Photos, vidéos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne son | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.App/ViewModels/ReportsHistoryViewModel.cs:133` | limite |  rapport(s) local(aux), limite  | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.App/ViewModels/StartupViewModel.cs:95` | comptes | Tous les comptes | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.App/ViewModels/StartupViewModel.cs:127` | sauvegardes | ation n’a pas abouti. Actualisez pour vérifier l’état ; les sauvegardes sont conservées. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.App/ViewModels/UpdatesViewModel.cs:566` | analyse | Inventaire disponible après analyse approfondie ou examen manuel. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Applications/ApplicationActionPreviewFactory.cs:26` | restes | Analyse lecture seule des restes. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Applications/ApplicationUninstallService.cs:133` | restes | Analyse lecture seule des restes. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Interventions/InterventionCatalog.cs:43` | actives | Libère puis renouvelle les baux DHCP des interfaces actives compatibles. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Interventions/InterventionCatalog.cs:140` | valide | nible si chkdsk.exe est présent et si le disque système est valide. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Reports/ReportMapper.cs:17` | analyses | Disques analyses :  | corriger : participe passé |
+| `Virgil.Core/Reports/ReportMapper.cs:300` | analyse | Session ressources sans analyse. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Resources/ProcessActionService.cs:64` | cible | Processus cible absent. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Resources/ResourceRecommendationService.cs:101` | active | Session Windows active depuis plusieurs jours : surveiller la stabilité. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Scanning/SystemScanService.cs:375` | actives | antanée : si elle reste élevée, identifier les applications actives les plus consommatrices. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Updates/DriverInformationService.cs:37` | retourne | Inventaire pilotes retourne un statut non nul. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Core/Updates/WindowsUpdateStatusService.cs:47` | confirme | Windows Update non confirme localement. | corriger : participe passé |
+| `Virgil.Core/Updates/WingetAvailabilityService.cs:71` | executable | WinGet non executable :  | corriger : adjectif français exécutable |
+| `Virgil.Infrastructure/Windows/Startup/WindowsStartupInventorySource.cs:30` | comptes | Tous les comptes | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Infrastructure/Windows/Startup/WindowsStartupInventorySource.cs:33` | comptes | tous les comptes. | conserver : nom, adjectif valide ou verbe dans ce contexte |
+| `Virgil.Infrastructure/Windows/Startup/WindowsStartupInventorySource.cs:53` | comptes | Tous les comptes · Registre Run ( | conserver : nom, adjectif valide ou verbe dans ce contexte |
+
+### Couverture des 62 entrées de la liste blanche initiale
+
+Le compteur inclut les références techniques lorsqu’elles sont des littéraux simples ; il ne les assimile pas à des libellés affichés. Les entrées absentes ne sont pas supprimées automatiquement, car elles documentent des ambiguïtés admises pour les futurs libellés. `executable` fait exception pour la raison indiquée ci-dessus.
+
+| Mot | Occurrences | Décision de la revue |
+| --- | ---: | --- |
+| a | 30 | usages valides ou techniques conservés après revue |
+| active | 22 | usages valides ou techniques conservés après revue |
+| actives | 2 | usages valides ou techniques conservés après revue |
+| analyse | 85 | usages valides ou techniques conservés après revue |
+| analyses | 2 | Disques analysés à corriger ; Analyses (nom) conservé |
+| annule | 0 | absent des segments contrôlés |
+| applique | 0 | absent des segments contrôlés |
+| autorise | 0 | absent des segments contrôlés |
+| bloque | 1 | usages valides ou techniques conservés après revue |
+| cible | 4 | usages valides ou techniques conservés après revue |
+| cibles | 0 | absent des segments contrôlés |
+| classe | 2 | usages valides ou techniques conservés après revue |
+| classes | 0 | absent des segments contrôlés |
+| complete | 0 | absent des segments contrôlés |
+| comptes | 4 | usages valides ou techniques conservés après revue |
+| concerne | 1 | usages valides ou techniques conservés après revue |
+| confirme | 7 | non confirmé à corriger ; 6 formes verbales conservées |
+| conserve | 0 | absent des segments contrôlés |
+| demande | 7 | usages valides ou techniques conservés après revue |
+| des | 87 | usages valides ou techniques conservés après revue |
+| du | 100 | usages valides ou techniques conservés après revue |
+| envisage | 0 | absent des segments contrôlés |
+| estime | 0 | absent des segments contrôlés |
+| executable | 8 | 5 messages à corriger ; 3 identifiants techniques conservés ; retrait de la liste blanche |
+| exporte | 0 | absent des segments contrôlés |
+| ferme | 0 | absent des segments contrôlés |
+| force | 4 | usages valides ou techniques conservés après revue |
+| forces | 0 | absent des segments contrôlés |
+| identifies | 0 | absent des segments contrôlés |
+| ignore | 0 | absent des segments contrôlés |
+| initialise | 0 | absent des segments contrôlés |
+| installe | 0 | absent des segments contrôlés |
+| invente | 0 | absent des segments contrôlés |
+| isole | 0 | absent des segments contrôlés |
+| la | 112 | usages valides ou techniques conservés après revue |
+| lance | 1 | usages valides ou techniques conservés après revue |
+| limite | 2 | usages valides ou techniques conservés après revue |
+| mais | 1 | usages valides ou techniques conservés après revue |
+| marque | 0 | absent des segments contrôlés |
+| masque | 3 | usages valides ou techniques conservés après revue |
+| masques | 0 | absent des segments contrôlés |
+| mesure | 10 | usages valides ou techniques conservés après revue |
+| modifie | 2 | usages valides ou techniques conservés après revue |
+| ou | 86 | usages valides ou techniques conservés après revue |
+| passe | 2 | usages valides ou techniques conservés après revue |
+| places | 0 | absent des segments contrôlés |
+| propose | 0 | absent des segments contrôlés |
+| publie | 1 | usages valides ou techniques conservés après revue |
+| refuse | 0 | absent des segments contrôlés |
+| reste | 25 | usages valides ou techniques conservés après revue |
+| restes | 13 | usages valides ou techniques conservés après revue |
+| retourne | 1 | usages valides ou techniques conservés après revue |
+| sauvegarde | 22 | usages valides ou techniques conservés après revue |
+| sauvegardes | 6 | usages valides ou techniques conservés après revue |
+| supprime | 4 | usages valides ou techniques conservés après revue |
+| sur | 12 | usages valides ou techniques conservés après revue |
+| termine | 1 | usages valides ou techniques conservés après revue |
+| tronque | 0 | absent des segments contrôlés |
+| trouve | 0 | absent des segments contrôlés |
+| utilise | 5 | usages valides ou techniques conservés après revue |
+| valide | 6 | usages valides ou techniques conservés après revue |
+| valides | 0 | absent des segments contrôlés |
+
+Limite : il s’agit d’une revue contextuelle des littéraux de cette tête, pas d’un analyseur grammatical universel. Les autres homographes restent admis dans la liste blanche et leurs usages connus corrigés demeurent protégés par les assertions nominatives. Les preuves rouge/verte, les totaux et les 14 PNG de la tête finale sont cités dans la PR #71.

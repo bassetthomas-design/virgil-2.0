@@ -34,7 +34,6 @@ retourne=Présent ou impératif du verbe retourner, distinct du participe retour
 publie=Présent ou impératif du verbe publier, distinct du participe publié.
 autorise=Présent ou impératif du verbe autoriser, distinct du participe autorisé.
 comptes=Nom pluriel (« les comptes ») ou verbe compter, distinct du participe comptés.
-executable=Terme technique anglais, distinct du français exécutable ; ambiguïté explicitement admise par le cadrage L6-2.
 reste=Nom (un reste) ou présent du verbe rester.
 restes=Nom pluriel (restes de logiciels).
 classe=Nom (classe de pilote) ou présent du verbe classer.

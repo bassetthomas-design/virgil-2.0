@@ -44,7 +44,7 @@ public sealed class WindowsUpdateStatusService
 
         var status = servicePresent
             ? "Windows Update accessible via les Paramètres Windows."
-            : "Windows Update non confirme localement.";
+            : "Windows Update non confirmé localement.";
 
         if (pendingReboot)
         {

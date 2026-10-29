@@ -53,6 +53,9 @@ public sealed class InterfaceAccentTests
           Check 'AudioEndpoint' ($endpoints.Count -gt 0) "$($endpoints.Count) point(s) de sortie audio disponible(s) ; sortie par défaut à vérifier dans Windows"
         } catch { 'VIRGIL|AudioEndpoint|UNKNOWN|Points de sortie audio indisponibles' }
         """, "Exact PowerShell Services command: $detail is a technical variable; displayed messages already accented. Any script change invalidates this exemption."),
+        ("Virgil.Core/Applications/ApplicationActionPreviewFactory.cs", "Executable", "Exact ConfirmedPlan parameter key, hashed and serialized; never a displayed word."),
+        ("Virgil.Core/Updates/UpdateActionPreviewFactory.cs", "Executable", "Exact ConfirmedPlan parameter key, hashed and serialized; never a displayed word."),
+        ("Virgil.Core/Applications/ApplicationUninstallCommandValidator.cs", "executable", "Exact named regex capture group, referenced by Groups; technical identifier."),
         ("Virgil.Core/Cleanup/CleanupSelectionAction.cs", "Selection:", "ConfirmedPlan parameter key; never a label, no renaming permitted."),
         ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "video", "Personal path keyword, deliberately accepts unaccented names."),
         ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "bebe", "Personal path keyword, deliberately accepts unaccented names."),
@@ -251,6 +254,14 @@ public sealed class InterfaceAccentTests
     [InlineData("Virgil.Core/Updates/WindowsUpdateStatusService.cs", "Windows Update non confirmé localement.")]
     public void Contextual_masculine_participles_remain_accented(string file, string expected) =>
         Assert.Contains(SourceLabels(), label => label.File == file && label.Text.Contains(expected, StringComparison.Ordinal));
+
+    [Theory]
+    [InlineData("Virgil.Core/Applications/ApplicationActionPreviewFactory.cs", "Executable")]
+    [InlineData("Virgil.Core/Updates/UpdateActionPreviewFactory.cs", "Executable")]
+    [InlineData("Virgil.Core/Applications/ApplicationUninstallCommandValidator.cs", "executable")]
+    public void Executable_parameter_keys_and_regex_group_remain_unchanged_and_exempt(string file, string key) =>
+        Assert.Contains(CSharpLabels(file, File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", file))),
+            label => label.Text == key && IsExempt(label));
 
     [Fact]
     public void Official_executable_absence_is_accented_in_both_result_and_errors() =>

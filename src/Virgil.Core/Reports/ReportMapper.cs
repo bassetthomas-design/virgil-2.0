@@ -14,7 +14,7 @@ public static class ReportMapper
             .AppendLine($"État général : {report.OverallStatus}")
             .AppendLine($"CPU : {report.Processor.UsagePercent:0.0} %")
             .AppendLine($"RAM : {report.Memory.UsedPercent:0.0} %")
-            .AppendLine($"Disques analyses : {report.Disks.Count}")
+            .AppendLine($"Disques analysés : {report.Disks.Count}")
             .AppendLine($"Nettoyage potentiel : {(report.Cleanup.WasAnalyzed ? ScanRules.FormatBytes(report.Cleanup.PotentialBytes) : "Non analysé")}")
             .AppendLine($"Nettoyage sûr : {ScanRules.FormatBytes(report.Cleanup.SafePotentialBytes)}")
             .AppendLine($"Nettoyage avancé : {ScanRules.FormatBytes(report.Cleanup.AdvancedPotentialBytes)}")
