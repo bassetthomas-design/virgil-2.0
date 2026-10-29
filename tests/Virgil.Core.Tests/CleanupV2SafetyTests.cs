@@ -283,7 +283,7 @@ public sealed class CleanupV2SafetyTests
         var report = new CleanupSessionReport(now, now, TimeSpan.Zero, Array.Empty<CleanupStepResult>(), Array.Empty<string>());
         var mapped = CleanupReportMapper.Map(report, 0);
 
-        Assert.Contains("Aucun fichier personnel supprime automatiquement", mapped.SimpleView);
+        Assert.Contains("Aucun fichier personnel supprimé automatiquement", mapped.SimpleView);
         Assert.False(report.PersonalFilesDeletedAutomatically);
     }
 

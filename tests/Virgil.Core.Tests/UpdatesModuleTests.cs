@@ -256,7 +256,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
 
         Assert.True(report.WasAnalyzed);
         Assert.False(report.CanInstallDrivers);
-        Assert.Contains("Masque en V1", report.InstallButtonVisibilityReason);
+        Assert.Contains("Masqué en V1", report.InstallButtonVisibilityReason);
     }
 
     [Fact]

@@ -60,7 +60,7 @@ public sealed class CleanupViewModelTests
         var f = new Fixture();
         var vm = f.Vm;
         Assert.Equal("Aucune analyse nettoyage lancée.", vm.StatusText);
-        Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires éligibles. Aucune suppression ne démarré depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
+        Assert.Equal("Lancez une analyse des zones pour afficher les fichiers temporaires éligibles. Aucune suppression ne démarre depuis le scan.", Assert.IsType<CleanupTextCardItem>(Assert.Single(vm.Entries)).Text);
         AssertIdle(vm);
         Assert.False(vm.IsLaunchCleanupEnabled);
         Assert.False(vm.IsAdvancedCleanupEnabled);
@@ -120,7 +120,7 @@ public sealed class CleanupViewModelTests
         Assert.Contains("Action : information seulement", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[5]).Lines);
         Assert.Equal(new[]
         {
-            "NETTOYAGE TECHNIQUE BLOQUE\nLes accès refusés sont signalés. Toute réparation exige un chemin technique allowliste, une confirmation critique et le helper élevé. Aucune commande libre takeown.",
+            "NETTOYAGE TECHNIQUE BLOQUÉ\nLes accès refusés sont signalés. Toute réparation exige un chemin technique autorisé, une confirmation critique et le helper élevé. Aucune commande libre takeown.",
             "À REVOIR MANUELLEMENT\nLes gros fichiers, dossiers, téléchargements, archives, ISO, vidéos, photos, projets et sauvegardes restent en lecture seule. Aucun bouton supprimer.",
             "PROTÉGÉ\nPhotos, vidéos, documents, projets, sauvegardes, jeux, applications, cloud, réseau, lecteurs externes et profils ambigus ne sont jamais nettoyés automatiquement."
         }, f.Vm.Entries.OfType<CleanupTextCardItem>().Select(c => c.Text));
