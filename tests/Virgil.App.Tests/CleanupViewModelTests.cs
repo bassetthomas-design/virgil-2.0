@@ -81,7 +81,7 @@ public sealed class CleanupViewModelTests
         vm.CancelActiveOperation();
         Assert.Empty(f.Actions.Order);
         vm.ReviewManualCommand.Execute(null);
-        Assert.Equal("Aucun élément personnel volumineux détecté dans les emplacements analyses.", f.Messages.Last());
+        Assert.Equal("Aucun élément personnel volumineux détecté dans les emplacements analysés.", f.Messages.Last());
         vm.ViewReportCommand.Execute(null);
         Assert.Equal("Aucun rapport nettoyage disponible.", f.Messages.Last());
         var home = 0;
@@ -374,7 +374,7 @@ public sealed class CleanupViewModelTests
         Assert.Contains("Zones avancées refusées : 0", saved.SimpleView);
         Assert.Contains("Espace estimé : 2 Ko", saved.SimpleView);
         Assert.Contains("Fichiers ignorés ou verrouillés : 3", saved.SimpleView);
-        Assert.Contains("Éléments a revoir : 0", saved.SimpleView);
+        Assert.Contains("Éléments à revoir : 0", saved.SimpleView);
         Assert.Contains("Éléments protégés : 0", saved.SimpleView);
         Assert.Contains("Points de réanalyse ignorés : 2", saved.TechnicalDetails);
         Assert.Contains("Chemins refusés : Chemin refusé A | Chemin refusé B", saved.TechnicalDetails);
@@ -483,9 +483,9 @@ public sealed class CleanupViewModelTests
             var pending = f.Run();
             f.Vm.SkipDecisionCommand.Execute(null);
             await pending;
-            Assert.Contains("Éléments a revoir : 22 (253 o)", f.History.Saved!.SimpleView);
+            Assert.Contains("Éléments à revoir : 22 (253 o)", f.History.Saved!.SimpleView);
             Assert.Contains("Éléments protégés : 1", f.History.Saved.SimpleView);
-            Assert.Contains("Éléments a revoir : 22 - 253 o", f.Vm.ReportText);
+            Assert.Contains("Éléments à revoir : 22 - 253 o", f.Vm.ReportText);
             Assert.False(f.Vm.Entries.OfType<CleanupReviewItemViewModel>().First().IsHidden);
             Assert.Equal(23, Directory.GetFiles(directory.FullName).Length);
         }
