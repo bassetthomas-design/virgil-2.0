@@ -181,7 +181,7 @@ public sealed class ApplicationsUninstallSafetyTests
         Assert.True(result.WasCancelled);
         Assert.False(result.WasLaunched);
         Assert.Equal(0, launcher.Calls);
-        Assert.Contains("renforcee", result.Result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("renforcée", result.Result, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

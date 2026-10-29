@@ -371,17 +371,17 @@ public sealed class CleanupViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         var saved = f.History.Saved!;
-        Assert.Contains("Zones avancees refusees : 0", saved.SimpleView);
+        Assert.Contains("Zones avancées refusées : 0", saved.SimpleView);
         Assert.Contains("Espace estimé : 2 Ko", saved.SimpleView);
-        Assert.Contains("Fichiers ignores ou verrouilles : 3", saved.SimpleView);
+        Assert.Contains("Fichiers ignorés ou verrouillés : 3", saved.SimpleView);
         Assert.Contains("Éléments a revoir : 0", saved.SimpleView);
         Assert.Contains("Éléments protégés : 0", saved.SimpleView);
-        Assert.Contains("Points de reanalyse ignores : 2", saved.TechnicalDetails);
-        Assert.Contains("Chemins refuses : Chemin refusé A | Chemin refusé B", saved.TechnicalDetails);
+        Assert.Contains("Points de réanalyse ignorés : 2", saved.TechnicalDetails);
+        Assert.Contains("Chemins refusés : Chemin refusé A | Chemin refusé B", saved.TechnicalDetails);
         Assert.Contains("Erreurs lisibles : Point de reanalyse ignoré | Chemin refusé A", Assert.IsType<CleanupZoneItemViewModel>(f.Vm.Entries[2]).Lines);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
         Assert.Equal(VirgilCoreState.Warning, f.Vm.ReportCoreState);
-        Assert.Contains("Fichiers verrouilles : 3", f.Vm.ReportText);
+        Assert.Contains("Fichiers verrouillés : 3", f.Vm.ReportText);
         Assert.Contains("  Erreur : Fichier verrouille", f.Vm.ReportText);
     }
 

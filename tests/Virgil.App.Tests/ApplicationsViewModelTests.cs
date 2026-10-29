@@ -137,7 +137,7 @@ public sealed class ApplicationsViewModelTests
         Assert.Equal("1 simples, 0 attention, 0 protégées, 0 inconnues.", f.Vm.RiskSummary);
         var card = Assert.Single(f.Cards);
         Assert.Equal(f.Inventory.Report.Applications[0].DisplayName, card.DisplayName);
-        Assert.Contains("Editeur :", card.Lines);
+        Assert.Contains("Éditeur :", card.Lines);
         Assert.True(f.Vm.IsReportButtonEnabled);
         Assert.Single(f.History.Reports);
         Assert.Equal(1, f.Persisted);
@@ -327,7 +327,7 @@ public sealed class ApplicationsViewModelTests
         await f.Launch();
         Assert.Equal(2, f.Dialog.Calls.Count);
         Assert.Equal("Confirmation renforcée applications", f.Dialog.Calls[1].Title);
-        Assert.Contains("profils, projets, presets, bibliotheques ou sauvegardes", f.Dialog.Calls[1].Message);
+        Assert.Contains("profils, projets, presets, bibliothèques ou sauvegardes", f.Dialog.Calls[1].Message);
         Assert.Equal(launches, f.Runner.Requests.Count);
         if (reinforced)
         {
@@ -338,13 +338,13 @@ public sealed class ApplicationsViewModelTests
             Assert.Equal(2, f.Persisted);
             f.Vm.ViewReportCommand.Execute(null);
             Assert.Contains("Confirmation explicite : oui", f.Vm.ReportDetails);
-            Assert.Contains("Confirmation renforcee : oui", f.Vm.ReportDetails);
+            Assert.Contains("Confirmation renforcée : oui", f.Vm.ReportDetails);
             Assert.Contains("Lancé : oui", f.Vm.ReportDetails);
         }
         else
         {
             Assert.Equal(0, f.Runner.Started);
-            Assert.Equal("Désinstallation annulée.\nConfirmation renforcee absente pour une application classee attention.", f.Messages.Last());
+            Assert.Equal("Désinstallation annulée.\nConfirmation renforcée absente pour une application classée attention.", f.Messages.Last());
         }
         Idle(f.Vm);
     }

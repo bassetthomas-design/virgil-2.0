@@ -154,8 +154,8 @@ public sealed class ResourcesViewModelTests
         Assert.Equal(reinforced ? VirgilCoreState.SensitiveAction : VirgilCoreState.Warning, f.ViewModel.ValidationCoreState);
         Assert.Equal((f.ViewModel.ValidationCoreState, "VALIDATION"), f.State);
         Assert.Contains(action == ProcessActionKind.RestartExplorer ? "Explorer Windows" : "Bloc-notes (PID 7)", f.ViewModel.ValidationDetails);
-        Assert.Contains(reinforced ? "perte de données" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermees" : "demande de fermeture", f.ViewModel.ValidationDetails);
-        Assert.Contains(reinforced ? "Confirmation renforcee obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
+        Assert.Contains(reinforced ? "perte de données" : action == ProcessActionKind.RestartExplorer ? "ne seront pas fermées" : "demande de fermeture", f.ViewModel.ValidationDetails);
+        Assert.Contains(reinforced ? "Confirmation renforcée obligatoire." : "Validation explicite obligatoire.", f.ViewModel.ValidationSafety);
         Assert.Equal(0, f.Confirmation.Calls);
         Assert.Empty(f.Actions.Calls);
         f.ViewModel.ExecuteDecisionCommand.Execute(null);
@@ -413,7 +413,7 @@ public sealed class ResourcesViewModelTests
         var item = Assert.Single(f.ViewModel.Items);
         Assert.Equal("Bloc-notes (PID 7) - LOURD", item.Header);
         Assert.Equal($"RAM {ScanRules.FormatBytes(f.Process.WorkingSetBytes)} - CPU {1.5:0.0} %", item.UsageLine);
-        Assert.Equal("Editeur : non disponible", item.PublisherLine);
+        Assert.Equal("Éditeur : non disponible", item.PublisherLine);
         Assert.Equal("Application utilisateur", item.UserMessage);
         Assert.Equal(canOpen, item.CanOpenLocation);
         Assert.True(item.CanCloseGracefully);

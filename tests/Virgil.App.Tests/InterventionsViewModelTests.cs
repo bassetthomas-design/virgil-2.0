@@ -534,7 +534,7 @@ public sealed class InterventionsViewModelTests
         Assert.Equal(d.Definition.Title, item.Title);
         Assert.True(item.IsAvailable);
         Assert.False(item.IsSelected);
-        Assert.Equal(new[] { "Description", "Risque : modere", "Admin : oui", "Redémarrage possible : oui", "Durée : 2 min", "Statut : recommandé", "Diagnostic : État avant" }, item.Lines.Take(7));
+        Assert.Equal(new[] { "Description", "Risque : modéré", "Admin : oui", "Redémarrage possible : oui", "Durée : 2 min", "Statut : recommandé", "Diagnostic : État avant" }, item.Lines.Take(7));
         Assert.Equal(errors ? 8 : 7, item.Lines.Count);
         if (errors) Assert.Equal("Erreur : un | deux", item.Lines[7]);
         item.IsSelected = true;
