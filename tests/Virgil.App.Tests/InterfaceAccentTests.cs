@@ -211,6 +211,15 @@ public sealed class InterfaceAccentTests
     [InlineData("Virgil.Core/Scanning/SystemScanService.cs", "Scan terminé.")]
     [InlineData("Virgil.App/ViewModels/InterventionsViewModel.cs", "Diagnostic annulé.")]
     [InlineData("Virgil.App/ViewModels/UpdatesViewModel.cs", "Rapport conservé en mémoire.")]
+    [InlineData("Virgil.App/Views/ResourcesView.xaml", "Aucun redémarrage forcé.")]
+    [InlineData("Virgil.App/ViewModels/ResourcesViewModel.cs", "Aucun redémarrage forcé.")]
+    [InlineData("Virgil.App/Views/ApplicationsView.xaml", "Aucun dossier d'application supprimé directement.")]
+    [InlineData("Virgil.App/ViewModels/ApplicationsViewModel.cs", "vous avez sauvegardé ce qui doit l'être.")]
+    [InlineData("Virgil.Core/Scanning/SystemScanService.cs", "Aucun processus n'a été modifié.")]
+    [InlineData("Virgil.Core/Applications/ApplicationRemnantClassifier.cs", "Reste AppData non classé : lecture seule et revue manuelle.")]
+    [InlineData("Virgil.Core/Cleanup/CleanupZoneCatalog.cs", "Aucun nettoyage n'est proposé.")]
+    [InlineData("Virgil.Core/Resources/ProcessProtectionPolicy.cs", "Processus installé dans Windows protégé.")]
+    [InlineData("Virgil.Core/Interventions/ExplorerRestarter.cs", "Relance Explorer annulée avant exécution complète.")]
     public void Contextual_masculine_participles_remain_accented(string file, string expected) =>
         Assert.Contains(SourceLabels(), label => label.File == file && label.Text.Contains(expected, StringComparison.Ordinal));
 
