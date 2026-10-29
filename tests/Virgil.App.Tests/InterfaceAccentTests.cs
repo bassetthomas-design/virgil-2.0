@@ -1,5 +1,10 @@
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
 using static Virgil.Tests.TestRepositoryRoot;
 
@@ -7,82 +12,157 @@ namespace Virgil.Tests;
 
 public sealed class InterfaceAccentTests
 {
-    private static readonly string[] Forbidden = ["MISES A JOUR", "A REVOIR MANUELLEMENT", "ETAT VIRGIL", "MEMOIRE",
-            "DISQUE SYSTEME", "PRIORITES", "NON ANALYSE", "Systeme pret", "securise",
-            "MARQUER A REVOIR", "RESSOURCES SYSTEME", "AGENT TACTIQUE SYSTEME", "LIBERER", "Mises a jour", "SYSTEME PRET", "ETAT GLOBAL", "SELECTION DU PROTOCOLE",
-            "ACTIONS RECOMMANDEES", "HELPER ELEVE", "COMMANDE AUTORISEE", "CONFIDENTIALITE",
-            "ACTIONS PROPOSEES", "ACTIONS EXECUTEES", "ACTIONS PASSEES", "DETAILS TECHNIQUES", "NON TOUCHE",
-            "Previsualisation terminee", "zones analysees", "potentiellement recuperables",
-            "elements personnels ou ambigus a revoir, aucune suppression proposee",
-            "Aucune action executee", "Reseau :", "Ressources systeme :", "ciblees", "Interventions ciblées pretes", "Memoire inactive :",
-            "Diagnostic interventions lance.", "Diagnostic annule.", "Intervention passee.",
-            "Analyse ressources lancee.", "Analyse ressources annulee.",
-            "Analyse annulee. Aucune action exécutée.", "Processus ignore."];
-    private static readonly string[] ForbiddenWords = [@"systeme", @"memoire", @"reseau", @"executees?", @"terminee", @"termine(?=[.!…]?(?:\s*""|\s*$))", @"proposees?", @"ciblees?", @"annulee?", @"effectuee", @"deja", @"initialise", @"detecte(?:e)?s?", @"desinstall\w*", @"redemarrage", @"parametres", @"previsualisation", @"donnees", @"etre", @"installees", @"utilises", @"recommandees", @"priorites?", @"etat", @"echec", @"operation", @"sequence", @"separee", @"conserve", @"genere", @"selectionnee", @"a verifier", @"mises? a jour"];
+    private sealed record Label(string File, int Line, string Text);
+    private static string AccentFile(string name) => Path.Combine(FindRepositoryRoot(), "tests", "Virgil.App.Tests", "Accents", name);
+    private static Dictionary<string, string> ReadPairs(string name) => File.ReadLines(AccentFile(name))
+        .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
+        .Select(line => line.Split('=', 2)).ToDictionary(parts => parts[0], parts => parts[1], StringComparer.OrdinalIgnoreCase);
+
+    // File + exact literal only. These are matching terms, not user-facing labels.
+    private static readonly (string File, string Text, string Reason)[] Exemptions =
+    [
+        ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "video", "Personal path keyword, deliberately accepts unaccented names."),
+        ("Virgil.Core/Cleanup/CleanupSafetyClassifier.cs", "bebe", "Personal path keyword, deliberately accepts unaccented names."),
+        ("Virgil.Core/Applications/ApplicationRemnantClassifier.cs", "videos", "Personal path keyword."),
+        ("Virgil.Core/Applications/ApplicationRemnantClassifier.cs", "bibliotheque", "Personal path keyword."),
+        ("Virgil.Core/Applications/ApplicationRiskClassifier.cs", "securite", "Protection matching keyword, never displayed."),
+        ("Virgil.Core/Applications/ApplicationRiskClassifier.cs", "premiere", "Adobe Premiere product matching keyword."),
+        ("Virgil.Core/Reports/ReportSanitizer.cs", "Telechargements", "Stable path replacement token in existing reports."),
+        ("Virgil.Core/Updates/UpdateSequenceService.cs", "updates.sequence", "ConfirmedPlan protocol key, also covered by technical token rule.")
+    ];
+
+    private static bool IsTechnicalToken(string text) => !text.Any(char.IsWhiteSpace) && text.IndexOfAny(['.', '-', '_', '\\', '/']) >= 0;
+    private static bool IsExempt(Label label) => IsTechnicalToken(label.Text) ||
+        Exemptions.Any(item => item.File == label.File && item.Text == label.Text);
+
+    private static IEnumerable<Label> CSharpLabels(string file, string code)
+    {
+        // Roslyn excludes comments, identifiers and interpolation expressions. ValueText decodes escapes.
+        var tree = CSharpSyntaxTree.ParseText(code);
+        foreach (var token in tree.GetRoot().DescendantTokens())
+            if (token.IsKind(SyntaxKind.StringLiteralToken) || token.IsKind(SyntaxKind.Utf8StringLiteralToken) ||
+                token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken) || token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken) ||
+                token.IsKind(SyntaxKind.Utf8SingleLineRawStringLiteralToken) || token.IsKind(SyntaxKind.Utf8MultiLineRawStringLiteralToken) ||
+                token.IsKind(SyntaxKind.InterpolatedStringTextToken))
+                yield return new(file, tree.GetLineSpan(token.Span).StartLinePosition.Line + 1, token.ValueText);
+    }
+
+    private static IEnumerable<Label> XmlLabels(string file, string code)
+    {
+        var document = XDocument.Parse(code, LoadOptions.SetLineInfo);
+        foreach (var element in document.Descendants())
+        {
+            var values = element.Attributes().Where(attribute => attribute.Name.NamespaceName.Length == 0 &&
+                attribute.Name.LocalName is "Text" or "Content" or "Header" or "ToolTip" or "Title" or "AutomationProperties.Name" or "AutomationProperties.HelpText")
+                .Select(attribute => (Value: attribute.Value, Node: (XObject)attribute))
+                .Concat(element.Nodes().OfType<XText>().Select(text => (Value: text.Value, Node: (XObject)text)));
+            foreach (var value in values)
+                if (!string.IsNullOrWhiteSpace(value.Value) && !value.Value.TrimStart().StartsWith('{'))
+                    yield return new(file, ((IXmlLineInfo)value.Node).LineNumber, value.Value);
+        }
+    }
+
+    private static Label[] SourceLabels()
+    {
+        var sourceRoot = Path.Combine(FindRepositoryRoot(), "src");
+        return Directory.EnumerateDirectories(sourceRoot, "Virgil.*")
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin"))
+            .Where(path => Path.GetExtension(path) is ".cs" or ".xaml" or ".resx")
+            .SelectMany(path =>
+            {
+                var file = Path.GetRelativePath(sourceRoot, path).Replace(Path.DirectorySeparatorChar, '/');
+                var code = File.ReadAllText(path);
+                return Path.GetExtension(path) == ".cs" ? CSharpLabels(file, code) : XmlLabels(file, code);
+            }).Where(label => !IsExempt(label)).ToArray();
+    }
+
+    private static string StripAccents(string word) => string.Concat(word.Normalize(NormalizationForm.FormD)
+        .Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)).Normalize(NormalizationForm.FormC);
+    private static IEnumerable<string> Words(string text) => Regex.Matches(text, @"[\p{L}\p{M}]+").Select(match => match.Value);
+
+    private static Dictionary<string, string> BuildDictionary(IEnumerable<string> corpus, Dictionary<string, string> dictionary, Dictionary<string, string> valid)
+    {
+        var result = new Dictionary<string, string>(dictionary, StringComparer.OrdinalIgnoreCase);
+        foreach (var word in corpus.SelectMany(Words))
+        {
+            var plain = StripAccents(word);
+            if (!plain.Equals(word, StringComparison.OrdinalIgnoreCase) && !valid.ContainsKey(plain))
+                result.TryAdd(plain, word);
+        }
+        return result;
+    }
+
+    private static IEnumerable<(string Wrong, string Correct)> Violations(string text, Dictionary<string, string> dictionary)
+    {
+        if (IsTechnicalToken(text)) yield break;
+        foreach (var word in Words(text))
+            // Unicode letters/marks are collected whole: no substring match inside défaut/detections.
+            if (dictionary.TryGetValue(word, out var correct)) yield return (word, correct);
+    }
 
     [Fact]
-    public void Interface_labels_preserve_french_accents_in_xaml_resources_and_code()
+    public void Interface_labels_preserve_french_accents_in_all_source_projects()
     {
-        var root = Path.Combine(FindRepositoryRoot(), "src");
-        var sources = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-            .Where(p => new[] { "Virgil.App", "Virgil.Core", "Virgil.ElevatedHelper" }.Contains(Path.GetRelativePath(root, p).Split(Path.DirectorySeparatorChar)[0]))
-            .Where(p => Path.GetExtension(p) is ".xaml" or ".resx" or ".cs")
-            .Where(p => !p.Split(Path.DirectorySeparatorChar).Any(part => part is "obj" or "bin"));
-        // Only literal strings and XAML text are UI candidates: C# identifiers and comments are not labels.
-        var failures = sources.SelectMany(path =>
-        {
-            var code = File.ReadAllText(path);
-            var literals = Path.GetExtension(path) == ".cs"
-                ? Regex.Matches(code, @"""(?:\\.|[^""\\])*""").Select(match => match.Value)
-                : XmlLabels(code);
-            // Exact protocol identifier bound into ConfirmedPlan hashes, never a displayed label.
-            if (Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/') == "Virgil.Core/Updates/UpdateSequenceService.cs")
-                literals = literals.Where(literal => literal != "\"updates.sequence\"");
-            return literals.SelectMany(literal => Violations(literal)
-                .Select(label => $"{Path.GetRelativePath(root, path)} : {label} : {literal}"));
-        }).ToArray();
+        var labels = SourceLabels();
+        var dictionary = BuildDictionary(labels.Select(label => label.Text), ReadPairs("MotsAccentues.txt"), ReadPairs("ValideSansAccent.txt"));
+        var failures = labels.SelectMany(label => Violations(label.Text, dictionary)
+            .Select(word => $"{label.File}:{label.Line} : « {word.Wrong} » → « {word.Correct} » : \"{label.Text}\"")).ToArray();
         Assert.True(failures.Length == 0, string.Join(Environment.NewLine, failures));
     }
-    private static IEnumerable<string> XmlLabels(string code) => XDocument.Parse(code).Descendants().SelectMany(element =>
-        // Binding expressions, x:Name and other technical XML attributes are identifiers, not labels.
-        element.Attributes().Where(attribute => attribute.Name.NamespaceName.Length == 0 &&
-                attribute.Name.LocalName is "Text" or "Content" or "Header" or "ToolTip" or "Title" or "AutomationProperties.Name" or "AutomationProperties.HelpText")
-            .Select(attribute => attribute.Value)
-            .Concat(element.Nodes().OfType<XText>().Select(text => text.Value)))
-        .Where(value => !string.IsNullOrWhiteSpace(value) && !value.StartsWith("{", StringComparison.Ordinal));
 
-    private static IEnumerable<string> Violations(string literal)
+    [Fact]
+    public void Dictionary_has_at_least_250_unambiguous_entries_and_no_whitelist_overlap()
     {
-        literal = literal.Replace(@"\n", " ").Replace(@"\r", " ").Replace(@"\t", " ");
-        return Forbidden.Where(label => literal.Contains(label, StringComparison.OrdinalIgnoreCase))
-            .Concat(ForbiddenWords.Where(word => Regex.IsMatch(literal, @"\b(?:" + word + @")\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)));
+        var dictionary = ReadPairs("MotsAccentues.txt");
+        var valid = ReadPairs("ValideSansAccent.txt");
+        Assert.True(dictionary.Count >= 250);
+        Assert.All(dictionary, pair => { Assert.NotEqual(pair.Key, pair.Value); Assert.Equal(pair.Key, StripAccents(pair.Value)); });
+        Assert.Empty(dictionary.Keys.Intersect(valid.Keys, StringComparer.OrdinalIgnoreCase));
+        Assert.All(valid.Values, reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
     }
+
+    // Known limits: a/à, ou/où and homographic verbs/masculine participles
+    // (annule, conserve, termine, initialise, etc.) require contextual review.
+    [Theory]
+    [InlineData("RAM elevee", true)]
+    [InlineData("RAM élevée", false)]
+    [InlineData("DETECTE", true)]
+    [InlineData("Detecte", true)]
+    [InlineData("Analyse terminée", false)]
+    [InlineData("Rapport genere", true)]
+    [InlineData("cleanup.selection", false)]
+    [InlineData("Ou se trouve", false)]
+    [InlineData("approfondi approfondie interrompu interrompue défaut", false)]
+    public void Dictionary_and_self_feeding_detect_words_with_unicode_boundaries(string text, bool rejected)
+    {
+        var dictionary = ReadPairs("MotsAccentues.txt");
+        dictionary.Remove("genere"); // Must be learned from the corpus, never from the fixed list.
+        var effective = BuildDictionary(["Rapport généré"], dictionary, ReadPairs("ValideSansAccent.txt"));
+        Assert.Equal(rejected, Violations(text, effective).Any());
+    }
+
+    [Theory]
+    [InlineData("\"RAM elevee\"")]
+    [InlineData("$\"RAM elevee {count}\"")]
+    [InlineData("@\"RAM elevee\"")]
+    [InlineData("\"\"\"RAM elevee\"\"\"")]
+    [InlineData("$\"\"\"RAM elevee {count}\"\"\"")]
+    public void CSharp_string_forms_are_scanned(string expression) =>
+        Assert.Contains(CSharpLabels("test.cs", "var text = " + expression + ";"), label => label.Text.Contains("RAM elevee", StringComparison.Ordinal));
 
     [Theory]
     [InlineData("<TextBlock>systeme</TextBlock>")]
     [InlineData("<Button AutomationProperties.Name=\"systeme\" />")]
     [InlineData("<data><value>systeme</value></data>")]
-    public void XmlTextAccessibilityAndResourceLabelsAreChecked(string xml) =>
-        Assert.Contains(XmlLabels(xml).SelectMany(Violations), label => label == "systeme");
-
-    // Verbatim messages verified with git show 4af1cce:<path> (App and Core).
-    [Theory]
-    [InlineData("Protocole d'analyse initialise.", "initialise")]
-    [InlineData("Analyse systeme en cours.", "systeme")]
-    [InlineData("Scan initialise.", "initialise")]
-    [InlineData("Non analyse", "non analyse")]
-    [InlineData("NON ANALYSE", "non analyse")]
-    public void Baseline4af1cceCommunicationAndCoreLabelsAreRejected(string literal, string word) =>
-        Assert.Contains(Violations(literal), label => string.Equals(label, word, StringComparison.OrdinalIgnoreCase));
+    public void Xml_labels_are_scanned(string xml) => Assert.Contains(XmlLabels("test.xaml", xml), label => label.Text == "systeme");
 
     [Theory]
-    [InlineData("Protocole d'analyse initialisé.", "initialise")]
-    [InlineData("Analyse système en cours.", "systeme")]
-    [InlineData("opération", "operation")]
-    [InlineData("operational", "operation")]
-    [InlineData("sequences", "sequence")]
-    public void AccentedWordsAndWordBoundariesArePreserved(string literal, string word) =>
-        Assert.DoesNotContain(Violations(literal), label => string.Equals(label, word, StringComparison.OrdinalIgnoreCase));
+    [InlineData("class Detecte { string Selection => nameof(Detecte); // systeme\n}")]
+    [InlineData("// RAM elevee")]
+    public void CSharp_identifiers_and_comments_are_not_labels(string code) => Assert.Empty(CSharpLabels("test.cs", code));
 
+    [Fact]
+    public void Xaml_references_are_not_labels() => Assert.Empty(XmlLabels("test.xaml",
+        "<Button xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" x:Name=\"Selection\" Content=\"{Binding Details}\" AutomationProperties.AutomationId=\"Detecte\" />"));
 }
-
