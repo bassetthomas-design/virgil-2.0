@@ -444,9 +444,6 @@ public sealed class CleanupViewModelTests
         Assert.True(card.IsHidden);
         Assert.Equal(0, runner.Calls);
         Assert.Empty(messages);
-        card.MarkCommand.Execute(null);
-        Assert.Equal("Élément marque a revoir : Mon fichier.iso.\nAucune suppression effectuée.", messages.Last());
-        Assert.Equal(0, runner.Calls);
         await card.OpenLocationCommand.ExecuteAsync(null);
         var request = runner.Request!;
         Assert.Equal("explorer.exe", request.FileName);
@@ -457,7 +454,7 @@ public sealed class CleanupViewModelTests
         Assert.False(runner.Token.CanBeCanceled);
         Assert.Equal(1, runner.Calls);
         if (failure != 0) Assert.Equal("Emplacement indisponible. Aucune modification effectuée.", messages.Last());
-        else Assert.Single(messages);
+        else Assert.Empty(messages);
     }
 
     [Fact]

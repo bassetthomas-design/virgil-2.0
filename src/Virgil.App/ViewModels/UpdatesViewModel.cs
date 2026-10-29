@@ -138,7 +138,7 @@ public partial class UpdatesViewModel : ObservableObject
     {
         if (IsSequencePreview)
         {
-            _confirmedSequenceSteps = SequenceChoices.Where(choice => choice.IsSelected).Select(choice => choice.Step).ToArray();
+            _confirmedSequenceSteps = SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
             if (_confirmedSequenceSteps.Count == 0)
             {
                 VirgilMessageRequested?.Invoke("Sélectionnez au moins un composant.");

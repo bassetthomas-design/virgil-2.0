@@ -136,8 +136,7 @@ public partial class MainWindow : Window
         // Signal UIA après le premier rendu et le drainage du dispatcher WPF.
         await Dispatcher.InvokeAsync(() => AutomationProperties.SetItemStatus(this, "Prêt"),
             DispatcherPriority.ApplicationIdle);
-        await _virgilRelease.StartAsync();
-        await RefreshPersistentReportStateAsync();
+        await StartupInitialization.StartAsync(RefreshPersistentReportStateAsync, _virgilRelease.StartAsync);
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -154,7 +153,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (DiagnosticModuleView.Visibility == Visibility.Visible && DiagnosticModuleView.TryCloseOverlay()) return;
+        if (DiagnosticModuleView.Visibility == Visibility.Visible && DiagnosticModuleView.TryCloseOverlay())
+        {
+            e.Handled = true;
+            return;
+        }
         if (CleanupModuleView.Visibility == Visibility.Visible && CleanupModuleView.TryCloseOverlay())
         {
             e.Handled = true;

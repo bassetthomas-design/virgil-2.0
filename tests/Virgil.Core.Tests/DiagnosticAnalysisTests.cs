@@ -70,7 +70,8 @@ public sealed class DiagnosticAnalysisTests
         var s = Healthy();
         s = s with { Cpu = s.Cpu with { TemperatureCelsius = DiagnosticValue<double>.Unavailable("Capteur absent") }, Gpu = [], Disks = [] };
         var result = DiagnosticAnalyzer.Analyze(s, DiagnosticSignals.Unavailable);
-        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Equal(100, result.Score.Value);
+        Assert.True(result.Score.IsPartial);
         Assert.NotEmpty(result.Unavailable);
         Assert.Empty(result.Issues);
     }
@@ -100,7 +101,8 @@ public sealed class DiagnosticAnalysisTests
             case "process": signals = signals with { Processes = DiagnosticSignals.Unavailable.Processes }; break;
         }
         var result = DiagnosticAnalyzer.Analyze(s, signals);
-        Assert.Equal(new HealthScore(100, true), result.Score);
+        Assert.Equal(100, result.Score.Value);
+        Assert.True(result.Score.IsPartial);
         Assert.Empty(result.Issues);
         Assert.NotEmpty(result.Unavailable);
     }

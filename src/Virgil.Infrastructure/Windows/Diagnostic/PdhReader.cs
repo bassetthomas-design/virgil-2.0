@@ -44,12 +44,13 @@ internal sealed class PdhReader : IDisposable
         if (!_counters.TryGetValue(path, out var handle)) return Missing();
         var status = PdhGetFormattedCounterValue(handle, 0x00000200, out _, out var value);
         return status == 0 && value.Status is 0 or 1 && double.IsFinite(value.Value)
-            ? DiagnosticValue<double>.Available(value.Value) : Missing();
+            ? DiagnosticValue<double>.Available(value.Value) : DiagnosticValue<double>.Unavailable("Lecture du compteur Windows en échec");
     }
     internal DiagnosticCounter Counter(string path, DiagnosticCounterKind kind)
     {
-        if (!_counters.TryGetValue(path, out var handle) || PdhGetRawCounterValue(handle, out _, out var raw) != 0 || raw.Status > 1)
-            return new(Missing(), Missing(), kind);
+        if (!_counters.TryGetValue(path, out var handle)) return new(Missing(), Missing(), kind);
+        if (PdhGetRawCounterValue(handle, out _, out var raw) != 0 || raw.Status > 1)
+            return new(DiagnosticValue<double>.Unavailable("Lecture du compteur Windows en échec"), Missing(), kind);
         PdhGetCounterTimeBase(handle, out var frequency);
         return new(DiagnosticValue<double>.Available(raw.First), DiagnosticValue<double>.Available(raw.Second), kind,
             frequency > 0 ? frequency : 1);
@@ -60,7 +61,7 @@ internal sealed class PdhReader : IDisposable
         var end = path.LastIndexOf(')');
         return start >= 0 && end > start ? path[(start + 1)..end] : path;
     }
-    private static DiagnosticValue<double> Missing() => DiagnosticValue<double>.Unavailable("Indisponible : compteur non exposé par Windows");
+    private static DiagnosticValue<double> Missing() => DiagnosticValue<double>.Unmeasured("Indisponible : compteur non exposé par Windows");
     private static string LocalizePath(string path)
     {
         // Résoudre un compteur anglais en handle puis demander son chemin localisé à PDH.
