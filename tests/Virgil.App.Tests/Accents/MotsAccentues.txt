@@ -474,4 +474,3 @@ exportee=exportée
 exportees=exportées
 exportes=exportés
 executable=exécutable
-executables=exécutables
