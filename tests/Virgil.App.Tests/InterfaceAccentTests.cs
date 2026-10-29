@@ -243,8 +243,20 @@ public sealed class InterfaceAccentTests
     [InlineData("Virgil.Core/Scanning/SystemScanService.cs", "correspond à une application attendue.")]
     [InlineData("Virgil.Core/Scanning/SystemScanService.cs", "touchent à des composants sensibles.")]
     [InlineData("Virgil.Core/Updates/UpdateRiskClassifier.cs", "Application utilisateur courante à faible risque.")]
+    [InlineData("Virgil.Core/Applications/ApplicationUninstallCommandValidator.cs", "Exécutable relatif ou introuvable.")]
+    [InlineData("Virgil.Core/Applications/ApplicationUninstallCommandValidator.cs", "Exécutable non reconnu comme désinstalleur officiel.")]
+    [InlineData("Virgil.Core/Applications/ApplicationUninstallService.cs", "Exécutable officiel absent après validation.")]
+    [InlineData("Virgil.Core/Updates/WingetAvailabilityService.cs", "WinGet non exécutable : ")]
+    [InlineData("Virgil.Core/Reports/ReportMapper.cs", "Disques analysés : ")]
+    [InlineData("Virgil.Core/Updates/WindowsUpdateStatusService.cs", "Windows Update non confirmé localement.")]
     public void Contextual_masculine_participles_remain_accented(string file, string expected) =>
         Assert.Contains(SourceLabels(), label => label.File == file && label.Text.Contains(expected, StringComparison.Ordinal));
+
+    [Fact]
+    public void Official_executable_absence_is_accented_in_both_result_and_errors() =>
+        Assert.Equal(2, SourceLabels().Count(label =>
+            label.File == "Virgil.Core/Applications/ApplicationUninstallService.cs" &&
+            label.Text == "Exécutable officiel absent après validation."));
 
     [Theory]
     [InlineData("<TextBlock>systeme</TextBlock>")]
