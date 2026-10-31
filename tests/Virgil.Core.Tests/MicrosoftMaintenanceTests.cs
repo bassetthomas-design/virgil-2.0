@@ -15,7 +15,12 @@ public sealed class MicrosoftMaintenanceTests
     private const string StoreCommand = "Get-CimInstance -Namespace root\\cimv2\\mdm\\dmmap -ClassName MDM_EnterpriseModernAppManagement_AppManagement01 -ErrorAction Stop | Invoke-CimMethod -MethodName UpdateScanMethod -ErrorAction Stop";
     private static ElevatedInterventionRequest Request(InterventionId id = InterventionId.InstallMicrosoftUpdates, string tokens = "software,drivers,store,windows-feature-upgrade", int? sequence = 12)
         => new() { ActionId = id, UpdateIdentity = tokens, RestoreSessionId = Session, RestorePointSequenceNumber = sequence };
-    private static string Points(bool session = true, int sequence = 12, int age = 1) => JsonSerializer.Serialize(new[] { new { SequenceNumber = sequence, Description = session ? "Virgil mises à jour " + Session : "Sauvegarde existante", CreationTime = DateTimeOffset.UtcNow.AddHours(-age) } });
+    private static string Points(bool session = true, int sequence = 12, int age = 1) => JsonSerializer.Serialize(new[] { new { SequenceNumber = sequence, Description = session ? "Virgil mises à jour " + Session : "Sauvegarde existante", CreationTime = Now.AddHours(-age) } });
+
+    private static readonly DateTimeOffset Now = new(2026, 10, 31, 12, 0, 0, TimeSpan.Zero);
+    private sealed class Clock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
+    private static Task<(bool Success, bool Reboot, string Message)> RunAsync(ElevatedInterventionRequest request, IElevatedCommandRunner commands, IWindowsUpdateAgent agent, CancellationToken token = default)
+        => UpdateMaintenanceRunner.ExecuteAsync(request, commands, agent, token, timeProvider: new Clock());
 
     [Fact]
     public void Pnputil_french_accented_fields_are_read()
@@ -53,7 +58,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Install_microsoft_updates_runs_software_drivers_store_then_feature_upgrade()
     {
         var events = new List<string>(); var agent = new Agent(events); var commands = new Commands(events);
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(), commands, agent);
+        var result = await RunAsync(Request(), commands, agent);
         Assert.True(result.Success);
         Assert.Equal(new[] { "Software", "Driver", "Store", "Feature" }, events);
         Assert.Contains("VIRGIL|", result.Message);
@@ -64,15 +69,15 @@ public sealed class MicrosoftMaintenanceTests
     {
         var agent = new Agent([]) { Registered = false }; var commands = new Commands([]);
         var request = Request(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", null);
-        Assert.True((await UpdateMaintenanceRunner.ExecuteAsync(request, commands, agent)).Success);
+        Assert.True((await RunAsync(request, commands, agent)).Success);
         Assert.Equal(new[] { (Mu, 7) }, agent.Added);
-        await UpdateMaintenanceRunner.ExecuteAsync(request, commands, agent);
+        await RunAsync(request, commands, agent);
         Assert.Single(agent.Added);
         Assert.Contains(commands.Calls, c => c.Arguments.Last() == "Update-MpSignature -ErrorAction Stop");
         agent.Registered = false; agent.RejectRegistration = true;
-        var prepare = await UpdateMaintenanceRunner.ExecuteAsync(request, commands, agent);
+        var prepare = await RunAsync(request, commands, agent);
         Assert.Contains("Microsoft Update indisponible : Windows Update seul", prepare.Message);
-        await UpdateMaintenanceRunner.ExecuteAsync(Request(tokens: "software"), commands, agent);
+        await RunAsync(Request(tokens: "software"), commands, agent);
         Assert.All(agent.Searches, s => { Assert.Equal(0, s.Selection); Assert.Null(s.Service); });
     }
 
@@ -82,7 +87,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Windows_update_passes_repeat_until_nothing_installed_max_three(bool always)
     {
         var events = new List<string>(); var agent = new Agent(events) { Counts = always ? new Queue<int>([1,1,1,1,1,1,1]) : new Queue<int>([2,0,1,0,0,0]) };
-        await UpdateMaintenanceRunner.ExecuteAsync(Request(tokens: "software,drivers"), new Commands(events), agent);
+        await RunAsync(Request(tokens: "software,drivers"), new Commands(events), agent);
         Assert.Equal(new[] { "Software", "Driver", "Software", "Driver", "Software", "Driver" }, events);
         Assert.All(agent.Searches, s => { Assert.Equal(3, s.Selection); Assert.Equal(Mu, s.Service); Assert.Contains("IsInstalled=0 and IsHidden=0", s.Criteria); });
     }
@@ -91,7 +96,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Drivers_unchecked_means_no_driver_search()
     {
         var agent = new Agent([]);
-        await UpdateMaintenanceRunner.ExecuteAsync(Request(tokens: "software"), new Commands([]), agent);
+        await RunAsync(Request(tokens: "software"), new Commands([]), agent);
         Assert.Single(agent.Searches);
         Assert.DoesNotContain(agent.Searches, s => s.Criteria.Contains("Driver", StringComparison.Ordinal));
         Assert.DoesNotContain(agent.Events, e => e == "Feature");
@@ -101,7 +106,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Store_scan_runs_the_fixed_cim_command()
     {
         var events = new List<string>(); var commands = new Commands(events) { StoreExitCode = 1 }; var agent = new Agent(events);
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(tokens: "store,windows-feature-upgrade"), commands, agent);
+        var result = await RunAsync(Request(tokens: "store,windows-feature-upgrade"), commands, agent);
         Assert.Equal(StoreCommand, Assert.Single(commands.Calls, c => c.Arguments.Last().Contains("Get-CimInstance", StringComparison.Ordinal)).Arguments.Last());
         Assert.Contains("Scan Store non disponible sur ce PC", result.Message);
         Assert.Contains("VIRGIL|store|UNAVAILABLE|", result.Message);
@@ -114,7 +119,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Feature_upgrade_runs_last_and_reports_nothing_to_install_when_absent(bool present)
     {
         var events = new List<string>(); var agent = new Agent(events) { FeaturePresent = present };
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(), new Commands(events), agent);
+        var result = await RunAsync(Request(), new Commands(events), agent);
         Assert.True(result.Success);
         Assert.Equal("Feature", events.Last());
         if (present) { Assert.Single(agent.Installed); Assert.True(agent.Installed[0].IsFeatureUpgrade); Assert.True(result.Reboot); }
@@ -132,7 +137,7 @@ public sealed class MicrosoftMaintenanceTests
         commands.Reads = new Queue<string>(scenario switch { 1 => [Points()], 2 => ["[]", Points(sequence: 13)], 3 => [Points(false), Points(false)], _ => ["[]", "[]"] });
         commands.CreateExitCode = scenario >= 3 ? 1 : 0;
         var agent = new Agent([]);
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", null), commands, agent);
+        var result = await RunAsync(Request(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", null), commands, agent);
         Assert.Equal(scenario != 4, result.Success);
         Assert.Equal(scenario == 1 ? 0 : 1, commands.Creates);
         if (scenario == 3) { Assert.Contains("point existant du", result.Message); Assert.Contains("(Sauvegarde existante) réutilisé", result.Message); }
@@ -146,10 +151,10 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Legacy_action_reuses_recent_point_only_after_creation_refused_or_without_effect(int creationExit)
     {
         var commands = new Commands([]) { Reads = new([Points(false), Points(sequence: 13)]), CreateExitCode = 0 };
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
+        var result = await RunAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
         Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.DoesNotContain("réutilisé", result.Message); Assert.Contains("VIRGIL|restore-point|OK|13", result.Message);
         commands = new Commands([]) { Reads = new([Points(false), Points(false)]), CreateExitCode = creationExit };
-        result = await UpdateMaintenanceRunner.ExecuteAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
+        result = await RunAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
         Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.Contains("réutilisé", result.Message);
     }
 
@@ -160,7 +165,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Install_requires_the_exact_valid_restore_sequence(int? sequence)
     {
         var agent = new Agent([]); var commands = new Commands([]);
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(sequence: sequence), commands, agent);
+        var result = await RunAsync(Request(sequence: sequence), commands, agent);
         Assert.False(result.Success); Assert.Empty(agent.Searches); Assert.Equal(0, commands.Creates);
     }
 
@@ -168,7 +173,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Restore_point_failure_blocks_all_microsoft_steps()
     {
         var agent = new Agent([]); var commands = new Commands([]) { Reads = new(["[]", "[]"]), CreateExitCode = 1 };
-        var result = await UpdateMaintenanceRunner.ExecuteAsync(Request(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", null), commands, agent);
+        var result = await RunAsync(Request(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", null), commands, agent);
         Assert.False(result.Success); Assert.Empty(agent.Events); Assert.Empty(agent.Added);
         Assert.All(commands.Calls, c => Assert.DoesNotContain("Update-MpSignature", c.Arguments.Last()));
     }
@@ -179,7 +184,7 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Cancel_after_restore_starts_no_microsoft_step(InterventionId id)
     {
         using var cancel = new CancellationTokenSource(); var agent = new Agent([]); var commands = new Commands([]) { AfterRead = cancel.Cancel };
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => UpdateMaintenanceRunner.ExecuteAsync(Request(id, id == InterventionId.PrepareMicrosoftUpdates ? "defender,microsoft-update" : "", null), commands, agent, cancel.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunAsync(Request(id, id == InterventionId.PrepareMicrosoftUpdates ? "defender,microsoft-update" : "", null), commands, agent, cancel.Token));
         Assert.Empty(agent.Events); Assert.Empty(agent.Added); Assert.Single(commands.Calls);
     }
 
@@ -187,12 +192,44 @@ public sealed class MicrosoftMaintenanceTests
     public async Task Cancel_during_windows_update_pass_finishes_current_call_and_starts_no_next_pass()
     {
         using var cancel = new CancellationTokenSource(); var agent = new Agent([]) { Counts = new([1]), BlockInstall = true };
-        var task = UpdateMaintenanceRunner.ExecuteAsync(Request(), new Commands(agent.Events), agent, cancel.Token);
+        var task = RunAsync(Request(), new Commands(agent.Events), agent, cancel.Token);
         await agent.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)); cancel.Cancel(); Assert.False(task.IsCompleted);
         agent.Finish.SetResult(new(1, true, true));
         var result = await task;
         Assert.True(result.Reboot); Assert.Contains("terminée après annulation", result.Message);
         Assert.Equal(new[] { "Software" }, agent.Events); Assert.Single(agent.Searches);
+    }
+
+    [Theory]
+    [InlineData(25)]
+    [InlineData(-1)]
+    public async Task Expired_or_future_restore_point_blocks_installation(int age)
+    {
+        var commands = new Commands([]) { Reads = new([Points(age: age)]) }; var agent = new Agent([]);
+        Assert.False((await RunAsync(Request(), commands, agent)).Success);
+        Assert.Empty(agent.Events); Assert.Equal(0, commands.Creates);
+    }
+
+    [Fact]
+    public async Task Quality_pass_excludes_feature_items_and_installs_only_downloaded_updates()
+    {
+        var agent = new Agent([]) { MixedSearch = true, PartialDownload = true };
+        var result = await RunAsync(Request(tokens: "software"), new Commands([]), agent);
+        Assert.False(result.Success);
+        Assert.NotEmpty(agent.Installed);
+        Assert.All(agent.Installed, u => { Assert.False(u.IsFeatureUpgrade); Assert.True(u.IsDownloaded); });
+        Assert.True(agent.Searches.Count <= 3);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UsoClient_fallback_is_limited_to_search_failure(bool searchFailure)
+    {
+        var agent = new Agent([]) { FailSearch = searchFailure, FailDownload = !searchFailure, Counts = new([1]) };
+        var commands = new Commands([]);
+        Assert.False((await RunAsync(Request(tokens: "software"), commands, agent)).Success);
+        Assert.Equal(searchFailure ? 1 : 0, commands.Calls.Count(c => c.FileName == "UsoClient.exe"));
     }
 
     private sealed class Commands(List<string> events) : IElevatedCommandRunner
@@ -226,6 +263,10 @@ public sealed class MicrosoftMaintenanceTests
         public bool RejectRegistration { get; set; }
         public bool FeaturePresent { get; set; }
         public bool BlockInstall { get; set; }
+        public bool MixedSearch { get; set; }
+        public bool PartialDownload { get; set; }
+        public bool FailSearch { get; set; }
+        public bool FailDownload { get; set; }
         public Queue<int> Counts { get; set; } = new();
         public List<(string, int)> Added { get; } = [];
         public List<(string Criteria, int Selection, string? Service)> Searches { get; } = [];
@@ -236,13 +277,20 @@ public sealed class MicrosoftMaintenanceTests
         public void AddService(string serviceId, int flags) { if (RejectRegistration) throw new COMException(); Added.Add((serviceId, flags)); Registered = true; }
         public Task<IReadOnlyList<IWindowsUpdateItem>> SearchAsync(string criteria, int serverSelection, string? serviceId)
         {
+            if (FailSearch) throw new COMException();
             Searches.Add((criteria, serverSelection, serviceId));
+            if (MixedSearch) return Task.FromResult<IReadOnlyList<IWindowsUpdateItem>>([new Item(), new Item(), new Item(true)]);
             var feature = criteria.Contains("3689bdc8", StringComparison.Ordinal);
             events.Add(feature ? "Feature" : criteria.Contains("Driver", StringComparison.Ordinal) ? "Driver" : "Software");
             var count = feature ? (FeaturePresent ? 1 : 0) : Counts.Count > 0 ? Counts.Dequeue() : 0;
             return Task.FromResult<IReadOnlyList<IWindowsUpdateItem>>(Enumerable.Range(0, count).Select(_ => new Item(feature)).ToArray());
         }
-        public Task DownloadAsync(IReadOnlyList<IWindowsUpdateItem> updates) { foreach (var update in updates.Cast<Item>()) { Assert.True(update.EulaAccepted); update.IsDownloaded = true; } return Task.CompletedTask; }
+        public Task DownloadAsync(IReadOnlyList<IWindowsUpdateItem> updates)
+        {
+            if (FailDownload) throw new COMException();
+            foreach (var update in updates.Cast<Item>()) { Assert.True(update.EulaAccepted); update.IsDownloaded = !PartialDownload || ReferenceEquals(update, updates[0]); }
+            return Task.CompletedTask;
+        }
         public Task<WindowsUpdateInstallResult> InstallAsync(IReadOnlyList<IWindowsUpdateItem> updates)
         { Assert.All(updates, u => Assert.True(u.IsDownloaded)); Installed.AddRange(updates); Started.TrySetResult(); return BlockInstall ? Finish.Task : Task.FromResult(new WindowsUpdateInstallResult(updates.Count, updates.Any(u => u.IsFeatureUpgrade), true)); }
     }

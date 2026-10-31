@@ -80,8 +80,17 @@ public sealed class UpdateSequenceTests
     [InlineData(InterventionId.PrepareMicrosoftUpdates, "store", false)]
     [InlineData(InterventionId.InstallMicrosoftUpdates, "' or IsInstalled=1", false)]
     [Trait("Category", "Safety")]
-    public void Maintenance_allowlist_accepts_only_known_tokens(InterventionId id, string identity, bool expected)
-        => Assert.Equal(expected, new ElevatedActionAllowlist().IsMaintenanceAllowed(id, identity));
+    public async Task Maintenance_allowlist_accepts_only_known_tokens(InterventionId id, string identity, bool expected)
+    {
+        Assert.Equal(expected, new ElevatedActionAllowlist().IsMaintenanceAllowed(id, identity));
+        if (!expected)
+        {
+            var runner = new RejectRestoreRunner();
+            var result = await UpdateMaintenanceRunner.ExecuteAsync(new() { ActionId = id, UpdateIdentity = identity }, runner);
+            Assert.False(result.Success);
+            Assert.Empty(runner.Commands);
+        }
+    }
 
     [Fact]
     public async Task Failed_restore_point_blocks_WUA_before_any_installation()

@@ -1,65 +1,31 @@
-using Microsoft.Win32;
 using Virgil.Contracts;
 
 namespace Virgil.Core.Updates;
 
-public sealed class WindowsUpdateStatusService
+public sealed class WindowsUpdateStatusService(IPendingRebootProbe probe)
 {
-    public WindowsUpdateStatusService() { }
-    public WindowsUpdateStatusService(IPendingRebootProbe probe) { }
-
-    private const string WindowsUpdateSettingsUri = "ms-settings:windowsupdate";
-
     public WindowsUpdateInformation ReadStatus()
     {
-        var errors = new List<string>();
         var notes = new List<string>
         {
             "Ouverture contrôlée de la page Windows Update uniquement.",
-            "Aucune recherche, installation ou redémarrage n'est déclenché par Virgil."
+            "« Tout mettre à jour » peut rechercher et installer des mises à jour après confirmation, sans jamais redémarrer automatiquement."
         };
-
-        bool servicePresent;
-        bool pendingReboot;
-
-        try
-        {
-            servicePresent = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\wuauserv") is not null;
-        }
+        var errors = new List<string>();
+        PendingRebootStatus status;
+        try { status = probe.Read(); }
         catch
         {
-            servicePresent = false;
-            errors.Add("Statut du service Windows Update indisponible.");
+            status = new(false, []);
+            errors.Add("Lecture de Windows Update et du redémarrage en attente indisponible.");
         }
-
-        try
-        {
-            pendingReboot = Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") is not null ||
-                Registry.LocalMachine.OpenSubKey(
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") is not null;
-        }
-        catch
-        {
-            pendingReboot = false;
-            errors.Add("Lecture du redémarrage en attente indisponible.");
-        }
-
-        var status = servicePresent
-            ? "Windows Update accessible via les Paramètres Windows."
-            : "Windows Update non confirmé localement.";
-
-        if (pendingReboot)
-        {
-            notes.Add("Un redémarrage en attente semble présent.");
-        }
-
+        foreach (var source in status.Sources) notes.Add("Redémarrage en attente : " + source + ".");
         return new WindowsUpdateInformation
         {
-            Status = status,
-            SettingsUri = WindowsUpdateSettingsUri,
-            ServiceRegistryKeyPresent = servicePresent,
-            PendingRebootDetected = pendingReboot,
+            Status = status.ServicePresent ? "Windows Update accessible via les Paramètres Windows." : "Windows Update non confirmé localement.",
+            SettingsUri = "ms-settings:windowsupdate",
+            ServiceRegistryKeyPresent = status.ServicePresent,
+            PendingRebootDetected = status.Sources.Count > 0,
             Notes = notes,
             Errors = errors
         };

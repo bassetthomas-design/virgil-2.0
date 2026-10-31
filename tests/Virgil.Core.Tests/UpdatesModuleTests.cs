@@ -302,7 +302,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
             new WingetAvailabilityService(runner, new[] { @"C:\tools\winget.exe" }),
             runner,
             new UpdateRiskClassifier(),
-            new WindowsUpdateStatusService(),
+            new WindowsUpdateStatusService(new EmptyPendingRebootProbe()),
             new DriverInformationService(runner));
     }
 

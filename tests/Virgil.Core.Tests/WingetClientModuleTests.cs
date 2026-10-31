@@ -47,7 +47,7 @@ public sealed class WingetClientModuleTests
     {
         var runner = new ScanRunner { Json = "[]" };
         var service = new WingetUpdateScanService(new WingetAvailabilityService(runner, ["winget.exe"]), runner,
-            new UpdateRiskClassifier(), new WindowsUpdateStatusService(), new DriverInformationService(runner));
+            new UpdateRiskClassifier(), new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), new DriverInformationService(runner));
         var report = await service.ScanAsync(new UpdateScanRequest { Scope = UpdateScanScope.DeepPreview, IncludeApplicationUpdates = true }, null, CancellationToken.None);
         Assert.Empty(report.Items);
         Assert.False(report.IsWingetClientModuleMissing);
@@ -62,7 +62,7 @@ public sealed class WingetClientModuleTests
         var runner = new ScanRunner();
         var availability = new WingetAvailabilityService(runner, ["winget.exe"]);
         var service = new WingetUpdateScanService(availability, runner,
-            new UpdateRiskClassifier(), new WindowsUpdateStatusService(), new DriverInformationService(runner));
+            new UpdateRiskClassifier(), new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), new DriverInformationService(runner));
         var report = await service.ScanAsync(new UpdateScanRequest { IncludeApplicationUpdates = true }, null, CancellationToken.None);
         var item = Assert.Single(report.Items);
         Assert.Equal("2.0", item.AvailableVersion);
