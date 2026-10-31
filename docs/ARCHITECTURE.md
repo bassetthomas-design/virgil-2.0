@@ -17,7 +17,7 @@ La solution `Virgil.sln` contient huit projets compilés (les dossiers de soluti
 | `tests/Virgil.App.Tests` | ViewModels, composition, animation et architecture App |
 | `tests/Virgil.UiTests` | FlaUI sur l'exécutable publié, tests de sécurité de SafeUi |
 
-La séparation métier/OS est incomplète : `WindowsUpdateStatusService`, `WindowsInfoReader`, `ProcessReader` et `ApplicationRegistryReader` sont encore dans Core. `Contracts/ScanRules.cs` reste présent. Ces faits sont conservés, pas transformés en architecture cible déjà livrée.
+La séparation métier/OS est incomplète : `WindowsInfoReader`, `ProcessReader` et `ApplicationRegistryReader` sont encore dans Core. `Contracts/ScanRules.cs` reste présent. Ces faits sont conservés, pas transformés en architecture cible déjà livrée.
 
 ## Composition et interface
 
@@ -118,3 +118,11 @@ L’inventaire Démarrage lit HKCU Run uniquement en vue 64 bits, avec une cible
 `DiagnosticValue.Unmeasured` distingue une mesure non exposée d’un échec de lecture (`Unavailable`). Seuls les échecs rendent la note partielle ; les signaux absents restent explicitement non mesurés et ne coûtent aucun point. Les lanceurs gourmands sans fenêtre produisent un constat informatif de cinq points, sans cible ni action de fermeture. `Agent.exe` exige aussi une preuve Blizzard/Battle.net dans le chemin ou l’éditeur. La politique de protection des processus reste inchangée. Échap est intercepté en tunnel dans la vue Diagnostic uniquement lorsqu’une validation est ouverte ; la lecture du dernier rapport démarre indépendamment de la vérification réseau.
 
 La séquence de mises à jour détecte Steam, Epic Games, Ubisoft Connect et Battle.net dans l’inventaire des applications installées. Leurs lignes informatives sont non cochables, exclues du plan confirmé et du backend d’exécution ; le rapport les conserve « À faire dans le lanceur », parmi les actions non exécutées. Le bouton et la commande factices « Marquer à revoir » du Nettoyage sont retirés. Les capteurs réels, le dictionnaire étendu d’accents (L6-2) et la fermeture automatique des lanceurs (L6+) restent hors périmètre.
+
+## L6+-a — briques Microsoft Update
+
+Le helper accepte deux actions fermées : `PrepareMicrosoftUpdates` (`defender,microsoft-update`, tous deux facultatifs) protège la session par un point de restauration puis prépare Defender et Microsoft Update ; `InstallMicrosoftUpdates` (`software,drivers,store,windows-feature-upgrade`, sélection non vide) vérifie le numéro de séquence retenu et exécute les passes logiciels/pilotes, le Store puis la fonctionnalité. Les jetons sont séparés par des virgules, sensibles à la casse, sans doublon ni espace. Les anciennes actions restent disponibles. Le bouton et `UpdateSequenceService` conservent leur parcours antérieur, jusqu’à L6+-b.
+
+`IWindowsUpdateAgent` isole les appels WUA ; seul `ComWindowsUpdateAgent` manipule COM et `dynamic`. Ses appels restent synchrones ; l’annulation termine l’appel en cours et bloque le suivant. La sélection des points de restauration est commune aux anciennes et nouvelles actions : point de session de moins de deux heures, tentative de création, puis seulement en cas d’échec ou d’absence de nouveau point, réutilisation visible du plus récent de moins de 24 heures. `InstallMicrosoftUpdates` ne crée aucun point et vérifie le numéro de séquence transmis.
+
+`WindowsUpdateStatusService` reçoit `IPendingRebootProbe` par DI ; `RegistryPendingRebootProbe`, dans Infrastructure, lit les clés CBS/WU et indique les sources du redémarrage. Les tests utilisent des sondes, agents et exécuteurs factices. Voir [les preuves et limites L6+-a](proofs/L6plus-a.md), notamment la limite de la première preuve rouge.
