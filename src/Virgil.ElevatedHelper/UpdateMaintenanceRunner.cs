@@ -34,9 +34,14 @@ public static class UpdateMaintenanceRunner
         if (!ValidIdentity(request.ActionId, request.UpdateIdentity)) return (false, false, "Identité de mise à jour refusée.");
         progress?.Report(new() { Step = "Préparation de la maintenance" });
         cancellationToken.ThrowIfCancellationRequested();
+        var legacy = request.ActionId is InterventionId.InstallWindowsUpdates or InterventionId.InstallDriverUpdate or InterventionId.UpdateDefenderSignatures;
+        var finalMessage = string.Empty;
+        var reusedPoint = string.Empty;
         var output = new List<string>(); var reboot = false; var success = true;
+        string Summary() => legacy ? finalMessage + (reusedPoint.Length == 0 ? "" : "\n" + reusedPoint) : string.Join('\n', output);
         void Report(string step, string status, string message)
         {
+            if (legacy && status != "INFO") finalMessage = message;
             output.Add("VIRGIL|" + step + "|" + status + "|" + message);
             progress?.Report(new() { Step = message });
         }
@@ -47,6 +52,12 @@ public static class UpdateMaintenanceRunner
             var restore = await UpdateRestorePoint.EnsureAsync(request, commands, cancellationToken, progress, timeProvider ?? TimeProvider.System).ConfigureAwait(false);
             if (!restore.Success) return (false, false, restore.Output);
             output.Add(restore.Output);
+            if (legacy)
+            {
+                const string reusedPrefix = "VIRGIL|restore-point|INFO|";
+                var reused = restore.Output.Split('\n').FirstOrDefault(line => line.StartsWith(reusedPrefix, StringComparison.Ordinal));
+                if (reused is not null) reusedPoint = reused[reusedPrefix.Length..];
+            }
             progress?.Report(new() { Step = "Point de restauration vérifié" });
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -58,7 +69,7 @@ public static class UpdateMaintenanceRunner
             Report("defender", defender.ExitCode == 0 ? "OK" : "FAILED", defender.ExitCode == 0 ? "Signatures Defender à jour." : "Mise à jour Defender impossible.");
             cancellationToken.ThrowIfCancellationRequested();
         }
-        if (request.ActionId == InterventionId.UpdateDefenderSignatures) return (success, false, string.Join('\n', output));
+        if (request.ActionId == InterventionId.UpdateDefenderSignatures) return (success, false, Summary());
         if (request.ActionId == InterventionId.PrepareMicrosoftUpdates)
         {
             if (Has("microsoft-update"))
@@ -75,13 +86,13 @@ public static class UpdateMaintenanceRunner
             return (success, false, string.Join('\n', output));
         }
         var selection = 0; string? serviceId = null;
+        cancellationToken.ThrowIfCancellationRequested();
         try { if (agent.IsServiceRegistered(MicrosoftUpdateServiceId)) { selection = 3; serviceId = MicrosoftUpdateServiceId; } }
         catch (COMException) { }
         if (selection == 0) Report("microsoft-update", "UNAVAILABLE", "Microsoft Update indisponible : Windows Update seul");
         using var registration = cancellationToken.Register(() => progress?.Report(new() { Step = CancelMessage }));
         try
         {
-            var legacy = request.ActionId is InterventionId.InstallWindowsUpdates or InterventionId.InstallDriverUpdate;
             for (var pass = 1; pass <= (legacy ? 1 : 3); pass++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -110,7 +121,7 @@ public static class UpdateMaintenanceRunner
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         { Report("maintenance", "CANCELLED", "Étape terminée après annulation. Étapes suivantes non lancées."); }
         catch (COMException) { success = false; Report("maintenance", "FAILED", "Opération Windows Update impossible."); }
-        return (success, reboot, string.Join('\n', output));
+        return (success, reboot, Summary());
 
         async Task<int> InstallKindAsync(string kind, bool feature)
         {
@@ -136,14 +147,14 @@ public static class UpdateMaintenanceRunner
             cancellationToken.ThrowIfCancellationRequested();
             var updates = found.Where(u => u.IsFeatureUpgrade == feature).ToArray();
             foreach (var update in updates) { cancellationToken.ThrowIfCancellationRequested(); if (!update.EulaAccepted) update.AcceptEula(); }
-            if (updates.Length == 0) { Report(step, "OK", "Rien à installer"); return 0; }
+            if (updates.Length == 0) { Report(step, "OK", legacy ? "Aucune mise à jour nécessaire." : "Rien à installer"); return 0; }
             Report(step, "INFO", "Téléchargement Windows Update — ne peut pas être interrompu");
             cancellationToken.ThrowIfCancellationRequested();
             try { await agent.DownloadAsync(updates).ConfigureAwait(false); }
             catch (COMException) { success = false; Report(step, "FAILED", "Téléchargement Windows Update impossible."); return 0; }
             cancellationToken.ThrowIfCancellationRequested();
             var downloaded = updates.Where(u => u.IsDownloaded).ToArray();
-            if (downloaded.Length < updates.Length) { success = false; Report(step, "FAILED", "Téléchargement incomplet."); }
+            if (downloaded.Length < updates.Length) { success = false; Report(step, "FAILED", legacy ? "Téléchargement incomplet ; installation bloquée." : "Téléchargement incomplet."); }
             if (downloaded.Length == 0) return 0;
             Report(step, "INFO", "Installation Windows Update — ne peut pas être interrompue");
             cancellationToken.ThrowIfCancellationRequested();

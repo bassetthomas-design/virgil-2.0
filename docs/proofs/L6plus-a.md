@@ -2,6 +2,16 @@
 
 Base exacte : `2e2850104fcf327ffcf824e5d67f11e91a97478f` (main après #71). Une seule PR : [#72](https://github.com/bassetthomas-design/virgil-2.0/pull/72), vers `main`.
 
+## Reprise sur 28bf9a3 — messages des anciennes actions
+
+Un seul commit supplémentaire, limité à `UpdateMaintenanceRunner.cs`, `MicrosoftMaintenanceTests.cs` et ce document. `InstallWindowsUpdates` et `InstallDriverUpdate` renvoient de nouveau exactement « Installation terminée. » ou « Aucune mise à jour nécessaire. » ; `UpdateDefenderSignatures` renvoie « Signatures Defender à jour. ». Les erreurs restent lisibles et accentuées. Les anciennes actions ne renvoient aucune ligne `VIRGIL|` dans leur message final transmis à `SummaryOutput`. Le cas 3 ajoute uniquement la mention « point existant du <date> (<description>) réutilisé » ; le test existant vérifie aussi son absence quand la création réussit.
+
+`PrepareMicrosoftUpdates` / `InstallMicrosoftUpdates` conservent leurs lignes de protocole, y compris le numéro de séquence. Un `ThrowIfCancellationRequested` précède désormais `agent.IsServiceRegistered` dans le chemin Install. Aucun changement du backend, des vues ou de la séquence « Tout mettre à jour ».
+
+Preuve Safety : `Legacy_actions_keep_original_readable_summary_without_protocol_lines` (5 cas : Windows succès/vide, pilote succès/vide, Defender) compare les messages exacts de `2e28501` et refuse toute occurrence de `VIRGIL|`. `Legacy_action_reuses_recent_point_only_after_creation_refused_or_without_effect` est adapté au message lisible, conserve ses deux variantes (création refusée ou sans effet) et refuse aussi les lignes de protocole. Les tests des nouvelles actions continuent à exiger leurs traces.
+
+La [CI Windows de la tête de cette reprise](https://github.com/bassetthomas-design/virgil-2.0/pull/72/checks) fournit le verdict de référence : build Release sans warning, tests Core/App et InterfaceAccentTests, smoke inchangé de 14 tests avec assertion des 14 noms de PNG, publication et installeur. Les résultats #279 ci-dessous sont les preuves historiques avant cette reprise. Les différences sur `.github/workflows`, `AGENTS.md`, les fichiers de séquence et `tests/Virgil.UiTests` restent vides ; aucun élément L6+-b n’est introduit.
+
 ## Premier commit et CI rouge
 
 Le premier commit `c8067f0` contient uniquement les tests et des contrats/points d’injection neutres : valeurs d’énumération ajoutées en fin de liste, champ entier nullable `RestorePointSequenceNumber`, ports WUA et sonde, surcharges initialement neutres. Le comportement antérieur des points d’entrée existants est conservé.

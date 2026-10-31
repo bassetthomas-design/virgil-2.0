@@ -152,10 +152,10 @@ public sealed class MicrosoftMaintenanceTests
     {
         var commands = new Commands([]) { Reads = new([Points(false), Points(sequence: 13)]), CreateExitCode = 0 };
         var result = await RunAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
-        Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.DoesNotContain("réutilisé", result.Message); Assert.Contains("VIRGIL|restore-point|OK|13", result.Message);
+        Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.DoesNotContain("réutilisé", result.Message); Assert.Equal("Aucune mise à jour nécessaire.", result.Message); Assert.DoesNotContain("VIRGIL|", result.Message);
         commands = new Commands([]) { Reads = new([Points(false), Points(false)]), CreateExitCode = creationExit };
         result = await RunAsync(Request(InterventionId.InstallWindowsUpdates, "", null), commands, new Agent([]));
-        Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.Contains("réutilisé", result.Message);
+        Assert.True(result.Success); Assert.Equal(1, commands.Creates); Assert.Contains("réutilisé", result.Message); Assert.DoesNotContain("VIRGIL|", result.Message);
     }
 
     [Theory]
@@ -230,6 +230,21 @@ public sealed class MicrosoftMaintenanceTests
         var commands = new Commands([]);
         Assert.False((await RunAsync(Request(tokens: "software"), commands, agent)).Success);
         Assert.Equal(searchFailure ? 1 : 0, commands.Calls.Count(c => c.FileName == "UsoClient.exe"));
+    }
+
+    [Theory]
+    [InlineData(InterventionId.InstallWindowsUpdates, 1, "Installation terminée.")]
+    [InlineData(InterventionId.InstallWindowsUpdates, 0, "Aucune mise à jour nécessaire.")]
+    [InlineData(InterventionId.InstallDriverUpdate, 1, "Installation terminée.")]
+    [InlineData(InterventionId.InstallDriverUpdate, 0, "Aucune mise à jour nécessaire.")]
+    [InlineData(InterventionId.UpdateDefenderSignatures, 0, "Signatures Defender à jour.")]
+    public async Task Legacy_actions_keep_original_readable_summary_without_protocol_lines(InterventionId id, int count, string expected)
+    {
+        var agent = new Agent([]) { Counts = new([count]) };
+        var result = await RunAsync(Request(id, id == InterventionId.InstallDriverUpdate ? Session : "", null), new Commands([]), agent);
+        Assert.True(result.Success);
+        Assert.Equal(expected, result.Message);
+        Assert.DoesNotContain("VIRGIL|", result.Message);
     }
 
     private sealed class Commands(List<string> events) : IElevatedCommandRunner
