@@ -24,7 +24,9 @@ public enum InterventionId
     InstallDriverUpdate,
     UpdateDefenderSignatures,
     CreateStartupRestorePoint,
-    SetStartupApproval
+    SetStartupApproval,
+    PrepareMicrosoftUpdates,
+    InstallMicrosoftUpdates
 }
 
 public enum InterventionCategory
@@ -219,6 +221,8 @@ public sealed record ElevatedInterventionRequest
     public string UpdateIdentity { get; init; } = string.Empty;
 
     public string RestoreSessionId { get; init; } = string.Empty;
+
+    public int? RestorePointSequenceNumber { get; init; }
 }
 
 public sealed record ElevatedInterventionResult

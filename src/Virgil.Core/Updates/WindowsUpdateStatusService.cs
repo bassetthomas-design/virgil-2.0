@@ -5,6 +5,9 @@ namespace Virgil.Core.Updates;
 
 public sealed class WindowsUpdateStatusService
 {
+    public WindowsUpdateStatusService() { }
+    public WindowsUpdateStatusService(IPendingRebootProbe probe) { }
+
     private const string WindowsUpdateSettingsUri = "ms-settings:windowsupdate";
 
     public WindowsUpdateInformation ReadStatus()

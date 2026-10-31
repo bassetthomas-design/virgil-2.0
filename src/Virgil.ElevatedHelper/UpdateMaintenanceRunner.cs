@@ -6,6 +6,12 @@ namespace Virgil.ElevatedHelper;
 /// <summary>Only fixed maintenance operations; no caller-supplied command or script.</summary>
 public static class UpdateMaintenanceRunner
 {
+    // Neutral injection seam: implementation follows the regression commit.
+    public static Task<(bool Success, bool Reboot, string Message)> ExecuteAsync(
+        ElevatedInterventionRequest request, IElevatedCommandRunner commands, IWindowsUpdateAgent agent,
+        CancellationToken cancellationToken = default, IProgress<InterventionProgress>? progress = null)
+        => ExecuteAsync(request, commands, cancellationToken, progress);
+
     public static bool Handles(InterventionId id) => id is InterventionId.InstallWindowsUpdates or InterventionId.InstallDriverUpdate or InterventionId.UpdateDefenderSignatures;
     public static bool ValidIdentity(InterventionId id, string identity) => id == InterventionId.InstallDriverUpdate
         ? Guid.TryParseExact(identity, "D", out _) : string.IsNullOrEmpty(identity);

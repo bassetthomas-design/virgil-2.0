@@ -70,7 +70,17 @@ public sealed class UpdateSequenceTests
     [InlineData(InterventionId.InstallDriverUpdate, "' or IsInstalled=1", false)]
     [InlineData(InterventionId.InstallWindowsUpdates, "unexpected", false)]
     [InlineData(InterventionId.FlushDns, "", false)]
-    public void Maintenance_allowlist_accepts_only_fixed_actions_and_exact_driver_identity(InterventionId id, string identity, bool expected)
+    [InlineData(InterventionId.PrepareMicrosoftUpdates, "defender,microsoft-update", true)]
+    [InlineData(InterventionId.PrepareMicrosoftUpdates, "", true)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "software,drivers,store,windows-feature-upgrade", true)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "", false)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "software,software", false)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "unknown", false)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "defender", false)]
+    [InlineData(InterventionId.PrepareMicrosoftUpdates, "store", false)]
+    [InlineData(InterventionId.InstallMicrosoftUpdates, "' or IsInstalled=1", false)]
+    [Trait("Category", "Safety")]
+    public void Maintenance_allowlist_accepts_only_known_tokens(InterventionId id, string identity, bool expected)
         => Assert.Equal(expected, new ElevatedActionAllowlist().IsMaintenanceAllowed(id, identity));
 
     [Fact]
