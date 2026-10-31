@@ -509,7 +509,7 @@ public sealed class UpdatesViewModelTests
         public UpdatesViewModel Vm { get; }
         public List<string> Messages { get; } = new(); public List<(VirgilCoreState State, string Label)> States { get; } = new(); public int Persisted { get; private set; }
         public IEnumerable<UpdateItemViewModel> Cards => Vm.Entries.OfType<UpdateItemViewModel>();
-        public Fixture() { Vm = new(Scan, Actions, new WindowsUpdateStatusService(), Runner, History, Confirmation); Vm.VirgilMessageRequested += Messages.Add; Vm.VirgilStateRequested += (s, l) => States.Add((s, l)); Vm.ReportPersisted += (_, _) => Persisted++; }
+        public Fixture() { Vm = new(Scan, Actions, new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation); Vm.VirgilMessageRequested += Messages.Add; Vm.VirgilStateRequested += (s, l) => States.Add((s, l)); Vm.ReportPersisted += (_, _) => Persisted++; }
         public Task Analyze() => Vm.ScanUpdatesCommand.ExecuteAsync(null);
         public Task Run() => Vm.RunSelectedCommand.ExecuteAsync(null);
         public void SelectAll() { foreach (var card in Cards.Where(c => c.IsSelectable)) card.IsSelected = true; }

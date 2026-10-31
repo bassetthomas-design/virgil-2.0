@@ -13,12 +13,12 @@ public sealed class WingetUpdateScanService : IUpdateScanService
     private readonly WindowsUpdateStatusService _windowsUpdateStatusService;
     private readonly DriverInformationService _driverInformationService;
 
-    public WingetUpdateScanService(IProcessRunner processRunner)
+    public WingetUpdateScanService(IProcessRunner processRunner, WindowsUpdateStatusService windowsUpdateStatusService)
         : this(
             new WingetAvailabilityService(processRunner),
             processRunner,
             new UpdateRiskClassifier(),
-            new WindowsUpdateStatusService(),
+            windowsUpdateStatusService,
             new DriverInformationService(processRunner))
     {
     }

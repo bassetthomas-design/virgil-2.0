@@ -238,6 +238,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
 
         Assert.Single(drivers);
         Assert.Equal("NVIDIA", drivers[0].Provider);
+        Assert.Equal("oem12.inf", drivers[0].PublishedName);
     }
 
     [Fact]
@@ -301,7 +302,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
             new WingetAvailabilityService(runner, new[] { @"C:\tools\winget.exe" }),
             runner,
             new UpdateRiskClassifier(),
-            new WindowsUpdateStatusService(),
+            new WindowsUpdateStatusService(new EmptyPendingRebootProbe()),
             new DriverInformationService(runner));
     }
 

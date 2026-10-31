@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 using Virgil.Core.Processes;
 using Virgil.Contracts;
 
@@ -101,11 +104,18 @@ public sealed class DriverInformationService
         }
     }
 
+    private static string NormalizeKey(string value)
+    {
+        var decomposed = value.Normalize(NormalizationForm.FormD);
+        var letters = new string(decomposed.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray());
+        return Regex.Replace(letters, @"\s+", " ").Trim();
+    }
+
     private static string ValueFor(IReadOnlyDictionary<string, string> values, params string[] keyFragments)
     {
         foreach (var fragment in keyFragments)
         {
-            var match = values.FirstOrDefault(pair => pair.Key.Contains(fragment, StringComparison.OrdinalIgnoreCase));
+            var match = values.FirstOrDefault(pair => NormalizeKey(pair.Key).Contains(NormalizeKey(fragment), StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(match.Value))
             {
                 return match.Value;

@@ -93,7 +93,7 @@ public sealed class ElevatedActionDispatcher
     {
         var startedAt = DateTimeOffset.UtcNow;
         if (request.ActionId == InterventionId.SetStartupApproval &&
-            (!string.IsNullOrEmpty(request.UpdateIdentity) || !string.IsNullOrEmpty(request.RestoreSessionId)))
+            (!string.IsNullOrEmpty(request.UpdateIdentity) || !string.IsNullOrEmpty(request.RestoreSessionId) || request.RestorePointSequenceNumber is not null))
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètres de mise à jour inattendus.", false);
         if (request.ActionId == InterventionId.SetStartupApproval)
         {
@@ -125,10 +125,10 @@ public sealed class ElevatedActionDispatcher
             catch (OperationCanceledException)
             { return Result(request, startedAt, 0, InterventionStatus.Cancelled, "Étape terminée après annulation. Étapes suivantes non lancées.", false); }
             return Result(request, startedAt, maintenance.Success ? 0 : -1,
-                maintenance.Success ? (maintenance.Reboot ? InterventionStatus.RebootRequired : InterventionStatus.Completed) : InterventionStatus.Failed,
+                cancellationToken.IsCancellationRequested ? InterventionStatus.Cancelled : maintenance.Success ? (maintenance.Reboot ? InterventionStatus.RebootRequired : InterventionStatus.Completed) : InterventionStatus.Failed,
                 maintenance.Message + (cancellationToken.IsCancellationRequested ? " Étape terminée après annulation." : ""), maintenance.Reboot);
         }
-        if (!string.IsNullOrEmpty(request.UpdateIdentity))
+        if (!string.IsNullOrEmpty(request.UpdateIdentity) || request.RestorePointSequenceNumber is not null)
             return Result(request, startedAt, -1, InterventionStatus.Failed, "Paramètre de mise à jour inattendu.", false);
         if (!_allowlist.TryGet(request.ActionId, GetSystemDrive(), out var spec))
         {
