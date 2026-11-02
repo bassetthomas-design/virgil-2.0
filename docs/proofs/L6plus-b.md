@@ -63,7 +63,7 @@ Les tests supplémentaires couvrent les jetons `drivers` et `windows-feature-upg
 
 `Cancel_during_winget_pass_skips_windows_update_and_final_pass` conserve l'installation en cours, bloque les paquets suivants, Windows Update et la passe finale ; la sonde du redémarrage reste exécutée. `Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately` vérifie l'acquittement immédiat et le message « ne peut pas être interrompue », sans attendre la fin de l'étape factice.
 
-Vérification complémentaire Linux : compilation croisée Release, 0 warning ; **99 tests ciblés réussis, 0 échec**, sans tests Windows. Le runtimeconfig généré de Core.Tests a été adapté uniquement dans `bin/` pour cette exécution de logique pure ; aucun fichier de projet ni workflow ne l'est. Cette vérification ne remplace pas la CI Windows.
+Vérification complémentaire Linux : compilation croisée Release, 0 warning ; **107 tests ciblés réussis, 0 échec**, sans tests Windows. Le runtimeconfig généré de Core.Tests a été adapté uniquement dans `bin/` pour cette exécution de logique pure ; aucun fichier de projet ni workflow ne l'est. Cette vérification ne remplace pas la CI Windows.
 
 ### Greps B2
 
@@ -92,7 +92,7 @@ La consigne conserve « Quittez-le depuis son icône » et devient :
 
 En attente de la tête finale : lien, totaux par projet, extrait vert des tests B1–B6, artefact et installateur à compléter après observation. Aucun succès Windows n'est déduit du contrôle Linux.
 
-Le parcours smoke conserve `ExecuteUpdateButton` explicitement interdit. Il autorise seulement les deux identifiants supplémentaires `RunSelectedButton` et `SkipUpdateButton`, vérifie `UpdatePlanStep.Drivers` avec `ToggleState.On`, capture, annule puis compare les rapports. La surveillance refuse le helper élevé et les commandes `winget upgrade/install`. Le scan approfondi est borné à 45 secondes avant repli sur l'inventaire déjà disponible pour ouvrir l'aperçu dans la limite du smoke ; la passe finale annoncée reste sélectionnable.
+Le parcours smoke conserve `ExecuteUpdateButton` explicitement interdit. Il autorise seulement les deux identifiants supplémentaires `RunSelectedButton` et `SkipUpdateButton`, vérifie `UpdatePlanStep.Drivers` avec `ToggleState.On`, capture, annule puis compare les rapports. La surveillance refuse le helper élevé, `winget install` et toute commande `winget upgrade` avec cible ou installation globale. Le seul `upgrade` toléré est la liste sans cible, bornée aux options fermées du scanner existant ; huit cas de sécurité distinguent cette lecture des installations. La ligne de commande est lue via une API native Windows, sans dépendance WMI dans le smoke. Le scan approfondi est borné à 45 secondes avant repli sur l'inventaire déjà disponible pour ouvrir l'aperçu dans la limite du smoke ; la passe finale annoncée reste sélectionnable.
 
 Liste attendue de **15 PNG** de `Virgil-ui-smoke` :
 

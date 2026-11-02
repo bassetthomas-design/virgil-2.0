@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Virgil.UiTests;
 
@@ -50,7 +49,7 @@ internal static class NativeUi
                     if (offset < Marshal.SizeOf<UnicodeCommandLine>() || offset + value.Length > required || value.Length % 2 != 0)
                     { violations.Enqueue("Commande WinGet invalide."); continue; }
                     var command = Marshal.PtrToStringUni(value.Buffer, value.Length / 2) ?? "";
-                    if (Regex.IsMatch(command, @"(?:^|\s)(?:upgrade|install)(?:\s|$)", RegexOptions.IgnoreCase))
+                    if (!WingetSmokeSafety.IsReadOnly(command))
                         violations.Enqueue("Commande WinGet interdite observée : " + command);
                 }
                 finally { Marshal.FreeHGlobal(buffer); }

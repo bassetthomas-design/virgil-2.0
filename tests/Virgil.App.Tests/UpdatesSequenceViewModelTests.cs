@@ -55,6 +55,7 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.True(driver.IsSelected);
         Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Id == "windows-feature-upgrade").IsSelected);
         Assert.Equal(new[] { "restore", "defender", "microsoft-update", "launchers", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, f.Vm.SequenceChoices.Select(choice => choice.Step.Id));
+        Assert.Equal(new[] { UpdateComponent.Restore, UpdateComponent.Defender, UpdateComponent.MicrosoftUpdate, UpdateComponent.Launcher, UpdateComponent.Windows, UpdateComponent.Driver, UpdateComponent.Store, UpdateComponent.WindowsFeatureUpgrade, UpdateComponent.WingetFinal, UpdateComponent.PendingReboot }, f.Vm.SequenceChoices.Select(choice => choice.Step.Component));
         var information = f.Vm.SequenceChoices.Where(choice => choice.Step.Component == UpdateComponent.Launcher).ToArray();
         Assert.Single(information);
         foreach (var choice in information)
