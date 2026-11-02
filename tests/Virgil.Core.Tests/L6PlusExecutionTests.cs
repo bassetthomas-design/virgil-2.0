@@ -69,13 +69,8 @@ public sealed class L6PlusExecutionTests
         AssertUnavailable(microsoft, false);
     }
 
-    // Reflection keeps this tests-only commit runnable against the pre-contract base.
-    private static void AssertUnavailable(UpdateSequenceStepResult result, bool expected)
-    {
-        var property = typeof(UpdateSequenceStepResult).GetProperty("WasUnavailable");
-        if (property is null) { Assert.False(expected); return; }
-        Assert.Equal(expected, property.GetValue(result));
-    }
+    private static void AssertUnavailable(UpdateSequenceStepResult result, bool expected) =>
+        Assert.Equal(expected, result.WasUnavailable);
 
     private static Task<UpdateSequenceResult> RunStoreSequence(Fixture f)
     {

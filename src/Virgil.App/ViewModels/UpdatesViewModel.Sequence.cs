@@ -135,11 +135,11 @@ public partial class UpdatesViewModel
                 Kind = ReportKind.Updates, Module = "Mises à jour", Title = "Tout mettre à jour",
                 Summary = result.Message, SimpleView = _sequenceReport, RestartRequired = result.RebootRequired,
                 Severity = result.WasRefused || result.HasFailures ? ReportSeverity.Warning : ReportSeverity.Success,
-                SkippedActions = result.Steps.Where(step => step.Step.IsInformational || step.WasSkipped).Select(step => new ReportAction
+                SkippedActions = result.Steps.Where(step => step.Step.IsInformational || step.WasSkipped || step.WasUnavailable).Select(step => new ReportAction
                 {
-                    Name = step.Step.Title, Status = ReportActionStatus.InformationOnly, Result = step.Message
+                    Name = step.Step.Title, Status = ReportActionStatus.InformationOnly, Result = step.WasUnavailable ? "Non disponible sur ce PC (information)" : step.Message
                 }).ToArray(),
-                ExecutedActions = result.Steps.Where(step => !step.Step.IsInformational && !step.WasSkipped).Select(step => new ReportAction
+                ExecutedActions = result.Steps.Where(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable).Select(step => new ReportAction
                 {
                     Name = step.Step.Title, Status = step.Succeeded ? ReportActionStatus.Executed : ReportActionStatus.Failed,
                     Result = step.Message, RestartRequired = step.RebootRequired

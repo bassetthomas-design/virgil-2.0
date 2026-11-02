@@ -18,9 +18,7 @@ public sealed class UpdatesSequenceViewModelTests
         f.Vm.VirgilStateRequested += (state, _) => states.Add(state);
         f.Backend.Handler = (step, _) =>
         {
-            var result = new UpdateSequenceStepResult(step, false, false, "Scan Store non disponible sur ce PC (information, best effort).");
-            // Keep the first tests-only commit compilable on be30824.
-            typeof(UpdateSequenceStepResult).GetProperty("WasUnavailable")?.SetValue(result, true);
+            var result = new UpdateSequenceStepResult(step, false, false, "Scan Store non disponible sur ce PC (information, best effort).") { WasUnavailable = true };
             return Task.FromResult(result);
         };
         var pending = f.Vm.RunAllCommand.ExecuteAsync(null);

@@ -107,17 +107,20 @@ public sealed class WindowsUpdateSequenceBackend(
         foreach (var step in steps)
         {
             var lines = output.Where(line => line.Step == Token(step.Component)).ToArray();
+            var wasUnavailable = step.Component == UpdateComponent.Store && lines.Any(line => line.Status == "UNAVAILABLE") &&
+                !lines.Any(line => line.Status is "FAILED" or "CANCELLED");
             var succeeded = lines.Length == 0 ? result.Success : !lines.Any(line => line.Status is "FAILED" or "CANCELLED" or "UNAVAILABLE") && lines.Any(line => line.Status == "OK");
             var message = lines.Length == 0
                 ? (output.Count == 0 ? ReadableOutput(result.Message) : string.Join("\n", output.Where(line => line.Step == "maintenance").Select(line => line.Message)))
                 : string.Join("\n", lines.Select(line => line.Message).Distinct(StringComparer.Ordinal));
+            if (wasUnavailable) message = "Scan Store non disponible sur ce PC (information, best effort).";
             if (string.IsNullOrWhiteSpace(message)) message = succeeded ? "Étape terminée." : "Étape non terminée.";
             if (prepare && !_prepared)
             {
                 succeeded = false;
                 message = "Préparation Microsoft bloquée : point de restauration non vérifié.";
             }
-            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null });
+            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null, WasUnavailable = wasUnavailable });
         }
         return results;
     }
