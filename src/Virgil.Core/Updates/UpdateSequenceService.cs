@@ -8,7 +8,7 @@ namespace Virgil.Core.Updates;
 public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Restore, MicrosoftUpdate, Store, WindowsFeatureUpgrade, WingetFinal, PendingReboot }
 public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
 {
-    public bool IsInformational => Component == UpdateComponent.Launcher;
+    public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot;
 }
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status);
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message);
@@ -89,7 +89,10 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             if (!cancellationToken.IsCancellationRequested)
             {
                 progress?.Report(new(1, snapshot.Length, "Point de restauration et préparation Microsoft Update", "En cours"));
-                var protectedResults = await backend.ExecuteGroupAsync(preparation, cancellationToken).ConfigureAwait(false);
+                IReadOnlyList<UpdateSequenceStepResult> protectedResults;
+                try { protectedResults = await backend.ExecuteGroupAsync(preparation, cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { protectedResults = []; }
+                catch { protectedResults = [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.")]; }
                 results.AddRange(protectedResults);
                 if (protectedResults.Any(r => !r.Succeeded))
                 {

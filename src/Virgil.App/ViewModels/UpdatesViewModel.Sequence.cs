@@ -185,7 +185,7 @@ public partial class UpdatesViewModel
         }
         var preview = _sequenceService.CreatePreview(selected);
         ValidationCommand = string.Join("\n", preview.Effects);
-        ValidationSafety = "Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un.\nNouvelle version de Windows : opération longue, redémarrage obligatoire, dernière étape de l'élévation Windows Update. Office Click-to-Run se met à jour lui-même.\nCertaines étapes ne peuvent pas être interrompues une fois lancées.\nUne seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
+        ValidationSafety = "Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un.\nNouvelle version de Windows : opération longue, redémarrage obligatoire, dernière étape de l'élévation Windows Update. Office Click-to-Run se met à jour lui-même.\nAvant les paquets et la passe finale : winget source update. La passe finale installe tout ce que WinGet trouve, y compris hors de la liste affichée.\nCertaines étapes ne peuvent pas être interrompues une fois lancées.\nUne seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
             + string.Join("\n", preview.RequiredBackups);
     }
 }

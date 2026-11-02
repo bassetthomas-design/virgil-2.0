@@ -132,9 +132,13 @@ public sealed class InterfaceAccentTests
     private static IEnumerable<(string Wrong, string Correct)> Violations(string text, Dictionary<string, string> dictionary)
     {
         if (IsTechnicalToken(text)) yield break;
-        foreach (var word in Words(text))
-            // Unicode letters/marks are collected whole: no substring match inside défaut/detections.
+        foreach (Match match in Regex.Matches(text, @"[\p{L}\p{M}]+"))
+        {
+            var word = match.Value;
+            // « 3 passes » est un nom féminin, distinct du participe « passés ».
+            if (word.Equals("passes", StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(text[..match.Index], @"\b[0-9]+\s+$")) continue;
             if (dictionary.TryGetValue(word, out var correct)) yield return (word, correct);
+        }
     }
 
     [Fact]
@@ -195,6 +199,14 @@ public sealed class InterfaceAccentTests
     [InlineData("prédetection", false)]
     public void Unicode_words_are_never_split_or_matched_as_substrings(string text, bool rejected) =>
         Assert.Equal(rejected, Violations(text, new(StringComparer.OrdinalIgnoreCase) { ["detection"] = "détection" }).Any());
+
+    [Theory]
+    [InlineData("Windows Update : logiciels (jusqu'à 3 passes)", false)]
+    [InlineData("Windows Update : pilotes (jusqu'à 3 passes)", false)]
+    [InlineData("Les essais sont passes", true)]
+    [InlineData("Les essais sont passés", false)]
+    public void Numbered_passes_are_a_noun_but_unaccented_participles_are_rejected(string text, bool rejected)
+        => Assert.Equal(rejected, Violations(text, new(StringComparer.OrdinalIgnoreCase) { ["passes"] = "passés" }).Any());
 
     [Theory]
     [InlineData("annule")]

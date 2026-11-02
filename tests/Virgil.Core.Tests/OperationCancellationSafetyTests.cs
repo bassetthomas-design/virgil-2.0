@@ -99,7 +99,7 @@ public sealed class OperationCancellationSafetyTests
         var backend = new WingetBackend(executor, authority);
         var service = new UpdateSequenceService(backend, authority);
         var selection = Enumerable.Range(1, 3).Select(i => new UpdateSequenceStep("app" + i, "App " + i, UpdateComponent.Winget,
-            new UpdateItem { Id = "app" + i, Name = "App " + i, AvailableVersion = "2.0" })).ToArray();
+            new UpdateItem { Id = "app" + i, Name = "App " + i, AvailableVersion = "2.0" })).Concat(new[] { new UpdateSequenceStep("software", "Windows Update", UpdateComponent.Windows), new UpdateSequenceStep("winget-final", "Passe finale", UpdateComponent.WingetFinal) }).ToArray();
         var plan = authority.Issue(service.CreatePreview(selection), new(ConfirmationLevel.Reinforced, null));
         var task = service.ExecuteAsync(selection, plan, null, cancellation.Token);
         await runner.Started.Task;

@@ -52,6 +52,8 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
             var keyPath = name switch
             {
                 "EA app" => @"SOFTWARE\EA Games",
+                "Battle.net" => @"SOFTWARE\Blizzard Entertainment",
+                "WeGame" => @"SOFTWARE\Tencent\WeGame\Games",
                 "Ubisoft Connect" => @"SOFTWARE\Ubisoft\Launcher\Installs",
                 _ => null
             };
@@ -62,7 +64,8 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
             foreach (var child in key.GetSubKeyNames())
             {
                 using var game = key.OpenSubKey(child, false);
-                var path = game?.GetValue(name == "EA app" ? "Install Dir" : "InstallDir") as string;
+                var valueName = name switch { "EA app" => "Install Dir", "Battle.net" => "InstallPath", _ => "InstallDir" };
+                var path = game?.GetValue(valueName) as string;
                 if (string.IsNullOrWhiteSpace(path)) return (false, []);
                 roots.Add(path);
             }

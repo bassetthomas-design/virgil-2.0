@@ -310,7 +310,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("10 pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour ».", f.Vm.DriversStatus);
         Assert.Equal("Pilotes lus", f.Vm.WindowsUpdateStatus);
         Assert.Equal(12, f.Vm.DriverCards.Count);
-        Assert.Equal(new[] { "Lecture seule", "Erreur lisible : 1", "Erreur lisible : 2", "Erreur lisible : 3" }, f.Vm.DriverCards.Take(4));
+        Assert.Equal(new[] { "Inventaire des pilotes en lecture seule. Les pilotes Windows Update sont proposés dans « Tout mettre à jour ».", "Erreur lisible : 1", "Erreur lisible : 2", "Erreur lisible : 3" }, f.Vm.DriverCards.Take(4));
         Assert.Equal("Pilote\nFournisseur : Inconnu\nClasse : Inconnu\nVersion : Inconnu\nSignataire : Inconnu".Replace("Inconnu", "N/A"), f.Vm.DriverCards[4]);
         Assert.Contains("oem8", f.Vm.DriverCards.Last());
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);

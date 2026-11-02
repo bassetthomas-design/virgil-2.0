@@ -108,7 +108,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IUpdateSequenceBackend>(sp => new Virgil.Infrastructure.Windows.WindowsUpdateSequenceBackend(
             sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<ElevatedHelperRequestStore>(),
             sp.GetRequiredService<IElevatedProcessLauncher>(), () => Path.Combine(AppContext.BaseDirectory, "Virgil.ElevatedHelper.exe")));
-        services.AddTransient<ILauncherShutdownBackend, Virgil.Infrastructure.Windows.WindowsLauncherShutdownBackend>();
+        services.AddTransient<ILauncherShutdownBackend>(sp => new Virgil.Infrastructure.Windows.WindowsLauncherShutdownBackend(sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<LauncherShutdownPolicy>(sp => new LauncherShutdownPolicy(sp.GetRequiredService<ILauncherShutdownBackend>(), TimeProvider.System));
         services.AddTransient<IUpdateSequenceService>(sp => new UpdateSequenceService(
             sp.GetRequiredService<IUpdateSequenceBackend>(), sp.GetRequiredService<IConfirmedPlanGate>(), sp.GetRequiredService<IPendingRebootProbe>(), sp.GetRequiredService<LauncherShutdownPolicy>()));

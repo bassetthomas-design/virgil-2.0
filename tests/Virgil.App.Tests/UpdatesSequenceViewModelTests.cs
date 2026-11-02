@@ -72,12 +72,12 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.False(f.Vm.IsSequencePreview);
         Assert.NotNull(f.History.Report);
         Assert.True(f.History.Report.RestartRequired);
-        Assert.Equal(2, f.History.Report.ExecutedActions.Count);
-        Assert.Empty(f.History.Report.SkippedActions);
+        Assert.Single(f.History.Report.ExecutedActions);
+        Assert.Single(f.History.Report.SkippedActions);
         Assert.All(f.History.Report.SkippedActions, line =>
         {
             Assert.Equal(ReportActionStatus.InformationOnly, line.Status);
-            Assert.Equal("À faire dans le lanceur", line.Result);
+            Assert.StartsWith("Redémarrage nécessaire : oui", line.Result);
         });
         Assert.Equal(ReportSeverity.Success, f.History.Report.Severity);
         f.Vm.ViewReportCommand.Execute(null);
@@ -141,6 +141,43 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.True(f.Vm.IsIdle);
     }
 
+    [Fact, Trait("Category", "Safety")]
+    public async Task Pending_reboot_probe_drives_banner_and_report()
+    {
+        var f = new Fixture(new CbsProbe());
+        f.Backend.Reboot = false;
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.WingetFinal;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Contains("REDÉMARRAGE WINDOWS REQUIS", f.Vm.RebootStatusText);
+        Assert.Contains("oui (Maintenance des composants)", f.History.Report!.SimpleView);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately()
+    {
+        var f = new Fixture();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource<UpdateSequenceStepResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Backend.Handler = (step, token) => { entered.SetResult(); return finish.Task; };
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Windows;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        f.Vm.Operation.CancelCommand.Execute(null);
+        Assert.True(f.Vm.IsCancelling);
+        Assert.Contains("ne peut pas être interrompue", f.Vm.SequenceStepText);
+        Assert.False(pending.IsCompleted);
+        finish.SetResult(new(new("software", "Windows Update", UpdateComponent.Windows), true, false, "Terminée"));
+        await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Single(f.Backend.Executed);
+    }
+    private sealed class CbsProbe : IPendingRebootProbe
+    {
+        public PendingRebootStatus Read() => new(true, ["Maintenance des composants"]);
+    }
+
     private sealed class Fixture
     {
         public RecordingConfirmation Confirmation { get; } = new();
@@ -148,16 +185,17 @@ public sealed class UpdatesSequenceViewModelTests
         public History History { get; } = new();
         public Runner Runner { get; } = new();
         public UpdatesViewModel Vm { get; }
-        public Fixture()
+        public Fixture(IPendingRebootProbe? probe = null)
         {
             Vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
-                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, new UpdateSequenceService(Backend, Confirmation.Authority),
+                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, new UpdateSequenceService(Backend, Confirmation.Authority, probe),
                 new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));
         }
     }
     private sealed class Backend : IUpdateSequenceBackend
     {
         public List<UpdateComponent> Executed { get; } = new();
+        public bool Reboot { get; set; } = true;
         public Action? OnExecute { get; set; }
         public Func<UpdateSequenceStep, CancellationToken, Task<UpdateSequenceStepResult>>? Handler { get; set; }
         public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["Steam", "Battle.net"]);
@@ -165,7 +203,7 @@ public sealed class UpdatesSequenceViewModelTests
         {
             Executed.Add(step.Component);
             OnExecute?.Invoke();
-            return Handler?.Invoke(step, cancellationToken) ?? Task.FromResult(new UpdateSequenceStepResult(step, true, true, "Terminé"));
+            return Handler?.Invoke(step, cancellationToken) ?? Task.FromResult(new UpdateSequenceStepResult(step, true, Reboot, "Terminé"));
         }
     }
     private sealed class Scan : IUpdateScanService
