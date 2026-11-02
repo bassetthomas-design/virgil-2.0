@@ -47,7 +47,6 @@ public sealed class DriverInformationService
         return new DriverInventoryReport
         {
             WasAnalyzed = true,
-            CanInstallDrivers = false,
             Drivers = drivers,
             Recommendations = new[]
             {

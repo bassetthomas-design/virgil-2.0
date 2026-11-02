@@ -109,7 +109,7 @@ public static class DiagnosticAnalyzer
             {
                 var name = p.Name.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "Steam" : p.Name;
                 issues.Add(new("process." + p.Pid, name + " : lanceur gourmand en arrière-plan",
-                    "Il tourne dans la zone de notification. Quittez-le depuis son icône (clic droit → Quitter) si vous ne l'utilisez pas.",
+                    "Il tourne dans la zone de notification. Quittez-le depuis son icône (clic droit → Quitter) si vous ne l'utilisez pas, ou laissez « Tout mettre à jour » s'en charger.",
                     1, 5, "process"));
                 continue;
             }

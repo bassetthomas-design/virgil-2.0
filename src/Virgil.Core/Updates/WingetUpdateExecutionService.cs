@@ -172,7 +172,8 @@ public sealed class WingetUpdateExecutionService : IUpdateExecutionService
             "upgrade",
             "--id",
             packageId,
-            "--exact"
+            "--exact",
+            "--force"
         };
 
         if (capabilities.SupportsIncludeUnknown) arguments.Add("--include-unknown");

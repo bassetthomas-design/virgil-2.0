@@ -26,6 +26,8 @@ public partial class UpdatesViewModel
     [ObservableProperty] private bool isRunAllEnabled;
     [ObservableProperty] private string sequenceStepText = "Aucune séquence en cours.";
     [ObservableProperty] private bool rebootRequired;
+    public string RebootStatusText => RebootRequired ? "REDÉMARRAGE WINDOWS REQUIS — Redémarrez puis relancez « Tout mettre à jour » pour terminer." : "Aucun redémarrage en attente.";
+    partial void OnRebootRequiredChanged(bool value) => OnPropertyChanged(nameof(RebootStatusText));
 
     [RelayCommand]
     private async Task InstallWingetModuleAsync()
@@ -61,7 +63,6 @@ public partial class UpdatesViewModel
     private void CancelUpdateOperation()
     {
         CancelActiveOperation();
-        SequenceStepText = "Annulation demandée. Arrêt entre les étapes ; une installation en cours peut devoir se terminer.";
     }
 
     [RelayCommand]
@@ -73,14 +74,23 @@ public partial class UpdatesViewModel
         RebootRequired = false;
         try
         {
-            var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview,
-                CreateTextProgress(), _operationCancellation!.Token);
+            using var previewCancellation = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(_operationCancellation!.Token);
+            UpdateScanReport scan;
+            try
+            {
+                scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview, CreateTextProgress(), previewCancellation.Token).WaitAsync(TimeSpan.FromSeconds(45), _operationCancellation.Token);
+            }
+            catch (TimeoutException)
+            {
+                previewCancellation.Cancel();
+                scan = new UpdateScanReport { Items = _lastItems.ToArray() };
+            }
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = scan;
             _lastItems.Clear();
             _lastItems.AddRange(scan.Items);
             RenderScanReport(scan);
-            StatusText = "Recherche Windows Update en cours — ne peut pas être interrompue";
+            StatusText = "Préparation des catégories de mises à jour…";
             Operation.Report(new Virgil.Core.Operations.OperationProgress(StatusText));
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
             _operationCancellation.Token.ThrowIfCancellationRequested();
@@ -106,7 +116,7 @@ public partial class UpdatesViewModel
             var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, null));
             IsSequencePreview = false;
             RequestVirgilState(VirgilCoreState.Executing, "MISES À JOUR");
-            var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(SequenceChoices.Where(choice => choice.Step.IsInformational).Select(choice => choice.Step)).ToArray(), plan,
+            var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(Array.Empty<UpdateSequenceStep>()).ToArray(), plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
@@ -125,11 +135,11 @@ public partial class UpdatesViewModel
                 Kind = ReportKind.Updates, Module = "Mises à jour", Title = "Tout mettre à jour",
                 Summary = result.Message, SimpleView = _sequenceReport, RestartRequired = result.RebootRequired,
                 Severity = result.WasRefused || result.HasFailures ? ReportSeverity.Warning : ReportSeverity.Success,
-                SkippedActions = result.Steps.Where(step => step.Step.IsInformational).Select(step => new ReportAction
+                SkippedActions = result.Steps.Where(step => step.Step.IsInformational || step.WasSkipped).Select(step => new ReportAction
                 {
                     Name = step.Step.Title, Status = ReportActionStatus.InformationOnly, Result = step.Message
                 }).ToArray(),
-                ExecutedActions = result.Steps.Where(step => !step.Step.IsInformational).Select(step => new ReportAction
+                ExecutedActions = result.Steps.Where(step => !step.Step.IsInformational && !step.WasSkipped).Select(step => new ReportAction
                 {
                     Name = step.Step.Title, Status = step.Succeeded ? ReportActionStatus.Executed : ReportActionStatus.Failed,
                     Result = step.Message, RestartRequired = step.RebootRequired
@@ -162,8 +172,11 @@ public partial class UpdatesViewModel
 
     private void UpdateSequencePreview()
     {
+        var needsRestore = SequenceChoices.Any(choice => choice.IsSelected && UpdateSequenceService.IsElevated(choice.Step.Component));
+        foreach (var required in SequenceChoices.Where(choice => choice.Step.Component is UpdateComponent.Restore or UpdateComponent.PendingReboot))
+            required.IsSelected = required.Step.Component == UpdateComponent.PendingReboot || needsRestore;
         var selected = SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
-        ValidationDetails = "Décochez les composants à exclure. Les pilotes sont facultatifs et décochés par défaut.";
+        ValidationDetails = "Les pilotes Windows Update sont cochés par défaut. Décochez-les pour les laisser de côté. Un point de restauration est créé avant toute installation. Certaines étapes ne peuvent pas être interrompues une fois lancées.";
         if (_sequenceService is null || selected.Length == 0)
         {
             ValidationCommand = "Aucun composant sélectionné.";
@@ -172,7 +185,7 @@ public partial class UpdatesViewModel
         }
         var preview = _sequenceService.CreatePreview(selected);
         ValidationCommand = string.Join("\n", preview.Effects);
-        ValidationSafety = "Certaines étapes ne peuvent pas être interrompues une fois lancées.\nUne seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
+        ValidationSafety = "Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un.\nOffice Click-to-Run se met à jour lui-même.\nAvant les paquets et la passe finale : winget source update. La passe finale installe tout ce que WinGet trouve, y compris hors de la liste affichée.\nCertaines étapes ne peuvent pas être interrompues une fois lancées.\nUne seule confirmation pour les composants cochés. Annulation possible entre les étapes. Aucun redémarrage automatique.\n"
             + string.Join("\n", preview.RequiredBackups);
     }
 }
@@ -184,17 +197,26 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     {
         Step = step;
         _changed = changed;
-        isSelected = !step.IsInformational && step.Component != UpdateComponent.Driver;
+        isSelected = step.Component is not UpdateComponent.Restore and not UpdateComponent.PendingReboot;
     }
     public UpdateSequenceStep Step { get; }
-    public bool CanSelect => !Step.IsInformational;
+    public bool CanSelect => Step.Component is not UpdateComponent.Restore and not UpdateComponent.PendingReboot;
+    public string AutomationId => "UpdatePlanStep." + (Step.Component switch
+    {
+        UpdateComponent.Winget => "Winget." + Step.Id,
+        UpdateComponent.Windows => "WindowsSoftware",
+        UpdateComponent.Driver => "Drivers",
+        _ => Step.Component.ToString()
+    });
+    public bool HasHelp => Step.Component == UpdateComponent.WindowsFeatureUpgrade;
+    public string HelpText => HasHelp ? "Opération longue, redémarrage obligatoire ; dernière étape de l'élévation Windows Update." : string.Empty;
     public string Title => Step.Application is { } app
         ? $"{Step.Title} : {app.InstalledVersion} → {app.AvailableVersion} ({UpdatesViewModel.SourceLabel(app.Source)})"
         : Step.Title;
     [ObservableProperty] private bool isSelected;
     partial void OnIsSelectedChanged(bool value)
     {
-        if (value && !CanSelect) { IsSelected = false; return; }
+
         _changed();
     }
 }

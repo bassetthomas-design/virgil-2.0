@@ -180,7 +180,7 @@ VLC media player VideoLAN.VLC          3.0.18       3.0.20       winget
         Assert.Contains("--exact", command);
         Assert.DoesNotContain("--all", command);
         Assert.DoesNotContain("--silent", command);
-        Assert.DoesNotContain("--force", command);
+        Assert.Contains("--force", command);
     }
 
     [Fact]
@@ -256,8 +256,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
         var report = await service.InspectAsync(CancellationToken.None);
 
         Assert.True(report.WasAnalyzed);
-        Assert.False(report.CanInstallDrivers);
-        Assert.Contains("Masqué en V1", report.InstallButtonVisibilityReason);
+        Assert.Equal("oem12.inf", Assert.Single(report.Drivers).PublishedName);
     }
 
     [Fact]
@@ -277,7 +276,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
         Assert.Contains("--exact", arguments);
         Assert.DoesNotContain("--all", arguments);
         Assert.DoesNotContain("--silent", arguments);
-        Assert.DoesNotContain("--force", arguments);
+        Assert.Contains("--force", arguments);
     }
 
     [Fact]

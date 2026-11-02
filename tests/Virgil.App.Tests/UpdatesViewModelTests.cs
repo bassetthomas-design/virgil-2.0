@@ -71,15 +71,11 @@ public sealed class UpdatesViewModelTests
         Assert.Single(f.Vm.DriverCards);
         Assert.False(f.Vm.IsRunSelectedEnabled);
         Assert.False(f.Vm.IsReportButtonEnabled);
-        Assert.False(f.Vm.IsInstallDriversVisible);
-        Assert.False(f.Vm.IsInstallDriversEnabled);
         Assert.False(f.Vm.IsValidationOpen);
         Assert.False(f.Vm.IsReportOpen);
         Assert.False(f.Vm.TryCloseOverlay());
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Equal("Aucun rapport mises à jour disponible.", f.Messages.Last());
-        f.Vm.InstallDriversCommand.Execute(null);
-        Assert.Equal("Les pilotes disponibles sont proposés dans « Tout mettre à jour ».\nIls restent facultatifs et décochés par défaut.", f.Messages.Last());
         var returned = false;
         f.Vm.ReturnHomeRequested += (_, _) => returned = true;
         f.Vm.ReturnHomeCommand.Execute(null);
@@ -303,19 +299,18 @@ public sealed class UpdatesViewModelTests
     {
         var f = new Fixture(); f.Scan.Report = Report(Item("app")) with { Errors = new[] { "Commun" }, Recommendations = new[] { "Conseil" } };
         await f.Analyze(); f.SelectAll();
-        f.Scan.Report = new() { WindowsUpdate = new() { Status = "Pilotes lus" }, Drivers = new() { WasAnalyzed = true, CanInstallDrivers = true, InstallButtonVisibilityReason = "Lecture seule", Errors = new[] { "1", "2", "3", "4" }, Drivers = Enumerable.Range(1, 10).Select(i => new DriverInformation { PublishedName = i == 1 ? "" : $"oem{i}" }).ToArray() }, Errors = new[] { "COMMUN", "Autre" }, Recommendations = new[] { "CONSEIL", "Autre conseil" } };
+        f.Scan.Report = new() { WindowsUpdate = new() { Status = "Pilotes lus" }, Drivers = new() { WasAnalyzed = true, Errors = new[] { "1", "2", "3", "4" }, Drivers = Enumerable.Range(1, 10).Select(i => new DriverInformation { PublishedName = i == 1 ? "" : $"oem{i}" }).ToArray() }, Errors = new[] { "COMMUN", "Autre" }, Recommendations = new[] { "CONSEIL", "Autre conseil" } };
         await f.Vm.InspectDriversCommand.ExecuteAsync(null);
         Assert.False(f.Scan.Request!.IncludeApplicationUpdates);
         Assert.True(f.Scan.Request.IncludeDriverInventory);
+        Assert.Contains(f.Vm.DriverCards, card => card.Contains("Inventaire des pilotes en lecture seule", StringComparison.Ordinal));
         Assert.Equal(UpdateScanScope.DeepPreview, f.Scan.Request.Scope);
         Assert.Equal("app", Assert.Single(f.Cards).Item.Id);
         Assert.False(f.Cards.Single().IsSelected);
-        Assert.True(f.Vm.IsInstallDriversVisible);
-        Assert.True(f.Vm.IsInstallDriversEnabled);
         Assert.Equal("10 pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour ».", f.Vm.DriversStatus);
         Assert.Equal("Pilotes lus", f.Vm.WindowsUpdateStatus);
         Assert.Equal(12, f.Vm.DriverCards.Count);
-        Assert.Equal(new[] { "Lecture seule", "Erreur lisible : 1", "Erreur lisible : 2", "Erreur lisible : 3" }, f.Vm.DriverCards.Take(4));
+        Assert.Equal(new[] { "Inventaire des pilotes en lecture seule. Les pilotes Windows Update sont proposés dans « Tout mettre à jour ».", "Erreur lisible : 1", "Erreur lisible : 2", "Erreur lisible : 3" }, f.Vm.DriverCards.Take(4));
         Assert.Equal("Pilote\nFournisseur : Inconnu\nClasse : Inconnu\nVersion : Inconnu\nSignataire : Inconnu".Replace("Inconnu", "N/A"), f.Vm.DriverCards[4]);
         Assert.Contains("oem8", f.Vm.DriverCards.Last());
         Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);

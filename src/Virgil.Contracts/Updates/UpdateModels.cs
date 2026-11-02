@@ -185,11 +185,6 @@ public sealed record DriverInventoryReport
 {
     public bool WasAnalyzed { get; init; }
 
-    public bool CanInstallDrivers { get; init; }
-
-    public string InstallButtonVisibilityReason { get; init; } =
-        "Masqué en V1 : aucune source fiable d'installation pilote n'est exécutée.";
-
     public IReadOnlyList<DriverInformation> Drivers { get; init; } = Array.Empty<DriverInformation>();
 
     public IReadOnlyList<string> Recommendations { get; init; } = Array.Empty<string>();

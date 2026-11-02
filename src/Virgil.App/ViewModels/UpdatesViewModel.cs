@@ -66,8 +66,6 @@ public partial class UpdatesViewModel : ObservableObject
     public bool IsIdle => !IsBusy;
     [ObservableProperty] private bool isRunSelectedEnabled;
     [ObservableProperty] private bool isReportButtonEnabled;
-    [ObservableProperty] private bool isInstallDriversVisible;
-    [ObservableProperty] private bool isInstallDriversEnabled;
     [ObservableProperty] private bool isValidationOpen;
     [ObservableProperty] private string validationTitle = "VALIDATION REQUISE";
     [ObservableProperty] private string validationDetails = string.Empty;
@@ -96,6 +94,10 @@ public partial class UpdatesViewModel : ObservableObject
     {
         Operation.AcknowledgeCancellation();
         OnPropertyChanged(nameof(IsCancelling));
+        SequenceStepText = SequenceStepText.Contains("Windows Update", StringComparison.Ordinal)
+            ? "Annulation demandée — l'opération Windows Update en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé."
+            : "Annulation demandée — l'étape en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé.";
+        Operation.Step = SequenceStepText;
         _operationCancellation?.Cancel();
         CompleteDecision(UpdateDecision.CancelAll);
     }
@@ -127,8 +129,6 @@ public partial class UpdatesViewModel : ObservableObject
     [RelayCommand]
     private Task ScanUpdatesAsync() => ScanUpdatesAsync(UpdateScanRequest.DeepPreview);
 
-    [RelayCommand]
-    private void InstallDrivers() => VirgilMessageRequested?.Invoke("Les pilotes disponibles sont proposés dans « Tout mettre à jour ».\nIls restent facultatifs et décochés par défaut.");
     [RelayCommand]
     private void ViewReport() => ShowReport();
     [RelayCommand]
@@ -426,8 +426,6 @@ public partial class UpdatesViewModel : ObservableObject
         IsRunSelectedEnabled = !_operationInProgress && SelectedItems().Any();
         IsRunAllEnabled = !_operationInProgress && _sequenceService is not null;
         IsReportButtonEnabled = !_operationInProgress && HasAnyReport();
-        IsInstallDriversVisible = _lastScanReport?.Drivers.CanInstallDrivers == true;
-        IsInstallDriversEnabled = !_operationInProgress && IsInstallDriversVisible;
     }
 
     private IProgress<string> CreateTextProgress()
@@ -567,7 +565,7 @@ public partial class UpdatesViewModel : ObservableObject
             return;
         }
 
-        DriverCards.Add(drivers.InstallButtonVisibilityReason);
+        DriverCards.Add("Inventaire des pilotes en lecture seule. Les pilotes Windows Update sont proposés dans « Tout mettre à jour ».");
 
         foreach (var error in drivers.Errors.Take(3))
         {
@@ -697,7 +695,6 @@ public partial class UpdatesViewModel : ObservableObject
             builder.AppendLine($"Windows Update : {scanReport.WindowsUpdate.Status}");
             builder.AppendLine($"Redémarrage en attente : {(scanReport.WindowsUpdate.PendingRebootDetected ? "oui" : "non")}");
             builder.AppendLine($"Pilotes inventoriés : {scanReport.Drivers.Drivers.Count}");
-            builder.AppendLine($"Bouton pilotes : {scanReport.Drivers.InstallButtonVisibilityReason}");
             AppendList(builder, "Recommandations", scanReport.Recommendations);
             AppendList(builder, "Erreurs lisibles", scanReport.Errors);
             builder.AppendLine();
