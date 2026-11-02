@@ -109,12 +109,17 @@ public sealed class LauncherShutdownTests
     }
     private sealed class RecordingRunner : Virgil.Core.Processes.IProcessRunner
     {
-        public List<Virgil.Core.Processes.ProcessRunRequest> Requests { get; } = [];
+        private readonly object _requestsLock = new();
+        private readonly List<Virgil.Core.Processes.ProcessRunRequest> _requests = [];
+        public IReadOnlyList<Virgil.Core.Processes.ProcessRunRequest> Requests
+        {
+            get { lock (_requestsLock) return _requests.ToArray(); }
+        }
         public bool MissingSystemPath { get; set; }
         public int SoftExitCode { get; set; }
         public Task<Virgil.Core.Processes.ProcessRunResult> RunAsync(Virgil.Core.Processes.ProcessRunRequest request, CancellationToken token)
         {
-            Requests.Add(request);
+            lock (_requestsLock) _requests.Add(request);
             if (request.FileName == "powershell.exe")
             {
                 var processes = new List<LauncherProcess> { new(1, 0, @"C:\Steam\steam.exe", "steam.exe"), new(2, 1, @"C:\Steam\bin\steamwebhelper.exe", "steamwebhelper.exe") };
