@@ -12,31 +12,17 @@ public sealed class WindowsUpdateSequenceBackend(
     Func<string> helperPath,
     WingetAvailabilityService? wingetAvailability = null) : IUpdateSequenceBackend
 {
+    private int? _restorePointSequenceNumber;
+    private bool _prepared;
+    private bool _sourceUpdated;
     private string _restoreSessionId = string.Empty;
-    public void BeginExecution(string restoreSessionId) => _restoreSessionId = restoreSessionId;
-
-    public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken cancellationToken) => Task.Run<IReadOnlyList<UpdateSequenceStep>>(() =>
+    public void BeginExecution(string restoreSessionId)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var steps = new List<UpdateSequenceStep>();
-        try
-        {
-            dynamic session = Activator.CreateInstance(Type.GetTypeFromProgID("Microsoft.Update.Session", true)!)!;
-            dynamic searcher = session.CreateUpdateSearcher();
-            dynamic search = searcher.Search("IsInstalled=0 and Type='Driver' and IsHidden=0");
-            cancellationToken.ThrowIfCancellationRequested();
-            for (var i = 0; i < search.Updates.Count; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                dynamic update = search.Updates.Item(i);
-                steps.Add(new((string)update.Identity.UpdateID, (string)update.Title, UpdateComponent.Driver));
-            }
-        }
-        catch (OperationCanceledException) { throw; }
-        catch { steps.Add(new("unavailable", "Recherche des pilotes indisponible ; réessayez plus tard", UpdateComponent.Driver)); }
-        cancellationToken.ThrowIfCancellationRequested();
-        return steps;
-    }, cancellationToken);
+        _restoreSessionId = restoreSessionId;
+        _restorePointSequenceNumber = null;
+        _prepared = false;
+        _sourceUpdated = false;
+    }
 
     public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken cancellationToken) => Task.Run(async () =>
     {
@@ -54,31 +40,69 @@ public sealed class WindowsUpdateSequenceBackend(
     {
         if (step.Component == UpdateComponent.Launcher)
             return new(step, false, false, "À faire dans le lanceur");
-        if (step.Component == UpdateComponent.Winget)
+        if (step.Component is UpdateComponent.Winget or UpdateComponent.WingetFinal)
         {
             var app = step.Application;
-            if (app is null || string.IsNullOrWhiteSpace(app.Id) || app.IsIdTruncated || !IsSafePackageId(app.Id) || !IsSafeVersion(app.AvailableVersion))
+            if (step.Component == UpdateComponent.Winget && (app is null || string.IsNullOrWhiteSpace(app.Id) || app.IsIdTruncated || !IsSafePackageId(app.Id) || !IsSafeVersion(app.AvailableVersion)))
                 return new(step, false, false, "Identité ou version WinGet incomplète. Relancez l’analyse.");
             var detection = await (wingetAvailability ?? new WingetAvailabilityService(runner)).DetectAsync(cancellationToken).ConfigureAwait(false);
             if (!detection.IsAvailable || string.IsNullOrWhiteSpace(detection.ExecutablePath)) return new(step, false, false, "WinGet indisponible.");
             cancellationToken.ThrowIfCancellationRequested();
             var capabilities = WingetAvailabilityService.GetCapabilities(detection.Version);
-            var args = WingetUpdateExecutionService.BuildUpgradeArguments(app.Id, capabilities).ToList();
-            args.AddRange(["--version", app.AvailableVersion]);
+            var notes = new List<string>();
+            if (!_sourceUpdated || step.Component == UpdateComponent.WingetFinal)
+            {
+                var source = await runner.RunAsync(new(detection.ExecutablePath, ["source", "update"], TimeSpan.FromMinutes(2)), cancellationToken).ConfigureAwait(false);
+                notes.Add(source.ExitCode == 0 ? "Sources WinGet actualisées." : "Actualisation des sources WinGet impossible ; poursuite de la passe.");
+                _sourceUpdated = true;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var args = step.Component == UpdateComponent.WingetFinal ? BuildFinalArguments(capabilities).ToList() : WingetUpdateExecutionService.BuildUpgradeArguments(app!.Id, capabilities).ToList();
+            if (step.Component == UpdateComponent.Winget) args.AddRange(["--version", app!.AvailableVersion]);
+            if (step.Component == UpdateComponent.WingetFinal && !capabilities.SupportsIncludePinned) notes.Add("WinGet antérieur à 1.5 : option --include-pinned retirée.");
             var result = await runner.RunAsync(new(detection.ExecutablePath, args, TimeSpan.FromMinutes(20)), CancellationToken.None).ConfigureAwait(false);
             var success = result.ExitCode == 0 && !result.TimedOut && !result.Cancelled && result.LaunchError is null;
-            return new(step, success, result.ExitCode == 3010, success ? "Application mise à jour." : "Mise à jour non terminée.");
+            return new(step, success, result.ExitCode == 3010, string.Join("\n", notes.Append(success ? "Application mise à jour." : "Mise à jour non terminée.")));
         }
-        var action = step.Component switch
+        var grouped = await ExecuteGroupAsync([step], cancellationToken).ConfigureAwait(false);
+        return grouped[0];
+    }
+
+    public static IReadOnlyList<string> BuildFinalArguments(WingetCapabilities capabilities)
+    {
+        var args = new List<string> { "upgrade", "--all", "--include-unknown" };
+        if (capabilities.SupportsIncludePinned) args.Add("--include-pinned");
+        args.AddRange(["--force", "--accept-source-agreements", "--accept-package-agreements", "--silent", "--disable-interactivity"]);
+        return args;
+    }
+
+    public async Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteGroupAsync(IReadOnlyList<UpdateSequenceStep> steps, CancellationToken token)
+    {
+        var prepare = steps.All(s => s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate);
+        if (!_prepared && !prepare)
         {
-            UpdateComponent.Windows => InterventionId.InstallWindowsUpdates,
-            UpdateComponent.Defender => InterventionId.UpdateDefenderSignatures,
-            UpdateComponent.Driver => InterventionId.InstallDriverUpdate,
+            var protection = await RunHelperAsync(InterventionId.PrepareMicrosoftUpdates, "", token).ConfigureAwait(false);
+            if (!protection.Success || token.IsCancellationRequested) return steps.Select(s => new UpdateSequenceStepResult(s, false, protection.Reboot, protection.Message)).ToArray();
+        }
+        if (!prepare && _restorePointSequenceNumber is null) return steps.Select(s => new UpdateSequenceStepResult(s, false, false, "Point de restauration non vérifié. Installation bloquée.")).ToArray();
+        var identity = string.Join(",", steps.Select(s => s.Component switch
+        {
+            UpdateComponent.Defender => "defender",
+            UpdateComponent.MicrosoftUpdate => "microsoft-update",
+            UpdateComponent.Windows => "software",
+            UpdateComponent.Driver => "drivers",
+            UpdateComponent.Store => "store",
+            UpdateComponent.WindowsFeatureUpgrade => "windows-feature-upgrade",
             _ => throw new InvalidOperationException("Composant inconnu.")
-        };
-        if (step.Component == UpdateComponent.Driver && !Guid.TryParseExact(step.Id, "D", out _))
-            return new(step, false, false, "Identité du pilote invalide.");
-        var file = await store.CreateAsync(action, cancellationToken, step.Component == UpdateComponent.Driver ? step.Id : "", _restoreSessionId).ConfigureAwait(false);
+        }));
+        var result = await RunHelperAsync(prepare ? InterventionId.PrepareMicrosoftUpdates : InterventionId.InstallMicrosoftUpdates, identity, token).ConfigureAwait(false);
+        if (steps.Count == 0) return [new(new("restore", "Point de restauration", UpdateComponent.Restore), result.Success, result.Reboot, result.Message)];
+        return steps.Select(s => new UpdateSequenceStepResult(s, result.Success, result.Reboot, result.Message)).ToArray();
+    }
+
+    private async Task<(bool Success, bool Reboot, string Message)> RunHelperAsync(InterventionId action, string identity, CancellationToken cancellationToken)
+    {
+        var file = await store.CreateAsync(action, cancellationToken, identity, _restoreSessionId, _restorePointSequenceNumber).ConfigureAwait(false);
         var helperFinished = false;
         try
         {
@@ -91,8 +115,16 @@ public sealed class WindowsUpdateSequenceBackend(
             helperFinished = true;
             if (cancellationToken.IsCancellationRequested) store.RequestCancel(file);
             var result = await store.ReadResultAsync(file, CancellationToken.None).ConfigureAwait(false);
-            return new(step, result?.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired,
-                result?.RebootRequired == true, result?.ReadableError ?? result?.SummaryOutput ?? "Assistant élevé sans résultat.");
+            var message = result?.ReadableError ?? result?.SummaryOutput ?? "Assistant élevé sans résultat.";
+            var success = result?.Status is InterventionStatus.Completed or InterventionStatus.RebootRequired;
+            if (action == InterventionId.PrepareMicrosoftUpdates)
+            {
+                var number = message.Split('\n').FirstOrDefault(line => line.StartsWith("VIRGIL|restore-point|OK|", StringComparison.Ordinal))?.Split('|').Last();
+                _restorePointSequenceNumber = int.TryParse(number, out var parsed) && parsed > 0 ? parsed : null;
+                _prepared = success && _restorePointSequenceNumber is not null;
+                success = _prepared;
+            }
+            return (success, result?.RebootRequired == true, message);
         }
         finally { if (helperFinished) store.Cleanup(file); }
     }

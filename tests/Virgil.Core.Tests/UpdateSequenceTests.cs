@@ -144,7 +144,6 @@ public sealed class UpdateSequenceTests
     {
         public List<UpdateSequenceStep> Effects { get; } = [];
         public Action? OnExecute { get; init; }
-        public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([]);
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken cancellationToken)
         { Effects.Add(step); OnExecute?.Invoke(); return Task.FromResult(new UpdateSequenceStepResult(step, true, true, "Terminé")); }
     }

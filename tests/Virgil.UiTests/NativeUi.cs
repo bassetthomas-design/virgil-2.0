@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Virgil.UiTests;
 
@@ -25,6 +26,36 @@ internal static class NativeUi
         foreach (var process in Process.GetProcessesByName(name))
         {
             using (process) violations.Enqueue($"Processus interdit observé : {name} (PID {process.Id})");
+        }
+    }
+
+    public static void ObserveForbiddenWingetCommands(ConcurrentQueue<string> violations)
+    {
+        object? locator = null;
+        object? service = null;
+        object? results = null;
+        try
+        {
+            locator = Activator.CreateInstance(Type.GetTypeFromProgID("WbemScripting.SWbemLocator", true)!);
+            service = ((dynamic)locator!).ConnectServer(".", @"root\cimv2");
+            results = ((dynamic)service).ExecQuery("SELECT CommandLine FROM Win32_Process WHERE Name='winget.exe'");
+            foreach (var process in (System.Collections.IEnumerable)results)
+            {
+                try
+                {
+                    string? command = ((dynamic)process).CommandLine as string;
+                    if (command is not null && Regex.IsMatch(command, @"(?:^|\s)(?:upgrade|install)(?:\s|$)", RegexOptions.IgnoreCase))
+                        violations.Enqueue("Commande WinGet interdite observée : " + command);
+                }
+                finally { Marshal.FinalReleaseComObject(process); }
+            }
+        }
+        catch (Exception ex) { violations.Enqueue("Surveillance des commandes WinGet indisponible : " + ex.Message); }
+        finally
+        {
+            if (results is not null) Marshal.FinalReleaseComObject(results);
+            if (service is not null) Marshal.FinalReleaseComObject(service);
+            if (locator is not null) Marshal.FinalReleaseComObject(locator);
         }
     }
 

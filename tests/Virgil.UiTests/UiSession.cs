@@ -41,6 +41,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
     private volatile bool measureLatency;
     private volatile string currentScreen = "accueil";
     private Exception? recapError;
+    private Exception? updatePreviewError;
 
     public UiSession() => journey = new Lazy<Task>(RunJourneyAsync);
 
@@ -153,6 +154,23 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
                     await ui!.Click("CancelProtocolButton");
             }
         }
+
+        currentScreen = "plan-mises-a-jour";
+        try
+        {
+            await ui!.Click("UpdatesNavButton");
+            var before = SessionFiles.SnapshotReports();
+            await ui.Click("RunSelectedButton");
+            await WaitVisibleAsync("UpdatePlanStep.Drivers");
+            var drivers = Find("UpdatePlanStep.Drivers")!;
+            Assert.Equal(FlaUI.Core.Definitions.ToggleState.On, drivers.Patterns.Toggle.Pattern.ToggleState.Value);
+            SaveWindow("14-plan-mises-a-jour.png");
+            await ui.Click("SkipUpdateButton");
+            await UntilAsync(() => !Visible("SkipUpdateButton"), TimeSpan.FromSeconds(10), "Aperçu toujours ouvert.");
+            Assert.Equal(before, SessionFiles.SnapshotReports());
+            AssertHealthy();
+        }
+        catch (Exception exception) { updatePreviewError = exception; }
 
         currentScreen = "recap-nettoyage";
         try
@@ -279,13 +297,14 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
 
     public void AssertNoSideEffects()
     {
+        Assert.Null(updatePreviewError);
         AssertHealthy();
         files.AssertQuarantineUnchanged();
         Assert.Equal("Témoin de lecture seule : ne jamais nettoyer.",
             File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
         Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
         var expected = Screens.Select((screen, i) => $"{i + 1:00}-{screen.Screen}.png")
-            .Append("12-recap-nettoyage.png").Append("13-scan-progression.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
+            .Append("12-recap-nettoyage.png").Append("13-scan-progression.png").Append("14-plan-mises-a-jour.png").Append("session-desktop.png").Order(StringComparer.Ordinal).ToArray();
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected, actual);
@@ -349,6 +368,7 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
             while (!stop.IsCancellationRequested)
             {
                 NativeUi.ObserveForbiddenProcesses(violations);
+                NativeUi.ObserveForbiddenWingetCommands(violations);
                 if (process is { HasExited: false })
                 {
                     NativeUi.ObserveErrorDialogs(process.Id, violations);

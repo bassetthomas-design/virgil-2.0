@@ -90,7 +90,7 @@ public sealed class OperationCancellationSafetyTests
 
     [Fact]
     [Trait("Category", "Safety")]
-    public async Task WingetCancellationKeepsInstallationAliveAndSequenceNeverLaunchesStepsTwoAndThree()
+    public async Task Cancel_during_winget_pass_skips_windows_update_and_final_pass()
     {
         using var cancellation = new CancellationTokenSource();
         var authority = new ConfirmationService(TimeProvider.System);
@@ -111,7 +111,7 @@ public sealed class OperationCancellationSafetyTests
         Assert.True(result.WasCancelled);
         Assert.Equal(1, runner.InstallCalls);
         Assert.Contains("terminée après annulation", result.Steps[0].Message);
-        Assert.All(result.Steps.Skip(1), step => Assert.Contains("Non lancée", step.Message));
+        Assert.All(result.Steps.Skip(1).Where(step => step.Step.Component != UpdateComponent.PendingReboot), step => Assert.Contains("Non lancée", step.Message));
     }
 
     [Theory]
@@ -200,7 +200,6 @@ public sealed class OperationCancellationSafetyTests
     }
     private sealed class WingetBackend(WingetUpdateExecutionService executor, ConfirmationService authority) : IUpdateSequenceBackend
     {
-        public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([]);
         public async Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token)
         {
             var preview = UpdateActionPreviewFactory.Create(step.Application!);

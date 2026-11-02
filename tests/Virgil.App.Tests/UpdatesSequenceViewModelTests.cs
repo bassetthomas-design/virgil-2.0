@@ -56,12 +56,11 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Id == "windows-feature-upgrade").IsSelected);
         Assert.Equal(new[] { "restore", "defender", "microsoft-update", "launchers", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, f.Vm.SequenceChoices.Select(choice => choice.Step.Id));
         var information = f.Vm.SequenceChoices.Where(choice => choice.Step.Component == UpdateComponent.Launcher).ToArray();
-        Assert.Equal(2, information.Length);
+        Assert.Single(information);
         foreach (var choice in information)
         {
-            Assert.False(choice.CanSelect);
-            choice.IsSelected = true;
-            Assert.False(choice.IsSelected);
+            Assert.True(choice.CanSelect);
+            Assert.True(choice.IsSelected);
         }
         foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Defender;
         f.Vm.ExecuteDecisionCommand.Execute(null);
@@ -73,8 +72,8 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.False(f.Vm.IsSequencePreview);
         Assert.NotNull(f.History.Report);
         Assert.True(f.History.Report.RestartRequired);
-        Assert.Single(f.History.Report.ExecutedActions);
-        Assert.Equal(2, f.History.Report.SkippedActions.Count);
+        Assert.Equal(2, f.History.Report.ExecutedActions.Count);
+        Assert.Empty(f.History.Report.SkippedActions);
         Assert.All(f.History.Report.SkippedActions, line =>
         {
             Assert.Equal(ReportActionStatus.InformationOnly, line.Status);
@@ -162,8 +161,6 @@ public sealed class UpdatesSequenceViewModelTests
         public Action? OnExecute { get; set; }
         public Func<UpdateSequenceStep, CancellationToken, Task<UpdateSequenceStepResult>>? Handler { get; set; }
         public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["Steam", "Battle.net"]);
-        public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([new("driver", "Pilote facultatif", UpdateComponent.Driver)]);
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken cancellationToken)
         {
             Executed.Add(step.Component);

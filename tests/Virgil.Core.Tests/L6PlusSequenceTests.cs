@@ -33,9 +33,7 @@ public sealed class L6PlusSequenceTests
 
     private sealed class Backend : IUpdateSequenceBackend
     {
-        public int Searches { get; private set; }
-        public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken token)
-        { Searches++; return Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([]); }
+        public int Searches => 0;
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => throw new InvalidOperationException();
     }
 }

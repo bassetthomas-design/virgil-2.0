@@ -158,23 +158,23 @@ public sealed class L6BehaviorTests
     }
 
     [Fact, Trait("Category", "Safety")]
-    public async Task Launcher_lines_are_informational_never_executed_nor_counted_as_success()
+    public async Task Launcher_shutdown_plan_lists_detected_launchers_and_requires_confirmation()
     {
         var authority = new ConfirmationService(TimeProvider.System);
         var backend = new Backend { Installed = ["Steam", "Battle.net"] };
         var service = new UpdateSequenceService(backend, authority);
         var scan = await service.ScanAsync([], CancellationToken.None);
-        Assert.Equal(2, scan.Count(step => step.Component == UpdateComponent.Launcher));
+        Assert.Single(scan, step => step.Component == UpdateComponent.Launcher);
         var preview = service.CreatePreview(scan);
-        Assert.DoesNotContain(preview.Targets, target => target.Contains("Steam", StringComparison.Ordinal));
-        Assert.DoesNotContain("Battle.net", preview.Parameters["Steps"]);
+        Assert.Contains(preview.Targets, target => target.Contains("Steam", StringComparison.Ordinal));
+        Assert.Contains("Battle.net", preview.Parameters["Steps"]);
         var plan = authority.Issue(preview, new(ConfirmationLevel.Reinforced, null));
         var result = await service.ExecuteAsync(scan, plan, null, CancellationToken.None);
         Assert.False(result.WasRefused);
         Assert.DoesNotContain(backend.Executed, step => step.Component == UpdateComponent.Launcher);
-        Assert.Equal(2, result.Steps.Count(step => step.Message == "À faire dans le lanceur"));
-        Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => Assert.False(step.Succeeded));
-        Assert.Equal(2, result.SuccessfulCount);
+        Assert.Single(result.Steps, step => step.Message == "mis à jour au prochain lancement");
+        Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => Assert.True(step.Succeeded));
+        Assert.Equal(8, result.SuccessfulCount);
         Assert.False(result.HasFailures);
         backend.Installed = [];
         Assert.DoesNotContain(await service.ScanAsync([], CancellationToken.None), step => step.Component == UpdateComponent.Launcher);
@@ -234,7 +234,6 @@ public sealed class L6BehaviorTests
         public IReadOnlyList<string> Installed { get; set; } = [];
         public List<UpdateSequenceStep> Executed { get; } = [];
         public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken token) => Task.FromResult(Installed);
-        public Task<IReadOnlyList<UpdateSequenceStep>> ScanDriversAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([]);
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token)
         { Executed.Add(step); return Task.FromResult(new UpdateSequenceStepResult(step, true, false, "Terminée")); }
     }

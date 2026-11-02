@@ -256,8 +256,7 @@ Signer Name:        Microsoft Windows Hardware Compatibility Publisher
         var report = await service.InspectAsync(CancellationToken.None);
 
         Assert.True(report.WasAnalyzed);
-        Assert.False(report.CanInstallDrivers);
-        Assert.Contains("Masqué en V1", report.InstallButtonVisibilityReason);
+        Assert.Equal("oem12.inf", Assert.Single(report.Drivers).PublishedName);
     }
 
     [Fact]

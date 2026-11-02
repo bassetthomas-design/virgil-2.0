@@ -11,7 +11,9 @@ internal sealed class SafeUi(Func<string, Task> invokeByAutomationId)
         "AnalyzeZonesButton", "CancelProtocolButton",
         "DeepScanButton", "ScanCancelButton",
         // Ouvre seulement le récapitulatif ; ExecuteZoneButton reste interdit.
-        "LaunchCleanupButton"
+        "LaunchCleanupButton",
+        // Ouvre seulement l’aperçu ; ExecuteUpdateButton reste interdit.
+        "RunSelectedButton", "SkipUpdateButton"
     };
 
     public Task Click(string automationId)
