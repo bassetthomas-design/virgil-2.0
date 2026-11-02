@@ -107,6 +107,68 @@ public sealed class L6PlusExecutionTests
         Assert.Contains(result.Steps, s => s.Step.Component == UpdateComponent.Defender && !s.Succeeded);
         Assert.Equal(1, probe.Calls);
     }
+    [Fact, Trait("Category", "Safety"), Trait("Category", "Windows")]
+    public async Task Defender_failure_does_not_block_windows_update_or_winget()
+    {
+        using var f = new Fixture();
+        f.Launcher.FailDefender = true;
+        var result = await RunReviewedSequence(f);
+        Assert.False(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Defender).Succeeded);
+        Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.MicrosoftUpdate).Succeeded);
+        Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Windows).Succeeded);
+        Assert.Equal(new[] { InterventionId.PrepareMicrosoftUpdates, InterventionId.InstallMicrosoftUpdates }, f.Launcher.Requests.Select(r => r.ActionId));
+        Assert.Equal(2, f.Runner.Requests.Count(r => r.Arguments[0] == "upgrade"));
+        Assert.Equal(1, f.Shutdown.Reads);
+    }
+
+    [Theory, Trait("Category", "Safety"), Trait("Category", "Windows")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Refused_UAC_or_failed_restore_blocks_only_microsoft_steps(bool refused)
+    {
+        using var f = new Fixture();
+        f.Launcher.RefusePrepare = refused;
+        f.Launcher.FailRestore = !refused;
+        var result = await RunReviewedSequence(f);
+        Assert.Single(f.Launcher.Requests);
+        Assert.DoesNotContain(f.Launcher.Requests, r => r.ActionId == InterventionId.InstallMicrosoftUpdates);
+        Assert.False(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Windows).Succeeded);
+        Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Winget).Succeeded);
+        Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.WingetFinal).Succeeded);
+        Assert.Equal(2, f.Runner.Requests.Count(r => r.Arguments[0] == "upgrade"));
+        Assert.Equal(1, f.Shutdown.Reads);
+    }
+
+    [Fact, Trait("Category", "Safety"), Trait("Category", "Windows")]
+    public async Task Sequence_report_has_separate_step_results_without_raw_helper_markers()
+    {
+        using var f = new Fixture();
+        f.Launcher.FailDefender = true;
+        var result = await RunReviewedSequence(f);
+        var report = string.Join("\n", result.Steps.Select(s => s.Step.Title + " : " + s.Message));
+        Assert.DoesNotContain("VIRGIL|", report);
+        var defender = Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Defender);
+        var windows = Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Windows);
+        Assert.Contains("Defender", defender.Message);
+        Assert.DoesNotContain("Windows logiciel", defender.Message);
+        Assert.Contains("Windows logiciel", windows.Message);
+        Assert.DoesNotContain("Defender", windows.Message);
+        Assert.DoesNotContain("42", windows.Message);
+        Assert.Contains("point existant du", Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Restore).Message);
+    }
+    private static Task<UpdateSequenceResult> RunReviewedSequence(Fixture f)
+    {
+        UpdateSequenceStep[] selected = [
+            new("defender", "Signatures Microsoft Defender", UpdateComponent.Defender),
+            new("microsoft-update", "Microsoft Update", UpdateComponent.MicrosoftUpdate),
+            new("launchers", "Virgil fermera : Steam", UpdateComponent.Launcher),
+            new("Safe.Package", "Application", UpdateComponent.Winget, new UpdateItem { Id = "Safe.Package", AvailableVersion = "1.2" }),
+            new("software", "Windows Update", UpdateComponent.Windows),
+            new("winget-final", "Passe finale", UpdateComponent.WingetFinal)
+        ];
+        return f.Service.ExecuteAsync(selected, f.Authority.Issue(f.Service.CreatePreview(selected), new(ConfirmationLevel.Reinforced, null)), null, default);
+    }
+
     private sealed class PreparationFailure : IUpdateSequenceBackend
     {
         public Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteGroupAsync(IReadOnlyList<UpdateSequenceStep> steps, CancellationToken token) => throw new InvalidOperationException();
@@ -135,25 +197,51 @@ public sealed class L6PlusExecutionTests
         public ConfirmationService Authority { get; } = new(TimeProvider.System);
         public Launcher Launcher { get; } = new();
         public UpdateSequenceService Service { get; }
+        public Runner Runner { get; } = new("1.8.0");
+        public Shutdown Shutdown { get; } = new();
         public Fixture()
         {
             Directory.CreateDirectory(directory);
             var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(), () => Guid.NewGuid().ToByteArray(), () => DateTimeOffset.UtcNow);
-            var runner = new Runner("1.8.0");
-            Service = new(new WindowsUpdateSequenceBackend(runner, store, Launcher, () => "helper", new WingetAvailabilityService(runner, ["winget.exe"])), Authority);
+            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"])), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
         }
         public void Dispose() => Directory.Delete(directory, true);
     }
     private sealed class Launcher : IElevatedProcessLauncher
     {
         public List<ElevatedInterventionRequest> Requests { get; } = [];
+        public bool FailDefender { get; set; }
+        public bool RefusePrepare { get; set; }
+        public bool FailRestore { get; set; }
         public async Task<int> RunElevatedAsync(string helper, string requestPath, CancellationToken token)
         {
             var request = JsonSerializer.Deserialize<ElevatedInterventionRequest>(await File.ReadAllTextAsync(requestPath))!;
             Requests.Add(request);
-            var result = new ElevatedInterventionResult { ActionId = request.ActionId, Nonce = request.Nonce, StartedAt = DateTimeOffset.UtcNow, FinishedAt = DateTimeOffset.UtcNow, Status = InterventionStatus.Completed, SummaryOutput = "VIRGIL|restore-point|OK|42" };
+            var prepare = request.ActionId == InterventionId.PrepareMicrosoftUpdates;
+            if (prepare && RefusePrepare) throw new InvalidOperationException("Élévation refusée.");
+            var lines = new List<string>();
+            if (prepare)
+            {
+                if (!FailRestore)
+                {
+                    lines.Add("VIRGIL|restore-point|OK|42");
+                    lines.Add("VIRGIL|restore-point|INFO|point existant du 01/11/2026 (Point vérifié) réutilisé");
+                }
+            }
+            foreach (var tokenName in request.UpdateIdentity.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                lines.Add("VIRGIL|" + tokenName + "|" + (tokenName == "defender" && FailDefender ? "FAILED" : "OK") + "|" +
+                    (tokenName == "defender" ? "Résultat Defender." : tokenName == "software" ? "Windows logiciel installé." : "Résultat " + tokenName + "."));
+            var failed = prepare && (FailRestore || FailDefender);
+            var result = new ElevatedInterventionResult { ActionId = request.ActionId, Nonce = request.Nonce, StartedAt = DateTimeOffset.UtcNow, FinishedAt = DateTimeOffset.UtcNow, Status = failed ? InterventionStatus.Failed : InterventionStatus.Completed, SummaryOutput = FailRestore ? "Point de restauration non vérifié." : string.Join("\n", lines) };
             await File.WriteAllTextAsync(request.ResultPath, JsonSerializer.Serialize(result));
             return 0;
         }
     }
+    private sealed class Shutdown : ILauncherShutdownBackend
+    {
+        public int Reads { get; private set; }
+        public Task<LauncherSnapshot> ReadAsync(string name, CancellationToken token) { Reads++; return Task.FromResult(new LauncherSnapshot(true, [], ["C:/Games"])); }
+        public Task CloseAsync(string executable, bool force, CancellationToken token) => throw new InvalidOperationException();
+    }
+
 }

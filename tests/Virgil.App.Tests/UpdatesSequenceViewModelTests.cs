@@ -49,6 +49,11 @@ public sealed class UpdatesSequenceViewModelTests
         var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
         Assert.True(f.Vm.IsValidationOpen);
         Assert.True(f.Vm.IsSequencePreview);
+        Assert.Contains("Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un.", f.Vm.ValidationSafety);
+        var feature = Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.WindowsFeatureUpgrade);
+        Assert.True(feature.HasHelp);
+        Assert.Contains("redémarrage obligatoire", feature.HelpText);
+        Assert.Contains("dernière étape", feature.HelpText);
         Assert.Empty(f.Backend.Executed);
         Assert.Equal(0, f.Confirmation.Calls);
         var driver = Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.Driver);
@@ -186,6 +191,17 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.Empty(f.History.Report!.ExecutedActions);
         Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
         Assert.Equal(ReportSeverity.Success, f.History.Report.Severity);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Update_plan_displays_generic_recent_restore_point_sentence()
+    {
+        var f = new Fixture();
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        Assert.Contains("Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un.", f.Vm.ValidationSafety);
+        f.Vm.SkipDecisionCommand.Execute(null);
+        await pending;
+        Assert.Empty(f.Backend.Executed);
     }
 
     private sealed class CbsProbe : IPendingRebootProbe

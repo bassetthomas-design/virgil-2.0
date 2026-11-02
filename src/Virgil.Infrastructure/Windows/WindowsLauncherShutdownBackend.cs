@@ -6,18 +6,21 @@ using Virgil.Core.Updates;
 
 namespace Virgil.Infrastructure.Windows;
 
-public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILauncherShutdownBackend
+public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner,
+    Func<string, IReadOnlyList<LauncherProcess>, (bool Known, IReadOnlyList<string> Roots)>? libraryReader = null) : ILauncherShutdownBackend
 {
+    private string? _steamExecutablePath;
     // Sans inventaire complet des bibliothèques, la politique refuse toute fermeture.
     public async Task<LauncherSnapshot> ReadAsync(string launcherName, CancellationToken token)
     {
-        var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "$session=(Get-Process -Id $PID).SessionId; @(Get-CimInstance Win32_Process | Where-Object { $_.SessionId -eq $session } | Select-Object @{n='Id';e={[int]$_.ProcessId}},@{n='ParentId';e={[int]$_.ParentProcessId}},ExecutablePath) | ConvertTo-Json -Compress"], TimeSpan.FromSeconds(30)), token).ConfigureAwait(false);
+        var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "$session=(Get-Process -Id $PID).SessionId; @(Get-CimInstance Win32_Process | Where-Object { $_.SessionId -eq $session } | Select-Object @{n='Id';e={[int]$_.ProcessId}},@{n='ParentId';e={[int]$_.ParentProcessId}},ExecutablePath,Name) | ConvertTo-Json -Compress"], TimeSpan.FromSeconds(30)), token).ConfigureAwait(false);
         if (result.ExitCode != 0) return new(false, [], []);
         try
         {
             var processes = JsonSerializer.Deserialize<LauncherProcess[]>(result.StandardOutput) ?? [];
-            var (known, libraries) = ReadLibraries(launcherName, processes);
-            return new(known && libraries.All(Path.IsPathFullyQualified) && processes.All(p => !string.IsNullOrWhiteSpace(p.ExecutablePath)), processes, libraries);
+            _steamExecutablePath = processes.FirstOrDefault(p => string.Equals(Path.GetFileName(p.ExecutablePath), "steam.exe", StringComparison.OrdinalIgnoreCase))?.ExecutablePath;
+            var (known, libraries) = (libraryReader ?? ReadLibraries)(launcherName, processes);
+            return new(known && libraries.All(Path.IsPathFullyQualified), processes, libraries);
         }
         catch (JsonException) { return new(false, [], []); }
     }
@@ -82,7 +85,8 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
     {
         if (!LauncherCatalog.Executables.Values.Contains(executable, StringComparer.OrdinalIgnoreCase)) throw new InvalidOperationException("Fermeture refusée : hors catalogue.");
         var args = force ? new[] { "/IM", executable, "/F" } : new[] { "/IM", executable };
-        var result = await runner.RunAsync(executable == "steam.exe" && !force ? new(executable, ["-shutdown"], TimeSpan.FromSeconds(10)) : new("taskkill.exe", args, TimeSpan.FromSeconds(10)), token).ConfigureAwait(false);
-        if (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null) throw new InvalidOperationException("Fermeture du lanceur non confirmée.");
+        var result = await runner.RunAsync(executable == "steam.exe" && !force ? new(_steamExecutablePath ?? throw new InvalidOperationException("Chemin du processus Steam indisponible."), ["-shutdown"], TimeSpan.FromSeconds(10)) : new("taskkill.exe", args, TimeSpan.FromSeconds(10)), token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (force && (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null)) throw new InvalidOperationException("Fermeture du lanceur non confirmée.");
     }
 }

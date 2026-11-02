@@ -65,7 +65,7 @@ public sealed class WindowsUpdateSequenceBackend(
             return new(step, success, result.ExitCode == 3010, string.Join("\n", notes.Append(success ? "Application mise à jour." : "Mise à jour non terminée.")));
         }
         var grouped = await ExecuteGroupAsync([step], cancellationToken).ConfigureAwait(false);
-        return grouped[0];
+        return grouped.First(result => result.Step == step);
     }
 
     public static IReadOnlyList<string> BuildFinalArguments(WingetCapabilities capabilities)
@@ -82,7 +82,7 @@ public sealed class WindowsUpdateSequenceBackend(
         if (!_prepared && !prepare)
         {
             var protection = await RunHelperAsync(InterventionId.PrepareMicrosoftUpdates, "", token).ConfigureAwait(false);
-            if (!protection.Success || token.IsCancellationRequested) return steps.Select(s => new UpdateSequenceStepResult(s, false, protection.Reboot, protection.Message)).ToArray();
+            if (!_prepared || token.IsCancellationRequested) return steps.Select(s => new UpdateSequenceStepResult(s, false, protection.Reboot, ReadableOutput(protection.Message))).ToArray();
         }
         if (!prepare && _restorePointSequenceNumber is null) return steps.Select(s => new UpdateSequenceStepResult(s, false, false, "Point de restauration non vérifié. Installation bloquée.")).ToArray();
         var identity = string.Join(",", steps.Select(s => s.Component switch
@@ -96,9 +96,49 @@ public sealed class WindowsUpdateSequenceBackend(
             _ => throw new InvalidOperationException("Composant inconnu.")
         }));
         var result = await RunHelperAsync(prepare ? InterventionId.PrepareMicrosoftUpdates : InterventionId.InstallMicrosoftUpdates, identity, token).ConfigureAwait(false);
-        if (steps.Count == 0) return [new(new("restore", "Point de restauration", UpdateComponent.Restore), result.Success, result.Reboot, result.Message)];
-        return steps.Select(s => new UpdateSequenceStepResult(s, result.Success, result.Reboot, result.Message)).ToArray();
+        var output = ParseOutput(result.Message);
+        var results = new List<UpdateSequenceStepResult>();
+        if (prepare)
+        {
+            var restoreNotes = output.Where(line => line.Step == "restore-point" && line.Status != "OK").Select(line => line.Message);
+            var restoreMessage = _prepared ? string.Join("\n", restoreNotes.Prepend($"Point de restauration vérifié (numéro {_restorePointSequenceNumber}).")) : ReadableOutput(result.Message);
+            results.Add(new(new("restore", "Point de restauration", UpdateComponent.Restore), _prepared, false, restoreMessage) { RestorePointVerified = _prepared });
+        }
+        foreach (var step in steps)
+        {
+            var lines = output.Where(line => line.Step == Token(step.Component)).ToArray();
+            var succeeded = lines.Length == 0 ? result.Success : !lines.Any(line => line.Status is "FAILED" or "CANCELLED" or "UNAVAILABLE") && lines.Any(line => line.Status == "OK");
+            var message = lines.Length == 0
+                ? (output.Count == 0 ? ReadableOutput(result.Message) : string.Join("\n", output.Where(line => line.Step == "maintenance").Select(line => line.Message)))
+                : string.Join("\n", lines.Select(line => line.Message).Distinct(StringComparer.Ordinal));
+            if (string.IsNullOrWhiteSpace(message)) message = succeeded ? "Étape terminée." : "Étape non terminée.";
+            if (prepare && !_prepared)
+            {
+                succeeded = false;
+                message = "Préparation Microsoft bloquée : point de restauration non vérifié.";
+            }
+            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null });
+        }
+        return results;
     }
+
+    private sealed record OutputLine(string Step, string Status, string Message);
+    private static IReadOnlyList<OutputLine> ParseOutput(string message) => message.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Where(line => line.StartsWith("VIRGIL|", StringComparison.Ordinal))
+        .Select(line => line.Split('|', 4)).Where(parts => parts.Length == 4)
+        .Select(parts => new OutputLine(parts[1], parts[2], parts[3].TrimEnd('\r'))).ToArray();
+    private static string ReadableOutput(string message)
+    {
+        var lines = ParseOutput(message);
+        if (lines.Count == 0) return message.Replace("VIRGIL|", "", StringComparison.Ordinal);
+        return string.Join("\n", lines.Where(line => line.Step != "restore-point" || line.Status != "OK").Select(line => line.Message));
+    }
+    private static string Token(UpdateComponent component) => component switch
+    {
+        UpdateComponent.Defender => "defender", UpdateComponent.MicrosoftUpdate => "microsoft-update",
+        UpdateComponent.Windows => "software", UpdateComponent.Driver => "drivers", UpdateComponent.Store => "store",
+        UpdateComponent.WindowsFeatureUpgrade => "windows-feature-upgrade", _ => ""
+    };
 
     private async Task<(bool Success, bool Reboot, string Message)> RunHelperAsync(InterventionId action, string identity, CancellationToken cancellationToken)
     {
@@ -121,8 +161,7 @@ public sealed class WindowsUpdateSequenceBackend(
             {
                 var number = message.Split('\n').FirstOrDefault(line => line.StartsWith("VIRGIL|restore-point|OK|", StringComparison.Ordinal))?.Split('|').Last();
                 _restorePointSequenceNumber = int.TryParse(number, out var parsed) && parsed > 0 ? parsed : null;
-                _prepared = success && _restorePointSequenceNumber is not null;
-                success = _prepared;
+                _prepared = _restorePointSequenceNumber is not null;
             }
             return (success, result?.RebootRequired == true, message);
         }

@@ -14,6 +14,7 @@ public sealed record UpdateSequenceProgress(int Current, int Total, string Title
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
 {
     public bool WasSkipped { get; init; }
+    public bool? RestorePointVerified { get; init; }
 }
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
@@ -73,7 +74,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         selected.Select(s => s.Title).ToArray(),
         new Dictionary<string, string> { ["Steps"] = JsonSerializer.Serialize(selected) },
         ["Installer les composants cochés dans l’ordre présenté.", "Un redémarrage peut être nécessaire ; il restera manuel.", "Les pilotes et Windows exigent un point de restauration vérifié."],
-        selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration avant Windows et les pilotes"]);
+        selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
     }
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
 
@@ -85,6 +86,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         backend.BeginExecution(Guid.NewGuid().ToString("D"));
         var results = new List<UpdateSequenceStepResult>();
         var handled = new HashSet<(UpdateComponent Component, string Id)>();
+        var microsoftBlocked = false;
         if (snapshot.Any(s => IsElevated(s.Component)))
         {
             var preparation = snapshot.Where(s => s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate).ToArray();
@@ -102,17 +104,20 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                         : [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.")];
                 }
                 results.AddRange(protectedResults);
-                if (protectedResults.Any(r => !r.Succeeded))
-                {
-                    handled.UnionWith(snapshot.Select(s => (s.Component, s.Id)));
-                    results.AddRange(snapshot.Where(s => !preparation.Contains(s)).Select(s => new UpdateSequenceStepResult(s, false, false, "Installation bloquée : préparation non vérifiée.")));
-                }
+                microsoftBlocked = protectedResults.Any(r => r.RestorePointVerified == false) ||
+                    (protectedResults.All(r => r.RestorePointVerified is null) && protectedResults.Any(r => !r.Succeeded));
             }
         }
         foreach (var step in snapshot)
         {
             if (handled.Contains((step.Component, step.Id))) continue;
             if (cancellationToken.IsCancellationRequested) break;
+            if (microsoftBlocked && IsElevated(step.Component))
+            {
+                results.Add(new(step, false, false, "Installation Microsoft bloquée : point de restauration non vérifié."));
+                handled.Add((step.Component, step.Id));
+                continue;
+            }
             progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours"));
             try
             {
