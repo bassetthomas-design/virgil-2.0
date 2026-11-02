@@ -94,7 +94,10 @@ public partial class UpdatesViewModel : ObservableObject
     {
         Operation.AcknowledgeCancellation();
         OnPropertyChanged(nameof(IsCancelling));
-        SequenceStepText = "Annulation demandée — l'opération Windows Update en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé.";
+        SequenceStepText = SequenceStepText.Contains("Windows Update", StringComparison.Ordinal)
+            ? "Annulation demandée — l'opération Windows Update en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé."
+            : "Annulation demandée — l'étape en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé.";
+        Operation.Step = SequenceStepText;
         _operationCancellation?.Cancel();
         CompleteDecision(UpdateDecision.CancelAll);
     }

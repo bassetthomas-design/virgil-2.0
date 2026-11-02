@@ -17,7 +17,7 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
         {
             var processes = JsonSerializer.Deserialize<LauncherProcess[]>(result.StandardOutput) ?? [];
             var (known, libraries) = ReadLibraries(launcherName, processes);
-            return new(known && processes.All(p => !string.IsNullOrWhiteSpace(p.ExecutablePath)), processes, libraries);
+            return new(known && libraries.All(Path.IsPathFullyQualified) && processes.All(p => !string.IsNullOrWhiteSpace(p.ExecutablePath)), processes, libraries);
         }
         catch (JsonException) { return new(false, [], []); }
     }
@@ -33,7 +33,10 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
                 var directory = Path.GetDirectoryName(steam.ExecutablePath)!;
                 var config = Path.Combine(directory, "steamapps", "libraryfolders.vdf");
                 if (!File.Exists(config)) return (false, []);
-                foreach (Match match in Regex.Matches(File.ReadAllText(config), """"path"\s*"([^"]+)""""))
+                const string libraryPathPattern = """
+                    "path"\s*"([^"]+)"
+                    """;
+                foreach (Match match in Regex.Matches(File.ReadAllText(config), libraryPathPattern))
                     roots.Add(Path.Combine(match.Groups[1].Value.Replace(@"\\", @"\"), "steamapps", "common"));
                 roots.Add(Path.Combine(directory, "steamapps", "common"));
                 return (true, roots);
@@ -79,6 +82,7 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner) : ILau
     {
         if (!LauncherCatalog.Executables.Values.Contains(executable, StringComparer.OrdinalIgnoreCase)) throw new InvalidOperationException("Fermeture refusée : hors catalogue.");
         var args = force ? new[] { "/IM", executable, "/F" } : new[] { "/IM", executable };
-        await runner.RunAsync(executable == "steam.exe" && !force ? new(executable, ["-shutdown"], TimeSpan.FromSeconds(10)) : new("taskkill.exe", args, TimeSpan.FromSeconds(10)), token).ConfigureAwait(false);
+        var result = await runner.RunAsync(executable == "steam.exe" && !force ? new(executable, ["-shutdown"], TimeSpan.FromSeconds(10)) : new("taskkill.exe", args, TimeSpan.FromSeconds(10)), token).ConfigureAwait(false);
+        if (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null) throw new InvalidOperationException("Fermeture du lanceur non confirmée.");
     }
 }

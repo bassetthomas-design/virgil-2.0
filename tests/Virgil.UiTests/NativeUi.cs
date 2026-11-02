@@ -31,33 +31,45 @@ internal static class NativeUi
 
     public static void ObserveForbiddenWingetCommands(ConcurrentQueue<string> violations)
     {
-        object? locator = null;
-        object? service = null;
-        object? results = null;
-        try
+        foreach (var process in Process.GetProcessesByName("winget"))
+        using (process)
         {
-            locator = Activator.CreateInstance(Type.GetTypeFromProgID("WbemScripting.SWbemLocator", true)!);
-            service = ((dynamic)locator!).ConnectServer(".", @"root\cimv2");
-            results = ((dynamic)service).ExecQuery("SELECT CommandLine FROM Win32_Process WHERE Name='winget.exe'");
-            foreach (var process in (System.Collections.IEnumerable)results)
+            try
             {
+                using var handle = OpenProcess(0x1000, false, process.Id);
+                if (handle.IsInvalid) { if (!process.HasExited) violations.Enqueue("Lecture de la commande WinGet refusée."); continue; }
+                _ = NtQueryInformationProcess(handle, 60, IntPtr.Zero, 0, out var required);
+                if (required <= 0 || required > 131072) { if (!process.HasExited) violations.Enqueue("Taille de la commande WinGet indisponible."); continue; }
+                var buffer = Marshal.AllocHGlobal(required);
                 try
                 {
-                    string? command = ((dynamic)process).CommandLine as string;
-                    if (command is not null && Regex.IsMatch(command, @"(?:^|\s)(?:upgrade|install)(?:\s|$)", RegexOptions.IgnoreCase))
+                    var status = NtQueryInformationProcess(handle, 60, buffer, required, out _);
+                    if (status != 0) { if (!process.HasExited) violations.Enqueue("Lecture de la commande WinGet impossible."); continue; }
+                    var value = Marshal.PtrToStructure<UnicodeCommandLine>(buffer);
+                    var offset = value.Buffer.ToInt64() - buffer.ToInt64();
+                    if (offset < Marshal.SizeOf<UnicodeCommandLine>() || offset + value.Length > required || value.Length % 2 != 0)
+                    { violations.Enqueue("Commande WinGet invalide."); continue; }
+                    var command = Marshal.PtrToStringUni(value.Buffer, value.Length / 2) ?? "";
+                    if (Regex.IsMatch(command, @"(?:^|\s)(?:upgrade|install)(?:\s|$)", RegexOptions.IgnoreCase))
                         violations.Enqueue("Commande WinGet interdite observée : " + command);
                 }
-                finally { Marshal.FinalReleaseComObject(process); }
+                finally { Marshal.FreeHGlobal(buffer); }
             }
-        }
-        catch (Exception ex) { violations.Enqueue("Surveillance des commandes WinGet indisponible : " + ex.Message); }
-        finally
-        {
-            if (results is not null) Marshal.FinalReleaseComObject(results);
-            if (service is not null) Marshal.FinalReleaseComObject(service);
-            if (locator is not null) Marshal.FinalReleaseComObject(locator);
+            catch (InvalidOperationException) { /* Le processus peut se terminer entre les deux lectures. */ }
         }
     }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UnicodeCommandLine
+    {
+        public ushort Length;
+        public ushort MaximumLength;
+        public IntPtr Buffer;
+    }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern Microsoft.Win32.SafeHandles.SafeProcessHandle OpenProcess(uint access, bool inherit, int processId);
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(Microsoft.Win32.SafeHandles.SafeProcessHandle process, int informationClass,
+        IntPtr information, int length, out int returnLength);
 
     public static void ObserveErrorDialogs(int processId, ConcurrentQueue<string> violations)
     {

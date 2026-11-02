@@ -81,11 +81,11 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         if (!validation.IsAccepted) return new(true, false, false, [], validation.Message);
         backend.BeginExecution(Guid.NewGuid().ToString("D"));
         var results = new List<UpdateSequenceStepResult>();
-        var handled = new HashSet<string>(StringComparer.Ordinal);
+        var handled = new HashSet<(UpdateComponent Component, string Id)>();
         if (snapshot.Any(s => IsElevated(s.Component)))
         {
             var preparation = snapshot.Where(s => s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate).ToArray();
-            foreach (var member in preparation) handled.Add(member.Id);
+            foreach (var member in preparation) handled.Add((member.Component, member.Id));
             if (!cancellationToken.IsCancellationRequested)
             {
                 progress?.Report(new(1, snapshot.Length, "Point de restauration et préparation Microsoft Update", "En cours"));
@@ -96,14 +96,14 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 results.AddRange(protectedResults);
                 if (protectedResults.Any(r => !r.Succeeded))
                 {
-                    handled.UnionWith(snapshot.Select(s => s.Id));
+                    handled.UnionWith(snapshot.Select(s => (s.Component, s.Id)));
                     results.AddRange(snapshot.Where(s => !preparation.Contains(s)).Select(s => new UpdateSequenceStepResult(s, false, false, "Installation bloquée : préparation non vérifiée.")));
                 }
             }
         }
         foreach (var step in snapshot)
         {
-            if (handled.Contains(step.Id)) continue;
+            if (handled.Contains((step.Component, step.Id))) continue;
             if (cancellationToken.IsCancellationRequested) break;
             progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours"));
             try
@@ -113,19 +113,19 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                     var names = step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ");
                     var launcherMessage = launcherShutdown is null ? "mis à jour au prochain lancement" : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
                     results.Add(new(step, true, false, launcherMessage));
-                    handled.Add(step.Id);
+                    handled.Add((step.Component, step.Id));
                 }
                 else if (IsElevated(step.Component))
                 {
                     var prepare = step.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate;
                     var group = snapshot.Where(s => IsElevated(s.Component) && (s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate) == prepare).ToArray();
-                    foreach (var member in group) handled.Add(member.Id);
+                    foreach (var member in group) handled.Add((member.Component, member.Id));
                     results.AddRange(await backend.ExecuteGroupAsync(group, cancellationToken).ConfigureAwait(false));
                 }
                 else
                 {
                     results.Add(await backend.ExecuteAsync(step, cancellationToken).ConfigureAwait(false));
-                    handled.Add(step.Id);
+                    handled.Add((step.Component, step.Id));
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
@@ -136,7 +136,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                         results[index] = results[index] with { Message = results[index].Message + " Étape terminée après annulation." };
             progress?.Report(new(results.Count, snapshot.Length, step.Title, cancellationToken.IsCancellationRequested ? "Étape terminée après annulation." : results.LastOrDefault()?.Message ?? "Étape terminée."));
         }
-        results.AddRange(snapshot.Where(s => !handled.Contains(s.Id) && !results.Any(r => r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
+        results.AddRange(snapshot.Where(s => !handled.Contains((s.Component, s.Id)) && !results.Any(r => r.Step.Component == s.Component && r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
         var sources = new List<string>();
         if (results.Any(r => r.RebootRequired && r.Step.Component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Windows Update");
         if (results.Any(r => r.RebootRequired && r.Step.Component is not UpdateComponent.Windows and not UpdateComponent.Driver and not UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Installation");
