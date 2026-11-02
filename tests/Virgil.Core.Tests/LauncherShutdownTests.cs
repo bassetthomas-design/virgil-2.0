@@ -223,30 +223,57 @@ public sealed class LauncherShutdownTests
     }
     private sealed class Clock : TimeProvider
     {
+        private readonly object _timersLock = new();
         private DateTimeOffset now = DateTimeOffset.UtcNow;
         private long timestamp;
-        public override long GetTimestamp() => timestamp;
+        public override long GetTimestamp() { lock (_timersLock) return timestamp; }
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         private readonly List<Timer> timers = [];
-        public override DateTimeOffset GetUtcNow() => now;
+        public override DateTimeOffset GetUtcNow() { lock (_timersLock) return now; }
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            var timer = new Timer(this, callback, state, now + dueTime);
-            timers.Add(timer);
-            return timer;
+            lock (_timersLock)
+            {
+                var timer = new Timer(this, callback, state, now + dueTime);
+                timers.Add(timer);
+                return timer;
+            }
         }
         public void Advance(TimeSpan span)
         {
-            now += span;
-            timestamp += span.Ticks;
-            foreach (var timer in timers.ToArray()) timer.Fire(now);
+            Timer[] snapshot;
+            DateTimeOffset current;
+            lock (_timersLock)
+            {
+                now += span;
+                timestamp += span.Ticks;
+                current = now;
+                snapshot = timers.ToArray();
+            }
+            foreach (var timer in snapshot) timer.Fire(current);
         }
         private sealed class Timer(Clock clock, TimerCallback callback, object? state, DateTimeOffset due) : ITimer
         {
             private bool disposed;
-            public bool Change(TimeSpan dueTime, TimeSpan period) { due = clock.now + dueTime; return !disposed; }
-            public void Fire(DateTimeOffset now) { if (!disposed && now >= due) { disposed = true; callback(state); } }
-            public void Dispose() => disposed = true;
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                lock (clock._timersLock)
+                {
+                    if (disposed) return false;
+                    due = clock.now + dueTime;
+                    return true;
+                }
+            }
+            public void Fire(DateTimeOffset now)
+            {
+                lock (clock._timersLock)
+                {
+                    if (disposed || now < due) return;
+                    disposed = true;
+                }
+                callback(state);
+            }
+            public void Dispose() { lock (clock._timersLock) disposed = true; }
             public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }

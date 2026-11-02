@@ -18,7 +18,9 @@ public sealed class UpdatesSequenceViewModelTests
         f.Vm.VirgilStateRequested += (state, _) => states.Add(state);
         f.Backend.Handler = (step, _) =>
         {
-            var result = new UpdateSequenceStepResult(step, false, false, "Scan Store non disponible sur ce PC (information, best effort).") { WasUnavailable = true };
+            var unavailable = step.Component == UpdateComponent.Store;
+            var result = new UpdateSequenceStepResult(step, !unavailable, false,
+                unavailable ? "Scan Store non disponible sur ce PC (information, best effort)." : "Terminé") { WasUnavailable = unavailable };
             return Task.FromResult(result);
         };
         var pending = f.Vm.RunAllCommand.ExecuteAsync(null);

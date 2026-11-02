@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Virgil.Core.Monitoring;
 using Virgil.Core.Scanning;
 using Virgil.Contracts;
 

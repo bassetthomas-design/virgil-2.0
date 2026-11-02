@@ -3,7 +3,6 @@ using Virgil.Core.Applications;
 using Virgil.Core.Status;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
-using Virgil.Core.Monitoring;
 using Virgil.Core.Resources;
 using Virgil.Core.Updates;
 using Virgil.Contracts;

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Virgil.Contracts;
 
-namespace Virgil.Core.Monitoring;
+namespace Virgil.Core.Resources;
 
 public static class MemoryReader
 {
