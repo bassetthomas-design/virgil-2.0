@@ -45,5 +45,5 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
     }
     private static string FileName(string? path) => (path ?? "").Replace('\\', '/').Split('/').Last();
     private static bool GameOrUnknown(LauncherSnapshot state, LauncherProcess[] launchers) => !state.IsComplete || state.LibraryRoots.Count == 0 ||
-        state.Processes.Any(p => launchers.Any(l => p.ParentId == l.Id) || state.LibraryRoots.Any(root => p.ExecutablePath.Replace('/', '\\').StartsWith(root.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)));
+        state.Processes.Any(p => launchers.Any(l => p.ParentId == l.Id) || state.LibraryRoots.Any(root => p.ExecutablePath.Replace('/', '\\').StartsWith(root.Replace('/', '\\').TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)));
 }

@@ -10,6 +10,7 @@ public sealed class LauncherShutdownTests
     [Theory, Trait("Category", "Safety")]
     [InlineData("child")]
     [InlineData("library")]
+    [InlineData("library-forward-slashes")]
     [InlineData("unknown")]
     public async Task Running_game_blocks_launcher_shutdown(string kind)
     {
@@ -17,6 +18,7 @@ public sealed class LauncherShutdownTests
         state.Snapshot = kind switch
         {
             "child" => state.Snapshot with { Processes = [new(1, 0, "C:/Steam/steam.exe"), new(2, 1, "C:/Games/game.exe")] },
+            "library-forward-slashes" => state.Snapshot with { Processes = [new(1, 0, "C:/Steam/steam.exe"), new(2, 0, @"C:\Steam\steamapps\common\Game\game.exe")], LibraryRoots = ["C:/Steam/steamapps/common/"] },
             "library" => state.Snapshot with { Processes = [new(1, 0, "C:/Steam/steam.exe"), new(2, 0, @"C:\Steam\steamapps\common\Game\game.exe")] },
             _ => state.Snapshot with { IsComplete = false }
         };
