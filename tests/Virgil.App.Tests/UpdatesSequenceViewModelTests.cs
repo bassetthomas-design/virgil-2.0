@@ -41,7 +41,8 @@ public sealed class UpdatesSequenceViewModelTests
     }
 
     [Fact]
-    public async Task PreviewAllowsExclusionsAndRunsSelectedComponentsWithOnePlan()
+    [Trait("Category", "Safety")]
+    public async Task Update_plan_lists_script_steps_in_order_with_drivers_checked()
     {
         var f = new Fixture();
         Assert.True(f.Vm.IsRunAllEnabled);
@@ -51,7 +52,9 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.Empty(f.Backend.Executed);
         Assert.Equal(0, f.Confirmation.Calls);
         var driver = Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.Driver);
-        Assert.False(driver.IsSelected);
+        Assert.True(driver.IsSelected);
+        Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Id == "windows-feature-upgrade").IsSelected);
+        Assert.Equal(new[] { "restore", "defender", "microsoft-update", "launchers", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, f.Vm.SequenceChoices.Select(choice => choice.Step.Id));
         var information = f.Vm.SequenceChoices.Where(choice => choice.Step.Component == UpdateComponent.Launcher).ToArray();
         Assert.Equal(2, information.Length);
         foreach (var choice in information)

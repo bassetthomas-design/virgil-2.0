@@ -6,6 +6,18 @@ public sealed class SafeUiTests
 {
     [Fact]
     [Trait("Category", "Safety")]
+    public async Task Update_preview_is_allowed_without_confirmation_or_execution()
+    {
+        var invoked = new List<string>();
+        var ui = new SafeUi(id => { invoked.Add(id); return Task.CompletedTask; });
+        await ui.Click("RunSelectedButton");
+        await ui.Click("SkipUpdateButton");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ui.Click("ExecuteUpdateButton"));
+        Assert.Equal(new[] { "RunSelectedButton", "SkipUpdateButton" }, invoked);
+    }
+
+    [Fact]
+    [Trait("Category", "Safety")]
     public async Task Cleanup_summary_is_allowed_without_confirmation_or_execution()
     {
         var invoked = new List<string>();
