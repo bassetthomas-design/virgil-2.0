@@ -14,12 +14,13 @@ public sealed record UpdateSequenceProgress(int Current, int Total, string Title
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
 {
     public bool WasSkipped { get; init; }
+    public bool WasUnavailable { get; init; }
     public bool? RestorePointVerified { get; init; }
 }
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
-    public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && !step.WasSkipped && step.Succeeded);
-    public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.WasSkipped && !step.Succeeded);
+    public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && step.Succeeded);
+    public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && !step.Succeeded);
 }
 public interface IUpdateSequenceBackend
 {
@@ -158,7 +159,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var reboot = sources.Count > 0;
         var verdict = "Redémarrage nécessaire : " + (reboot ? "oui (" + string.Join(", ", sources.Distinct()) + ")" : "non") + ".";
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
-        var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
+        var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped && !r.WasUnavailable) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
         return new(false, cancellationToken.IsCancellationRequested, reboot, results, message);
     }
 }
