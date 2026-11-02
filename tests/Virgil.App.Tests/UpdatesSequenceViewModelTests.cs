@@ -10,6 +10,33 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Fact, Trait("Category", "Safety")]
+    public async Task Store_unavailable_is_persisted_as_information_with_success_state()
+    {
+        var f = new Fixture();
+        var states = new List<Virgil.App.Animation.VirgilCoreState>();
+        f.Vm.VirgilStateRequested += (state, _) => states.Add(state);
+        f.Backend.Handler = (step, _) =>
+        {
+            var result = new UpdateSequenceStepResult(step, false, false, "Scan Store non disponible sur ce PC (information, best effort).");
+            // Keep the first tests-only commit compilable on be30824.
+            typeof(UpdateSequenceStepResult).GetProperty("WasUnavailable")?.SetValue(result, true);
+            return Task.FromResult(result);
+        };
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Store;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        var report = Assert.IsType<ReportEntry>(f.History.Report);
+        Assert.Equal(ReportSeverity.Success, report.Severity);
+        Assert.Empty(report.ExecutedActions);
+        var store = Assert.Single(report.SkippedActions, action => action.Name == "Rechercher les mises à jour du Microsoft Store");
+        Assert.Equal(ReportActionStatus.InformationOnly, store.Status);
+        Assert.Equal("Non disponible sur ce PC (information)", store.Result);
+        Assert.Contains(Virgil.App.Animation.VirgilCoreState.Success, states);
+        Assert.DoesNotContain(Virgil.App.Animation.VirgilCoreState.Warning, states);
+    }
+
     [Theory]
     [Trait("Category", "Safety")]
     [InlineData(false)]
