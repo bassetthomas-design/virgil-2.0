@@ -173,8 +173,8 @@ public sealed class L6BehaviorTests
         Assert.False(result.WasRefused);
         Assert.DoesNotContain(backend.Executed, step => step.Component == UpdateComponent.Launcher);
         Assert.Single(result.Steps, step => step.Message == "mis à jour au prochain lancement");
-        Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => Assert.True(step.Succeeded));
-        Assert.Equal(8, result.SuccessfulCount);
+        Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => { Assert.False(step.Succeeded); Assert.True(step.WasSkipped); });
+        Assert.Equal(7, result.SuccessfulCount);
         Assert.False(result.HasFailures);
         backend.Installed = [];
         Assert.DoesNotContain(await service.ScanAsync([], CancellationToken.None), step => step.Component == UpdateComponent.Launcher);

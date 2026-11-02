@@ -22,7 +22,7 @@ public sealed class LauncherShutdownTests
         };
         var result = await Execute(state, new Clock());
         Assert.Empty(state.Commands);
-        Assert.Contains(result.Steps, s => s.Message.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
+        Assert.Contains(result.Steps, s => s.WasSkipped && !s.Succeeded && s.Message.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
     }
 
     [Theory, Trait("Category", "Safety")]

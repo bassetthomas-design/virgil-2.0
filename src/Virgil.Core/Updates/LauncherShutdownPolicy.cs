@@ -2,6 +2,7 @@ namespace Virgil.Core.Updates;
 
 public sealed record LauncherProcess(int Id, int ParentId, string ExecutablePath);
 public sealed record LauncherSnapshot(bool IsComplete, IReadOnlyList<LauncherProcess> Processes, IReadOnlyList<string> LibraryRoots);
+public sealed record LauncherShutdownResult(bool AnyClosed, string Message);
 public interface ILauncherShutdownBackend
 {
     Task<LauncherSnapshot> ReadAsync(string launcherName, CancellationToken token);
@@ -11,9 +12,10 @@ public interface ILauncherShutdownBackend
 // Cette exception produit est accessible seulement à la séquence ayant consommé son plan.
 public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, TimeProvider clock)
 {
-    internal async Task<string> ExecuteAsync(IReadOnlyList<string> names, CancellationToken token)
+    internal async Task<LauncherShutdownResult> ExecuteAsync(IReadOnlyList<string> names, CancellationToken token)
     {
         var lines = new List<string>();
+        var anyClosed = false;
         foreach (var name in names)
         {
             token.ThrowIfCancellationRequested();
@@ -34,11 +36,12 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
                 if (GameOrUnknown(state, launchers)) { lines.Add(name + " : mis à jour au prochain lancement."); continue; }
                 token.ThrowIfCancellationRequested();
                 await backend.CloseAsync(executable, true, token).ConfigureAwait(false);
+                anyClosed = true;
                 lines.Add(name + " : fermé de force ; relancez-le quand vous voulez.");
             }
-            else lines.Add(name + " : fermé ; relancez-le quand vous voulez.");
+            else { anyClosed = true; lines.Add(name + " : fermé ; relancez-le quand vous voulez."); }
         }
-        return string.Join("\n", lines);
+        return new(anyClosed, string.Join("\n", lines));
     }
     private static string FileName(string? path) => (path ?? "").Replace('\\', '/').Split('/').Last();
     private static bool GameOrUnknown(LauncherSnapshot state, LauncherProcess[] launchers) => !state.IsComplete || state.LibraryRoots.Count == 0 ||

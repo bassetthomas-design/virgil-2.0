@@ -174,6 +174,20 @@ public sealed class UpdatesSequenceViewModelTests
         await pending.WaitAsync(TimeSpan.FromSeconds(1));
         Assert.Single(f.Backend.Executed);
     }
+    [Fact, Trait("Category", "Safety")]
+    public async Task Blocked_launcher_is_reported_as_not_executed()
+    {
+        var f = new Fixture();
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Launcher;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Empty(f.Backend.Executed);
+        Assert.Empty(f.History.Report!.ExecutedActions);
+        Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
+        Assert.Equal(ReportSeverity.Success, f.History.Report.Severity);
+    }
+
     private sealed class CbsProbe : IPendingRebootProbe
     {
         public PendingRebootStatus Read() => new(true, ["Maintenance des composants"]);

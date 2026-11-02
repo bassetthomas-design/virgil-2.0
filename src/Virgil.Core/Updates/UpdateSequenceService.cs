@@ -11,11 +11,14 @@ public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent
     public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot;
 }
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status);
-public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message);
+public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
+{
+    public bool WasSkipped { get; init; }
+}
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
-    public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && step.Succeeded);
-    public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.Succeeded);
+    public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && !step.WasSkipped && step.Succeeded);
+    public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.WasSkipped && !step.Succeeded);
 }
 public interface IUpdateSequenceBackend
 {
@@ -111,8 +114,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 if (step.Component == UpdateComponent.Launcher)
                 {
                     var names = step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ");
-                    var launcherMessage = launcherShutdown is null ? "mis à jour au prochain lancement" : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
-                    results.Add(new(step, true, false, launcherMessage));
+                    var shutdown = launcherShutdown is null ? new LauncherShutdownResult(false, "mis à jour au prochain lancement") : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
+                    results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
                     handled.Add((step.Component, step.Id));
                 }
                 else if (IsElevated(step.Component))
@@ -145,7 +148,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var reboot = sources.Count > 0;
         var verdict = "Redémarrage nécessaire : " + (reboot ? "oui (" + string.Join(", ", sources.Distinct()) + ")" : "non") + ".";
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
-        var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
+        var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
         return new(false, cancellationToken.IsCancellationRequested, reboot, results, message);
     }
 }
