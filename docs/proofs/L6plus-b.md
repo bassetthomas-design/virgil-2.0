@@ -47,6 +47,8 @@ App.Tests:  Total tests: 507; Passed: 506; Failed: 1
 
 La préparation transmet la session et le numéro `VIRGIL|restore-point|OK|…` du helper à `InstallMicrosoftUpdates`. En cas de réutilisation, son texte exact reste dans le rapport. Aucune réimplémentation des passes WU, du Store, de la fonctionnalité ou du choix du point de restauration : le helper L6+-a reste inchangé.
 
+Le plan affiche aussi : « Un point de restauration récent (moins de 24 h) pourra être réutilisé si Windows refuse d'en créer un. » Le détail du point retenu reste dans le rapport.
+
 La passe finale est exactement :
 
 ```text
@@ -63,7 +65,7 @@ Les tests supplémentaires couvrent les jetons `drivers` et `windows-feature-upg
 
 `Cancel_during_winget_pass_skips_windows_update_and_final_pass` conserve l'installation en cours, bloque les paquets suivants, Windows Update et la passe finale ; la sonde du redémarrage reste exécutée. `Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately` vérifie l'acquittement immédiat et le message « ne peut pas être interrompue », sans attendre la fin de l'étape factice.
 
-Vérification complémentaire Linux : compilation croisée Release, 0 warning ; **108 tests ciblés réussis, 0 échec**, sans tests Windows. Le runtimeconfig généré de Core.Tests a été adapté uniquement dans `bin/` pour cette exécution de logique pure ; aucun fichier de projet ni workflow ne l'est. Cette vérification ne remplace pas la CI Windows.
+Vérification complémentaire Linux : compilation croisée Release, 0 warning ; **109 tests ciblés réussis, 0 échec**, sans tests Windows. Le runtimeconfig généré de Core.Tests a été adapté uniquement dans `bin/` pour cette exécution de logique pure ; aucun fichier de projet ni workflow ne l'est. Cette vérification ne remplace pas la CI Windows.
 
 ### Greps B2
 
@@ -92,23 +94,51 @@ La consigne conserve « Quittez-le depuis son icône » et devient :
 
 ## CI Windows finale et captures
 
-[CI Windows verte #289](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41425759740), sur le code final `0c1f034` : build Release, tests, publication, smoke et installateur **réussis, 0 warning, 0 erreur**. Le dernier commit recopie seulement ces preuves ; la [CI de la tête de branche](https://github.com/bassetthomas-design/virgil-2.0/actions/workflows/build.yml?query=branch%3Acodex%2Fl6plus-b) permet de vérifier aussi cette tête documentaire.
+[CI Windows verte #291](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41427285855), sur le code final `c35941f` : build Release, tests, publication, smoke et installateur **réussis, 0 warning, 0 erreur**. Le dernier commit recopie seulement ces preuves ; la [CI de la tête de branche](https://github.com/bassetthomas-design/virgil-2.0/actions/workflows/build.yml?query=branch%3Acodex%2Fl6plus-b) permet de vérifier aussi cette tête documentaire.
 
 | Projet / étape | Réussites | Échecs |
 | --- | ---: | ---: |
-| Core.Tests (`Category!=UI`) | 1090 | 0 |
+| Core.Tests (`Category!=UI`) | 1091 | 0 |
 | App.Tests (`Category!=UI`) | 514 | 0 |
 | UiTests (`Category=UI`) | 14 | 0 |
 | Build Release | 0 warning, 0 erreur | 0 |
 | Publication et installateur | Réussis | 0 |
 
-`InterfaceAccentTests` est **vert**, y compris les quatre cas distinguant le nom « passes » du participe. Latence UI maximale observée : **66 ms**, sous le plafond de 500 ms.
+`InterfaceAccentTests` est **vert**, y compris les quatre cas distinguant le nom « passes » du participe. Latence UI maximale observée : **60 ms**, sous le plafond de 500 ms.
 
-Artefacts effectivement produits : [Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41425759740/artifacts/13131323366), [Virgil-2.0-win-x64](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41425759740/artifacts/13132431052), [Virgil-win-x64-setup](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41425759740/artifacts/13132386791). Les assertions UIA prouvent la présence visible de `UpdatePlanStep.Drivers` cochée avant la capture et la liste exacte des **15 PNG** ; aucune revue visuelle manuelle des pixels n'est revendiquée.
+Artefacts effectivement produits : [Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41427285855/artifacts/13131714595), [Virgil-2.0-win-x64](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41427285855/artifacts/13132283614), [Virgil-win-x64-setup](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/41427285855/artifacts/13132034923). Les assertions UIA prouvent la présence visible de `UpdatePlanStep.Drivers` cochée avant la capture et la liste exacte des **15 PNG** ; aucune revue visuelle manuelle des pixels n'est revendiquée.
 
-Extrait vert des tests B1–B6 (noms et paramètres conservés, durées omises) :
+Extrait vert des tests B1–B6 (noms et paramètres conservés, durées omises, flux console entrelacés normalisés) :
 
 ```text
+Passed Virgil.Tests.OperationCancellationSafetyTests.Cancel_during_winget_pass_skips_windows_update_and_final_pass
+Passed Virgil.Tests.UpdatesSequenceViewModelTests.Update_plan_lists_script_steps_in_order_with_drivers_checked
+Passed Virgil.Tests.UpdatesSequenceViewModelTests.Pending_reboot_probe_drives_banner_and_report
+Passed Virgil.Tests.UpdatesSequenceViewModelTests.Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately
+Passed Virgil.Tests.UpdatesSequenceViewModelTests.Blocked_launcher_is_reported_as_not_executed
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe install Safe.Package", allowed: False)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade Safe.Package", allowed: False)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --include-unknown --include-pin"···, allowed: True)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --all --silent", allowed: False)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe list --id Safe.Package", allowed: True)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --id Safe.Package", allowed: False)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe --version", allowed: True)
+Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --include-unknown --force", allowed: False)
+Passed Virgil.UiTests.SafeUiTests.Update_preview_is_allowed_without_confirmation_or_execution
+Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "library-forward-slashes")
+Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "library")
+Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "unknown")
+Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "child")
+Passed Virgil.Tests.LauncherShutdownTests.Graceful_shutdown_uses_catalogue_commands_without_force(executable: "steam.exe", command: "steam.exe", arguments: "-shutdown")
+Passed Virgil.Tests.LauncherShutdownTests.Graceful_shutdown_uses_catalogue_commands_without_force(executable: "EpicGamesLauncher.exe", command: "taskkill.exe", arguments: "/IM EpicGamesLauncher.exe")
+Passed Virgil.Tests.LauncherShutdownTests.Process_protection_policy_still_refuses_launcher_close_outside_update_sequence
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_policy_has_only_sequence_and_composition_callers
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_is_force_closed_only_after_15_seconds(exits: False)
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_is_force_closed_only_after_15_seconds(exits: True)
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "consumed")
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "missing")
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "expired")
+Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_refuses_processes_outside_catalog
 Passed Virgil.Tests.L6PlusSequenceTests.Winget_upgrade_arguments_match_script_flags(version: "1.4.0", pinned: False)
 Passed Virgil.Tests.L6PlusSequenceTests.Winget_upgrade_arguments_match_script_flags(version: "1.5.0", pinned: True)
 Passed Virgil.Tests.L6PlusSequenceTests.Opening_update_plan_never_searches_Windows_Update
@@ -122,32 +152,6 @@ Passed Virgil.Tests.L6PlusExecutionTests.Winget_source_update_runs_before_first_
 Passed Virgil.Tests.L6PlusExecutionTests.Pending_reboot_is_read_after_cancellation
 Passed Virgil.Tests.L6PlusExecutionTests.Excluding_category_changes_plan_hash_and_removes_helper_token(excluded: "windows-feature-upgrade")
 Passed Virgil.Tests.L6PlusExecutionTests.Excluding_category_changes_plan_hash_and_removes_helper_token(excluded: "drivers")
-Passed Virgil.Tests.UpdatesSequenceViewModelTests.Pending_reboot_probe_drives_banner_and_report
-Passed   Passed Virgil.Tests.UpdatesSequenceViewModelTests.Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately
-Passed Virgil.Tests.UpdatesSequenceViewModelTests.Blocked_launcher_is_reported_as_not_executed
-Passed Virgil.Tests.OperationCancellationSafetyTests.Cancel_during_winget_pass_skips_windows_update_and_final_pass
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe install Safe.Package", allowed: False)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade Safe.Package", allowed: False)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --include-unknown --include-pin"···, allowed: True)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --all --silent", allowed: False)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe list --id Safe.Package", allowed: True)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --id Safe.Package", allowed: False)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe --version", allowed: True)
-Passed Virgil.UiTests.SafeUiTests.Winget_listing_is_allowed_but_installation_is_always_refused(command: "winget.exe upgrade --include-unknown --force", allowed: False)
-Passed Virgil.UiTests.SafeUiTests.Update_preview_is_allowed_without_confirmation_or_execution
-Passed Virgil.Tests.LauncherShutdownTests.Graceful_shutdown_uses_catalogue_commands_without_force(executable: "steam.exe", command: "steam.exe", arguments: "-shutdown")
-Passed Virgil.Tests.LauncherShutdownTests.Graceful_shutdown_uses_catalogue_commands_without_force(executable: "EpicGamesLauncher.exe", command: "taskkill.exe", arguments: "/IM EpicGamesLauncher.exe")
-Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "library")
-Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "unknown")
-Passed Virgil.Tests.LauncherShutdownTests.Running_game_blocks_launcher_shutdown(kind: "child")
-Passed Virgil.Tests.LauncherShutdownTests.Process_protection_policy_still_refuses_launcher_close_outside_update_sequence
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_policy_has_only_sequence_and_composition_callers
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_is_force_closed_only_after_15_seconds(exits: False)
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_is_force_closed_only_after_15_seconds(exits: True)
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "consumed")
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "missing")
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_requires_confirmed_plan(kind: "expired")
-Passed Virgil.Tests.LauncherShutdownTests.Launcher_shutdown_refuses_processes_outside_catalog
 Passed Virgil.UiTests.UiSmokeTests.Ui_thread_stays_responsive_during_navigation_and_complete_scan
 Passed Virgil.UiTests.UiSmokeTests.Smoke_run_has_no_destructive_side_effect
 Passed Virgil.UiTests.UiSmokeTests.Cleanup_summary_is_captured_without_execution
@@ -181,13 +185,15 @@ session-desktop.png
 
 Aucun identifiant C#, binding, x:Name/AutomationId, clé de ressource, clé JSON, jeton ni nom PNG n'est accentué. Les AutomationId sont `UpdatePlanStep.Defender`, `.MicrosoftUpdate`, `.Store`, `.Winget.<id>`, `.WindowsSoftware`, `.Drivers`, `.WindowsFeatureUpgrade`, `.WingetFinal` ; les lignes obligatoires et lanceurs ont aussi un identifiant stable ASCII.
 
-Les libellés imposés « jusqu'à 3 passes » restent exactement inchangés. Le garde d'accents distingue le nom « passes » après un nombre du participe « passés », avec contre-tests qui continuent à rejeter « Les essais sont passes ». Aucun ajout à `ValideSansAccent.txt`, aucune exemption par fichier ou dossier. `InterfaceAccentTests` est vert dans la CI Windows #289.
+Les libellés imposés « jusqu'à 3 passes » restent exactement inchangés. Le garde d'accents distingue le nom « passes » après un nombre du participe « passés », avec contre-tests qui continuent à rejeter « Les essais sont passes ». Aucun ajout à `ValideSansAccent.txt`, aucune exemption par fichier ou dossier. `InterfaceAccentTests` est vert dans la CI Windows #291.
 
 ## Essai manuel sur le PC de thoms
 
 **En attente.** Aucun accès à ce PC, aucune installation manuelle ni fin de rapport réelle n'est revendiquée.
 
 ## Limites connues
+
+- `--force` contourne les contrôles WinGet non liés à la sécurité ; le hash de l'installateur reste vérifié. La passe finale `--all` peut installer des mises à jour hors de la liste individuelle, annoncé avant confirmation.
 
 - Les appels WUA et l'installation WinGet déjà commencés ne sont pas interrompus ; l'annulation bloque la suite. Une fonctionnalité Windows peut être longue et imposer un redémarrage, annoncé avant confirmation.
 - Les bibliothèques Steam sont lues dans `libraryfolders.vdf`, Epic dans ses manifests et les autres lanceurs dans leurs emplacements de registre reconnus. Une configuration absente, inaccessible, personnalisée ou indécidable entraîne « mis à jour au prochain lancement ». Tout enfant du lanceur bloque aussi la fermeture, y compris un éventuel utilitaire du lanceur : choix conservateur conforme à la règle produit.
