@@ -84,14 +84,35 @@ public sealed class L6PlusExecutionTests
         var authority = new ConfirmationService(TimeProvider.System);
         using var cancellation = new CancellationTokenSource();
         var service = new UpdateSequenceService(new Backend(), authority, probe);
-        UpdateSequenceStep[] selected = [new("winget-final", "Passe finale", UpdateComponent.WingetFinal)];
+        UpdateSequenceStep[] selected = [new("defender", "Signatures Microsoft Defender", UpdateComponent.Defender), new("winget-final", "Passe finale", UpdateComponent.WingetFinal)];
         var plan = authority.Issue(service.CreatePreview(selected), new(ConfirmationLevel.Reinforced, null));
         if (cancel) cancellation.Cancel();
         var result = await service.ExecuteAsync(selected, plan, null, cancellation.Token);
         Assert.Equal(1, probe.Calls);
+        if (cancel) Assert.All(result.Steps.Where(s => s.Step.Component != UpdateComponent.PendingReboot), s => Assert.Contains("Non lancée", s.Message));
         Assert.True(result.RebootRequired);
         Assert.Contains(result.Steps, s => s.Message.Contains("oui (Maintenance des composants)", StringComparison.Ordinal));
     }
+    [Fact, Trait("Category", "Safety")]
+    public async Task Preparation_launch_failure_is_not_reported_as_success_and_still_probes_reboot()
+    {
+        var authority = new ConfirmationService(TimeProvider.System);
+        var probe = new Probe();
+        var service = new UpdateSequenceService(new PreparationFailure(), authority, probe);
+        UpdateSequenceStep[] selected = [new("defender", "Signatures Microsoft Defender", UpdateComponent.Defender)];
+        var plan = authority.Issue(service.CreatePreview(selected), new(ConfirmationLevel.Reinforced, null));
+        var result = await service.ExecuteAsync(selected, plan, null, default);
+        Assert.True(result.HasFailures);
+        Assert.Equal(0, result.SuccessfulCount);
+        Assert.Contains(result.Steps, s => s.Step.Component == UpdateComponent.Defender && !s.Succeeded);
+        Assert.Equal(1, probe.Calls);
+    }
+    private sealed class PreparationFailure : IUpdateSequenceBackend
+    {
+        public Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteGroupAsync(IReadOnlyList<UpdateSequenceStep> steps, CancellationToken token) => throw new InvalidOperationException();
+        public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => throw new InvalidOperationException();
+    }
+
     private sealed class Probe : IPendingRebootProbe
     {
         public int Calls { get; private set; }

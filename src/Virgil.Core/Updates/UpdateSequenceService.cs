@@ -88,14 +88,19 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         if (snapshot.Any(s => IsElevated(s.Component)))
         {
             var preparation = snapshot.Where(s => s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate).ToArray();
-            foreach (var member in preparation) handled.Add((member.Component, member.Id));
             if (!cancellationToken.IsCancellationRequested)
             {
+                foreach (var member in preparation) handled.Add((member.Component, member.Id));
                 progress?.Report(new(1, snapshot.Length, "Point de restauration et préparation Microsoft Update", "En cours"));
                 IReadOnlyList<UpdateSequenceStepResult> protectedResults;
                 try { protectedResults = await backend.ExecuteGroupAsync(preparation, cancellationToken).ConfigureAwait(false); }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { protectedResults = []; }
-                catch { protectedResults = [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.")]; }
+                catch
+                {
+                    protectedResults = preparation.Length > 0
+                        ? preparation.Select(s => new UpdateSequenceStepResult(s, false, false, "Installation bloquée : préparation non vérifiée.")).ToArray()
+                        : [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.")];
+                }
                 results.AddRange(protectedResults);
                 if (protectedResults.Any(r => !r.Succeeded))
                 {
