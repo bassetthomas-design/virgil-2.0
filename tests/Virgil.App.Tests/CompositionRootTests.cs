@@ -18,6 +18,24 @@ namespace Virgil.Tests;
 public sealed class CompositionRootTests
 {
     [Fact]
+    public void Legacy_monitoring_service_is_not_registered()
+    {
+        var services = new ServiceCollection().AddVirgilServices();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        foreach (var descriptor in services)
+        {
+            var instance = provider.GetRequiredService(descriptor.ServiceType);
+            foreach (var type in new[] { descriptor.ServiceType, descriptor.ImplementationType, instance.GetType() })
+            {
+                if (type is null || type == typeof(IResourceMonitoringService) || type == typeof(ResourceMonitoringService)) continue;
+                Assert.DoesNotContain("IMonitoring" + "Service", type.Name, StringComparison.Ordinal);
+                Assert.DoesNotContain("Monitoring" + "Service", type.Name, StringComparison.Ordinal);
+            }
+        }
+        Assert.IsType<ResourceMonitoringService>(provider.GetRequiredService<IResourceMonitoringService>());
+    }
+
+    [Fact]
     [Trait("Category", "Windows")]
     public async Task MaintenanceModuleAndEveryExecutableCleanupActionResolveWithValidatedComposition()
     {

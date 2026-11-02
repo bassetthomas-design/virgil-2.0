@@ -19,7 +19,6 @@ using Virgil.App.ViewModels;
 using Virgil.Core.Applications;
 using Virgil.Core.Cleanup;
 using Virgil.Core.Interventions;
-using Virgil.Core.Monitoring;
 using Virgil.Core.Processes;
 using Virgil.Core.Reports;
 using Virgil.Core.Resources;
@@ -138,7 +137,6 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IExplorerRestarter>(), sp.GetRequiredService<IInterventionCatalog>(), () => DateTimeOffset.Now,
             sp.GetRequiredService<IConfirmedPlanGate>()));
         services.AddTransient<ResourceReportBuilder>(_ => new ResourceReportBuilder());
-        services.AddTransient<IMonitoringService>(_ => new MonitoringService());
 
         services.AddTransient<IKnownFoldersProvider>(_ => new Virgil.Infrastructure.Windows.KnownFoldersProvider());
         services.AddTransient<PersonalFolderPolicy>(sp => new PersonalFolderPolicy(sp.GetRequiredService<IKnownFoldersProvider>()));
