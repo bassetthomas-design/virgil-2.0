@@ -48,3 +48,7 @@ Les actions à effet utilisent un aperçu et un `ConfirmedPlan`. Le nettoyage co
 - [Règles de contribution](AGENTS.md).
 
 La CI GitHub Actions Windows est la référence de build et de distribution. La présence de cette documentation ne constitue pas une attestation de réussite d'un run.
+
+## Licence
+
+Virgil 2.0 est distribué sous licence [GPL-3.0](LICENSE).
