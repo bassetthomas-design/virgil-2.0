@@ -48,3 +48,5 @@ csproj/props inspectés ; ils ne sont pas modifiés.
 - CI Windows, 0 warning, 15 PNG et installateur : non vérifiés pour ce lot.
 - Publication via le connecteur GitHub, autorisée après fourniture du fichier officiel.
 - La CI Windows de la PR doit valider tests, 0 warning, 15 PNG et installateur ; aucun résultat anticipé.
+
+- Correctif P1 : retrait de `Owner = window` avant le premier affichage de la fenêtre principale pour éviter InvalidOperationException WPF ; centrage CenterScreen conservé, test source ajusté pour interdire cette affectation.

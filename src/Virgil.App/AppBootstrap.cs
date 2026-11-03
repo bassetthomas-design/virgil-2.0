@@ -72,7 +72,7 @@ public partial class App : System.Windows.Application
             window.Closed += (_, _) => _mainWindowClosed = true;
             AlphaWarningWindow.RunStartup(
                 !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VIRGIL_APP_EXE")),
-                () => new AlphaWarningWindow { Owner = window }.ShowDialog(),
+                () => new AlphaWarningWindow().ShowDialog(),
                 () => window.Show());
             _instance.StartListening(() => Dispatcher.BeginInvoke((Action)ActivateMainWindow));
         }

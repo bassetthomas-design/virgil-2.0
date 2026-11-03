@@ -33,7 +33,8 @@ public sealed class AlphaWarningTests
         var source = File.ReadAllText(Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "src", "Virgil.App", "AppBootstrap.cs"));
         Assert.Contains("AlphaWarningWindow.RunStartup(", source);
         Assert.Contains("Environment.GetEnvironmentVariable(\"VIRGIL_APP_EXE\")", source);
-        Assert.Contains("() => new AlphaWarningWindow { Owner = window }.ShowDialog()", source);
+        Assert.Contains("() => new AlphaWarningWindow().ShowDialog()", source);
+        Assert.DoesNotContain("Owner = window", source);
         Assert.Contains("() => window.Show()", source);
     }
 }
