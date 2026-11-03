@@ -70,7 +70,10 @@ public partial class App : System.Windows.Application
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Closed += (_, _) => _mainWindowClosed = true;
-            window.Show();
+            AlphaWarningWindow.RunStartup(
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VIRGIL_APP_EXE")),
+                () => new AlphaWarningWindow { Owner = window }.ShowDialog(),
+                () => window.Show());
             _instance.StartListening(() => Dispatcher.BeginInvoke((Action)ActivateMainWindow));
         }
         catch (Exception ex)
