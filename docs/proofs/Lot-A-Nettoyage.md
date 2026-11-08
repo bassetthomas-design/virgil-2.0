@@ -2,6 +2,7 @@
 
 Base exacte : `9b3621b0fcdefe43eacdf0f4bd90bdfcbc709fe3`. PR brouillon unique : [#77](https://github.com/bassetthomas-design/virgil-2.0/pull/77). Aucune fusion.
 Les horaires d'arrêt du brief ont été annulés explicitement ; les autres limites restent applicables.
+L'utilisateur a explicitement autorisé la poursuite de R4, de la politique et des preuves malgré la non-reproduction de Téléchargements coché.
 
 ## Cause et limites en trois lignes
 
@@ -62,7 +63,10 @@ Un choix personnel individuel est conservé lors d'un simple retour écran ; auc
 | --- | --- | --- | --- |
 | Rouge initial | `2d9e4dd9e41a24b6a06e10daae2b015ddfd270d1` | [42514787106](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42514787106) | Build 0 avertissement ; Core 1119/1119 ; App 575/576, assertion R4 |
 | Rouge confirmé | `3f1d0d21c3507fd0f0a1e44c26c52a7bec15a0ec` | [42515088398](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42515088398) | Build 0 avertissement ; Core 1119/1119 ; App 577/578, même assertion R4 ; estimateur OK |
-| Après correctif séparé | À renseigner après CI | En attente | Aucun résultat anticipé |
+| Correctif séparé | `dadd936e6beb93642cba1e67459c91247333977c` | [42516026257](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516026257) | R4 vert ; Core 1123/1123 ; App 586/587 : une fixture Chrome suppose encore une présélection |
+| Vert après choix explicite dans cette fixture | `d56dc0508e3c76afccc75a25f78c885073e9aaaf` | [42516214815](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516214815) | Succès complet : build 0 avertissement/0 erreur, Core 1123/1123, App 587/587, smoke UI 14/14, publication et installateur |
+
+Le dernier complément ne modifie que les preuves et un test de conservation des marques personnelles ; sa CI finale est référencée dans la PR avec son head exact.
 
 Rouge authentique : `Downloads_category_without_eligible_rows_has_no_enabled_bulk_checkbox`, `Assert.DoesNotContain`, case visible et active (ligne 69 du commit rouge). Aucun échec de compilation/environnement. Le rouge ne reproduit PAS Téléchargements coché.
 Commande Windows : `dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI" --logger "console;verbosity=normal"` ; puis smoke existant `Category=UI` après publication.
@@ -70,7 +74,8 @@ Local Linux : `dotnet: command not found` ; aucune validation Windows revendiqu�
 
 ## Contraste et PNG
 
-Avant correctif, rendu WPF testé : 17,42:1 à 18,06:1, sans reproduction du fond blanc. Après correctif : mesure et revue PNG en attente de CI.
-Les conteneurs sombres sont limités aux catégories/lignes de CleanupView ; aucun thème global changé. Fond normal `#0A0F14`, sélection `#111B23`, survol `#0E151C`, texte `#F1F4F6` ; ratios de palette tous supérieurs à 15:1, à confirmer sur le rendu effectif.
-Artefact prévu `Virgil-ui-smoke/lot-a/nettoyage-apres-scan.png` et `nettoyage-conteneur-selectionne.png` : vrai XAML WPF après scan, ports factices en lecture seule, Téléchargements visible et décoché, détails ouverts. Il s'agit d'une preuve de rendu déterministe, distincte du parcours FlaUI de l'exécutable publié et d'un essai sur le PC de la capture.
+Avant correctif, rendu WPF testé : 17,42:1 à 18,06:1, sans reproduction du fond blanc. Après correctif, run vert ci-dessus : normal 17,42:1 ; état sélectionné 15,78:1 au minimum, y compris détails, nature et en-tête. Le test R4 rouge devient vert, sans affaiblir son assertion.
+Les conteneurs sombres sont limités aux catégories/lignes de CleanupView ; aucun thème global changé. Fond normal `#0A0F14`, sélection `#111B23`, survol `#0E151C`, texte `#F1F4F6` ; ratios de palette tous supérieurs à 15:1, rendu normal/sélectionné mesuré en WPF Windows.
+[Artefact CI Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516214815/artifacts/13631348340), 2 953 394 octets : `lot-a/nettoyage-apres-scan.png` et `lot-a/nettoyage-conteneur-selectionne.png`, produits et annoncés dans les logs des tests. Vrai XAML WPF après scan, ports factices en lecture seule, Téléchargements visible et décoché, détails ouverts. Il s'agit d'une preuve de rendu déterministe, distincte du parcours FlaUI de l'exécutable publié (14 tests verts, 15 PNG contrôlés) et d'un essai sur le PC de la capture.
+Les assertions Windows et la génération PNG sont exécutées. La revue humaine des pixels reste à faire : le connecteur fournit l'artefact, mais son téléchargement vers l'atelier est refusé par le proxy (CONNECT 403). Aucun contournement ni changement de réseau/settings.
 Les deux runs rouges sautent publication/smoke après échec Test, donc aucun PNG pour eux ; le warning d'artefact absent n'est pas un avertissement de compilation.

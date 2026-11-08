@@ -42,6 +42,19 @@ public sealed class CleanupSelectionPolicyTests
     }
 
     [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void Personal_markers_survive_refresh_without_a_known_folder_match(bool definitionMarker)
+    {
+        var preview = Preview(CleanupZoneId.UserTemporaryFiles);
+        preview = preview with { Definition = preview.Definition with { IsPersonalFolder = definitionMarker },
+            Candidates = [preview.Candidates[0] with { IsPersonalFolder = !definitionMarker }] };
+        var refreshed = new PersonalFolderPolicy(new NoFolders()).Apply(preview);
+        Assert.True(refreshed.Definition.IsPersonalFolder);
+        Assert.False(CleanupSelectionPolicy.CanGroupSelect(refreshed));
+        Assert.False(CleanupSelectionPolicy.IsSelectedByDefault(refreshed));
+    }
+
+    [Theory]
     [InlineData(CleanupZoneId.OldDownloads)]
     [InlineData(CleanupZoneId.RecycleBin)]
     public void Intrinsically_personal_ids_reach_existing_critical_confirmation_even_without_known_folder_paths(CleanupZoneId id)
