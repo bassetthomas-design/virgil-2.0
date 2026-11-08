@@ -1,4 +1,5 @@
 using Virgil.Contracts;
+using Virgil.Contracts.Actions;
 using Virgil.Core.Cleanup;
 using Xunit;
 
@@ -44,6 +45,7 @@ public sealed class CleanupLotAReproductionTests
         Assert.True(result.Definition.IsPersonalFolder);
         Assert.True(Assert.Single(result.Candidates).IsPersonalFolder);
         Assert.Equal(CleanupNature.Personal, CleanupItemNature.For(result));
+        Assert.Equal(RiskLevel.Critical, CleanupSelectionAction.CreatePreview([result]).RiskLevel);
     }
 
     private sealed class CapturePorts(KnownFolder kind = KnownFolder.Downloads) : IKnownFoldersProvider, IDownloadsSource, ISoftwareFootprintSource

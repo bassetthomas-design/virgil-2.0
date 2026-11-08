@@ -148,7 +148,7 @@ public sealed class CleanupLotAReproductionTests
             preview with { Definition = preview.Definition with { Id = second } }];
         await fixture.Analyze();
         var category = Assert.Single(fixture.Vm.Categories);
-        Assert.True(category.Selection.IsSelected);
+        Assert.All(category.Rows, row => Assert.Equal(CleanupSelectionPolicy.IsSelectedByDefault(row.Preview), row.IsSelected));
         category.Selection.IsSelected = false;
         Assert.All(category.Rows, row => Assert.False(row.IsSelected));
         category.Rows[0].IsSelected = true;
@@ -170,7 +170,7 @@ public sealed class CleanupLotAReproductionTests
         };
     }
 
-    private sealed class CapturePorts : IKnownFoldersProvider, IDownloadsSource, ISoftwareFootprintSource
+    internal sealed class CapturePorts : IKnownFoldersProvider, IDownloadsSource, ISoftwareFootprintSource
     {
         public IReadOnlyList<KnownFolderPath> GetFolders() => [new(KnownFolder.Downloads, Path.GetFullPath("lot-a-downloads"))];
         public IReadOnlyList<FootprintFile> ReadFiles(string downloadsRoot, CancellationToken cancellationToken) =>

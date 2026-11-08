@@ -7,6 +7,30 @@
              KeyboardNavigation.TabNavigation="Cycle">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <!-- Conteneurs propres à Nettoyage : aucun chrome ListBoxItem natif clair. -->
+        <Style x:Key="CleanupRowContainer" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="{DynamicResource App.SecondaryBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource App.CardBrush}" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource App.PanelBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <DataTemplate DataType="{x:Type vm:CleanupSectionTitleItem}">
             <TextBlock Text="{Binding Text}" Style="{StaticResource VirgilHudSectionTitle}" TextWrapping="Wrap" />
         </DataTemplate>
@@ -152,7 +176,7 @@
                     </WrapPanel>
                     <TextBlock Text="La sélection globale et par catégorie exclut les dossiers personnels, les Téléchargements, la Corbeille (suppression irréversible), Windows.old et les lignes non exécutables." TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
-                <ListBox Grid.Row="2" x:Name="ZonesPanel" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
+                <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemContainerStyle="{StaticResource CleanupRowContainer}" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
                          HorizontalContentAlignment="Stretch">
@@ -164,20 +188,36 @@
                                         <Grid IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                             <CheckBox Content="Sélectionner toute la catégorie"
+                                                      IsEnabled="{Binding Selection.CanSelectAsGroup}"
+                                                      Visibility="{Binding Selection.CanSelectAsGroup, Converter={StaticResource BooleanToVisibilityConverter}}"
                                                       IsThreeState="True" IsChecked="{Binding Selection.IsSelected, Mode=TwoWay}" Margin="8"/>
+                                            <TextBlock Text="Choix ligne par ligne : fichiers personnels" Margin="8"
+                                                       Foreground="{DynamicResource App.TextPrimaryBrush}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Selection.CanSelectAsGroup}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                             <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" MaxHeight="420" Background="Transparent" BorderThickness="0"
+                                                     ItemContainerStyle="{StaticResource CleanupRowContainer}"
                                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
                                                      HorizontalContentAlignment="Stretch">
                                                 <ListBox.ItemTemplate><DataTemplate>
                                                     <StackPanel Margin="4,8">
                                                         <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
-                                                            <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}"/><TextBlock Text="{Binding NatureAndRisk}" Foreground="{DynamicResource App.TextPrimaryBrush}"/></StackPanel>
+                                                            <StackPanel><TextBlock Text="{Binding Title}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/><TextBlock Text="{Binding NatureAndRisk}" Foreground="{DynamicResource App.TextPrimaryBrush}"/></StackPanel>
                                                         </CheckBox>
                                                         <Expander Header="Détails techniques" Margin="20,4,0,0">
                                                             <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers>
                                                                 <Trigger Property="IsExpanded" Value="True"><Setter Property="ContentTemplate"><Setter.Value><DataTemplate>
-                                                                    <TextBlock Text="{Binding Details}" TextWrapping="Wrap"/>
+                                                                    <TextBlock Text="{Binding Details}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap"/>
                                                                 </DataTemplate></Setter.Value></Setter></Trigger>
                                                             </Style.Triggers></Style></Expander.Style>
                                                             <Expander.Content><Binding/></Expander.Content>

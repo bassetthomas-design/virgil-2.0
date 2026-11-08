@@ -1,10 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Virgil.App.ViewModels;
 using Virgil.App.Views;
 using Virgil.Contracts;
+using Virgil.Core.Cleanup;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -13,6 +15,39 @@ namespace Virgil.Tests;
 [Trait("Category", "Windows")]
 public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
 {
+    [Fact]
+    public Task Rendered_selection_controls_are_disabled_during_rescan() => ThemeContrastTests.OnSta(async () =>
+    {
+        var fixture = Fixture();
+        await fixture.Analyze();
+        var inventory = fixture.Vm.Groups.SelectMany(g => g.Rows).Select(r => r.Preview).ToArray();
+        var view = new CleanupView(fixture.Vm);
+        var window = Show(view);
+        var gate = new TaskCompletionSource<IReadOnlyList<CleanupZonePreview>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Previews.Handler = token => gate.Task.WaitAsync(token);
+        Task? pending = null;
+        try
+        {
+            await Settle(window);
+            Downloads(view).IsExpanded = true;
+            await Settle(window);
+            pending = fixture.Analyze();
+            await Settle(window);
+            Assert.False(fixture.Vm.IsIdle);
+            Assert.All(Descendants<CheckBox>(Downloads(view)), c => Assert.False(c.IsEnabled));
+            var selectAll = Assert.Single(Descendants<Button>(view), b => Equals(b.Content, "TOUT SÉLECTIONNER"));
+            Assert.False(selectAll.IsEnabled);
+            fixture.Vm.SelectAllCommand.Execute(null);
+            Assert.All(fixture.Vm.Groups.SelectMany(g => g.Rows).Where(r => !r.CanGroupSelect), r => Assert.False(r.IsSelected));
+        }
+        finally
+        {
+            gate.TrySetResult(inventory);
+            if (pending is not null) await pending;
+            window.Close();
+        }
+    });
+
     [Fact]
     public Task Rendered_download_checkbox_stays_unchecked_across_scan_bulk_selection_and_return() => ThemeContrastTests.OnSta(async () =>
     {
@@ -73,8 +108,9 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
         finally { window.Close(); }
     });
 
-    [Fact]
-    public Task Expanded_download_row_text_has_at_least_4_5_contrast() => ThemeContrastTests.OnSta(async () =>
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public Task Expanded_download_row_text_has_at_least_4_5_contrast(bool selectedContainer) => ThemeContrastTests.OnSta(async () =>
     {
         var fixture = Fixture();
         await fixture.Analyze();
@@ -88,7 +124,9 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
             await Settle(window);
             var details = Assert.Single(Descendants<Expander>(category), e => Equals(e.Header, "Détails techniques"));
             details.IsExpanded = true;
+            foreach (var container in Descendants<ListBoxItem>(category)) container.IsSelected = selectedContainer;
             await Settle(window);
+            AssertDownloadUnchecked(view);
             var blocks = Descendants<TextBlock>(category).Where(b => b.IsVisible && b.IsEnabled &&
                 b.ActualHeight > 0 && !string.IsNullOrWhiteSpace(b.Text)).ToArray();
             Assert.Contains(blocks, b => b.Text == "Téléchargements anciens ou volumineux");
@@ -115,6 +153,17 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
                 if (ratio < 4.5) failures.Add(measurement);
             }
             Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+            var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-a");
+            Directory.CreateDirectory(directory);
+            var filename = selectedContainer ? "nettoyage-conteneur-selectionne.png" : "nettoyage-apres-scan.png";
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(view.ActualWidth), (int)Math.Ceiling(view.ActualHeight),
+                96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(view);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var file = File.Create(Path.Combine(directory, filename));
+            encoder.Save(file);
+            output.WriteLine($"Preuve WPF Windows après scan avec ports factices en lecture seule : lot-a/{filename}");
         }
         finally { window.Close(); }
     });
@@ -122,8 +171,10 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
     private static CleanupViewModelTests.Fixture Fixture()
     {
         var fixture = new CleanupViewModelTests.Fixture();
-        fixture.Previews.Items = [CleanupLotAReproductionTests.CaptureDownload(),
-            CleanupSelectionTests.Preview(CleanupClassification.Cleanable)];
+        var ports = new CleanupLotAReproductionTests.CapturePorts();
+        var scanner = new AdditionalCleanupScanner(ports, ports, ports, new LeftoverAnalyzer(), new PersonalFolderPolicy(ports), TimeProvider.System);
+        fixture.Previews.Handler = async token => (await scanner.ScanAsync(token))
+            .Concat(new[] { CleanupSelectionTests.Preview(CleanupClassification.Cleanable) }).ToArray();
         return fixture;
     }
 
