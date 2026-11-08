@@ -67,8 +67,10 @@ Un choix personnel individuel est conservé lors d'un simple retour écran ; auc
 | Rouge confirmé | `3f1d0d21c3507fd0f0a1e44c26c52a7bec15a0ec` | [42515088398](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42515088398) | Build 0 avertissement ; Core 1119/1119 ; App 577/578, même assertion R4 ; estimateur OK |
 | Correctif séparé | `dadd936e6beb93642cba1e67459c91247333977c` | [42516026257](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516026257) | R4 vert ; Core 1123/1123 ; App 586/587 : une fixture Chrome suppose encore une présélection |
 | Vert après choix explicite dans cette fixture | `d56dc0508e3c76afccc75a25f78c885073e9aaaf` | [42516214815](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516214815) | Succès complet : build 0 avertissement/0 erreur, Core 1123/1123, App 587/587, smoke UI 14/14, publication et installateur |
+| Head effectivement relu par loops | `8d33d745995d0bfc25b634ac79ac212289a7f07f` | [42516576617](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516576617) | CI verte, preuve visuelle refusée : le haut du PNG est blanc/transparent |
+| Correction de l'opacité et preuve complète | `c51170a6c33b52062214232020bc64d9a20dd7ee` | [42516899613](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516899613) | Build 0 avertissement/0 erreur, Core 1125/1125, App 588/588, UI 14/14 ; publication, artefacts et installateur réussis |
 
-Le dernier complément ne modifie que les preuves et un test de conservation des marques personnelles ; sa CI finale est référencée dans la PR avec son head exact.
+Le dernier complément ne modifie que ce document de preuve ; sa CI finale est référencée dans la PR avec son head exact. Une CI verte n'est pas un feu vert de revue : brouillon conservé, aucune fusion ce soir, revue lundi 9 h Paris.
 
 Rouge authentique : `Downloads_category_without_eligible_rows_has_no_enabled_bulk_checkbox`, `Assert.DoesNotContain`, case visible et active (ligne 69 du commit rouge). Aucun échec de compilation/environnement. Le rouge ne reproduit PAS Téléchargements coché.
 Commande Windows : `dotnet test Virgil.sln --configuration Release --no-build --filter "Category!=UI" --logger "console;verbosity=normal"` ; puis smoke existant `Category=UI` après publication.
@@ -76,9 +78,20 @@ Local Linux : `dotnet: command not found` ; aucune validation Windows revendiqu�
 
 ## Contraste et PNG
 
-Les mesures historiques (17,42:1 normal, 15,78:1 sélectionné) portaient sur les lignes ; elles ne validaient PAS le haut du PNG transparent, refusé par loops sur `8d33d74`. R4 était vert, sans affaiblir son assertion. Nouvelle preuve complète après correction : en attente de CI sur nouveau head.
+Les mesures historiques (17,42:1 normal, 15,78:1 sélectionné) portaient sur les lignes ; elles ne validaient PAS le haut du PNG transparent, refusé par loops sur `8d33d74`. R4 était vert, sans affaiblir son assertion. Nouvelle preuve complète exécutée sur `c51170a`, hôte blanc/noir : tous les textes visibles >= 4,5:1, opacité du PNG vérifiée (alpha 255).
 Les conteneurs sombres sont limités aux catégories/lignes de CleanupView ; aucun thème global changé. Fond normal `#0A0F14`, sélection `#111B23`, survol `#0E151C`, texte `#F1F4F6` ; ratios de palette tous supérieurs à 15:1, rendu normal/sélectionné mesuré en WPF Windows.
-[Artefact CI Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516214815/artifacts/13631348340), 2 953 394 octets : `lot-a/nettoyage-apres-scan.png` et `lot-a/nettoyage-conteneur-selectionne.png`, produits et annoncés dans les logs des tests. Vrai XAML WPF après scan, ports factices en lecture seule, Téléchargements visible et décoché, détails ouverts. Il s'agit d'une preuve de rendu déterministe, distincte du parcours FlaUI de l'exécutable publié (14 tests verts, 15 PNG contrôlés) et d'un essai sur le PC de la capture.
+[Nouvel artefact CI Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42516899613/artifacts/13631379492), 2 949 210 octets, head `c51170a` : `lot-a/nettoyage-apres-scan.png` et `lot-a/nettoyage-conteneur-selectionne.png`, renouvelés et annoncés dans les logs. Vrai XAML WPF après scan, ports factices en lecture seule, Téléchargements visible et décoché, détails ouverts. Il s'agit d'une preuve de rendu déterministe, distincte du parcours FlaUI de l'exécutable publié (14 tests verts, 15 PNG contrôlés) et d'un essai sur le PC de la capture.
+
+| Texte réellement rendu (deux états) | Contraste mesuré |
+| --- | --- |
+| Résumé « 226.9 Mo récupérables · 5 fichiers » | 18,06:1 |
+| Risques « Sans risque : 10 o · À vérifier : 226.9 Mo » | 18,06:1 |
+| Bandeau des exclusions de sélection globale/catégorie | 18,06:1 |
+| Informations complémentaires (lecture seule) | 18,06:1 |
+| Quarantaine | 18,06:1 |
+| Détails de ligne, état sélectionné | 15,78:1 minimum |
+| Minimum de tous les textes visibles mesurés (boutons secondaires inclus) | 6,40:1 |
+
 Les assertions Windows et la génération PNG sont exécutées. La revue humaine des pixels reste à faire : le connecteur fournit l'artefact, mais son téléchargement vers l'atelier est refusé par le proxy (CONNECT 403). Aucun contournement ni changement de réseau/settings.
-La nouvelle preuve exige un hôte blanc/noir, un fond racine et ScrollViewer opaques, et mesure aussi résumé/risques/bandeau/Informations complémentaires/Quarantaine, pas seulement les lignes. Les PNG historiques ne valent pas acceptation visuelle ; PNG renouvelés à référencer dans la PR.
+Le nouveau test vérifie aussi les ScrollViewer visibles opaques, la présence des cinq textes signalés et la case Téléchargements décochée. Les PNG historiques ne valent pas acceptation visuelle ; revue des nouveaux pixels par loops encore requise.
 Les deux runs rouges sautent publication/smoke après échec Test, donc aucun PNG pour eux ; le warning d'artefact absent n'est pas un avertissement de compilation.
