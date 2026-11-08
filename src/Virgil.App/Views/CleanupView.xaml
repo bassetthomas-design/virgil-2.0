@@ -3,10 +3,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Virgil.App.ViewModels"
              xmlns:controls="clr-namespace:Virgil.App.Controls"
+             Background="{DynamicResource App.BackgroundBrush}"
+             Foreground="{DynamicResource App.TextPrimaryBrush}"
              Focusable="True"
              KeyboardNavigation.TabNavigation="Cycle">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Background" Value="{DynamicResource App.BackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+        </Style>
         <!-- Conteneurs propres à Nettoyage : aucun chrome ListBoxItem natif clair. -->
         <Style x:Key="CleanupRowContainer" TargetType="ListBoxItem">
             <Setter Property="Background" Value="{DynamicResource App.SecondaryBackgroundBrush}" />
@@ -81,7 +87,7 @@
             </Border>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid ClipToBounds="True">
+    <Grid ClipToBounds="True" Background="{DynamicResource App.BackgroundBrush}">
         <Grid x:Name="CleanupContentRoot"
               ClipToBounds="True">
             <Grid.RowDefinitions>
@@ -176,7 +182,7 @@
                     </WrapPanel>
                     <TextBlock Text="La sélection globale et par catégorie exclut les dossiers personnels, les Téléchargements, la Corbeille (suppression irréversible), Windows.old et les lignes non exécutables." TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
-                <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemContainerStyle="{StaticResource CleanupRowContainer}" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="Transparent" BorderThickness="0"
+                <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemContainerStyle="{StaticResource CleanupRowContainer}" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="{DynamicResource App.BackgroundBrush}" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
                          HorizontalContentAlignment="Stretch">
@@ -204,7 +210,7 @@
                                                     </Style>
                                                 </TextBlock.Style>
                                             </TextBlock>
-                                            <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" MaxHeight="420" Background="Transparent" BorderThickness="0"
+                                            <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" MaxHeight="420" Background="{DynamicResource App.BackgroundBrush}" Foreground="{DynamicResource App.TextPrimaryBrush}" BorderThickness="0"
                                                      ItemContainerStyle="{StaticResource CleanupRowContainer}"
                                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
@@ -235,7 +241,7 @@
                 </ListBox>
                 <StackPanel Grid.Row="3">
                     <Expander Header="Informations complémentaires (lecture seule)">
-                        <ListBox ItemsSource="{Binding Entries}" MaxHeight="240" Background="Transparent" BorderThickness="0"
+                        <ListBox ItemsSource="{Binding Entries}" MaxHeight="240" Background="{DynamicResource App.BackgroundBrush}" Foreground="{DynamicResource App.TextPrimaryBrush}" BorderThickness="0"
                                  ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True"
                                  VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"/>
                     </Expander>
@@ -244,7 +250,7 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Text="Restauration vérifiée pendant la rétention. Aucun espace libéré avant la purge." TextWrapping="Wrap" />
                             <ListBox Grid.Row="1" ItemsSource="{Binding QuarantineItems}" MaxHeight="240"
-                                     Background="Transparent" BorderThickness="0" Foreground="{DynamicResource App.TextPrimaryBrush}" HorizontalContentAlignment="Stretch"
+                                     Background="{DynamicResource App.BackgroundBrush}" BorderThickness="0" Foreground="{DynamicResource App.TextPrimaryBrush}" HorizontalContentAlignment="Stretch"
                                      ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel">
                                 <ListBox.ItemTemplate>
@@ -315,6 +321,7 @@
                     </StackPanel>
 
                     <ScrollViewer Grid.Row="1"
+                                  Background="{DynamicResource App.BackgroundBrush}"
                                   Grid.ColumnSpan="2"
                                   Margin="0,18,0,18"
                                   VerticalScrollBarVisibility="Auto"
@@ -432,6 +439,7 @@
                         </StackPanel>
                     </Grid>
                     <ScrollViewer Grid.Row="1"
+                                  Background="{DynamicResource App.BackgroundBrush}"
                                   Margin="0,18,0,18"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"

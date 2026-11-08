@@ -110,7 +110,7 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public Task Expanded_download_row_text_has_at_least_4_5_contrast(bool selectedContainer) => ThemeContrastTests.OnSta(async () =>
+    public Task Whole_cleanup_view_on_white_host_has_at_least_4_5_contrast_and_opaque_png(bool selectedContainer) => ThemeContrastTests.OnSta(async () =>
     {
         var fixture = Fixture();
         await fixture.Analyze();
@@ -127,9 +127,16 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
             foreach (var container in Descendants<ListBoxItem>(category)) container.IsSelected = selectedContainer;
             await Settle(window);
             AssertDownloadUnchecked(view);
-            var blocks = Descendants<TextBlock>(category).Where(b => b.IsVisible && b.IsEnabled &&
+            var blocks = Descendants<TextBlock>(view).Where(b => b.IsVisible && b.IsEnabled &&
                 b.ActualHeight > 0 && !string.IsNullOrWhiteSpace(b.Text)).ToArray();
             Assert.Contains(blocks, b => b.Text == "Téléchargements anciens ou volumineux");
+            Assert.Contains(blocks, b => b.Text == fixture.Vm.Summary);
+            Assert.Contains(blocks, b => b.Text == fixture.Vm.SafetySummary);
+            Assert.Contains(blocks, b => b.Text.StartsWith("La sélection globale et par catégorie exclut", StringComparison.Ordinal));
+            Assert.Contains(blocks, b => b.Text == "Informations complémentaires (lecture seule)");
+            Assert.Contains(blocks, b => b.Text == "Quarantaine");
+            Assert.All(Descendants<ScrollViewer>(view).Where(s => s.IsVisible),
+                s => Assert.Equal((byte)255, Assert.IsType<SolidColorBrush>(s.Background).Color.A));
             var failures = new List<string>();
             foreach (var block in blocks)
             {
@@ -159,6 +166,9 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(view.ActualWidth), (int)Math.Ceiling(view.ActualHeight),
                 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(view);
+            var pixel = new byte[4];
+            bitmap.CopyPixels(new Int32Rect(0, 0, 1, 1), pixel, 4, 0);
+            Assert.Equal((byte)255, pixel[3]); // Le PNG doit être opaque même sur un hôte blanc.
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var file = File.Create(Path.Combine(directory, filename));
@@ -195,8 +205,7 @@ public sealed class CleanupLotAWpfReproductionTests(ITestOutputHelper output)
     private static Window Show(FrameworkElement view)
     {
         var window = new Window { Content = view, Width = 1600, Height = 900, ShowInTaskbar = false,
-            Background = (Brush)Application.Current.FindResource("App.BackgroundBrush"),
-            Foreground = (Brush)Application.Current.FindResource("App.TextPrimaryBrush") };
+            Background = Brushes.White, Foreground = Brushes.Black };
         window.Show();
         window.UpdateLayout();
         return window;

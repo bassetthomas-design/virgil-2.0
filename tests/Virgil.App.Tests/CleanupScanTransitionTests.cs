@@ -7,6 +7,51 @@ namespace Virgil.Tests;
 
 public sealed class CleanupScanTransitionTests
 {
+    [Fact]
+    public async Task Cleanup_execution_and_subsequent_reconstruction_never_add_or_process_unselected_downloads()
+    {
+        var fixture = new CleanupViewModelTests.Fixture();
+        fixture.Previews.Items = [CleanupSelectionTests.Preview(CleanupClassification.Cleanable),
+            CleanupLotAReproductionTests.CaptureDownload()];
+        await fixture.Analyze();
+        var download = Assert.Single(fixture.Vm.Groups.SelectMany(g => g.Rows), r => r.Preview.Definition.Id == CleanupZoneId.OldDownloads);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Actions.Handler = async (preview, token) =>
+        {
+            Assert.Equal(CleanupZoneId.UserTemporaryFiles, preview.Definition.Id);
+            started.TrySetResult();
+            await release.Task.WaitAsync(token);
+            return new(preview.Definition, CleanupStepStatus.Completed, 0, 0, 0, 0, TimeSpan.Zero, []);
+        };
+        var pending = fixture.Run();
+        fixture.Vm.ExecuteDecisionCommand.Execute(null);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        try
+        {
+            Assert.False(fixture.Vm.IsIdle);
+            Gestures();
+        }
+        finally { release.TrySetResult(); await pending; }
+        Assert.Equal(new[] { "Execute:UserTemporaryFiles" }, fixture.Actions.Order);
+        Assert.Equal(1, fixture.Confirmation.Calls);
+        fixture.Vm.CloseReportCommand.Execute(null);
+        Assert.True(fixture.Vm.IsIdle);
+        Gestures();
+        await fixture.Analyze();
+        Assert.DoesNotContain(download, fixture.Vm.Groups.SelectMany(g => g.Rows));
+        Gestures();
+        Assert.Equal(new[] { "Execute:UserTemporaryFiles" }, fixture.Actions.Order);
+        void Gestures()
+        {
+            fixture.Vm.SelectAllCommand.Execute(null);
+            foreach (var category in fixture.Vm.Categories)
+            { category.Selection.IsSelected = true; AssertPersonalUnchecked(fixture.Vm); category.Selection.IsSelected = false; }
+            fixture.Vm.ReturnHomeCommand.Execute(null);
+            AssertPersonalUnchecked(fixture.Vm);
+        }
+    }
+
     [Theory]
     [InlineData(false, false)] [InlineData(false, true)]
     [InlineData(true, false)] [InlineData(true, true)]
