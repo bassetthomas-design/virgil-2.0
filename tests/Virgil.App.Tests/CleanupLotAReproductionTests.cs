@@ -7,6 +7,45 @@ namespace Virgil.Tests;
 
 public sealed class CleanupLotAReproductionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Additional_inventory_via_module_and_production_estimator_keeps_downloads_unchecked(bool useEstimator)
+    {
+        var ports = new CapturePorts();
+        var personal = new PersonalFolderPolicy(ports);
+        var scanner = new AdditionalCleanupScanner(ports, ports, ports, new LeftoverAnalyzer(), personal, TimeProvider.System);
+        var fixture = new CleanupViewModelTests.Fixture();
+        fixture.Previews.Items = [];
+        CleanupMaintenanceModule Module() => new(new CleanupAnalyzer(fixture.Previews, new CleanupStorageAnalyzer([])),
+            fixture.Actions, additional: scanner, personal: personal);
+        // La composition réelle fournit un estimateur et un module distincts au ViewModel.
+        var vm = new CleanupViewModel(Module(), fixture.Runner, fixture.History, fixture.Confirmation,
+            estimator: useEstimator ? new CleanupEstimateService(Module()) : null);
+        for (var scan = 0; scan < 2; scan++)
+        {
+            await vm.AnalyzeZonesCommand.ExecuteAsync(null);
+            var row = Assert.Single(vm.Groups.SelectMany(g => g.Rows));
+            Assert.Equal(CleanupZoneId.OldDownloads, row.Preview.Definition.Id);
+            Assert.Equal(4, row.Preview.EligibleFileCount);
+            Assert.False(row.IsSelected);
+            vm.SelectAllCommand.Execute(null);
+            Assert.False(row.IsSelected);
+            foreach (var category in vm.Categories)
+            {
+                category.Selection.IsSelected = true;
+                Assert.False(row.IsSelected);
+                category.Selection.IsSelected = false;
+                Assert.False(row.IsSelected);
+            }
+            vm.ReturnHomeCommand.Execute(null);
+            Assert.False(row.IsSelected);
+            row.IsSelected = true;
+        }
+        Assert.Empty(fixture.Actions.Order);
+        Assert.Equal(0, fixture.Confirmation.Calls);
+    }
+
     [Fact]
     public async Task Capture_downloads_are_unchecked_after_scan_rescan_global_and_category_selection()
     {
