@@ -22,7 +22,7 @@ Le correctif de production est dans le commit séparé `7b901a22a863611fb2ebd3ce
 
 Les adaptations de `tests/Virgil.App.Tests/UpdatesSequenceViewModelTests.cs` et de `tests/Virgil.App.Tests/D1WingetIdentityTests.cs` sont autorisées par virgil (coordination du lot), pour R7/R8 uniquement, conformément à loops (relecture). Les identités sont vérifiées par clé de modèle plutôt que par texte affiché. Aucun autre contrôle n'est retiré. L'homonyme Core mentionné dans la liste initiale ne correspondait pas au chemin réel du second fichier.
 
-## Captures et validation restante
+## Captures et validation Windows
 
 Les tests `D1bisAPanelTests` rendent le vrai `OperationProgressPanel` WPF sur un thread STA avec le vrai service et le vrai ViewModel ; les seules sources sont factices. Ils produisent dans l'artefact `Virgil-ui-smoke` :
 
@@ -31,11 +31,25 @@ Les tests `D1bisAPanelTests` rendent le vrai `OperationProgressPanel` WPF sur un
 - `lot-d1bis-a/mixed.png` : application mise à jour, autre en échec et toujours proposée ;
 - `lot-d1bis-a/outside.png` : logiciel sans source automatique, sans doublon connu.
 
-Les runs du correctif [42671671975, n°354](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42671671975), head `7b901a22a863611fb2ebd3ce9d89efd3a127cdf1`, et [42671967402, n°355](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42671967402), head `8dc2020882da9ee35719cfc97cd83c831ea8b922`, se terminent en échec **avant tout job**. Leur annotation GitHub est « Internal server error », avec les identifiants de corrélation respectifs `701e9c76-419d-4c48-a06d-9af866112d25` et `68242dca-fdf7-4ce7-aaa5-78a00e18a728`. Zéro job est retourné par l'API GitHub. Aucun build, total de tests, avertissement ou PNG du correctif ne peut être déduit de ces tentatives. Aucun run vert n'est disponible à ce stade.
+Les runs du correctif [42671671975, n°354](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42671671975), head `7b901a22a863611fb2ebd3ce9d89efd3a127cdf1`, et [42671967402, n°355](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42671967402), head `8dc2020882da9ee35719cfc97cd83c831ea8b922`, se terminent en échec **avant tout job**. Leur annotation GitHub est « Internal server error », avec les identifiants de corrélation respectifs `701e9c76-419d-4c48-a06d-9af866112d25` et `68242dca-fdf7-4ce7-aaa5-78a00e18a728`. Zéro job est retourné par l'API GitHub. Aucun build, total de tests, avertissement ou PNG du correctif ne peut être déduit de ces deux tentatives initiales. La relance suivante et la validation finale sont détaillées ci-dessous.
 
 Après relance, le [run 42672782830, n°356](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42672782830), head `48f016ce41f3cc79f88ac6c8dc40a0eebb14c230`, exécute effectivement le build Windows avec zéro avertissement. Il révèle cinq échecs : quatre attentes de l'ancien chemin Store dans `L6PlusExecutionTests` et le garde d'accents sur le paramètre PowerShell « operation ».
 
 L'adaptation limitée de `tests/Virgil.Core.Tests/L6PlusExecutionTests.cs` est autorisée par virgil (coordination du lot), conformément à loops (relecture) : injection d'une API Store factice, scan réel pour figer le paquet, retrait du jeton `store` du groupe du helper et libellé d'indisponibilité actualisé. Toutes les assertions existantes de sécurité, d'échec et de nombre d'élévations sont conservées. Le faux helper continue à simuler les échecs Windows ; les échecs et annulations Store viennent désormais de l'API factice. Le paramètre du script embarqué est renommé « opération » avec son accent. Ces corrections sont ajoutées par de nouveaux commits, sans réécriture d'historique.
+
+## Preuve verte
+
+[Run vert 42676297087, n°357](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42676297087), head `e532f6130ea7a70433839217cf34fe1ac09993a2` : toutes les étapes de `build.yml` réussissent, y compris build, tests, publication, UI smoke et installateur. Le build indique **0 avertissement, 0 erreur** ; aucune autre alerte de compilation n'est présente dans le journal.
+
+| Ensemble | Réussis | Échecs |
+| --- | ---: | ---: |
+| Core | 1 169 | 0 |
+| App | 666 | 0 |
+| UI smoke | 14 | 0 |
+
+Les cinq scénarios `D1bisAPanelTests` passent, y compris l'annulation ; les quatre scénarios de capture régénèrent leurs PNG dans `artifacts/ui-smoke/lot-d1bis-a/`. [Artefact Virgil-ui-smoke du run vert](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42676297087/artifacts/13701405709), identifiant `13701405709`, empreinte d'archive `cdae7a0239e63ddaeb0ca8281d2142ccb4adc0d4f0fef976e98adebc01a10172`. Les images sont des rendus du vrai panneau WPF/STA avec sources factices. Pas de revue visuelle locale revendiquée : l'accès de l'environnement à l'URL temporaire de téléchargement de l'archive est refusé par le proxy ; les tests de génération et l'envoi d'artefact sont réussis sur Windows.
+
+Les assertions du commit rouge `6b2e65b` restent inchangées. Le commit correctif `e532f61` adapte uniquement le test hérité autorisé et corrige l'accent du script ; cette documentation est complétée ensuite par un commit distinct, sans réécriture d'historique. La PR demeure en brouillon et n'est pas fusionnée.
 
 ## Limites explicites
 
