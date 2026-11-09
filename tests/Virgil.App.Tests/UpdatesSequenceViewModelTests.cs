@@ -11,6 +11,112 @@ namespace Virgil.Tests;
 public sealed class UpdatesSequenceViewModelTests
 {
     [Fact]
+    public async Task D1_real_service_keeps_same_title_applications_distinct_by_identity()
+    {
+        var scan = new D1Scan();
+        var f = new Fixture(scan: scan);
+        f.Backend.Reboot = false;
+        f.Backend.Handler = (step, _) => Task.FromResult(new UpdateSequenceStepResult(step,
+            step.Id != "app-b", false, step.Id == "app-b" ? "Installation refusée pour app-b." : "Installation réussie pour app-a."));
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Winget;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        var cards = f.Vm.Operation.Steps.Where(step => step.Title == "Même application").ToArray();
+        Assert.Collection(cards,
+            card => Assert.Contains("app-a", card.Detail),
+            card => Assert.Contains("app-b", card.Detail));
+        Assert.NotEqual(cards[0].Key, cards[1].Key);
+        Assert.NotEqual(cards[0].Status, cards[1].Status);
+        Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == "Point de restauration et préparation Microsoft Update");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task D1_final_scan_proves_remaining_or_empty_applications(bool remaining)
+    {
+        var scan = new D1Scan { Remaining = remaining };
+        var f = new Fixture(scan: scan);
+        f.Backend.Reboot = false;
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.WingetFinal;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.InRange(scan.Calls, 2, int.MaxValue);
+        Assert.Contains("WinGet", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        if (remaining)
+        {
+            AssertNoD1PositiveConclusion(f);
+            Assert.Contains("reste", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.Contains("Tout est à jour.", f.Vm.Operation.FinalSummary);
+            var card = Assert.Single(f.Vm.Operation.Steps, step => step.Title.Contains("WinGet", StringComparison.OrdinalIgnoreCase)
+                || step.Title.Contains("winget", StringComparison.Ordinal));
+            Assert.Contains(card.Status, new[] { "à jour", "mis à jour" });
+        }
+        Assert.True(f.Vm.Operation.IsVisible);
+        Assert.Equal(100, f.Vm.Operation.Percent);
+        Assert.NotEmpty(f.Vm.Operation.Commentary);
+        Assert.NotEqual(f.Vm.Operation.FinalSummary, f.Vm.Operation.Commentary);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task D1_store_scan_unavailable_or_reboot_cannot_prove_everything_current(bool unavailable, bool reboot)
+    {
+        var scan = new D1Scan { Remaining = true };
+        var f = new Fixture(scan: scan);
+        f.Backend.Handler = (step, _) => Task.FromResult(new UpdateSequenceStepResult(step,
+            !unavailable, reboot, unavailable ? "Source indisponible." : "Scan Store lancé.") { WasUnavailable = unavailable });
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices)
+            choice.IsSelected = choice.Step.Component is UpdateComponent.Store or UpdateComponent.WingetFinal;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        AssertNoD1PositiveConclusion(f);
+        var store = Assert.Single(f.Vm.Operation.Steps, step => step.Title.Contains("Store", StringComparison.Ordinal));
+        Assert.Contains(store.Status, new[] { "bloquée", "indisponible", "redémarrage nécessaire", "en erreur" });
+        Assert.Contains("Store", f.Vm.Operation.FinalSummary);
+        if (unavailable) Assert.Contains("indisponible", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        if (reboot) Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
+    }
+
+    private static void AssertNoD1PositiveConclusion(Fixture f)
+    {
+        foreach (var text in new[] { f.Vm.Operation.FinalSummary, f.Vm.StatusText, f.Vm.Operation.Commentary,
+            f.History.Report?.Summary ?? string.Empty, f.History.Report?.SimpleView ?? string.Empty })
+        {
+            Assert.DoesNotContain("tout est à jour", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("tout à jour", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("plus rien à faire", text, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private sealed class D1Scan : IUpdateScanService
+    {
+        public int Calls { get; private set; }
+        public bool Remaining { get; init; }
+        public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token)
+        {
+            Calls++;
+            return Task.FromResult(new UpdateScanReport
+            {
+                Scope = UpdateScanScope.DeepPreview,
+                Winget = new WingetAvailability { IsAvailable = true, ExecutablePath = "winget.exe" },
+                Items = Calls == 1 || Remaining
+                    ? new[] { new UpdateItem { Id = "app-a", Name = "Même application", Source = UpdateSource.Winget },
+                        new UpdateItem { Id = "app-b", Name = "Même application", Source = UpdateSource.Winget } }
+                    : Array.Empty<UpdateItem>()
+            });
+        }
+    }
+
+    [Fact]
     public async Task Real_sequence_service_blocked_preparation_keeps_only_actual_step_results()
     {
         var previous = SynchronizationContext.Current;
@@ -405,10 +511,10 @@ public sealed class UpdatesSequenceViewModelTests
         public History History { get; } = new();
         public Runner Runner { get; } = new();
         public UpdatesViewModel Vm { get; }
-        public Fixture(IPendingRebootProbe? probe = null, Func<IUpdateSequenceService, IUpdateSequenceService>? wrap = null)
+        public Fixture(IPendingRebootProbe? probe = null, Func<IUpdateSequenceService, IUpdateSequenceService>? wrap = null, IUpdateScanService? scan = null)
         {
             IUpdateSequenceService sequence = new UpdateSequenceService(Backend, Confirmation.Authority, probe);
-            Vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
+            Vm = new UpdatesViewModel(scan ?? new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
                 new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, wrap?.Invoke(sequence) ?? sequence,
                 new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));
         }
