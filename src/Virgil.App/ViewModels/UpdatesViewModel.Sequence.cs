@@ -214,7 +214,7 @@ public partial class UpdatesViewModel
                     : (Status: "Non lancée", Detail: "Aucun résultat confirmé. Non lancée.");
                 Operation.SetStep(SequenceStepKey(step), step.Title, card.Status, card.Detail);
             }
-            _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + check.Detail))
+            _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + DisplaySequenceText(check.Detail)))
                 + "\n" + (RebootRequired == result.RebootRequired
                     ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
                         ?? $"Redémarrage nécessaire : {(RebootRequired ? "oui" : "non")}."

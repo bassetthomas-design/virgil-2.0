@@ -54,7 +54,7 @@ public sealed class OutsideWingetWindowsReader(IProcessRunner runner) : IOutside
             $managed+=@(Get-WinGetPackage -ErrorAction Stop | ForEach-Object {$_.Name})
           } else {
             $command=Get-Command winget.exe -ErrorAction Stop
-            $lines=@(& $command.Source list --accept-source-agreements --disable-interactivity 2>$null)
+            $lines=@(& $command.Source list --disable-interactivity 2>$null)
             if($LASTEXITCODE -ne 0){throw 'Inventaire indisponible'}
             $separator=-1
             for($i=0;$i -lt $lines.Count;$i++){if([string]$lines[$i] -match '^\s*-{5,}\s*$'){$separator=$i;break}}

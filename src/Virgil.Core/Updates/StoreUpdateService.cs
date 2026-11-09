@@ -28,16 +28,15 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
     public async Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> applications, CancellationToken token)
     {
         _packages.Clear();
+        _managed = applications.Where(a => a.Source == UpdateSource.MicrosoftStore).ToArray();
         var search = await SearchAsync(token).ConfigureAwait(false);
         _unsupportedReason = search.Supported ? null : search.Reason;
         if (!search.Supported || search.Packages.Count == 0)
             return [new("store", "Rechercher les mises à jour du Microsoft Store", UpdateComponent.Store)];
-        _managed = applications.Where(a => a.Source == UpdateSource.MicrosoftStore).ToArray();
         var managed = _managed;
         foreach (var package in search.Packages.Where(p => !managed.Any(a =>
             string.Equals(a.Id, p.ProductId, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(a.Id, p.FamilyName, StringComparison.OrdinalIgnoreCase)
-            || (p.Name != "Application du Microsoft Store" && string.Equals(a.Name, p.Name, StringComparison.OrdinalIgnoreCase)))))
+            || string.Equals(a.Id, p.FamilyName, StringComparison.OrdinalIgnoreCase))))
             _packages.TryAdd(package.ProductId, package);
         return _packages.Values.Select(p => new UpdateSequenceStep(p.ProductId, p.Name, UpdateComponent.Store,
             new UpdateItem { Id = p.ProductId, Name = p.Name, InstalledVersion = p.Version, Scope = p.FamilyName, Source = UpdateSource.MicrosoftStore })).ToArray();
@@ -66,8 +65,12 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch { return Unsupported(step, "Le système refuse la mise à jour avec les droits ou le contexte de ce compte."); }
         if (!started.Accepted)
-            return started.WasUnsupported ? Unsupported(step, started.Reason)
-                : new(step, false, false, string.IsNullOrWhiteSpace(started.Reason) ? "Échec de l'installation." : started.Reason) { VerifiedStatus = "en erreur" };
+        {
+            if (started.WasUnsupported) return Unsupported(step, started.Reason);
+            var failure = new UpdateSequenceStepResult(step, false, false,
+                string.IsNullOrWhiteSpace(started.Reason) ? "Échec de l'installation." : started.Reason);
+            return failure with { VerifiedStatus = UpdateSequenceService.IsSafetyBlocked(failure) ? "bloquée" : "en erreur" };
+        }
         // Une installation lancée se termine ; l'annulation bloque l'application suivante.
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         try
@@ -92,8 +95,7 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
         var search = await SearchAsync(token).ConfigureAwait(false);
         if (!search.Supported) return new(UpdateComponent.Store, "non pris en charge automatiquement", search.Reason);
         var remaining = search.Packages.Any(p => !_managed.Any(a => string.Equals(a.Id, p.ProductId, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(a.Id, p.FamilyName, StringComparison.OrdinalIgnoreCase)
-            || (p.Name != "Application du Microsoft Store" && string.Equals(a.Name, p.Name, StringComparison.OrdinalIgnoreCase))));
+            || string.Equals(a.Id, p.FamilyName, StringComparison.OrdinalIgnoreCase)));
         return new(UpdateComponent.Store, remaining ? "reste à installer" : _packages.Count == 0 ? "à jour" : "mis à jour",
             remaining ? "Des applications restent proposées au contrôle final." : "Contrôle final : aucune mise à jour sélectionnée ne reste proposée.") { HasRemaining = remaining };
     }

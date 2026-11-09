@@ -225,7 +225,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
     public static UpdateSourceVerification SummarizeOutcomes(UpdateSourceVerification check, IReadOnlyList<UpdateSequenceStepResult> outcomes)
     {
         var blocked = outcomes.Any(IsSafetyBlocked);
-        var failures = outcomes.Count(r => !r.Succeeded && !r.WasSkipped && !r.WasUnavailable
+        var failures = outcomes.Count(r => !r.Succeeded && !r.WasSkipped && !r.WasUnavailable && r.VerifiedStatus != "reste à installer"
             && !IsSafetyBlocked(r) && !r.Message.StartsWith("Non lancée", StringComparison.Ordinal));
         var unsupported = outcomes.Where(r => r.VerifiedStatus == "non pris en charge automatiquement").ToArray();
         var suffix = blocked ? "bloquée" : failures > 0 ? $"{failures} échec" + (failures > 1 ? "s" : "") : null;
