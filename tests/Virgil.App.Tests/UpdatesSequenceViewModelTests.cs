@@ -134,7 +134,7 @@ public sealed class UpdatesSequenceViewModelTests
             await pending;
             Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == BlockedPreparationSequence.PreparationTitle);
             foreach (var step in elevated)
-                Assert.Equal("En échec", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
+                Assert.Equal("en erreur", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
             Assert.Equal(new[] { UpdateComponent.MicrosoftUpdate }, f.Backend.Executed);
             Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
             Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
@@ -279,7 +279,7 @@ public sealed class UpdatesSequenceViewModelTests
     }
 
     [Fact, Trait("Category", "Safety")]
-    public async Task Store_unavailable_is_persisted_as_information_with_success_state()
+    public async Task Store_unavailable_is_persisted_as_information_with_warning_state()
     {
         var f = new Fixture();
         var states = new List<Virgil.App.Animation.VirgilCoreState>();
@@ -296,13 +296,13 @@ public sealed class UpdatesSequenceViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         var report = Assert.IsType<ReportEntry>(f.History.Report);
-        Assert.Equal(ReportSeverity.Success, report.Severity);
+        Assert.Equal(ReportSeverity.Warning, report.Severity);
         Assert.Empty(report.ExecutedActions);
         var store = Assert.Single(report.SkippedActions, action => action.Name == "Rechercher les mises à jour du Microsoft Store");
         Assert.Equal(ReportActionStatus.InformationOnly, store.Status);
         Assert.Equal("Non disponible sur ce PC (information)", store.Result);
-        Assert.Contains(Virgil.App.Animation.VirgilCoreState.Success, states);
-        Assert.DoesNotContain(Virgil.App.Animation.VirgilCoreState.Warning, states);
+        Assert.Contains(Virgil.App.Animation.VirgilCoreState.Warning, states);
+        Assert.DoesNotContain(Virgil.App.Animation.VirgilCoreState.Success, states);
     }
 
     [Theory]
@@ -380,7 +380,7 @@ public sealed class UpdatesSequenceViewModelTests
             Assert.Equal(ReportActionStatus.InformationOnly, line.Status);
             Assert.StartsWith("Redémarrage nécessaire : oui", line.Result);
         });
-        Assert.Equal(ReportSeverity.Success, f.History.Report.Severity);
+        Assert.Equal(ReportSeverity.Warning, f.History.Report.Severity);
         f.Vm.ViewReportCommand.Execute(null);
         Assert.Contains("Redémarrage nécessaire : oui", f.Vm.ReportText);
     }
@@ -485,7 +485,7 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.Empty(f.Backend.Executed);
         Assert.Empty(f.History.Report!.ExecutedActions);
         Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
-        Assert.Equal(ReportSeverity.Success, f.History.Report.Severity);
+        Assert.Equal(ReportSeverity.Warning, f.History.Report.Severity);
     }
 
     [Fact, Trait("Category", "Safety")]
@@ -513,7 +513,7 @@ public sealed class UpdatesSequenceViewModelTests
         public UpdatesViewModel Vm { get; }
         public Fixture(IPendingRebootProbe? probe = null, Func<IUpdateSequenceService, IUpdateSequenceService>? wrap = null, IUpdateScanService? scan = null)
         {
-            IUpdateSequenceService sequence = new UpdateSequenceService(Backend, Confirmation.Authority, probe);
+            IUpdateSequenceService sequence = new UpdateSequenceService(Backend, Confirmation.Authority, probe ?? new EmptyPendingRebootProbe());
             Vm = new UpdatesViewModel(scan ?? new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
                 new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, wrap?.Invoke(sequence) ?? sequence,
                 new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));

@@ -16,6 +16,31 @@ public sealed class WindowsUpdateSequenceBackend(
     private bool _prepared;
     private bool _sourceUpdated;
     private string _restoreSessionId = string.Empty;
+    public async Task<UpdateSourceVerification> VerifyAsync(UpdateComponent component, CancellationToken token)
+    {
+        if (component == UpdateComponent.Store)
+            return new(component, "bloquée", "Recherche Store lancée — reste possible hors WinGet ; installation UWP non prouvée.");
+        // Scripts fermés, en lecture seule, sans élévation ni commande d'installation.
+        var query = component switch
+        {
+            UpdateComponent.Defender => "$s=Get-MpComputerStatus -ErrorAction Stop; if ($null -eq $s.AntivirusSignatureLastUpdated -or $null -eq $s.AntivirusSignatureAge) { throw 'Missing status' }; if ($s.AntivirusEnabled -and -not $s.DefenderSignaturesOutOfDate -and $s.AntivirusSignatureAge -eq 0) { 'VIRGIL_CURRENT' } else { 'VIRGIL_REMAINING' }",
+            UpdateComponent.MicrosoftUpdate => "$m=New-Object -ComObject Microsoft.Update.ServiceManager; if (@($m.Services | Where-Object { $_.ServiceID -eq '7971f918-a847-4430-9279-4a52d1efe18d' }).Count -gt 0) { 'VIRGIL_CURRENT' } else { 'VIRGIL_REMAINING' }",
+            UpdateComponent.Windows or UpdateComponent.WindowsFeatureUpgrade => "$s=New-Object -ComObject Microsoft.Update.Session; $q=$s.CreateUpdateSearcher(); $r=$q.Search(\"IsInstalled=0 and IsHidden=0 and Type='Software'\"); if ($r.ResultCode -ne 2) { throw 'Incomplete search' }; if ($r.Updates.Count -eq 0) { 'VIRGIL_CURRENT' } else { 'VIRGIL_REMAINING' }",
+            UpdateComponent.Driver => "$s=New-Object -ComObject Microsoft.Update.Session; $q=$s.CreateUpdateSearcher(); $r=$q.Search(\"IsInstalled=0 and IsHidden=0 and Type='Driver'\"); if ($r.ResultCode -ne 2) { throw 'Incomplete search' }; if ($r.Updates.Count -eq 0) { 'VIRGIL_CURRENT' } else { 'VIRGIL_REMAINING' }",
+            _ => null
+        };
+        if (query is null) return new(component, "indisponible", "Contrôle final non disponible.");
+        var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference='Stop'; " + query], TimeSpan.FromSeconds(40)), token).ConfigureAwait(false);
+        if (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null)
+            return new(component, "indisponible", "Lecture de la source impossible ou délai dépassé.");
+        return result.StandardOutput.Trim() switch
+        {
+            "VIRGIL_CURRENT" => new(component, "à jour", "Contrôle final : aucun reste détecté pour cette source."),
+            "VIRGIL_REMAINING" => new(component, "bloquée", "Contrôle final : reste détecté pour cette source."),
+            _ => new(component, "indisponible", "Contrôle final sans résultat exploitable.")
+        };
+    }
     public void BeginExecution(string restoreSessionId)
     {
         _restoreSessionId = restoreSessionId;

@@ -10,7 +10,15 @@ public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent
 {
     public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot;
 }
-public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status);
+public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status)
+{
+    public string? StepId { get; init; }
+    public UpdateComponent? Component { get; init; }
+}
+public sealed record UpdateSourceVerification(UpdateComponent Component, string Status, string Detail)
+{
+    public bool IsCurrent => Status is "à jour" or "mis à jour";
+}
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
 {
     public bool WasSkipped { get; init; }
@@ -19,11 +27,14 @@ public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succ
 }
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
+    public IReadOnlyList<UpdateSourceVerification> Verifications { get; init; } = [];
     public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && step.Succeeded);
     public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && !step.Succeeded);
 }
 public interface IUpdateSequenceBackend
 {
+    Task<UpdateSourceVerification> VerifyAsync(UpdateComponent component, CancellationToken token) =>
+        Task.FromResult(new UpdateSourceVerification(component, "indisponible", "Contrôle final non disponible sur ce PC."));
     Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
     void BeginExecution(string restoreSessionId) { }
     async Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteGroupAsync(IReadOnlyList<UpdateSequenceStep> steps, CancellationToken token)
@@ -119,7 +130,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 handled.Add((step.Component, step.Id));
                 continue;
             }
-            progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours"));
+            progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours") { StepId = step.Id, Component = step.Component });
             try
             {
                 if (step.Component == UpdateComponent.Launcher)
@@ -148,18 +159,41 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 for (var index = 0; index < results.Count; index++)
                     if (!results[index].Message.Contains("Étape terminée après annulation.", StringComparison.Ordinal))
                         results[index] = results[index] with { Message = results[index].Message + " Étape terminée après annulation." };
-            progress?.Report(new(results.Count, snapshot.Length, step.Title, cancellationToken.IsCancellationRequested ? "Étape terminée après annulation." : results.LastOrDefault()?.Message ?? "Étape terminée."));
+            progress?.Report(new(results.Count, snapshot.Length, step.Title, cancellationToken.IsCancellationRequested ? "Étape terminée après annulation." : results.LastOrDefault()?.Message ?? "Étape terminée.") { StepId = step.Id, Component = step.Component });
         }
         results.AddRange(snapshot.Where(s => !handled.Contains((s.Component, s.Id)) && !results.Any(r => r.Step.Component == s.Component && r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
+        // Lectures seulement : même après annulation, aucune installation supplémentaire.
+        var checks = new List<UpdateSourceVerification>();
+        foreach (var component in snapshot.Select(s => s.Component).Distinct().Where(c => IsElevated(c)))
+        {
+            UpdateSourceVerification check;
+            using var verificationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            try { check = await backend.VerifyAsync(component, verificationTimeout.Token).WaitAsync(verificationTimeout.Token).ConfigureAwait(false); }
+            catch { check = new(component, "indisponible", "Contrôle final indisponible ou délai dépassé."); }
+            var outcomes = results.Where(r => r.Step.Component == component).ToArray();
+            if (outcomes.Length == 0 || outcomes.Any(r => r.Message.StartsWith("Non lancée", StringComparison.Ordinal)))
+                check = new(component, "non lancée", check.Detail);
+            else if (outcomes.Any(r => r.WasUnavailable)) check = new(component, "indisponible", check.Detail);
+            else if (outcomes.Any(r => !r.Succeeded && !r.WasSkipped))
+                check = new(component, outcomes.Any(r => r.RestorePointVerified == false || r.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)) ? "bloquée" : "en erreur", check.Detail);
+            // UpdateScanMethod ne prouve jamais l'installation des UWP hors WinGet.
+            else if (component == UpdateComponent.Store)
+                check = new(component, "bloquée", "Recherche Store lancée — reste possible hors WinGet ; installation UWP non prouvée.");
+            checks.Add(check with { Component = component });
+        }
         var sources = new List<string>();
         if (results.Any(r => r.RebootRequired && r.Step.Component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Windows Update");
         if (results.Any(r => r.RebootRequired && r.Step.Component is not UpdateComponent.Windows and not UpdateComponent.Driver and not UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Installation");
-        try { if (rebootProbe is not null) sources.AddRange(rebootProbe.Read().Sources); }
+        try
+        {
+            if (rebootProbe is not null) sources.AddRange(rebootProbe.Read().Sources);
+            else checks.Add(new(UpdateComponent.PendingReboot, "indisponible", "Sonde de redémarrage absente."));
+        }
         catch { sources.Add("Lecture du redémarrage indisponible"); }
         var reboot = sources.Count > 0;
         var verdict = "Redémarrage nécessaire : " + (reboot ? "oui (" + string.Join(", ", sources.Distinct()) + ")" : "non") + ".";
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
         var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped && !r.WasUnavailable) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
-        return new(false, cancellationToken.IsCancellationRequested, reboot, results, message);
+        return new(false, cancellationToken.IsCancellationRequested, reboot, results, message) { Verifications = checks };
     }
 }
