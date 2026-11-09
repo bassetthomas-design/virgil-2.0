@@ -83,6 +83,11 @@ public sealed class ApplicationsSteamRegressionTests
         if (batch)
         {
             card.IsSelected = true;
+            if (isProtected)
+            {
+                Assert.False(card.IsSelected); // La carte protégée reste non sélectionnable.
+                InjectDefensiveSelection(f, "bad");
+            }
             await f.Vm.UninstallSelectionCommand.ExecuteAsync(null);
         }
         else { card.DetailsCommand.Execute(null); await f.Launch(); }
@@ -104,9 +109,20 @@ public sealed class ApplicationsSteamRegressionTests
         await f.Analyze();
         f.Vm.SelectedFilter = "TOUT";
         foreach (var card in f.Cards) card.IsSelected = true;
+        InjectDefensiveSelection(f, "protected");
         await f.Vm.UninstallSelectionCommand.ExecuteAsync(null);
         Assert.Equal(Protected, f.Messages.Last());
         Assert.Empty(f.Runner.Requests);
         Assert.Empty(f.Dialog.Calls);
+    }
+
+    private static void InjectDefensiveSelection(ApplicationsViewModelTests.Fixture fixture, string id)
+    {
+        // Entrée défensive devenue protégée : ne jamais rendre les composants sélectionnables
+        // pour atteindre la garde du lot. L'UI normale doit continuer de refuser la sélection.
+        var field = typeof(Virgil.App.ViewModels.ApplicationsViewModel).GetField("_selectedIds",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var selected = Assert.IsType<HashSet<string>>(field!.GetValue(fixture.Vm));
+        selected.Add(id);
     }
 }

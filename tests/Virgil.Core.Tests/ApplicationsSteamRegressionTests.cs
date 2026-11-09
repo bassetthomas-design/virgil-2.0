@@ -178,6 +178,22 @@ public sealed class ApplicationsSteamRegressionTests
         }
     }
 
+    [Fact]
+    public async Task SteamBrokerExitDoesNotProveUninstallCompletion()
+    {
+        var runner = new SuccessfulBroker();
+        var launch = await new ShellApplicationProcessLauncher(runner).LaunchAsync(Uri, [], true, CancellationToken.None);
+        Assert.True(launch.Started);
+        Assert.Null(launch.ExitCode);
+    }
+
+    private sealed class SuccessfulBroker : IProcessRunner
+    {
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken token) => throw new NotSupportedException();
+        public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken token) =>
+            Task.FromResult(new ProcessLaunchResult(true, 0));
+    }
+
     private sealed class Launcher : IApplicationProcessLauncher
     {
         public int Calls { get; private set; }

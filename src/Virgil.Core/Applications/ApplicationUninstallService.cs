@@ -271,9 +271,10 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
                 new ProcessLaunchRequest(executable, arguments, useShellExecute,
                     WaitForExit: !ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(executable)), cancellationToken)
                 .ConfigureAwait(false);
-            return result.LaunchError is not null || !result.Started
+            var steam = ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(executable);
+            return result.LaunchError is not null || (steam && !result.Started)
                 ? new ApplicationLaunchResult(false, null, LaunchFailureMessage(executable))
-                : new ApplicationLaunchResult(result.Started, result.ExitCode, null);
+                : new ApplicationLaunchResult(result.Started, steam ? null : result.ExitCode, null);
         }
         catch (OperationCanceledException)
         {
