@@ -273,16 +273,18 @@ public partial class UpdatesViewModel
     {
         var identity = $"Identité : {step.Id}\n";
         var complete = scan is not null && scan.Winget.IsAvailable && scan.Errors.Count == 0;
-        var remains = complete && scan!.Items.Any(item => item.Status == UpdateItemStatus.Available
-            && (item.Source is UpdateSource.Winget or UpdateSource.MicrosoftStore)
-            && string.Equals(item.Id, step.Id, StringComparison.OrdinalIgnoreCase));
+        var ownItems = scan?.Items.Where(item => (item.Source is UpdateSource.Winget or UpdateSource.MicrosoftStore)
+            && string.Equals(item.Id, step.Id, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<UpdateItem>();
+        var remains = complete && ownItems.Any(item => item.Status == UpdateItemStatus.Available);
+        var informationOnly = complete && ownItems.Any(item => item.Status == UpdateItemStatus.InformationOnly);
         var notStarted = outcome?.Message.StartsWith("Non lancée", StringComparison.Ordinal) == true;
         if (outcome is null || notStarted || (outcome.WasSkipped && !UpdateSequenceService.IsSafetyBlocked(outcome)))
         {
             var reason = outcome is null ? "Aucun résultat confirmé. Non lancée." : outcome.WasSkipped
                 ? "Non lancée : étape sautée." : DisplaySequenceText(outcome.Message);
-            return (remains ? "reste à installer" : "Non lancée", identity + reason
-                + (remains ? "\nContrôle final : cette application reste à installer." : string.Empty));
+            return (remains ? "reste à installer" : informationOnly ? "reste à vérifier" : "Non lancée", identity + reason
+                + (remains ? "\nContrôle final : cette application reste à installer."
+                    : informationOnly ? "\nContrôle final : cette application reste à vérifier." : string.Empty));
         }
         var ownDetail = DisplaySequenceText(outcome.Message).Replace("Étape terminée après annulation.",
             "Annulation demandée après cette étape.", StringComparison.Ordinal);
@@ -296,6 +298,7 @@ public partial class UpdatesViewModel
             return (scan?.Winget.IsAvailable == true ? "en erreur" : "indisponible", identity
                 + "Étape exécutée ; contrôle final de cette application non prouvé.");
         if (remains) return ("reste à installer", identity + "Étape exécutée ; contrôle final : cette application reste à installer.");
+        if (informationOnly) return ("reste à vérifier", identity + "Étape exécutée ; contrôle final : cette application reste à vérifier, mise à jour non prouvée.");
         if (outcome.RebootRequired) return ("redémarrage nécessaire", identity + "Étape exécutée ; redémarrage nécessaire pour cette application.");
         return ("mis à jour", identity + ownDetail + "\nContrôle final : cette application n'est plus proposée.");
     }
@@ -315,13 +318,17 @@ public partial class UpdatesViewModel
                 finalApplications = scan with { Items = scan.Items.ToArray(), Errors = scan.Errors.ToArray() };
                 if (scan.WindowsUpdate.PendingRebootDetected)
                     checks.Add(new(UpdateComponent.PendingReboot, "redémarrage nécessaire", "Détecté lors de la relecture applicative."));
+                var available = scan.Items.Any(item => item.Status == UpdateItemStatus.Available);
+                var informationOnly = scan.Items.Any(item => item.Status == UpdateItemStatus.InformationOnly);
+                var remaining = available || informationOnly;
                 check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "WinGet indisponible au contrôle final.")
                     : scan.Errors.Count > 0 ? new(UpdateComponent.Winget, "en erreur", "Recherche applicative incomplète au contrôle final.")
-                    : scan.Items.Any(item => item.Status == UpdateItemStatus.Available)
+                    : available
                         ? new(UpdateComponent.Winget, "reste à installer", "Contrôle final : reste applicatif détecté.")
+                    : informationOnly ? new(UpdateComponent.Winget, "reste à vérifier", "Contrôle final : mises à jour détectées à vérifier ; leur installation n'est pas prouvée.")
                         : new(UpdateComponent.Winget, "à jour", "Contrôle final : aucun reste applicatif détecté.");
-                if (scan.Winget.IsAvailable && scan.Errors.Count == 0)
-                    check = check with { HasRemaining = scan.Items.Any(item => item.Status == UpdateItemStatus.Available) };
+                if (remaining || (scan.Winget.IsAvailable && scan.Errors.Count == 0))
+                    check = check with { HasRemaining = remaining };
             }
             catch { check = new(UpdateComponent.Winget, "indisponible", "Contrôle final WinGet indisponible ou délai dépassé."); }
             checks.RemoveAll(value => value.Component == UpdateComponent.Winget);

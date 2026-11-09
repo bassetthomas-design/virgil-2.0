@@ -60,6 +60,21 @@ public sealed class D1UpdatesPanelProofTests
         await Capture(f.Vm.Operation, "tout-mettre-a-jour-identites-winget.png");
     });
 
+    [Fact]
+    public Task Information_only_panel_never_claims_source_current() => ThemeContrastTests.OnSta(async () =>
+    {
+        var f = new UpdatesSequenceViewModelTests.Fixture(scan: new D1InformationOnlyTests.InformationScan("same-id"));
+        f.Backend.Reboot = false;
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Winget;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Contains("reste à vérifier", f.Vm.Operation.FinalSummary);
+        Assert.DoesNotContain("Tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("reste à vérifier", Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-a").Status);
+        await Capture(f.Vm.Operation, "tout-mettre-a-jour-information-only.png");
+    });
+
     private static async Task Capture(LongOperationViewModel operation, string name)
     {
         var panel = new OperationProgressPanel { DataContext = operation, VerticalAlignment = VerticalAlignment.Top };
