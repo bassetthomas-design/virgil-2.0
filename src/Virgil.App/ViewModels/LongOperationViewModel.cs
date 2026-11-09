@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
 using Virgil.Core.Operations;
 
 namespace Virgil.App.ViewModels;
@@ -25,6 +26,25 @@ public sealed partial class LongOperationViewModel : ObservableObject
     [ObservableProperty] private double percent;
     [ObservableProperty] private bool isIndeterminate = true;
     [ObservableProperty] private string timing = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string finalSummary = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string commentary = string.Empty;
+    public bool HasDistinctCommentary => !string.IsNullOrWhiteSpace(Commentary)
+        && !FinalSummary.Contains(Commentary, StringComparison.Ordinal);
+    public ObservableCollection<OperationStepViewModel> Steps { get; } = new();
+
+    public void SetStep(string key, string title, string status, string detail = "")
+    {
+        if (!IsRunning) return;
+        var item = Steps.FirstOrDefault(item => item.Key == key);
+        if (item is null) { item = new OperationStepViewModel(key, title); Steps.Add(item); }
+        item.Title = title;
+        item.Status = status;
+        item.Detail = detail;
+    }
+
+    // Fermeture explicite du bilan ; Start réinitialise aussi la présentation.
+    [RelayCommand]
+    private void Dismiss() { if (!IsRunning) IsVisible = false; }
     public bool CanCancel => IsRunning && !IsCancelling;
     partial void OnIsRunningChanged(bool value) { OnPropertyChanged(nameof(CanCancel)); CancelCommand.NotifyCanExecuteChanged(); }
     partial void OnIsCancellingChanged(bool value) { OnPropertyChanged(nameof(CanCancel)); CancelCommand.NotifyCanExecuteChanged(); }
@@ -49,6 +69,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
         var generation = ++_generation;
         _context = SynchronizationContext.Current;
         _started = _clock.GetTimestamp(); _immediate = immediately;
+        Steps.Clear(); FinalSummary = string.Empty; Commentary = string.Empty;
         IsCancelling = false; IsNonInterruptible = nonInterruptible;
         Step = label; Percent = 0; IsIndeterminate = true; IsRunning = true; IsVisible = immediately;
         _progress = new ThrottledOperationProgress(new CallbackProgress(value => Dispatch(() =>
@@ -65,10 +86,17 @@ public sealed partial class LongOperationViewModel : ObservableObject
             TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
     }
     public void Report(OperationProgress progress) => _progress?.Report(progress);
-    public void Complete(string result)
+    public void Complete(string result, bool wasCancelled = false)
     {
         _timer?.Dispose(); _timer = null; _progress?.Dispose(); _progress = null;
-        IsRunning = false; IsVisible = false; Step = result; UpdateTiming();
+        var cancelled = IsCancelling || wasCancelled;
+        if (!cancelled) { Percent = 100; IsIndeterminate = false; }
+        foreach (var item in Steps.Where(item => item.Status == "En cours"))
+        {
+            item.Status = cancelled ? "Annulée" : "Non lancée";
+            if (!cancelled) item.Detail = "Aucun résultat confirmé.";
+        }
+        IsRunning = false; IsVisible = true; Step = result; FinalSummary = result; UpdateTiming();
     }
     private void Dispatch(Action action)
     { if (_context is null || SynchronizationContext.Current == _context) action(); else _context.Post(_ => action(), null); }
@@ -85,4 +113,12 @@ public sealed partial class LongOperationViewModel : ObservableObject
     }
     private sealed class CallbackProgress(Action<OperationProgress> report) : IProgress<OperationProgress>
     { public void Report(OperationProgress value) => report(value); }
+}
+
+public sealed partial class OperationStepViewModel(string key, string initialTitle) : ObservableObject
+{
+    public string Key { get; } = key;
+    [ObservableProperty] private string title = initialTitle;
+    [ObservableProperty] private string status = "Non lancée";
+    [ObservableProperty] private string detail = string.Empty;
 }

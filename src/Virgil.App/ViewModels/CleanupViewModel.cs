@@ -60,6 +60,7 @@ public partial class CleanupViewModel : ObservableObject
         ICleanupEstimateService? estimator = null, ISystemStatusStore? statusStore = null)
     {
         Operation = new LongOperationViewModel(CancelActiveOperation);
+        VirgilMessageRequested += message => Operation.Commentary = message.Split('\n')[0];
         _confirmationService = confirmationService;
         _estimator = estimator;
         _statusStore = statusStore;
@@ -299,6 +300,9 @@ public partial class CleanupViewModel : ObservableObject
                 .Select(group => new CleanupGroupItem(group, findings.Analysis.Zones.Where(p => p.Definition.Group == group))).ToArray(), token);
             _lastStorageAnalysis = findings.Analysis.Storage;
             _lastPreview.AddRange(findings.Analysis.Zones);
+            foreach (var zone in _lastPreview)
+                Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Terminée",
+                    $"{zone.EligibleFileCount} fichiers éligibles ; aucune modification.");
             Groups.Clear();
             foreach (var group in groups) Groups.Add(group);
             var categories = await Task.Run(() => groups.SelectMany(g => g.Rows).GroupBy(r => CategoryLabel(r.Preview.Definition.Id))
@@ -340,6 +344,8 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
         if (!BeginOperation("Nettoyage guidé en attente de validation.")) return;
+        foreach (var zone in selected)
+            Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Non lancée");
         var startedAt = DateTimeOffset.Now;
         var results = new List<CleanupStepResult>();
         var sessionErrors = new List<string>();
@@ -409,9 +415,17 @@ public partial class CleanupViewModel : ObservableObject
             await PersistReportAsync(ReportMapper.FromCleanup(_lastReport, _lastPreview.Count));
             IsReportButtonEnabled = true;
             await RenderPreviewsAsync();
-            EndOperation();
             CompleteSessionState(_lastReport);
+            foreach (var result in _lastReport.Results)
+                Operation.SetStep(result.Zone.Id.ToString(), result.Zone.DisplayName, CleanupResultStatus(result.Status),
+                    $"{FileCount(result.QuarantinedFiles)} en quarantaine ; {result.SkippedFiles + result.ErrorFiles} non traités.");
+            foreach (var zone in selected.Where(zone => !_lastReport.Results.Any(result => result.Zone.Id == zone.Definition.Id)))
+                Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Non lancée", "Aucun résultat confirmé pour cette zone.");
+            StatusText = (IsCancellationReport(_lastReport) ? "Nettoyage interrompu." : HasBlockingFailure(_lastReport) ? "Nettoyage terminé avec erreurs." : "Nettoyage terminé.")
+                + $"\n{_lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones traitées. " + StatusText
+                + $"\n{selected.Count - _lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones non terminées ; {_lastReport.ErrorFiles} fichiers en erreur. Fichiers hors sélection et racines conservés.";
             AnnounceSessionEnd(_lastReport);
+            EndOperation(IsCancellationReport(_lastReport));
             ShowReport();
         }
     }
@@ -448,8 +462,9 @@ public partial class CleanupViewModel : ObservableObject
         return true;
     }
 
-    private void EndOperation()
+    private void EndOperation(bool wasCancelled = false)
     {
+        var cancelled = wasCancelled || _operationCancellation?.IsCancellationRequested == true;
         _operationProgress?.Dispose();
         _operationProgress = null;
         _operationInProgress = false;
@@ -457,7 +472,7 @@ public partial class CleanupViewModel : ObservableObject
         _operationCancellation?.Dispose();
         _operationCancellation = null;
         IsBusy = false;
-        Operation.Complete(StatusText);
+        Operation.Complete(StatusText, cancelled);
         SetButtonsEnabled(true);
         UpdateCommandState();
     }
@@ -491,13 +506,45 @@ public partial class CleanupViewModel : ObservableObject
         }));
         _operationProgress?.Dispose();
         _operationProgress = operation;
-        return new CleanupProgressAdapter(operation);
+        var steps = new CleanupStepProgress(progress =>
+        {
+            if (!_operationInProgress || generation != _operationGeneration || Operation.IsCancelling || progress.ZoneId is not { } id) return;
+            var title = _lastPreview.FirstOrDefault(zone => zone.Definition.Id == id)?.Definition.DisplayName ?? progress.Message;
+            foreach (var item in Operation.Steps.Where(item => item.Key != id.ToString() && item.Status == "En cours"))
+                item.Status = "Terminée";
+            Operation.SetStep(id.ToString(), title, "En cours", progress.TotalFiles > 0
+                ? $"{progress.ProcessedFiles}/{progress.TotalFiles} fichiers ; {progress.DeletedFiles} en quarantaine, {progress.SkippedFiles + progress.ErrorFiles} ignorés."
+                : progress.Message);
+        });
+        return new CleanupProgressAdapter(operation, steps);
     }
 
-    private sealed class CleanupProgressAdapter(IOperationProgress target) : IProgress<CleanupProgress>
+    private static string CleanupResultStatus(CleanupStepStatus status) => status switch
+    {
+        CleanupStepStatus.Completed => "Terminée",
+        CleanupStepStatus.Cancelled => "Annulée",
+        CleanupStepStatus.Skipped => "Non lancée",
+        CleanupStepStatus.Expired => "Non lancée — analyse expirée",
+        _ => "En échec"
+    };
+
+    private sealed class CleanupStepProgress(Action<CleanupProgress> report) : IProgress<CleanupProgress>
+    {
+        private readonly SynchronizationContext? _context = SynchronizationContext.Current;
+        public void Report(CleanupProgress value)
+        {
+            // WPF sérialise sur son contexte ; sans contexte, terminer la notification
+            // avant de rendre la main au producteur évite les cartes tardives concurrentes.
+            if (_context is null || SynchronizationContext.Current == _context) report(value);
+            else _context.Post(_ => report(value), null);
+        }
+    }
+
+    private sealed class CleanupProgressAdapter(IOperationProgress target, IProgress<CleanupProgress> steps) : IProgress<CleanupProgress>
     {
         public void Report(CleanupProgress progress)
         {
+            steps.Report(progress);
             var message = progress.TotalFiles > 0
                 ? $"{progress.Message} : {progress.ProcessedFiles}/{progress.TotalFiles} fichiers — {progress.DeletedFiles} mis en quarantaine, {FormatBytes(progress.DeletedBytes)} en quarantaine, {progress.SkippedFiles + progress.ErrorFiles} ignorés"
                 : progress.Percent.HasValue ? $"{progress.Step} — {progress.Percent.Value}%" : progress.Step;
@@ -658,7 +705,7 @@ public partial class CleanupViewModel : ObservableObject
 
     private void CompleteSessionState(CleanupSessionReport report)
     {
-        StatusText = $"Rapport prêt : {report.QuarantinedFiles} fichiers en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
+        StatusText = $"Rapport prêt : {FileCount(report.QuarantinedFiles)} en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
 
         if (IsCancellationReport(report))
         {
@@ -769,6 +816,8 @@ public partial class CleanupViewModel : ObservableObject
             CleanupStepStatus.Expired or
             CleanupStepStatus.Failed);
     }
+
+    private static string FileCount(int count) => $"{count} {(count == 1 ? "fichier" : "fichiers")}";
 
     private static bool IsCancellationReport(CleanupSessionReport report)
     {

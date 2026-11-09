@@ -544,12 +544,12 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Éditeur : {Empty(application.Publisher)}",
             $"Version : {Empty(application.Version)}",
             $"Source : {string.Join(", ", application.Sources.Count == 0 ? [application.Source] : application.Sources)}",
-            $"Architecture : {application.Architecture}",
+            $"Architecture : {ArchitectureLabel(application.Architecture)}",
             $"Emplacement : {Empty(application.InstallLocation)}",
             $"Risque : {RiskLabel(application.RiskLevel)}",
-            $"Raison : {application.RiskReason}",
+            $"Raison : {(string.IsNullOrWhiteSpace(application.RiskReason) ? "non renseignée" : application.RiskReason)}",
             $"Méthode : {UninstallMethodLabel(application.UninstallKind)}",
-            $"Statut : {application.Status}"
+            $"Statut : {StatusLabel(application.Status)}"
         });
         DetailsCommand = application.UninstallKind switch
         {
@@ -832,12 +832,31 @@ public partial class ApplicationsViewModel : ObservableObject
 
     internal static string Empty(string? value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "N/A" : value;
+        return string.IsNullOrWhiteSpace(value) ? "non renseigné" : value;
     }
 
     internal static string FormatBytes(long? bytes)
     {
-        return bytes.HasValue ? ScanRules.FormatBytes(bytes.Value) : "N/A";
+        return bytes.HasValue ? ScanRules.FormatBytes(bytes.Value) : "non renseigné";
     }
+
+    private static string ArchitectureLabel(ApplicationArchitecture architecture) => architecture switch
+    {
+        ApplicationArchitecture.X64 => "64 bits",
+        ApplicationArchitecture.X86 => "32 bits",
+        _ => "Inconnue"
+    };
+
+    private static string StatusLabel(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.Installed => "Installée",
+        ApplicationStatus.UninstallAvailable => "Désinstallation possible",
+        ApplicationStatus.Protected => "Protégée",
+        ApplicationStatus.ReadOnly => "Lecture seule",
+        ApplicationStatus.UninstallStarted => "Désinstallation lancée",
+        ApplicationStatus.UninstallCompleted => "Désinstallation terminée",
+        ApplicationStatus.UninstallFailed => "Désinstallation échouée",
+        _ => "Inconnu"
+    };
 }
 

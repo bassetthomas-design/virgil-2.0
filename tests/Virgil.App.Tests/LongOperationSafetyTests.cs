@@ -59,7 +59,8 @@ public sealed class LongOperationSafetyTests
         }
         await task;
         Assert.Equal(0, next);
-        Assert.False(vm.IsVisible);
+        Assert.True(vm.IsVisible);
+        Assert.Equal("Terminé", vm.FinalSummary);
     }
 
     [Fact]

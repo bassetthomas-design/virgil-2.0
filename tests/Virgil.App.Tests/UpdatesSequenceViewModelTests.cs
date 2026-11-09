@@ -10,6 +10,168 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Fact]
+    public async Task Real_sequence_service_blocked_preparation_keeps_only_actual_step_results()
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture();
+            f.Backend.Handler = (step, _) => Task.FromResult(new UpdateSequenceStepResult(step, false, false,
+                "Préparation bloquée : point de restauration non vérifié.") { RestorePointVerified = false });
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            foreach (var choice in f.Vm.SequenceChoices)
+                choice.IsSelected = choice.Step.Component is UpdateComponent.MicrosoftUpdate or UpdateComponent.Windows;
+            var elevated = f.Vm.SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == BlockedPreparationSequence.PreparationTitle);
+            foreach (var step in elevated)
+                Assert.Equal("En échec", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
+            Assert.Equal(new[] { UpdateComponent.MicrosoftUpdate }, f.Backend.Executed);
+            Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
+            Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    [Theory]
+    [InlineData("cards")]
+    [InlineData("unfinished")]
+    [InlineData("summary")]
+    public async Task Blocked_elevated_preparation_has_no_orphan_or_unproven_success(string check)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture(wrap: service => new BlockedPreparationSequence(service));
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            if (check == "cards")
+            {
+                Assert.Equal(new[] { "Signatures Microsoft Defender", "Microsoft Update", "Windows Update" },
+                    f.Vm.Operation.Steps.Select(step => step.Title));
+                Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == BlockedPreparationSequence.PreparationTitle);
+            }
+            else if (check == "unfinished")
+            {
+                var defender = Assert.Single(f.Vm.Operation.Steps, step => step.Title == "Signatures Microsoft Defender");
+                Assert.NotEqual("Terminée", defender.Status);
+                Assert.All(f.Vm.Operation.Steps, step => Assert.NotEqual("Terminée", step.Status));
+            }
+            else
+            {
+                Assert.True(f.Vm.Operation.IsVisible);
+                Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
+                Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+            }
+            Assert.Empty(f.Backend.Executed);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    internal sealed class BlockedPreparationSequence(IUpdateSequenceService previews) : IUpdateSequenceService
+    {
+        public const string PreparationTitle = "Point de restauration et préparation Microsoft Update";
+        public Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([
+                new("defender", "Signatures Microsoft Defender", UpdateComponent.Defender),
+                new("microsoft-update", "Microsoft Update", UpdateComponent.MicrosoftUpdate),
+                new("software", "Windows Update", UpdateComponent.Windows)]);
+        public Virgil.Contracts.Actions.ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected) => previews.CreatePreview(selected);
+        public Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan,
+            IProgress<UpdateSequenceProgress>? progress, CancellationToken token)
+        {
+            Assert.NotNull(plan);
+            progress?.Report(new(1, 3, "Signatures Microsoft Defender", "En cours"));
+            progress?.Report(new(1, 3, PreparationTitle, "En cours"));
+            var preparation = selected.Single(step => step.Component == UpdateComponent.MicrosoftUpdate);
+            var windows = selected.Single(step => step.Component == UpdateComponent.Windows);
+            return Task.FromResult(new UpdateSequenceResult(false, false, false,
+                [new(preparation, false, false, "Préparation Microsoft Update bloquée : point de restauration non vérifié.") { RestorePointVerified = false },
+                 new(windows, false, false, "Installation Microsoft bloquée : point de restauration non vérifié.")],
+                "Séquence terminée avec erreurs ; consultez les étapes."));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Two_steps_keep_order_latest_tick_and_honest_final_summary(bool cancel)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture(wrap: service => new RepeatingSequence(service, cancel));
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.Equal(new[] { "Source A", "Source B" }, f.Vm.Operation.Steps.Select(step => step.Title));
+            Assert.Equal(cancel ? "Non lancée" : "Source indisponible", f.Vm.Operation.Steps[1].Status);
+            Assert.Contains("fichiers 12/40", f.Vm.SequenceProgress[0]);
+            Assert.True(f.Vm.Operation.IsVisible);
+            if (cancel) Assert.NotEqual(100, f.Vm.Operation.Percent);
+            else { Assert.Equal(100, f.Vm.Operation.Percent); Assert.False(f.Vm.Operation.IsIndeterminate); }
+            Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
+            Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+            Assert.NotEmpty(f.Vm.Operation.Commentary);
+            Assert.Empty(f.Backend.Executed);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    internal sealed class RepeatingSequence(IUpdateSequenceService previews, bool cancel = false) : IUpdateSequenceService
+    {
+        public Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([new("a", "Source A", UpdateComponent.WingetFinal), new("b", "Source B", UpdateComponent.Store)]);
+        public Virgil.Contracts.Actions.ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected) => previews.CreatePreview(selected);
+        public Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken token)
+        {
+            Assert.NotNull(plan);
+            var steps = selected.Where(step => !step.IsInformational).ToArray();
+            progress?.Report(new(1, 2, steps[0].Title, "fichiers 1/40"));
+            progress?.Report(new(1, 2, steps[0].Title, "fichiers 12/40"));
+            if (!cancel)
+            {
+                progress?.Report(new(2, 2, steps[1].Title, "Lecture"));
+                progress?.Report(new(2, 2, steps[1].Title, "Source bloquée"));
+            }
+            return Task.FromResult(new UpdateSequenceResult(false, cancel, true,
+                [new(steps[0], true, true, "Terminée"), new(steps[1], false, false, cancel ? "Non lancée : annulation demandée." : "Source bloquée") { WasUnavailable = !cancel }],
+                cancel ? "Séquence annulée entre deux étapes." : "Séquence terminée."));
+        }
+    }
+
+    [Fact]
+    public async Task Repeated_reports_for_one_sequence_step_update_a_single_visible_entry()
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture();
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            foreach (var choice in f.Vm.SequenceChoices)
+                choice.IsSelected = choice.Step.Component == UpdateComponent.WingetFinal;
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.Single(f.Backend.Executed);
+            var entry = Assert.Single(f.Vm.SequenceProgress);
+            Assert.Contains("Passe finale", entry);
+            Assert.Contains("Terminé", entry);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    private sealed class InlineProgressContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callback(state);
+    }
+
     [Fact, Trait("Category", "Safety")]
     public async Task Store_unavailable_is_persisted_as_information_with_success_state()
     {
@@ -236,21 +398,22 @@ public sealed class UpdatesSequenceViewModelTests
         public PendingRebootStatus Read() => new(true, ["Maintenance des composants"]);
     }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public RecordingConfirmation Confirmation { get; } = new();
         public Backend Backend { get; } = new();
         public History History { get; } = new();
         public Runner Runner { get; } = new();
         public UpdatesViewModel Vm { get; }
-        public Fixture(IPendingRebootProbe? probe = null)
+        public Fixture(IPendingRebootProbe? probe = null, Func<IUpdateSequenceService, IUpdateSequenceService>? wrap = null)
         {
+            IUpdateSequenceService sequence = new UpdateSequenceService(Backend, Confirmation.Authority, probe);
             Vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
-                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, new UpdateSequenceService(Backend, Confirmation.Authority, probe),
+                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, wrap?.Invoke(sequence) ?? sequence,
                 new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));
         }
     }
-    private sealed class Backend : IUpdateSequenceBackend
+    internal sealed class Backend : IUpdateSequenceBackend
     {
         public List<UpdateComponent> Executed { get; } = new();
         public bool Reboot { get; set; } = true;
@@ -280,7 +443,7 @@ public sealed class UpdatesSequenceViewModelTests
         }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucun lancement autorisé dans ce test.");
     }
-    private sealed class History : IReportHistoryService
+    internal sealed class History : IReportHistoryService
     {
         public ReportEntry? Report { get; private set; }
         public Task<ReportSaveResult> SaveAsync(ReportEntry report, CancellationToken cancellationToken)

@@ -22,6 +22,9 @@ public partial class UpdatesViewModel
     private string? _sequenceReport;
     public ObservableCollection<UpdateSequenceChoiceViewModel> SequenceChoices { get; } = new();
     public ObservableCollection<string> SequenceProgress { get; } = new();
+    private readonly Dictionary<string, int> _sequenceProgressIndices = new(StringComparer.Ordinal);
+    private string? _sequenceFinalSummary;
+    private bool _sequenceWasCancelled;
     [ObservableProperty] private bool isSequencePreview;
     [ObservableProperty] private bool isRunAllEnabled;
     [ObservableProperty] private string sequenceStepText = "Aucune séquence en cours.";
@@ -71,6 +74,10 @@ public partial class UpdatesViewModel
         if (_sequenceService is null || !BeginOperation("Préparation de l’aperçu des mises à jour…")) return;
         Operation.Start(StatusText, immediately: true, nonInterruptible: true);
         SequenceProgress.Clear();
+        _sequenceProgressIndices.Clear();
+        _sequenceFinalSummary = null;
+        _sequenceWasCancelled = false;
+        Operation.Commentary = "Préparation des catégories de mises à jour…";
         RebootRequired = false;
         try
         {
@@ -116,20 +123,41 @@ public partial class UpdatesViewModel
             var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, null));
             IsSequencePreview = false;
             RequestVirgilState(VirgilCoreState.Executing, "MISES À JOUR");
+            foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational))
+                Operation.SetStep(step.Title, step.Title, "Non lancée");
+            var acceptingProgress = true;
+            var sequenceCancellation = _operationCancellation;
             var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(Array.Empty<UpdateSequenceStep>()).ToArray(), plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
+                    if (!acceptingProgress || !ReferenceEquals(sequenceCancellation, _operationCancellation) || !Operation.IsRunning || Operation.IsCancelling) return;
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
-                    if (Operation.IsCancelling) return;
                     SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
                     StatusText = SequenceStepText;
-                    SequenceProgress.Add(SequenceStepText);
+                    Operation.Commentary = progress.Status;
+                    // Une phase technique sans étape correspondante reste du texte courant.
+                    if (!_confirmedSequenceSteps.Any(step => string.Equals(step.Title, progress.Title, StringComparison.Ordinal))) return;
+                    var key = $"{progress.Current}:{progress.Title}";
+                    if (_sequenceProgressIndices.TryGetValue(key, out var index)) SequenceProgress[index] = SequenceStepText;
+                    else { _sequenceProgressIndices.Add(key, SequenceProgress.Count); SequenceProgress.Add(SequenceStepText); }
+                    Operation.SetStep(progress.Title, progress.Title, "En cours", progress.Status);
                 }), _operationCancellation.Token);
+            acceptingProgress = false;
+            _sequenceWasCancelled = result.WasCancelled;
             RebootRequired = result.RebootRequired;
             StatusText = result.Message;
             SequenceStepText = result.Message;
             _sequenceReport = result.Message + "\n" + string.Join("\n", result.Steps.Select(step => step.Step.Title + " : " + step.Message))
                 + $"\nRedémarrage nécessaire : {(result.RebootRequired ? "oui" : "non")}.";
+            foreach (var step in result.Steps)
+                Operation.SetStep(step.Step.Title, step.Step.Title, SequenceResultStatus(step), step.Message);
+            foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
+                && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
+                Operation.SetStep(step.Title, step.Title, "Non lancée", "Aucun résultat confirmé.");
+            _sequenceFinalSummary = result.Message + "\n" + string.Join("\n", Operation.Steps.Select(step => step.Title + " : " + step.Status
+                + (step.Status == "Terminée" ? string.Empty : " — " + step.Detail)))
+                + $"\nRedémarrage nécessaire : {(result.RebootRequired ? "oui" : "non")}.";
+            Operation.Commentary = result.Message;
             await PersistReportAsync(new ReportEntry
             {
                 Kind = ReportKind.Updates, Module = "Mises à jour", Title = "Tout mettre à jour",
@@ -154,6 +182,7 @@ public partial class UpdatesViewModel
         }
         catch (OperationCanceledException)
         {
+            _sequenceWasCancelled = true;
             StatusText = "Séquence annulée. Les étapes suivantes n’ont pas été lancées.";
             SequenceStepText = StatusText;
         }
@@ -169,6 +198,11 @@ public partial class UpdatesViewModel
             EndOperation();
         }
     }
+
+    private static string SequenceResultStatus(UpdateSequenceStepResult step) =>
+        step.WasUnavailable ? "Source indisponible" : step.WasSkipped ? "Sautée"
+        : step.Message.StartsWith("Non lancée", StringComparison.Ordinal) ? "Non lancée"
+        : step.Succeeded ? "Terminée" : "En échec";
 
     private void UpdateSequencePreview()
     {

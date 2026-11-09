@@ -5,10 +5,23 @@
  <Grid Margin="0,8" Visibility="{Binding IsVisible, Converter={StaticResource OperationVisibility}}">
   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
   <StackPanel>
-   <TextBlock Text="{Binding Step}" Foreground="White" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Step}" Foreground="White" TextWrapping="Wrap" Visibility="{Binding IsRunning, Converter={StaticResource OperationVisibility}}"/>
    <ProgressBar Height="6" Margin="0,6" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}"/>
    <TextBlock Text="{Binding Timing}" Foreground="White"/>
+   <ItemsControl ItemsSource="{Binding Steps}" Margin="0,8,0,0">
+    <ItemsControl.ItemTemplate><DataTemplate>
+     <StackPanel Margin="0,3">
+      <TextBlock Foreground="White" TextWrapping="Wrap"><Run Text="{Binding Title}"/><Run Text=" — "/><Run Text="{Binding Status}"/></TextBlock>
+      <TextBlock Text="{Binding Detail}" Foreground="White" TextWrapping="Wrap"/>
+     </StackPanel>
+    </DataTemplate></ItemsControl.ItemTemplate>
+   </ItemsControl>
+   <TextBlock Text="{Binding FinalSummary}" Foreground="White" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   <TextBlock Text="{Binding Commentary}" Foreground="White" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="{Binding HasDistinctCommentary, Converter={StaticResource OperationVisibility}}"/>
+   <Button Content="Fermer le bilan" Command="{Binding DismissCommand}" HorizontalAlignment="Left" Margin="0,8,0,0">
+    <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsRunning}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+   </Button>
   </StackPanel>
-  <Button Grid.Column="1" Content="Annuler" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" AutomationProperties.AutomationId="{Binding CancelAutomationId, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="12,0,0,0" Padding="12,6"/>
+  <Button Grid.Column="1" Content="Annuler" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Visibility="{Binding IsRunning, Converter={StaticResource OperationVisibility}}" VerticalAlignment="Top" AutomationProperties.AutomationId="{Binding CancelAutomationId, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="12,0,0,0" Padding="12,6"/>
  </Grid>
 </UserControl>
