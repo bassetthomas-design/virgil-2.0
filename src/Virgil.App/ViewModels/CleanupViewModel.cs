@@ -506,7 +506,7 @@ public partial class CleanupViewModel : ObservableObject
         }));
         _operationProgress?.Dispose();
         _operationProgress = operation;
-        var steps = new Progress<CleanupProgress>(progress =>
+        var steps = new CleanupStepProgress(progress =>
         {
             if (!_operationInProgress || generation != _operationGeneration || Operation.IsCancelling || progress.ZoneId is not { } id) return;
             var title = _lastPreview.FirstOrDefault(zone => zone.Definition.Id == id)?.Definition.DisplayName ?? progress.Message;
@@ -527,6 +527,18 @@ public partial class CleanupViewModel : ObservableObject
         CleanupStepStatus.Expired => "Non lancée — analyse expirée",
         _ => "En échec"
     };
+
+    private sealed class CleanupStepProgress(Action<CleanupProgress> report) : IProgress<CleanupProgress>
+    {
+        private readonly SynchronizationContext? _context = SynchronizationContext.Current;
+        public void Report(CleanupProgress value)
+        {
+            // WPF sérialise sur son contexte ; sans contexte, terminer la notification
+            // avant de rendre la main au producteur évite les cartes tardives concurrentes.
+            if (_context is null || SynchronizationContext.Current == _context) report(value);
+            else _context.Post(_ => report(value), null);
+        }
+    }
 
     private sealed class CleanupProgressAdapter(IOperationProgress target, IProgress<CleanupProgress> steps) : IProgress<CleanupProgress>
     {

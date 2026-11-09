@@ -83,6 +83,11 @@ Le correctif de production est committé séparément après ce run rouge.
 | Raison absente | « Raison : non renseignée » dans ShowDetails | `Application_details_use_simple_french_without_executing` |
 | Pluriel | 0 fichiers / 1 fichier / 2 fichiers, résumé et détail de zone | `Quarantine_counts_use_correct_plural_in_final_summary_and_step` |
 
+Le premier run du correctif (`42598996265`, head `83e37b04142880078163a313771b6bb9dc9f68e1`)
+compile sans avertissement, puis le processus App est interrompu par une collection d'étapes Nettoyage modifiée
+pendant une énumération. Le rappel des étapes est désormais synchrone sans contexte UI et conserve le dispatch
+sur le contexte WPF lorsqu'il existe. Aucun résultat vert n'est revendiqué pour ce run interrompu.
+
 Validation verte de la reprise : en attente de la CI Windows. Les trois PNG lot C seront régénérés par ce run.
 Le style des boutons et la marge gauche restent réservés au lot E. Aucun changement des moteurs de confirmation
 ou de quarantaine, de SafeUi, des workflows ou des réglages. La revue visuelle des nouveaux PNG et la relecture
