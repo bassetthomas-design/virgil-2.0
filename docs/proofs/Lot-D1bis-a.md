@@ -51,6 +51,17 @@ Les cinq scénarios `D1bisAPanelTests` passent, y compris l'annulation ; les qua
 
 Les assertions du commit rouge `6b2e65b` restent inchangées. Le commit correctif `e532f61` adapte uniquement le test hérité autorisé et corrige l'accent du script ; cette documentation est complétée ensuite par un commit distinct, sans réécriture d'historique. La PR demeure en brouillon et n'est pas fusionnée.
 
+## Relecture loops — confirmation et noms
+
+Après relecture de `eae99a107f6f6710e3431ab34d432ef13ecb2612`, le nouveau commit `0b0a53a8518ee5b32fe99ace6ea36c5ccd6350c8` corrige les deux points bloquants, sans modifier les tests précédents ni réécrire l'historique.
+
+- La confirmation affiche `Photos : 1.0 (Microsoft Store)` quand la version disponible est vide ou blanche ; aucune flèche vide. Le logiciel hors source automatique affiche `Éditeur local : 3.2 — non pris en charge automatiquement`, sans étiquette de logiciel géré et avec sa case désactivée. Une application gérée conserve sa flèche et ses deux versions.
+- Le remplacement global de « WinGet » est supprimé de `DisplaySequenceText`. Les titres d'applications sont conservés tels quels ; seuls les libellés propres à Virgil sont écrits en français simple à leur construction, dans le ViewModel et le backend Windows. `WinGetUI` reste donc `WinGetUI` dans la confirmation, la carte et le rapport.
+
+`D1bisAConfirmationTests` utilise le vrai service et le vrai ViewModel avec les trois sources dans la même liste. Il contrôle les `SequenceChoices.Title`, leurs identités et leur sélection, puis rend le véritable `UpdatesView` WPF sur le thread STA. Le nouveau PNG est `artifacts/ui-smoke/lot-d1bis-a/confirmation-mixed-sources.png`. La confirmation est ensuite annulée ; aucun plan n'est émis et aucune installation n'est exécutée. Deux autres cas conservent le nom contenant « WinGet » dans les cartes et le rapport, avec une source disponible ou indisponible. `D1bisADisplayLabelsTests` vérifie les propres libellés du backend réel avec un exécuteur factice.
+
+[Run vert de relecture 42680135581, n°359](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42680135581), head `0b0a53a8518ee5b32fe99ace6ea36c5ccd6350c8` : **1 171 Core, 671 App et 14 UI réussis, 0 échec, 0 avertissement et 0 erreur de compilation**. Publication et installateur réussis. [Artefact Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42680135581/artifacts/13703305138), identifiant `13703305138`, empreinte `4cb12981a30ed0d936cbd6a11fde662b64e74af431356dedf6de5aef307f5c71` : nouvelle capture de confirmation et quatre captures du bilan régénérées. Ces preuves restent des rendus STA avec sources factices ; la restriction réelle de l'API et la preuve prévue en alpha.8 demeurent décrites ci-dessous. La PR reste en brouillon, sans feu vert ni fusion déduit de la CI.
+
 ## Limites explicites
 
 Aucune installation réelle ni manipulation du registre Windows n'a été exécutée dans l'environnement Linux. Les captures STA factices prouvent la présentation et l'orchestration, pas une installation Store réelle. La preuve sur PC reste prévue pour alpha.8, conformément à loops (relecture).
