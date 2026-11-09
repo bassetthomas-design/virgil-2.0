@@ -28,6 +28,8 @@ public sealed class UpdatesSequenceViewModelTests
             card => Assert.Contains("app-b", card.Detail));
         Assert.NotEqual(cards[0].Key, cards[1].Key);
         Assert.NotEqual(cards[0].Status, cards[1].Status);
+        Assert.DoesNotContain("app-b", cards[0].Detail);
+        Assert.DoesNotContain("app-a", cards[1].Detail);
         Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == "Point de restauration et préparation Microsoft Update");
     }
 
@@ -86,6 +88,21 @@ public sealed class UpdatesSequenceViewModelTests
         if (reboot) Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
     }
 
+    [Fact]
+    public async Task D1_reboot_detected_during_final_scan_updates_banner_and_persisted_verdict()
+    {
+        var f = new Fixture(scan: new D1Scan { PendingReboot = true });
+        f.Backend.Reboot = false;
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.WingetFinal;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        AssertNoD1PositiveConclusion(f);
+        Assert.True(f.Vm.RebootRequired);
+        Assert.True(f.History.Report!.RestartRequired);
+        Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
+    }
+
     private static void AssertNoD1PositiveConclusion(Fixture f)
     {
         foreach (var text in new[] { f.Vm.Operation.FinalSummary, f.Vm.StatusText, f.Vm.Operation.Commentary,
@@ -101,12 +118,14 @@ public sealed class UpdatesSequenceViewModelTests
     {
         public int Calls { get; private set; }
         public bool Remaining { get; init; }
+        public bool PendingReboot { get; init; }
         public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token)
         {
             Calls++;
             return Task.FromResult(new UpdateScanReport
             {
                 Scope = UpdateScanScope.DeepPreview,
+                WindowsUpdate = new WindowsUpdateInformation { PendingRebootDetected = Calls > 1 && PendingReboot },
                 Winget = new WingetAvailability { IsAvailable = true, ExecutablePath = "winget.exe" },
                 Items = Calls == 1 || Remaining
                     ? new[] { new UpdateItem { Id = "app-a", Name = "Même application", Source = UpdateSource.Winget },

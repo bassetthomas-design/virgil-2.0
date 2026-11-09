@@ -126,10 +126,13 @@ public partial class UpdatesViewModel
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational))
                 Operation.SetStep(SequenceStepKey(step), DisplaySequenceText(step.Title), "Non lancée");
             var acceptingProgress = true;
+            var sequenceProgressLock = new object();
             var sequenceCancellation = _operationCancellation;
             var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(Array.Empty<UpdateSequenceStep>()).ToArray(), plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
+                    lock (sequenceProgressLock)
+                    {
                     if (!acceptingProgress || !ReferenceEquals(sequenceCancellation, _operationCancellation) || !Operation.IsRunning || Operation.IsCancelling) return;
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
                     SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
@@ -144,20 +147,22 @@ public partial class UpdatesViewModel
                     if (_sequenceProgressIndices.TryGetValue(key, out var index)) SequenceProgress[index] = SequenceStepText;
                     else { _sequenceProgressIndices.Add(key, SequenceProgress.Count); SequenceProgress.Add(SequenceStepText); }
                     Operation.SetStep(key, confirmed.Title, "En cours", progress.Status);
+                    }
                 }), _operationCancellation.Token);
-            acceptingProgress = false;
+            lock (sequenceProgressLock) acceptingProgress = false;
             _sequenceWasCancelled = result.WasCancelled;
             RebootRequired = result.RebootRequired;
             Operation.Commentary = "Contrôle final des sources en lecture seule…";
             var checks = await ReadFinalVerificationsAsync(result);
-            var allCurrent = !result.WasRefused && !result.WasCancelled && !result.RebootRequired
+            RebootRequired = result.RebootRequired || checks.Any(check => check.Status == "redémarrage nécessaire");
+            var allCurrent = !result.WasRefused && !result.WasCancelled && !RebootRequired
                 && checks.Count > 0 && checks.All(check => check.IsCurrent)
                 && _confirmedSequenceSteps.Where(step => !step.IsInformational).All(step =>
                     result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component
                         && outcome.Succeeded && !outcome.WasSkipped && !outcome.WasUnavailable));
             var conclusion = allCurrent ? "Tout est à jour." : result.WasCancelled
                 ? "Séquence annulée entre deux étapes — contrôle final effectué."
-                : "Contrôle final terminé — des sources restent à vérifier ou à terminer.";
+                : "Séquence terminée. Contrôle final : des sources restent à vérifier ou à terminer.";
             StatusText = conclusion;
             SequenceStepText = conclusion;
             foreach (var step in result.Steps.Where(outcome => outcome.Step.IsInformational
@@ -170,22 +175,26 @@ public partial class UpdatesViewModel
                 if (step.Message.StartsWith("Non lancée", StringComparison.Ordinal)) status = "Non lancée";
                 else if (!step.Succeeded && !step.WasUnavailable && !step.WasSkipped) status = "en erreur";
                 else if (step.WasUnavailable && result.Verifications.Count == 0) status = "Source indisponible";
-                var detail = DisplaySequenceText(step.Message) + (check is null ? string.Empty : "\n" + check.Detail);
+                var detail = DisplaySequenceText(step.Message) + (check is null || (result.Verifications.Count == 0 && check.Component != UpdateComponent.Winget)
+                    ? string.Empty : step.Step.Component == UpdateComponent.Winget
+                        ? "\nContrôle final de la source : " + check.Status + "." : "\n" + check.Detail);
                 Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
                 && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
                 Operation.SetStep(SequenceStepKey(step), step.Title, "Non lancée", "Aucun résultat confirmé.");
             _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + check.Detail))
-                + "\n" + (result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
-                    ?? $"Redémarrage nécessaire : {(result.RebootRequired ? "oui" : "non")}.");
+                + "\n" + (RebootRequired == result.RebootRequired
+                    ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
+                        ?? $"Redémarrage nécessaire : {(RebootRequired ? "oui" : "non")}."
+                    : "Redémarrage nécessaire : oui (détecté au contrôle final).");
             _sequenceReport = _sequenceFinalSummary;
             Operation.Commentary = allCurrent ? "Chaque source cochée a été contrôlée après les installations."
                 : "Le bilan détaille les restes détectés et les contrôles indisponibles. Aucun redémarrage automatique.";
             await PersistReportAsync(new ReportEntry
             {
                 Kind = ReportKind.Updates, Module = "Mises à jour", Title = "Tout mettre à jour",
-                Summary = conclusion, SimpleView = _sequenceReport, RestartRequired = result.RebootRequired,
+                Summary = conclusion, SimpleView = _sequenceReport, RestartRequired = RebootRequired,
                 Severity = allCurrent ? ReportSeverity.Success : ReportSeverity.Warning,
                 SkippedActions = result.Steps.Where(step => step.Step.IsInformational || step.WasSkipped || step.WasUnavailable).Select(step => new ReportAction
                 {
@@ -252,6 +261,8 @@ public partial class UpdatesViewModel
             try
             {
                 var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview with { IncludeDriverInventory = false }, null, timeout.Token).WaitAsync(timeout.Token);
+                if (scan.WindowsUpdate.PendingRebootDetected)
+                    checks.Add(new(UpdateComponent.PendingReboot, "redémarrage nécessaire", "Détecté lors de la relecture applicative."));
                 check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "WinGet indisponible au contrôle final.")
                     : scan.Errors.Count > 0 ? new(UpdateComponent.Winget, "en erreur", "Recherche applicative incomplète au contrôle final.")
                     : scan.Items.Any(item => item.Status == UpdateItemStatus.Available)
@@ -283,6 +294,13 @@ public partial class UpdatesViewModel
                 check = new(component, "redémarrage nécessaire", check.Detail);
             checks.RemoveAll(value => value.Component == component);
             checks.Add(check);
+        }
+        var rebootStatus = _windowsUpdateStatusService.ReadStatus();
+        if (rebootStatus.PendingRebootDetected || rebootStatus.Errors.Count > 0)
+        {
+            checks.RemoveAll(check => check.Component == UpdateComponent.PendingReboot);
+            checks.Add(new(UpdateComponent.PendingReboot, rebootStatus.PendingRebootDetected ? "redémarrage nécessaire" : "indisponible",
+                rebootStatus.PendingRebootDetected ? "Détecté par la sonde après les recherches finales." : "Lecture finale du redémarrage indisponible."));
         }
         return checks;
     }
