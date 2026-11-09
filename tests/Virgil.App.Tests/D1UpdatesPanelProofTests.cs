@@ -59,8 +59,8 @@ public sealed class D1UpdatesPanelProofTests
         Assert.NotEqual(100, f.Vm.Operation.Percent);
         foreach (var summary in new[] { f.Vm.Operation.FinalSummary, f.History.Report!.SimpleView })
         {
-            var source = Assert.Single(summary.Split('\n'), line => line.StartsWith("WinGet / applications", StringComparison.Ordinal));
-            Assert.Contains(": reste à installer — ", source);
+            var source = Assert.Single(summary.Split('\n'), line => line.StartsWith("Applications", StringComparison.Ordinal));
+            Assert.Contains(": reste à installer ; 1 échec — ", source);
             Assert.DoesNotContain("non lancée", source, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("app-b", source);
         }
