@@ -339,16 +339,19 @@ public partial class UpdatesViewModel
             var outcomes = result.Steps.Where(step => SourceComponent(step.Step.Component) == component).ToArray();
             var check = checks.FirstOrDefault(value => value.Component == component)
                 ?? new(component, "indisponible", "Contrôle final non disponible pour cette source.");
-            if (outcomes.Any(UpdateSequenceService.IsSafetyBlocked))
-                check = check with { Status = "bloquée", Detail = string.Join(" ", outcomes.Where(UpdateSequenceService.IsSafetyBlocked).Select(step => DisplaySequenceText(step.Message))) };
-            else if (outcomes.Any(step => step.WasUnavailable)) check = new(component, "indisponible", check.Detail);
-            else if (outcomes.Any(step => !step.Succeeded && !step.WasSkipped))
-                check = check with { Status = outcomes.Any(UpdateSequenceService.IsSafetyBlocked) ? "bloquée" : "en erreur", Detail = check.Detail + " "
-                    + string.Join(" ", outcomes.Where(step => !step.Succeeded).Select(step => DisplaySequenceText(step.Message))) };
-            if (_confirmedSequenceSteps.Where(step => SourceComponent(step.Component) == component).Any(step =>
+            var started = outcomes.Where(step => !step.WasSkipped && !step.Message.StartsWith("Non lancée", StringComparison.Ordinal)).ToArray();
+            var missing = _confirmedSequenceSteps.Where(step => SourceComponent(step.Component) == component).Any(step =>
                 !outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)
-                || outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Message.StartsWith("Non lancée", StringComparison.Ordinal))))
-                check = new(component, "non lancée", check.Detail);
+                || outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Message.StartsWith("Non lancée", StringComparison.Ordinal)));
+            if (started.Length == 0 && missing)
+                check = check with { Status = "non lancée", Detail = "Aucune étape de cette source n'a été lancée." };
+            else if (component == UpdateComponent.Winget && finalApplications?.Items.Any(item => item.Status == UpdateItemStatus.Available) == true)
+                check = check with { Status = "reste à installer", Detail = "Contrôle final : reste applicatif détecté." };
+            else if (outcomes.Any(UpdateSequenceService.IsSafetyBlocked))
+                check = check with { Status = "bloquée", Detail = "Installation bloquée par une garde de sécurité." };
+            else if (outcomes.Any(step => step.WasUnavailable)) check = check with { Status = "indisponible", Detail = "Source indisponible sur ce PC." };
+            else if (started.Any(step => !step.Succeeded))
+                check = check with { Status = "en erreur", Detail = "Échec pendant l'exécution de cette source ; consultez les cartes." };
             if (component == UpdateComponent.Store && outcomes.Length > 0 && outcomes.All(step => step.Succeeded && !step.WasUnavailable))
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             if (component == UpdateComponent.Launcher && check.Status != "non lancée" && outcomes.Length > 0

@@ -57,6 +57,13 @@ public sealed class D1UpdatesPanelProofTests
         Assert.Equal("en erreur", Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-b").Status);
         Assert.Equal("reste à installer", Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-c").Status);
         Assert.NotEqual(100, f.Vm.Operation.Percent);
+        foreach (var summary in new[] { f.Vm.Operation.FinalSummary, f.History.Report!.SimpleView })
+        {
+            var source = Assert.Single(summary.Split('\n'), line => line.StartsWith("WinGet / applications", StringComparison.Ordinal));
+            Assert.Contains(": reste à installer — ", source);
+            Assert.DoesNotContain("non lancée", source, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("app-b", source);
+        }
         await Capture(f.Vm.Operation, "tout-mettre-a-jour-identites-winget.png");
     });
 
