@@ -63,6 +63,6 @@ Périmètre suivant loops (relecture) : D1 uniquement ; aucun changement du mote
 
 ## Complément après relecture du run 42610792528
 
-Les quatre échecs de ce run sont corrigés sur la même branche. Le marqueur technique `VIRGIL_SEARCH_INCOMPLETE` est reconnu dans stdout/stderr et traduit en recherche indisponible, même si une sortie contradictoire prétend réussir. Les détails bloqués ou en échec conservent le résultat de leur propre étape ; le contrôle final reste dans le bilan par source. Les tests C de détail et de conclusion unique restent inchangés.
+Les quatre échecs de ce run sont corrigés sur la même branche. Le marqueur technique `VIRGIL_WUA_001` est reconnu dans stdout/stderr et traduit en recherche indisponible, même si une sortie contradictoire prétend réussir. Les détails bloqués ou en échec conservent le résultat de leur propre étape ; le contrôle final reste dans le bilan par source. Les tests C de détail et de conclusion unique restent inchangés.
 
 Chaque carte WinGet nomme son identité ; en l'absence d'un résultat, « Aucun résultat confirmé. Identité : … » reste associé à `Component` + `Id`, avec le statut non lancée. `D1_missing_result_keeps_application_identity_without_claiming_success` passe par le vrai service puis simule la perte d'un résultat ; il vérifie les deux identités et interdit la conclusion positive. La CI Windows et les PNG du commit complémentaire sont référencés dans la PR #80.

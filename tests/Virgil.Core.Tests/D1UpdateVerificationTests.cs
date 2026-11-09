@@ -51,9 +51,9 @@ public sealed class D1UpdateVerificationTests
         }
         runner.Result = new(1, "VIRGIL_CURRENT", "échec");
         Assert.Equal("indisponible", (await backend.VerifyAsync(component, CancellationToken.None)).Status);
-        foreach (var result in new[] { new ProcessRunResult(1, "", "VIRGIL_SEARCH_INCOMPLETE"),
-            new ProcessRunResult(0, "VIRGIL_CURRENT", "VIRGIL_SEARCH_INCOMPLETE"),
-            new ProcessRunResult(0, "VIRGIL_SEARCH_INCOMPLETE", "") })
+        foreach (var result in new[] { new ProcessRunResult(1, "", "VIRGIL_WUA_001"),
+            new ProcessRunResult(0, "VIRGIL_CURRENT", "VIRGIL_WUA_001"),
+            new ProcessRunResult(0, "VIRGIL_WUA_001", "") })
         {
             runner.Result = result;
             var incomplete = await backend.VerifyAsync(component, CancellationToken.None);
