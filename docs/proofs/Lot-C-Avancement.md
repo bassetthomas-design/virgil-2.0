@@ -88,7 +88,15 @@ compile sans avertissement, puis le processus App est interrompu par une collect
 pendant une énumération. Le rappel des étapes est désormais synchrone sans contexte UI et conserve le dispatch
 sur le contexte WPF lorsqu'il existe. Aucun résultat vert n'est revendiqué pour ce run interrompu.
 
-Validation verte de la reprise : en attente de la CI Windows. Les trois PNG lot C seront régénérés par ce run.
+Validation verte de la reprise : https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42599368403,
+head `de31885313885992263d76d13bad0974c9703a68`.
+Build : 0 avertissement, 0 erreur ; Core : 1148/1148 ; App : 616/616 ; UI : 14/14.
+Les dix nouveaux cas de relecture passent, ainsi que le test des détails Applications renforcé.
+Publication et installateur réussis. Les trois PNG STA/WPF factices sont régénérés dans ce run :
+https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42599368403/artifacts/13664777603
+(`Virgil-ui-smoke`, SHA-256 ZIP `16236674e61a29c1ff38ef2734802f24082252354884f464ede826bcae699cef`).
+Le commit suivant consigne uniquement ces résultats dans ce document ; le run du head documentaire final
+et son artefact régénéré sont référencés dans la PR, sans attribuer rétroactivement le présent run à ce head.
 Le style des boutons et la marge gauche restent réservés au lot E. Aucun changement des moteurs de confirmation
 ou de quarantaine, de SafeUi, des workflows ou des réglages. La revue visuelle des nouveaux PNG et la relecture
 du nouveau head exact restent à effectuer par loops (relecture).
