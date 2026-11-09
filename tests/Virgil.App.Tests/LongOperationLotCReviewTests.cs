@@ -57,7 +57,7 @@ public sealed class LongOperationLotCReviewTests
         await WithPanel(operation, panel =>
         {
             var visible = string.Join("\n", Descendants<TextBlock>(panel).Where(block => block.IsVisible).Select(block => block.Text));
-            Assert.Equal(1, Regex.Matches(visible, Regex.Escape(conclusion)).Count);
+            Assert.Single(Regex.Matches(visible, Regex.Escape(conclusion)).Cast<Match>());
         });
     });
 
