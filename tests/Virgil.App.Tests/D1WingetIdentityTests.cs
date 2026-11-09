@@ -61,14 +61,47 @@ public sealed class D1WingetIdentityTests
         Assert.DoesNotContain("tout est à jour", f.History.Report!.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
-    internal sealed class IdentityScan(bool includeThird) : IUpdateScanService
+    [Theory]
+    [InlineData(false, false, "reste à installer")]
+    [InlineData(true, false, "reste à installer")]
+    [InlineData(true, true, "en erreur")]
+    [InlineData(false, true, "à jour")]
+    public async Task Partly_executed_source_uses_final_remains_and_short_summary(bool failSecond, bool emptyFinal, string status)
+    {
+        var f = new UpdatesSequenceViewModelTests.Fixture(scan: new IdentityScan(true, emptyFinal));
+        var executed = new List<string>();
+        f.Backend.Handler = (step, _) =>
+        {
+            executed.Add(step.Id);
+            if (step.Id == (failSecond ? "app-b" : "app-a")) f.Vm.CancelActiveOperation();
+            return Task.FromResult(new UpdateSequenceStepResult(step, step.Id == "app-a", false,
+                step.Id == "app-a" ? "Installation réussie pour app-a." : "Échec brut d'installation pour app-b."));
+        };
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Winget;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        Assert.Equal(failSecond ? new[] { "app-a", "app-b" } : ["app-a"], executed);
+        foreach (var text in new[] { f.Vm.Operation.FinalSummary, f.History.Report!.SimpleView })
+        {
+            var source = Assert.Single(text.Split('\n'), line => line.StartsWith("WinGet / applications", StringComparison.Ordinal));
+            Assert.Contains(": " + status + " — ", source);
+            Assert.DoesNotContain("non lancée", source, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("app-b", source);
+            Assert.DoesNotContain("Étape terminée après annulation", source);
+            Assert.DoesNotContain("Échec brut", source);
+            Assert.InRange(source.Length, 1, 180);
+        }
+    }
+
+    internal sealed class IdentityScan(bool includeThird, bool emptyFinal = false) : IUpdateScanService
     {
         public int Calls { get; private set; }
         public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token)
         {
             Calls++;
             var ids = Calls == 1 ? (includeThird ? new[] { "app-a", "app-b", "app-c" } : ["app-a", "app-b"])
-                : includeThird ? new[] { "app-b", "app-c" } : ["app-b"];
+                : emptyFinal ? Array.Empty<string>() : includeThird ? new[] { "app-b", "app-c" } : ["app-b"];
             return Task.FromResult(new UpdateScanReport { Winget = new WingetAvailability { IsAvailable = true },
                 Items = ids.Select(id => new UpdateItem { Id = id, Name = "Même application", Source = UpdateSource.Winget }).ToArray() });
         }
