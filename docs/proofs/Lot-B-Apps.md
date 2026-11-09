@@ -22,7 +22,7 @@ Aucun dossier, manifeste, bibliothèque ou reste n’est supprimé. Le scanner d
 
 La méthode et les détails affichent « Steam officiel » et l’URI. Le preview inclut la cible officielle. Le succès indique « Steam a été ouvert pour désinstaller ce jeu. Suivez l'assistant Steam. » ; l’échec indique que Steam n’a pas pu être ouvert et demande de vérifier son installation et son association aux liens Steam.
 
-Le seul ajout dans `ApplicationRiskClassifier` reconnaît Steam parmi les méthodes identifiables. Le blocage initial de périmètre a été signalé, puis la reprise du correctif a été demandée par l’utilisateur après ce signalement. Aucun faux Protected n’est revendiqué : les termes de protection et les gardes système restent inchangés. Les jeux dont nom/éditeur contient Steam restent Caution avec confirmation renforcée.
+Le seul ajout dans `ApplicationRiskClassifier` reconnaît Steam parmi les méthodes identifiables. L'ajout de Steam dans `ApplicationRiskClassifier` a été accepté par loops (relecture). Aucun faux Protected n’est revendiqué : les termes de protection et les gardes système restent inchangés. Les jeux dont nom/éditeur contient Steam restent Caution avec confirmation renforcée.
 
 ## P2 — Causes et priorité
 

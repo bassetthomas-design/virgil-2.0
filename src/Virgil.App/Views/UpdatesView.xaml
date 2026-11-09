@@ -117,10 +117,8 @@
                         Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8" />
                 <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
                     <StackPanel>
-                <TextBlock Text="{Binding SequenceStepText}" TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" />
                         <TextBlock Text="{Binding RebootStatusText}"
                                    TextWrapping="Wrap" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,8,0,0" />
-                        <ItemsControl ItemsSource="{Binding SequenceProgress}" ItemTemplate="{StaticResource UpdatesTextCardTemplate}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
                 <Rectangle Style="{StaticResource VirgilSeparator}" />

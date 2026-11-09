@@ -10,6 +10,53 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Two_steps_keep_order_latest_tick_and_honest_final_summary(bool cancel)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture(wrap: service => new RepeatingSequence(service, cancel));
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.Equal(new[] { "Source A", "Source B" }, f.Vm.Operation.Steps.Select(step => step.Title));
+            Assert.Equal(cancel ? "Non lancée" : "Source indisponible", f.Vm.Operation.Steps[1].Status);
+            Assert.Contains("fichiers 12/40", f.Vm.SequenceProgress[0]);
+            Assert.True(f.Vm.Operation.IsVisible);
+            Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
+            Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+            Assert.NotEmpty(f.Vm.Operation.Commentary);
+            Assert.Empty(f.Backend.Executed);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    internal sealed class RepeatingSequence(IUpdateSequenceService previews, bool cancel = false) : IUpdateSequenceService
+    {
+        public Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<UpdateSequenceStep>>([new("a", "Source A", UpdateComponent.WingetFinal), new("b", "Source B", UpdateComponent.Store)]);
+        public Virgil.Contracts.Actions.ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected) => previews.CreatePreview(selected);
+        public Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken token)
+        {
+            Assert.NotNull(plan);
+            var steps = selected.Where(step => !step.IsInformational).ToArray();
+            progress?.Report(new(1, 2, steps[0].Title, "fichiers 1/40"));
+            progress?.Report(new(1, 2, steps[0].Title, "fichiers 12/40"));
+            if (!cancel)
+            {
+                progress?.Report(new(2, 2, steps[1].Title, "Lecture"));
+                progress?.Report(new(2, 2, steps[1].Title, "Source bloquée"));
+            }
+            return Task.FromResult(new UpdateSequenceResult(false, cancel, true,
+                [new(steps[0], true, true, "Terminée"), new(steps[1], false, false, cancel ? "Non lancée : annulation demandée." : "Source bloquée") { WasUnavailable = !cancel }],
+                cancel ? "Séquence annulée entre deux étapes." : "Séquence terminée."));
+        }
+    }
+
     [Fact]
     public async Task Repeated_reports_for_one_sequence_step_update_a_single_visible_entry()
     {
@@ -262,21 +309,22 @@ public sealed class UpdatesSequenceViewModelTests
         public PendingRebootStatus Read() => new(true, ["Maintenance des composants"]);
     }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public RecordingConfirmation Confirmation { get; } = new();
         public Backend Backend { get; } = new();
         public History History { get; } = new();
         public Runner Runner { get; } = new();
         public UpdatesViewModel Vm { get; }
-        public Fixture(IPendingRebootProbe? probe = null)
+        public Fixture(IPendingRebootProbe? probe = null, Func<IUpdateSequenceService, IUpdateSequenceService>? wrap = null)
         {
+            IUpdateSequenceService sequence = new UpdateSequenceService(Backend, Confirmation.Authority, probe);
             Vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(Runner), Runner, Confirmation.Authority),
-                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, new UpdateSequenceService(Backend, Confirmation.Authority, probe),
+                new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), Runner, History, Confirmation, wrap?.Invoke(sequence) ?? sequence,
                 new WingetClientModuleService(new Virgil.Infrastructure.Windows.WingetClientModuleInstaller(Runner), Confirmation.Authority));
         }
     }
-    private sealed class Backend : IUpdateSequenceBackend
+    internal sealed class Backend : IUpdateSequenceBackend
     {
         public List<UpdateComponent> Executed { get; } = new();
         public bool Reboot { get; set; } = true;
@@ -306,7 +354,7 @@ public sealed class UpdatesSequenceViewModelTests
         }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken cancellationToken) => throw new InvalidOperationException("Aucun lancement autorisé dans ce test.");
     }
-    private sealed class History : IReportHistoryService
+    internal sealed class History : IReportHistoryService
     {
         public ReportEntry? Report { get; private set; }
         public Task<ReportSaveResult> SaveAsync(ReportEntry report, CancellationToken cancellationToken)

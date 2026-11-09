@@ -658,6 +658,8 @@ public sealed class CleanupViewModelTests
             var steps = new List<CleanupStepResult>();
             foreach (var preview in selection)
             {
+                progress?.Report(new(preview.Definition.Id, "Mise en quarantaine", 10, preview.Definition.DisplayName, 1, 10));
+                progress?.Report(new(preview.Definition.Id, "Mise en quarantaine", 40, preview.Definition.DisplayName, 4, 10));
                 Order.Add("Execute:" + preview.Definition.Id);
                 Token = cancellationToken;
                 var recycle = preview.Definition.Id == CleanupZoneId.RecycleBin;

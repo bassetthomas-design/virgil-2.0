@@ -40,6 +40,7 @@ public partial class UpdatesViewModel : ObservableObject
         IUpdateSequenceService? sequenceService = null, WingetClientModuleService? wingetModuleService = null)
     {
         Operation = new LongOperationViewModel(CancelActiveOperation);
+        VirgilMessageRequested += message => Operation.Commentary = message.Split('\n')[0];
         _sequenceService = sequenceService;
         _wingetModuleService = wingetModuleService;
         _scanService = scanService ?? throw new ArgumentNullException(nameof(scanService));
@@ -407,7 +408,8 @@ public partial class UpdatesViewModel : ObservableObject
 
     private void EndOperation()
     {
-        Operation.Complete(StatusText);
+        Operation.Complete(_sequenceFinalSummary ?? StatusText);
+        _sequenceFinalSummary = null;
         _operationInProgress = false;
         _operationCancellation?.Dispose();
         _operationCancellation = null;
