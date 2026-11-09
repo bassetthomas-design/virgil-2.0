@@ -21,6 +21,9 @@ namespace Virgil.App.ViewModels;
 
 public partial class ApplicationsViewModel : ObservableObject
 {
+    private const string EmptySelectionMessage = "Aucune application sélectionnée. Cochez au moins une application ou un jeu, ou ouvrez ses détails.";
+    private const string ProtectedApplicationMessage = "Application protégée. Virgil ne désinstalle pas les composants système, pilotes ni outils de sécurité.";
+    private const string InvalidOfficialCommandMessage = "Commande de désinstallation officielle invalide ou manquante. Virgil ne lance que les désinstalleurs officiels (Steam, MSI, WinGet, exécutable d'uninstall).";
     private readonly IConfirmationService _confirmationService;
     private readonly IApplicationInventoryService _inventoryService;
     private readonly ApplicationUninstallService _uninstallService;
@@ -159,7 +162,7 @@ public partial class ApplicationsViewModel : ObservableObject
         {
             if (_selectedApplication is null)
             {
-                ReportUninstallBlocked("Aucune application sélectionnée.\nOuvrez les détails d'une application avant de lancer une action.");
+                ReportUninstallBlocked(EmptySelectionMessage);
                 return;
             }
             await LaunchUninstallAsync(_selectedApplication).ConfigureAwait(true);
@@ -241,15 +244,15 @@ public partial class ApplicationsViewModel : ObservableObject
     {
         if (_operationInProgress || IsConfirmationOpen) return;
         var plan = _uninstallService.BuildPlan(application);
-        if (!application.CanUninstall)
+        if (IsProtectedComponent(application))
         {
-            ReportUninstallBlocked($"Désinstallation bloquée.\n{plan.Validation.Reason}");
+            ReportUninstallBlocked(ProtectedApplicationMessage);
             return;
         }
 
-        if (!plan.CanLaunch)
+        if (!application.CanUninstall || !plan.CanLaunch)
         {
-            ReportUninstallBlocked($"Désinstallation bloquée.\n{plan.Validation.Reason}");
+            ReportUninstallBlocked(InvalidOfficialCommandMessage);
             return;
         }
 
@@ -307,7 +310,7 @@ public partial class ApplicationsViewModel : ObservableObject
             await PersistReportAsync(ApplicationReportMapper.FromUninstall(result)).ConfigureAwait(true);
             IsReportButtonEnabled = true;
             RequestVirgilState(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
-            VirgilMessageRequested?.Invoke(result.WasLaunched
+            VirgilMessageRequested?.Invoke(result.Method == ApplicationUninstallKind.Steam ? result.Result : result.WasLaunched
                 ? "Désinstalleur officiel lancé.\nLe statut final peut dépendre de l'assistant externe.\nRestes analysés en lecture seule."
                 : $"Désinstalleur non lancé.\n{result.Result}\nRapport disponible.");
         }
@@ -399,13 +402,18 @@ public partial class ApplicationsViewModel : ObservableObject
         if (_operationInProgress || IsConfirmationOpen) return;
         var selected = _applications.Where(app => _selectedIds.Contains(app.Id)).OrderBy(app => app.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToArray();
         var plans = selected.Select(_uninstallService.BuildPlan).ToArray();
-        if (plans.Length == 0 || plans.Any(plan => !plan.CanLaunch || !plan.Application.CanUninstall || IsProtectedComponent(plan.Application)))
-        { ReportUninstallBlocked("Sélection vide, protégée ou commande officielle invalide."); return; }
+        if (plans.Length == 0)
+        { ReportUninstallBlocked(EmptySelectionMessage); return; }
+        if (plans.Any(plan => IsProtectedComponent(plan.Application)))
+        { ReportUninstallBlocked(ProtectedApplicationMessage); return; }
+        if (plans.Any(plan => !plan.CanLaunch || !plan.Application.CanUninstall))
+        { ReportUninstallBlocked(InvalidOfficialCommandMessage); return; }
         var preview = ApplicationBatchPreviewFactory.Create(plans);
         var reinforced = plans.Any(plan => plan.RequiresReinforcedConfirmation);
         if (!await AskConfirmationAsync(reinforced ? "Confirmation renforcée de la sélection" : "Désinstaller la sélection",
             string.Join("\n", preview.Effects) + "\nRisque maximal : " + preview.RiskLevel +
-            "\nLes assistants officiels peuvent retirer des données locales. Sauvegardez vos profils et projets. Aucun reste ne sera supprimé par Virgil.").ConfigureAwait(true)) return;
+            "\nLes assistants officiels peuvent retirer des données locales. Sauvegardez vos profils et projets. Aucun reste ne sera supprimé par Virgil.").ConfigureAwait(true))
+        { ReportUninstallCancelled("Désinstallation de la sélection annulée. Aucun désinstalleur lancé."); return; }
         ConfirmedPlan plan;
         try { plan = _confirmationService.Issue(preview, new ConfirmationConsent(reinforced ? ConfirmationLevel.Reinforced : ConfirmationLevel.Simple, null)); }
         catch (ConfirmationRefusedException) { ReportUninstallCancelled("Confirmation de la sélection refusée."); return; }
@@ -429,7 +437,9 @@ public partial class ApplicationsViewModel : ObservableObject
             { ExplicitlyConfirmed = true, ReinforcedConfirmed = reinforced, Source = "ApplicationsBatchPreview" },
                 progress, _operationCancellation!.Token, _ => { var skip = _skipNext; _skipNext = false; return skip; }).ConfigureAwait(true);
             foreach (var result in _batchResults) await PersistReportAsync(ApplicationReportMapper.FromUninstall(result));
-            StatusText = "Parcours de désinstallation terminé. Rapport disponible.";
+            StatusText = selected.Any(app => app.UninstallKind == ApplicationUninstallKind.Steam)
+                ? string.Join("\n", _batchResults.Select(result => result.Application.DisplayName + " : " + result.Result))
+                : "Parcours de désinstallation terminé. Rapport disponible.";
             VirgilMessageRequested?.Invoke(StatusText);
             ShowReport();
         }
@@ -538,6 +548,7 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Emplacement : {Empty(application.InstallLocation)}",
             $"Risque : {RiskLabel(application.RiskLevel)}",
             $"Raison : {application.RiskReason}",
+            $"Méthode : {UninstallMethodLabel(application.UninstallKind)}",
             $"Statut : {application.Status}"
         });
         DetailsCommand = application.UninstallKind switch
@@ -810,6 +821,7 @@ public partial class ApplicationsViewModel : ObservableObject
         return kind switch
         {
             ApplicationUninstallKind.Msi => "MSI officiel",
+            ApplicationUninstallKind.Steam => "Steam officiel",
             ApplicationUninstallKind.RegistryUninstallString => "désinstalleur officiel",
             ApplicationUninstallKind.RegistryQuietUninstallString => "désinstalleur officiel silencieux",
             ApplicationUninstallKind.Winget => "WinGet exact",

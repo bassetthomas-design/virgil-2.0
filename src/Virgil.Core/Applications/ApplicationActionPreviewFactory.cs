@@ -23,7 +23,9 @@ public static class ApplicationActionPreviewFactory
 
         return new ActionPreview("applications.uninstall", application.DisplayName,
             application.RiskLevel.ToRiskLevel(), [application.Id, application.DisplayName], parameters,
-            ["Lancement du désinstalleur officiel valide.", "Analyse lecture seule des restes."],
+            [plan.Method == ApplicationUninstallKind.Steam
+                ? "Steam officiel : " + plan.Validation.Executable
+                : "Lancement du désinstalleur officiel valide.", "Analyse lecture seule des restes."],
             false, false, Reversibility.None, []);
     }
 }

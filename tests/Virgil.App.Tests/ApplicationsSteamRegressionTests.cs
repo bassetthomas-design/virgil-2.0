@@ -10,6 +10,44 @@ public sealed class ApplicationsSteamRegressionTests
     private const string Protected = "Application protégée. Virgil ne désinstalle pas les composants système, pilotes ni outils de sécurité.";
     private const string Invalid = "Commande de désinstallation officielle invalide ou manquante. Virgil ne lance que les désinstalleurs officiels (Steam, MSI, WinGet, exécutable d'uninstall).";
 
+    [Fact]
+    public void MergedFailureLabelIsAbsentFromViewModel()
+    {
+        var path = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "src", "Virgil.App", "ViewModels", "ApplicationsViewModel.cs");
+        Assert.DoesNotContain("Sélection vide, protégée ou commande officielle invalide.", File.ReadAllText(path));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SteamDetailsShowOfficialMethodAndRequireConsent(bool consent)
+    {
+        var f = new ApplicationsViewModelTests.Fixture();
+        f.Inventory.Report = new() { Applications = [new()
+        {
+            Id = "steam", DisplayName = "Jeu Steam", IsGame = true, CanUninstall = true,
+            RiskLevel = ApplicationRiskLevel.SafeToUninstall, UninstallKind = ApplicationUninstallKind.Steam,
+            UninstallCommand = "steam://uninstall/2221490"
+        }] };
+        await f.Analyze();
+        f.OpenDetails();
+        Assert.Contains("Steam officiel", f.Vm.DetailsBody);
+        Assert.Equal("steam://uninstall/2221490", f.Vm.DetailsCommand);
+        f.Dialog.Answers.Enqueue(consent);
+        await f.Launch();
+        Assert.Contains("Steam officiel", Assert.Single(f.Dialog.Calls).Message);
+        if (consent)
+        {
+            Assert.Equal("steam://uninstall/2221490", Assert.Single(f.Runner.Requests).FileName);
+            Assert.Contains("Steam a été ouvert", f.Vm.StatusText);
+        }
+        else
+        {
+            Assert.Empty(f.Runner.Requests);
+            Assert.Equal("Désinstallation annulée.", f.Vm.StatusText);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -25,7 +25,8 @@ public enum ApplicationUninstallKind
     Winget,
     StoreSettings,
     Unknown,
-    StorePackage
+    StorePackage,
+    Steam
 }
 
 public enum ApplicationRiskLevel

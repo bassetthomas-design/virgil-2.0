@@ -2,6 +2,7 @@ using Virgil.Contracts.Actions;
 using Virgil.Contracts.Applications;
 using Virgil.Core.Actions;
 using Virgil.Core.Applications;
+using Virgil.Core.Processes;
 using Xunit;
 
 namespace Virgil.Tests;
@@ -49,6 +50,9 @@ public sealed class ApplicationsSteamRegressionTests
     [InlineData("steam://uninstall/2221490?run=calc.exe")]
     [InlineData("steam://uninstall/2221490#fragment")]
     [InlineData("steam://uninstall/%32%32%32%31%34%39%30")]
+    [InlineData("steam://uninstall/4294967296")]
+    [InlineData("steam://uninstall/٢٢٢١٤٩٠")]
+    [InlineData("steam://uninstall/2221490\ncalc.exe")]
     public void InvalidSteamUriIsBlocked(string command)
     {
         var validation = new ApplicationUninstallCommandValidator().Validate(Game() with { UninstallCommand = command });
@@ -107,6 +111,72 @@ public sealed class ApplicationsSteamRegressionTests
 
     private static ApplicationUninstallService Service(Launcher launcher, ConfirmationService confirmations) =>
         new(new(), launcher, new(), confirmations);
+
+    [Fact]
+    public void SteamKindCannotDisguiseAnotherCommandOrBypassProtection()
+    {
+        var validator = new ApplicationUninstallCommandValidator();
+        Assert.Equal(ApplicationCommandValidationStatus.Blocked, validator.Validate(Game() with
+        { UninstallCommand = "msiexec.exe /x {11111111-2222-3333-4444-555555555555}" }).Status);
+        Assert.Equal(ApplicationCommandValidationStatus.Blocked, validator.Validate(Game() with
+        { IsSystemComponent = true }).Status);
+        Assert.Equal(ApplicationCommandValidationStatus.Blocked, validator.Validate(Game() with
+        { RiskLevel = ApplicationRiskLevel.Protected }).Status);
+    }
+
+    [Fact]
+    public async Task CautionSteamKeepsReinforcedConfirmationAndCannotReplayPlan()
+    {
+        var launcher = new Launcher();
+        var confirmations = new ConfirmationService(TimeProvider.System);
+        var service = Service(launcher, confirmations);
+        var app = new ApplicationRiskClassifier().Classify(Game() with { Publisher = "Steam Studio" });
+        var plan = service.BuildPlan(app);
+        Assert.Equal(ApplicationCommandValidationStatus.NeedsCaution, plan.Validation.Status);
+        Assert.True(plan.RequiresReinforcedConfirmation);
+        var confirmed = confirmations.Issue(ApplicationActionPreviewFactory.Create(plan), new(ConfirmationLevel.Reinforced, null));
+        var refused = await service.LaunchOfficialUninstallAsync(app, confirmed,
+            new() { ExplicitlyConfirmed = true }, null, CancellationToken.None);
+        Assert.False(refused.WasLaunched);
+        Assert.Equal(0, launcher.Calls);
+        var confirmation = new ApplicationUninstallConfirmation { ExplicitlyConfirmed = true, ReinforcedConfirmed = true };
+        Assert.True((await service.LaunchOfficialUninstallAsync(app, confirmed, confirmation, null, CancellationToken.None)).WasLaunched);
+        Assert.False((await service.LaunchOfficialUninstallAsync(app, confirmed, confirmation, null, CancellationToken.None)).WasLaunched);
+        Assert.Equal(1, launcher.Calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProtocolFailureIsReadableAndSteamRequestDoesNotWaitForClientExit(bool throws)
+    {
+        var runner = new ProtocolRunner(throws);
+        var confirmations = new ConfirmationService(TimeProvider.System);
+        var service = new ApplicationUninstallService(new(), new ShellApplicationProcessLauncher(runner), new(), confirmations);
+        var confirmed = confirmations.Issue(ApplicationActionPreviewFactory.Create(service.BuildPlan(Game())), new(ConfirmationLevel.Simple, null));
+        var result = await service.LaunchOfficialUninstallAsync(Game(), confirmed,
+            new() { ExplicitlyConfirmed = true }, null, CancellationToken.None);
+        Assert.False(result.WasLaunched);
+        Assert.Contains("Steam n’a pas pu être ouvert", result.Result);
+        Assert.DoesNotContain("exception technique", result.Result);
+        var request = Assert.Single(runner.Requests);
+        Assert.Equal(Uri, request.FileName);
+        Assert.Empty(request.Arguments);
+        Assert.True(request.UseShellExecute);
+        Assert.False(request.WaitForExit);
+    }
+
+    private sealed class ProtocolRunner(bool throws) : IProcessRunner
+    {
+        public List<ProcessLaunchRequest> Requests { get; } = [];
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken token) => throw new NotSupportedException();
+        public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken token)
+        {
+            Requests.Add(request);
+            if (throws) throw new InvalidOperationException("exception technique");
+            return Task.FromResult(new ProcessLaunchResult(false, null, "exception technique"));
+        }
+    }
 
     private sealed class Launcher : IApplicationProcessLauncher
     {

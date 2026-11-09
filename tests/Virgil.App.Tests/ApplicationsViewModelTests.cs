@@ -245,7 +245,7 @@ public sealed class ApplicationsViewModelTests
         Assert.True(f.Vm.TryCloseOverlay());
         Assert.False(f.Vm.IsDetailsOpen);
         await f.Launch();
-        Assert.Contains("Aucune application sélectionnée.\nOuvrez les détails d'une application avant de lancer une action.", f.Messages);
+        Assert.Contains("Aucune application sélectionnée. Cochez au moins une application ou un jeu, ou ouvrez ses détails.", f.Messages);
         Assert.Empty(f.Dialog.Calls);
         Assert.Empty(f.Runner.Requests);
         Assert.False(f.Vm.TryCloseOverlay());
