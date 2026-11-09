@@ -133,20 +133,20 @@ public partial class UpdatesViewModel
                 {
                     lock (sequenceProgressLock)
                     {
-                    if (!acceptingProgress || !ReferenceEquals(sequenceCancellation, _operationCancellation) || !Operation.IsRunning || Operation.IsCancelling) return;
-                    Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
-                    SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
-                    StatusText = SequenceStepText;
-                    Operation.Commentary = progress.Status;
-                    // Une phase technique sans étape correspondante reste du texte courant.
-                    var confirmed = progress.StepId is not null && progress.Component is not null
-                        ? _confirmedSequenceSteps.FirstOrDefault(step => step.Id == progress.StepId && step.Component == progress.Component)
-                        : _confirmedSequenceSteps.Where(step => !step.IsInformational).ElementAtOrDefault(progress.Current - 1);
-                    if (confirmed is null || !string.Equals(confirmed.Title, progress.Title, StringComparison.Ordinal)) return;
-                    var key = SequenceStepKey(confirmed);
-                    if (_sequenceProgressIndices.TryGetValue(key, out var index)) SequenceProgress[index] = SequenceStepText;
-                    else { _sequenceProgressIndices.Add(key, SequenceProgress.Count); SequenceProgress.Add(SequenceStepText); }
-                    Operation.SetStep(key, confirmed.Title, "En cours", progress.Status);
+                        if (!acceptingProgress || !ReferenceEquals(sequenceCancellation, _operationCancellation) || !Operation.IsRunning || Operation.IsCancelling) return;
+                        Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
+                        SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
+                        StatusText = SequenceStepText;
+                        Operation.Commentary = progress.Status;
+                        // Une phase technique sans étape correspondante reste du texte courant.
+                        var confirmed = progress.StepId is not null && progress.Component is not null
+                            ? _confirmedSequenceSteps.FirstOrDefault(step => step.Id == progress.StepId && step.Component == progress.Component)
+                            : _confirmedSequenceSteps.Where(step => !step.IsInformational).ElementAtOrDefault(progress.Current - 1);
+                        if (confirmed is null || !string.Equals(confirmed.Title, progress.Title, StringComparison.Ordinal)) return;
+                        var key = SequenceStepKey(confirmed);
+                        if (_sequenceProgressIndices.TryGetValue(key, out var index)) SequenceProgress[index] = SequenceStepText;
+                        else { _sequenceProgressIndices.Add(key, SequenceProgress.Count); SequenceProgress.Add(SequenceStepText); }
+                        Operation.SetStep(key, confirmed.Title, "En cours", progress.Status);
                     }
                 }), _operationCancellation.Token);
             lock (sequenceProgressLock) acceptingProgress = false;
@@ -171,7 +171,7 @@ public partial class UpdatesViewModel
                 var check = checks.FirstOrDefault(check => check.Component == SourceComponent(step.Step.Component));
                 var status = check?.Status ?? SequenceResultStatus(step);
                 if (step.Step.Component == UpdateComponent.Winget && step.Succeeded && check?.Status == "en erreur"
-                    && check.Detail.Contains("aucun reste", StringComparison.Ordinal)) status = "mis à jour";
+                    && check.HasRemaining == false) status = "mis à jour";
                 if (step.Message.StartsWith("Non lancée", StringComparison.Ordinal)) status = "Non lancée";
                 else if (!step.Succeeded && !step.WasUnavailable && !step.WasSkipped) status = "en erreur";
                 else if (step.WasUnavailable && result.Verifications.Count == 0) status = "Source indisponible";
@@ -268,6 +268,8 @@ public partial class UpdatesViewModel
                     : scan.Items.Any(item => item.Status == UpdateItemStatus.Available)
                         ? new(UpdateComponent.Winget, "bloquée", "Contrôle final : reste applicatif détecté.")
                         : new(UpdateComponent.Winget, "à jour", "Contrôle final : aucun reste applicatif détecté.");
+                if (scan.Winget.IsAvailable && scan.Errors.Count == 0)
+                    check = check with { HasRemaining = scan.Items.Any(item => item.Status == UpdateItemStatus.Available) };
             }
             catch { check = new(UpdateComponent.Winget, "indisponible", "Contrôle final WinGet indisponible ou délai dépassé."); }
             checks.RemoveAll(value => value.Component == UpdateComponent.Winget);
@@ -280,8 +282,8 @@ public partial class UpdatesViewModel
                 ?? new(component, "indisponible", "Contrôle final non disponible pour cette source.");
             if (outcomes.Any(step => step.WasUnavailable)) check = new(component, "indisponible", check.Detail);
             else if (outcomes.Any(step => !step.Succeeded && !step.WasSkipped))
-                check = new(component, check.Status == "bloquée" ? "bloquée" : "en erreur", check.Detail + " "
-                    + string.Join(" ", outcomes.Where(step => !step.Succeeded).Select(step => DisplaySequenceText(step.Message))));
+                check = check with { Status = check.Status == "bloquée" ? "bloquée" : "en erreur", Detail = check.Detail + " "
+                    + string.Join(" ", outcomes.Where(step => !step.Succeeded).Select(step => DisplaySequenceText(step.Message))) };
             if (_confirmedSequenceSteps.Where(step => SourceComponent(step.Component) == component).Any(step =>
                 !outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)
                 || outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Message.StartsWith("Non lancée", StringComparison.Ordinal))))

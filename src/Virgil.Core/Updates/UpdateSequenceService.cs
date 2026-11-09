@@ -17,6 +17,7 @@ public sealed record UpdateSequenceProgress(int Current, int Total, string Title
 }
 public sealed record UpdateSourceVerification(UpdateComponent Component, string Status, string Detail)
 {
+    public bool? HasRemaining { get; init; }
     public bool IsCurrent => Status is "à jour" or "mis à jour";
 }
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
