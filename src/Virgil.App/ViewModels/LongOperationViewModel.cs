@@ -26,8 +26,10 @@ public sealed partial class LongOperationViewModel : ObservableObject
     [ObservableProperty] private double percent;
     [ObservableProperty] private bool isIndeterminate = true;
     [ObservableProperty] private string timing = string.Empty;
-    [ObservableProperty] private string finalSummary = string.Empty;
-    [ObservableProperty] private string commentary = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string finalSummary = string.Empty;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string commentary = string.Empty;
+    public bool HasDistinctCommentary => !string.IsNullOrWhiteSpace(Commentary)
+        && !FinalSummary.Contains(Commentary, StringComparison.Ordinal);
     public ObservableCollection<OperationStepViewModel> Steps { get; } = new();
 
     public void SetStep(string key, string title, string status, string detail = "")
@@ -84,11 +86,13 @@ public sealed partial class LongOperationViewModel : ObservableObject
             TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
     }
     public void Report(OperationProgress progress) => _progress?.Report(progress);
-    public void Complete(string result)
+    public void Complete(string result, bool wasCancelled = false)
     {
         _timer?.Dispose(); _timer = null; _progress?.Dispose(); _progress = null;
+        var cancelled = IsCancelling || wasCancelled;
+        if (!cancelled) { Percent = 100; IsIndeterminate = false; }
         foreach (var item in Steps.Where(item => item.Status == "En cours"))
-            item.Status = IsCancelling ? "Annulée" : "Terminée";
+            item.Status = cancelled ? "Annulée" : "Terminée";
         IsRunning = false; IsVisible = true; Step = result; FinalSummary = result; UpdateTiming();
     }
     private void Dispatch(Action action)

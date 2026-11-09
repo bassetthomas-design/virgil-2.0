@@ -24,6 +24,7 @@ public partial class UpdatesViewModel
     public ObservableCollection<string> SequenceProgress { get; } = new();
     private readonly Dictionary<string, int> _sequenceProgressIndices = new(StringComparer.Ordinal);
     private string? _sequenceFinalSummary;
+    private bool _sequenceWasCancelled;
     [ObservableProperty] private bool isSequencePreview;
     [ObservableProperty] private bool isRunAllEnabled;
     [ObservableProperty] private string sequenceStepText = "Aucune séquence en cours.";
@@ -75,6 +76,7 @@ public partial class UpdatesViewModel
         SequenceProgress.Clear();
         _sequenceProgressIndices.Clear();
         _sequenceFinalSummary = null;
+        _sequenceWasCancelled = false;
         Operation.Commentary = "Préparation des catégories de mises à jour…";
         RebootRequired = false;
         try
@@ -139,6 +141,7 @@ public partial class UpdatesViewModel
                     Operation.Commentary = progress.Status;
                 }), _operationCancellation.Token);
             acceptingProgress = false;
+            _sequenceWasCancelled = result.WasCancelled;
             RebootRequired = result.RebootRequired;
             StatusText = result.Message;
             SequenceStepText = result.Message;
@@ -173,6 +176,7 @@ public partial class UpdatesViewModel
         }
         catch (OperationCanceledException)
         {
+            _sequenceWasCancelled = true;
             StatusText = "Séquence annulée. Les étapes suivantes n’ont pas été lancées.";
             SequenceStepText = StatusText;
         }

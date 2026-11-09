@@ -547,7 +547,7 @@ public partial class ApplicationsViewModel : ObservableObject
             $"Architecture : {ArchitectureLabel(application.Architecture)}",
             $"Emplacement : {Empty(application.InstallLocation)}",
             $"Risque : {RiskLabel(application.RiskLevel)}",
-            $"Raison : {application.RiskReason}",
+            $"Raison : {(string.IsNullOrWhiteSpace(application.RiskReason) ? "non renseignée" : application.RiskReason)}",
             $"Méthode : {UninstallMethodLabel(application.UninstallKind)}",
             $"Statut : {StatusLabel(application.Status)}"
         });

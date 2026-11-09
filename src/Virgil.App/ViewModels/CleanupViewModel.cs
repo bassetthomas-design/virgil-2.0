@@ -418,14 +418,14 @@ public partial class CleanupViewModel : ObservableObject
             CompleteSessionState(_lastReport);
             foreach (var result in _lastReport.Results)
                 Operation.SetStep(result.Zone.Id.ToString(), result.Zone.DisplayName, CleanupResultStatus(result.Status),
-                    $"{result.QuarantinedFiles} fichiers en quarantaine ; {result.SkippedFiles + result.ErrorFiles} non traités.");
+                    $"{FileCount(result.QuarantinedFiles)} en quarantaine ; {result.SkippedFiles + result.ErrorFiles} non traités.");
             foreach (var zone in selected.Where(zone => !_lastReport.Results.Any(result => result.Zone.Id == zone.Definition.Id)))
                 Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Non lancée", "Aucun résultat confirmé pour cette zone.");
             StatusText = (IsCancellationReport(_lastReport) ? "Nettoyage interrompu." : HasBlockingFailure(_lastReport) ? "Nettoyage terminé avec erreurs." : "Nettoyage terminé.")
                 + $"\n{_lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones traitées. " + StatusText
                 + $"\n{selected.Count - _lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones non terminées ; {_lastReport.ErrorFiles} fichiers en erreur. Fichiers hors sélection et racines conservés.";
             AnnounceSessionEnd(_lastReport);
-            EndOperation();
+            EndOperation(IsCancellationReport(_lastReport));
             ShowReport();
         }
     }
@@ -462,8 +462,9 @@ public partial class CleanupViewModel : ObservableObject
         return true;
     }
 
-    private void EndOperation()
+    private void EndOperation(bool wasCancelled = false)
     {
+        var cancelled = wasCancelled || _operationCancellation?.IsCancellationRequested == true;
         _operationProgress?.Dispose();
         _operationProgress = null;
         _operationInProgress = false;
@@ -471,7 +472,7 @@ public partial class CleanupViewModel : ObservableObject
         _operationCancellation?.Dispose();
         _operationCancellation = null;
         IsBusy = false;
-        Operation.Complete(StatusText);
+        Operation.Complete(StatusText, cancelled);
         SetButtonsEnabled(true);
         UpdateCommandState();
     }
@@ -692,7 +693,7 @@ public partial class CleanupViewModel : ObservableObject
 
     private void CompleteSessionState(CleanupSessionReport report)
     {
-        StatusText = $"Rapport prêt : {report.QuarantinedFiles} fichiers en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
+        StatusText = $"Rapport prêt : {FileCount(report.QuarantinedFiles)} en quarantaine ({FormatBytes(report.QuarantinedBytes)}), corbeille : {FormatBytes(report.DeletedBytes)} libérés.";
 
         if (IsCancellationReport(report))
         {
@@ -803,6 +804,8 @@ public partial class CleanupViewModel : ObservableObject
             CleanupStepStatus.Expired or
             CleanupStepStatus.Failed);
     }
+
+    private static string FileCount(int count) => $"{count} {(count == 1 ? "fichier" : "fichiers")}";
 
     private static bool IsCancellationReport(CleanupSessionReport report)
     {
