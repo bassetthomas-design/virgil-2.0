@@ -15,9 +15,11 @@ public sealed class L6PlusSequenceTests
         var service = new UpdateSequenceService(backend, new ConfirmationService(TimeProvider.System));
         var steps = await service.ScanAsync([], CancellationToken.None);
         Assert.Empty(backend.Executed);
-        var source = File.ReadAllText(Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "src", "Virgil.Infrastructure", "Windows", "WindowsUpdateSequenceBackend.cs"));
-        Assert.DoesNotContain("Microsoft.Update.Session", source);
-        Assert.DoesNotContain(".Search(", source);
+        service.CreatePreview(steps);
+        Assert.Empty(backend.Verified);
+        Assert.True((await service.ExecuteAsync(steps, null, null, CancellationToken.None)).WasRefused);
+        Assert.Empty(backend.Verified);
+        Assert.Empty(backend.Executed);
         Assert.Equal(new[] { "restore", "defender", "microsoft-update", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, steps.Select(step => step.Id));
     }
 
@@ -37,6 +39,9 @@ public sealed class L6PlusSequenceTests
     private sealed class Backend : IUpdateSequenceBackend
     {
         public List<UpdateSequenceStep> Executed { get; } = [];
+        public List<UpdateComponent> Verified { get; } = [];
+        public Task<UpdateSourceVerification> VerifyAsync(UpdateComponent component, CancellationToken token)
+        { Verified.Add(component); throw new InvalidOperationException("Aucun contrôle final avant confirmation."); }
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) { Executed.Add(step); throw new InvalidOperationException(); }
     }
 }
