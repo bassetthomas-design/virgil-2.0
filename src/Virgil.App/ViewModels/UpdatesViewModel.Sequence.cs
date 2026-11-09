@@ -175,14 +175,16 @@ public partial class UpdatesViewModel
                 if (step.Message.StartsWith("Non lancée", StringComparison.Ordinal)) status = "Non lancée";
                 else if (!step.Succeeded && !step.WasUnavailable && !step.WasSkipped) status = "en erreur";
                 else if (step.WasUnavailable && result.Verifications.Count == 0) status = "Source indisponible";
-                var detail = DisplaySequenceText(step.Message) + (check is null || (result.Verifications.Count == 0 && check.Component != UpdateComponent.Winget)
+                var detail = (step.Step.Component == UpdateComponent.Winget ? $"Identité : {step.Step.Id}\n" : string.Empty)
+                    + DisplaySequenceText(step.Message) + (check is null || check.Status == "bloquée" || !step.Succeeded || step.WasUnavailable || step.WasSkipped
+                        || (result.Verifications.Count == 0 && check.Component != UpdateComponent.Winget)
                     ? string.Empty : step.Step.Component == UpdateComponent.Winget
                         ? "\nContrôle final de la source : " + check.Status + "." : "\n" + check.Detail);
                 Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
                 && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
-                Operation.SetStep(SequenceStepKey(step), step.Title, "Non lancée", "Aucun résultat confirmé.");
+                Operation.SetStep(SequenceStepKey(step), step.Title, "Non lancée", $"Aucun résultat confirmé. Identité : {step.Id}.");
             _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + check.Detail))
                 + "\n" + (RebootRequired == result.RebootRequired
                     ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message

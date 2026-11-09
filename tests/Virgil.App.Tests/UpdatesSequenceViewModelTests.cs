@@ -65,6 +65,38 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.NotEqual(f.Vm.Operation.FinalSummary, f.Vm.Operation.Commentary);
     }
 
+    [Fact]
+    public async Task D1_missing_result_keeps_application_identity_without_claiming_success()
+    {
+        var f = new Fixture(scan: new D1Scan(), wrap: service => new D1OmittedResultSequence(service));
+        f.Backend.Reboot = false;
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Winget;
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        var completed = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Winget:app-a");
+        var missing = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Winget:app-b");
+        Assert.Contains("app-a", completed.Detail);
+        Assert.Contains("app-b", missing.Detail);
+        Assert.DoesNotContain("app-b", completed.Detail);
+        Assert.DoesNotContain("app-a", missing.Detail);
+        Assert.Equal("Non lancée", missing.Status);
+        Assert.Contains("Aucun résultat confirmé", missing.Detail);
+        AssertNoD1PositiveConclusion(f);
+    }
+
+    private sealed class D1OmittedResultSequence(IUpdateSequenceService service) : IUpdateSequenceService
+    {
+        public Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken token) => service.ScanAsync(apps, token);
+        public Virgil.Contracts.Actions.ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected) => service.CreatePreview(selected);
+        public async Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan,
+            IProgress<UpdateSequenceProgress>? progress, CancellationToken token)
+        {
+            var result = await service.ExecuteAsync(selected, plan, progress, token);
+            return result with { Steps = result.Steps.Where(step => step.Step.Id != "app-b").ToArray() };
+        }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -82,6 +114,7 @@ public sealed class UpdatesSequenceViewModelTests
         await pending;
         AssertNoD1PositiveConclusion(f);
         var store = Assert.Single(f.Vm.Operation.Steps, step => step.Title.Contains("Store", StringComparison.Ordinal));
+        Assert.Equal(unavailable ? "Source indisponible." : "Scan Store lancé.", store.Detail);
         Assert.Contains(store.Status, new[] { "bloquée", "indisponible", "redémarrage nécessaire", "en erreur" });
         Assert.Contains("Store", f.Vm.Operation.FinalSummary);
         if (unavailable) Assert.Contains("indisponible", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
