@@ -98,8 +98,10 @@ public sealed class LongOperationLotCWpfTests
 
     private static async Task Capture(FrameworkElement view, string name, Action? assertions = null)
     {
-        var window = new Window { Content = view, Width = 1600, Height = 1000, ShowInTaskbar = false,
-            Background = (Brush)Application.Current.FindResource("App.BackgroundBrush") };
+        var host = new Border { Child = view, Background = (Brush)Application.Current.FindResource("App.BackgroundBrush") };
+        if (view is OperationProgressPanel) view.VerticalAlignment = VerticalAlignment.Top;
+        var window = new Window { Content = host, Width = 1600, Height = 1000, ShowInTaskbar = false,
+            Background = host.Background };
         try
         {
             window.Show();
@@ -110,8 +112,8 @@ public sealed class LongOperationLotCWpfTests
             Assert.True(view.IsVisible);
             var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-c");
             Directory.CreateDirectory(directory);
-            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(view.ActualWidth), (int)Math.Ceiling(view.ActualHeight), 96, 96, PixelFormats.Pbgra32);
-            bitmap.Render(view);
+            var bitmap = new RenderTargetBitmap((int)Math.Ceiling(host.ActualWidth), (int)Math.Ceiling(host.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(host);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var file = File.Create(Path.Combine(directory, name));

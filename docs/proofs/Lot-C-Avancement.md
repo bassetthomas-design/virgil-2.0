@@ -13,7 +13,14 @@ Build réussi, 0 avertissement, 0 erreur. App : 600 tests, 598 réussites, 2 éc
 `DeterminateProgressCancellationAndFinalResultRemainVisible` échoue car `IsVisible` vaut false.
 Ce sont des échecs d'assertion reproduisant les défauts de production, sans panne de compilation ou d'environnement.
 
-Run du correctif : en attente de validation Windows ; aucun résultat vert revendiqué à ce stade.
+Run Windows vert du correctif : https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42596613599.
+Head : `bc4972704fe40e3564eac008ced607f074bf16ed` ; checkout de fusion technique CI : `14fafa70ac9a6742314829bff74ca54f1471081b`.
+Build : 0 avertissement, 0 erreur. Core : 1148/1148 ; App : 606/606 ; UI : 14/14.
+Publication de l'application et création de l'installateur réussies.
+Artefact UI de ce run : `13663548163` (`Virgil-ui-smoke`). Les trois tests de capture lot C ont réussi.
+Un commit de finition ajoute un fond opaque aux captures, aligne le bouton Annuler en haut et refuse aussi
+les notifications d'une ancienne session de séquence. La CI du head final est référencée dans la PR ;
+les résultats ci-dessus restent attribués au head `bc497270…`, sans les transposer au commit suivant.
 
 ## Comportement et vérification
 
@@ -43,7 +50,7 @@ Les moteurs de confirmation et de quarantaine ainsi que les workflows sont incha
 
 ## Preuves UI et limites
 
-Les trois PNG sont produits par les tests STA/WPF sur des services factices, dans le run du correctif :
+Les trois PNG sont régénérés par les tests STA/WPF sur des services factices à chaque run du correctif :
 
 - `artifacts/ui-smoke/lot-c/mises-a-jour-avancement.png` : panneau final de deux sources factices, dont une bloquée, redémarrage requis ;
 - `artifacts/ui-smoke/lot-c/nettoyage-avancement.png` : bilan de deux zones factices, aucune action sur des fichiers réels ;

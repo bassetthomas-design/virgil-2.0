@@ -124,10 +124,11 @@ public partial class UpdatesViewModel
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational))
                 Operation.SetStep(step.Title, step.Title, "Non lancée");
             var acceptingProgress = true;
+            var sequenceCancellation = _operationCancellation;
             var result = await _sequenceService.ExecuteAsync(_confirmedSequenceSteps.Concat(Array.Empty<UpdateSequenceStep>()).ToArray(), plan,
                 new Progress<UpdateSequenceProgress>(progress =>
                 {
-                    if (!acceptingProgress || !Operation.IsRunning || Operation.IsCancelling) return;
+                    if (!acceptingProgress || !ReferenceEquals(sequenceCancellation, _operationCancellation) || !Operation.IsRunning || Operation.IsCancelling) return;
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
                     SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
                     StatusText = SequenceStepText;

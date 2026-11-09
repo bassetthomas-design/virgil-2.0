@@ -22,6 +22,6 @@
     <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsRunning}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
    </Button>
   </StackPanel>
-  <Button Grid.Column="1" Content="Annuler" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" AutomationProperties.AutomationId="{Binding CancelAutomationId, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="12,0,0,0" Padding="12,6"/>
+  <Button Grid.Column="1" Content="Annuler" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" VerticalAlignment="Top" AutomationProperties.AutomationId="{Binding CancelAutomationId, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="12,0,0,0" Padding="12,6"/>
  </Grid>
 </UserControl>
