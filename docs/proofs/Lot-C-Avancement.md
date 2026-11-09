@@ -127,4 +127,15 @@ Microsoft Update et Windows en échec, aucune installation Windows lancée. Le s
 le moteur de quarantaine et les workflows ne sont pas modifiés ; aucune logique D1/D2 n'est ajoutée.
 
 Le rendu STA factice `mises-a-jour-preparation-bloquee.png` s'ajoute aux trois captures lot C existantes,
-toutes régénérées dans le run du correctif. Validation verte de cette contre-expertise : en attente Windows.
+toutes régénérées dans le run du correctif.
+
+Validation verte de cette contre-expertise : https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42601600073,
+head `a836dcc194590dd93454067bc1e9dbecb7d9d8b8`.
+Build : 0 avertissement, 0 erreur ; Core : 1148/1148 ; App : 622/622 ; UI : 14/14.
+Les quatre cas reproduits au rouge, le test du vrai service et le rendu STA de préparation bloquée passent.
+Publication et installateur réussis. Artefact `Virgil-ui-smoke` :
+https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42601600073/artifacts/13665328936,
+SHA-256 ZIP `1013e7c894d1a7c9f45be449de79185f4a0273ed56c033d4325799a462610ad9`.
+Le commit documentaire suivant consigne ce résultat sans modifier le code ; sa CI finale et son artefact
+régénéré sont référencés dans la PR. La revue visuelle des nouveaux rendus STA factices et la relecture du
+head exact restent à effectuer par loops (relecture), sans feu vert présumé.
