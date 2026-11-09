@@ -56,7 +56,7 @@ public sealed class ApplicationRiskClassifier
             return WithRisk(application, ApplicationRiskLevel.Caution, "Application pouvant contenir profils, projets, presets, bibliothèques ou sauvegardes.", true);
         }
 
-        if (ContainsAny(text, SafeTerms) || application.UninstallKind is ApplicationUninstallKind.Msi or ApplicationUninstallKind.RegistryUninstallString or ApplicationUninstallKind.Winget)
+        if (ContainsAny(text, SafeTerms) || application.UninstallKind is ApplicationUninstallKind.Msi or ApplicationUninstallKind.RegistryUninstallString or ApplicationUninstallKind.Winget or ApplicationUninstallKind.Steam)
         {
             return WithRisk(application, ApplicationRiskLevel.SafeToUninstall, "Application utilisateur avec désinstalleur officiel identifiable.", true);
         }

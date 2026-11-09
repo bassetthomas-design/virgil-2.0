@@ -65,6 +65,13 @@ public sealed partial class ApplicationUninstallCommandValidator
             return Blocked("Commande touchant un profil utilisateur bloquée.");
         }
 
+        if (kind == ApplicationUninstallKind.Steam || lower.StartsWith("steam:"))
+        {
+            return IsOfficialSteamUninstallUri(normalized)
+                ? WithExecutable(risk, "Commande Steam officielle validée.", normalized, [])
+                : Blocked("Commande Steam officielle invalide.");
+        }
+
         if (LooksLikeMsiexec(normalized))
         {
             var args = Tokenize(normalized).Skip(1).ToList();
@@ -127,6 +134,15 @@ public sealed partial class ApplicationUninstallCommandValidator
             Executable = "winget",
             Arguments = ["uninstall", "--id", packageId, "--exact"]
         };
+    }
+
+    public static bool IsOfficialSteamUninstallUri(string? command)
+    {
+        const string prefix = "steam://uninstall/";
+        return command is not null && command.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            command.Length > prefix.Length && command[prefix.Length..].All(c => c is >= '0' and <= '9') &&
+            uint.TryParse(command[prefix.Length..], System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var appId) && appId > 0;
     }
 
     private static ApplicationCommandValidationResult WithExecutable(

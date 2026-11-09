@@ -65,14 +65,15 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
         }
 
         var productCode = TryExtractProductCode(entry);
-        var uninstallKind = !string.IsNullOrWhiteSpace(productCode)
+        var steam = ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(entry.UninstallString?.Trim());
+        var uninstallKind = steam ? ApplicationUninstallKind.Steam : !string.IsNullOrWhiteSpace(productCode)
             ? ApplicationUninstallKind.Msi
             : !string.IsNullOrWhiteSpace(entry.UninstallString)
                 ? ApplicationUninstallKind.RegistryUninstallString
                 : !string.IsNullOrWhiteSpace(entry.QuietUninstallString)
                     ? ApplicationUninstallKind.RegistryQuietUninstallString
                     : ApplicationUninstallKind.None;
-        var command = !string.IsNullOrWhiteSpace(productCode)
+        var command = steam ? entry.UninstallString!.Trim() : !string.IsNullOrWhiteSpace(productCode)
             ? $"msiexec.exe /x {productCode}"
             : entry.UninstallString;
 

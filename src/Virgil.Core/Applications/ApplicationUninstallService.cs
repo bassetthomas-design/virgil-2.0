@@ -41,7 +41,9 @@ public sealed class ApplicationUninstallService
         return new ApplicationUninstallPlan
         {
             Application = application,
-            Method = application.UninstallKind,
+            Method = validation.Status != ApplicationCommandValidationStatus.Blocked &&
+                ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(validation.Executable)
+                    ? ApplicationUninstallKind.Steam : application.UninstallKind,
             Validation = validation,
             RequiresCautionConfirmation = application.RiskLevel == ApplicationRiskLevel.Caution || application.UninstallKind == ApplicationUninstallKind.StorePackage
         };
@@ -71,7 +73,7 @@ public sealed class ApplicationUninstallService
             return new ApplicationUninstallResult
             {
                 Application = application,
-                Method = application.UninstallKind,
+                Method = plan.Method,
                 Result = plan.Validation.Reason,
                 Errors = [plan.Validation.Reason]
             };
@@ -83,7 +85,7 @@ public sealed class ApplicationUninstallService
             return new ApplicationUninstallResult
             {
                 Application = application,
-                Method = application.UninstallKind,
+                Method = plan.Method,
                 WasCancelled = confirmationDecision.WasCancelled,
                 WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
@@ -100,7 +102,7 @@ public sealed class ApplicationUninstallService
             return new ApplicationUninstallResult
             {
                 Application = application,
-                Method = application.UninstallKind,
+                Method = plan.Method,
                 WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
                 Result = "Exécutable officiel absent après validation.",
@@ -115,7 +117,7 @@ public sealed class ApplicationUninstallService
             return new ApplicationUninstallResult
             {
                 Application = application,
-                Method = application.UninstallKind,
+                Method = plan.Method,
                 WasCancelled = true,
                 WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
                 WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
@@ -139,13 +141,13 @@ public sealed class ApplicationUninstallService
         return new ApplicationUninstallResult
         {
             Application = application,
-            Method = application.UninstallKind,
+            Method = plan.Method,
             WasLaunched = launch.Started,
             StatusUnknown = launch.Started && launch.ExitCode is null,
             ExitCode = launch.ExitCode,
             WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
             WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-            Result = cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
+            Result = plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
                 ? "Désinstalleur officiel lancé. Statut final potentiellement géré par l'assistant externe."
                 : launch.ReadableError ?? "Désinstalleur officiel non lancé.",
             Errors = string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
@@ -199,7 +201,7 @@ public sealed class ApplicationUninstallService
                     Application = plan.Application, Method = plan.Method, WasLaunched = launch.Started,
                     ExitCode = launch.ExitCode, StatusUnknown = launch.Started && launch.ExitCode is null,
                     WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed, WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-                    Result = cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation ; éléments suivants non lancés." : launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
+                    Result = plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation ; éléments suivants non lancés." : launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
                         : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé."),
                     Errors = launch.ReadableError is null ? remnants.Errors : [launch.ReadableError], Remnants = remnants
                 });
@@ -241,6 +243,10 @@ public sealed class ApplicationUninstallService
             Status = status
         });
     }
+
+    private static string SteamLaunchMessage(bool started) => started
+        ? "Steam a été ouvert pour désinstaller ce jeu. Suivez l'assistant Steam."
+        : "Steam n’a pas pu être ouvert. Vérifiez que Steam est installé et associé aux liens Steam, puis réessayez.";
 }
 
 public sealed class ShellApplicationProcessLauncher : IApplicationProcessLauncher
@@ -262,11 +268,13 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         {
             cancellationToken.ThrowIfCancellationRequested();
             var result = await _runner.LaunchAsync(
-                new ProcessLaunchRequest(executable, arguments, useShellExecute, WaitForExit: true), cancellationToken)
+                new ProcessLaunchRequest(executable, arguments, useShellExecute,
+                    WaitForExit: !ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(executable)), cancellationToken)
                 .ConfigureAwait(false);
-            return result.LaunchError is not null
-                ? new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible à lancer.")
-                : new ApplicationLaunchResult(result.Started, result.ExitCode, null);
+            var steam = ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(executable);
+            return result.LaunchError is not null || (steam && !result.Started)
+                ? new ApplicationLaunchResult(false, null, LaunchFailureMessage(executable))
+                : new ApplicationLaunchResult(result.Started, steam ? null : result.ExitCode, null);
         }
         catch (OperationCanceledException)
         {
@@ -274,7 +282,12 @@ public sealed class ShellApplicationProcessLauncher : IApplicationProcessLaunche
         }
         catch
         {
-            return new ApplicationLaunchResult(false, null, "Désinstalleur officiel impossible à lancer.");
+            return new ApplicationLaunchResult(false, null, LaunchFailureMessage(executable));
         }
     }
+    private static string LaunchFailureMessage(string executable) =>
+        ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(executable)
+            ? "Steam n’a pas pu être ouvert. Vérifiez que Steam est installé et associé aux liens Steam, puis réessayez."
+            : "Désinstalleur officiel impossible à lancer.";
+
 }
