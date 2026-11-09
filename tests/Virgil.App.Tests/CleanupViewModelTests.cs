@@ -270,7 +270,8 @@ public sealed class CleanupViewModelTests
         var p = Preview(id) with { Definition = Preview(id).Definition with { RequiresReinforcedConfirmation = reinforced } };
         f.Previews.Items = new[] { p };
         await f.Analyze();
-        if (id == CleanupZoneId.RecycleBin) Assert.Single(f.Vm.Groups.SelectMany(g => g.Rows)).IsSelected = true;
+        // Le contrat de validation est vérifié après un choix explicite, indépendamment de la présélection.
+        Assert.Single(f.Vm.Groups.SelectMany(g => g.Rows)).IsSelected = true;
         var pending = f.Run();
         Assert.Equal("Nettoyage — confirmation récapitulative", f.Vm.ValidationTitle);
         Assert.Equal("CONFIRMER LA SÉLECTION", f.Vm.ExecuteZoneLabel);

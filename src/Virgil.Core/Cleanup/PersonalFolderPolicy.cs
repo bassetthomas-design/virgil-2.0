@@ -35,14 +35,17 @@ public sealed class PersonalFolderPolicy(IKnownFoldersProvider folders)
         var candidates = preview.Candidates.Select(c => c with
         {
             Group = preview.Definition.Group,
-            IsPersonalFolder = IsPersonal(c.FullPath, known),
+            IsPersonalFolder = c.IsPersonalFolder || preview.Definition.IsPersonalFolder ||
+                preview.Definition.Id is CleanupZoneId.OldDownloads or CleanupZoneId.RecycleBin || IsPersonal(c.FullPath, known),
             IsEligible = c.IsEligible && CanQuarantine(preview.Definition, c.FullPath, known),
             ExclusionReason = CanQuarantine(preview.Definition, c.FullPath, known) ? c.ExclusionReason : "Dossier personnel protégé : aucun reste identifié."
         }).ToArray();
         // Une zone personnelle entière ne peut jamais entrer dans une sélection de groupe.
         return preview with
         {
-            Definition = preview.Definition with { IsPersonalFolder = IsPersonal(preview.Definition.RootPath, known) || candidates.Any(c => c.IsPersonalFolder) },
+            Definition = preview.Definition with { IsPersonalFolder = preview.Definition.IsPersonalFolder ||
+                preview.Definition.Id is CleanupZoneId.OldDownloads or CleanupZoneId.RecycleBin ||
+                IsPersonal(preview.Definition.RootPath, known) || candidates.Any(c => c.IsPersonalFolder) },
             Candidates = candidates,
             EligibleFileCount = preview.Definition.Id == CleanupZoneId.RecycleBin ? preview.EligibleFileCount : candidates.Count(c => c.IsEligible),
             EligibleBytes = preview.Definition.Id == CleanupZoneId.RecycleBin ? preview.EligibleBytes : candidates.Where(c => c.IsEligible).Sum(c => c.SizeBytes)

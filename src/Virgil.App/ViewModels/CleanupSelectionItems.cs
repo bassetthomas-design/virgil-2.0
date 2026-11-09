@@ -9,7 +9,7 @@ public sealed partial class CleanupSelectionRow : ObservableObject
     public CleanupSelectionRow(CleanupZonePreview preview)
     {
         Preview = preview;
-        isSelected = CanSelect && CanGroupSelect && preview.Definition.Group == CleanupGroup.Sur && !preview.Definition.NeedsReview && !preview.Candidates.Any(c => c.NeedsReview);
+        isSelected = CleanupSelectionPolicy.IsSelectedByDefault(preview);
     }
     public CleanupZonePreview Preview { get; }
     public string Title => Preview.Definition.SoftwareName is null ? Preview.Definition.DisplayName
@@ -22,10 +22,8 @@ public sealed partial class CleanupSelectionRow : ObservableObject
         Preview.Definition.RootPath + "\n" + string.Join("\n", Preview.Definition.RegistryKeys) + "\n" +
         string.Join("\n", Preview.Candidates.Select(c => c.FullPath)) + "\n" +
         string.Join("\n", Preview.Candidates.Where(c => !c.IsEligible).Select(c => c.ExclusionReason));
-    public bool CanSelect => Preview.Definition.Id != CleanupZoneId.WindowsOld && Preview.Definition.IsExecutable && Preview.HasEligibleCandidates &&
-        Preview.Definition.Classification is CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable;
-    public bool CanGroupSelect => CanSelect && Preview.Definition.Id is not (CleanupZoneId.RecycleBin or CleanupZoneId.OldDownloads) &&
-        CleanupItemNature.For(Preview) != CleanupNature.Personal;
+    public bool CanSelect => CleanupSelectionPolicy.CanSelect(Preview);
+    public bool CanGroupSelect => CleanupSelectionPolicy.CanGroupSelect(Preview);
     [ObservableProperty] private bool isSelected;
 }
 
@@ -56,6 +54,7 @@ public sealed class CleanupGroupItem : ObservableObject
     public IReadOnlyList<CleanupSelectionRow> Rows { get; }
     public IReadOnlyList<CleanupRowSection> Sections { get; }
     public long EligibleBytes => Rows.Sum(r => r.Preview.EligibleBytes);
+    public bool CanSelectAsGroup => _selectableCount > 0;
     public bool? IsSelected
     {
         get => _selectedCount == 0 ? false : _selectedCount == _selectableCount ? true : null;
