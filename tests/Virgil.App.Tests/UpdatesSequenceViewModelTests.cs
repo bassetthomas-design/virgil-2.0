@@ -10,6 +10,32 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Fact]
+    public async Task Repeated_reports_for_one_sequence_step_update_a_single_visible_entry()
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture();
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            foreach (var choice in f.Vm.SequenceChoices)
+                choice.IsSelected = choice.Step.Component == UpdateComponent.WingetFinal;
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.Single(f.Backend.Executed);
+            var entry = Assert.Single(f.Vm.SequenceProgress);
+            Assert.Contains("Passe finale", entry);
+            Assert.Contains("Terminé", entry);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
+    private sealed class InlineProgressContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callback(state);
+    }
+
     [Fact, Trait("Category", "Safety")]
     public async Task Store_unavailable_is_persisted_as_information_with_success_state()
     {

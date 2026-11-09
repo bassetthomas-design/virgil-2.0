@@ -24,6 +24,7 @@ public sealed class LongOperationViewModelTests
         Assert.Contains("Annulation", operation.Step);
         operation.Complete("Opération annulée.");
         Assert.False(operation.IsRunning);
+        Assert.True(operation.IsVisible);
         Assert.Equal("Opération annulée.", operation.Step);
         operation.Report(new OperationProgress("Ancien message", Percent: 50));
         Assert.Equal("Opération annulée.", operation.Step);
