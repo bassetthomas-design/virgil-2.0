@@ -92,7 +92,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
     public static bool IsSafetyBlocked(UpdateSequenceStepResult result) => !result.Succeeded && !result.WasUnavailable
         && (result.RestorePointVerified == false || result.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)
-            || result.Message.Contains("refus", StringComparison.OrdinalIgnoreCase) || result.Message.Contains("garde de sécurité", StringComparison.OrdinalIgnoreCase));
+            || result.Message.Contains("garde de sécurité", StringComparison.OrdinalIgnoreCase)
+            || (result.Message.Contains("refus", StringComparison.OrdinalIgnoreCase) && result.Message.Contains("hors catalogue", StringComparison.OrdinalIgnoreCase)));
 
     public async Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken)
     {

@@ -48,6 +48,8 @@ Le panneau C reste utilisé sans refonte : cartes indexées par `Component` + `I
 
 Le test R10 utilise le **vrai `UpdateSequenceService`**, deux applications de même titre et un backend factice qui réussit l'une et refuse l'autre. Les tests existants du vrai service avec préparation bloquée préservent R11. Les lectures et installations des tests sont factices.
 
+Ce premier test R10 utilisait toutefois un scan final vide : il ne suffisait pas à prouver l'indépendance des statuts avec un reste réel. La nouvelle preuve de contre-expertise ci-dessous couvre ce cas.
+
 ## Preuve UI et limites
 
 `D1UpdatesPanelProofTests.Real_panel_renders_final_verdict_with_fake_sources` rend le vrai `OperationProgressPanel` en WPF/STA avec services factices, sans action SafeUi destructive. Les PNG ont été régénérés dans le run vert 42611515703 et extraits de [son artefact Virgil-ui-smoke, ID 13670407593](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42611515703/artifacts/13670407593), puis ouverts pour vérification visuelle :
@@ -90,3 +92,25 @@ Correctif séparé : `8fbdba0999edb989327747a67f0fd57d81216108`. Le [nouveau ver
 Les deux PNG ont été régénérés dans `artifacts/ui-smoke/lot-d1/`, extraits de [l’artefact 13672317160](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42614652452/artifacts/13672317160) et ouverts pour vérification visuelle. Tailles : `tout-mettre-a-jour-bilan.png` = 30 642 octets ; `tout-mettre-a-jour-bloque-ou-reboot.png` = 35 477 octets. SHA-256 du ZIP : `3674fefdeb5f87e768498e1f3e9bbfd680d4785fc255e012b3d7fe5e2789c647`.
 
 Les captures D1 utilisent un WinGet factice prouvé à jour et un Store « à vérifier » : le bilan sans reboot indique « à terminer dans le Microsoft Store ». Avec reboot, la carte WinGet dit « Étape exécutée ; contrôle final : redémarrage nécessaire » et le texte dit « Redémarrage nécessaire : oui, après une installation. ». Aucun détail de carte non réussie ne contient « Terminé ». La preuve reste **WPF/STA factice** et ne valide pas les installations réelles alpha.8.
+
+## R10 — contre-expertise : résultat propre à chaque application
+
+Le commit **tests seuls** `168a94bed4152ec60c0d551a4f36dd617b275f93` reproduit le défaut sur le head précédent `b40b71dd916a37a574161c37ef4b8a1a790b83f4`. [Run rouge Windows 42617335566](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42617335566) : compilation **0 avertissement, 0 erreur** ; 1 161 tests Core réussis, 644 tests App réussis sur 647 et **3 vrais échecs d'assertion R10**. Pour app-a réussie et absente du scan final, l'ancien code affiche selon le cas « en erreur », « bloquée » ou « non lancée » au lieu de « mis à jour ».
+
+`D1WingetIdentityTests` utilise le vrai `UpdateSequenceService`, un backend factice et un scan final qui conserve app-b. Il distingue l'échec ordinaire du refus explicite d'une garde de sécurité. Le troisième cas annule après app-b : app-c n'est jamais exécutée mais reste présente au scan final. Les assertions vérifient statut, détail propre et absence de texte contradictoire ou de résultat d'une autre identité sur chaque carte.
+
+Le correctif conserve séparément le rapport brut du scan final et les verdicts agrégés. Les cartes `UpdateComponent.Winget` rapprochent leur résultat par **Id + Component**, puis recherchent uniquement leur propre Id applicatif au scan final, sans lire le statut global de la source :
+
+| Résultat propre | Présence de cet Id au contrôle final complet | Carte |
+| --- | --- | --- |
+| Réussie, sans redémarrage propre | absente | mis à jour |
+| Réussie | encore disponible | reste à installer ; exécution mentionnée sans promettre une mise à jour achevée |
+| Échec ou refus d'installation ordinaire | présente ou absente | en erreur ; détail propre de l'échec |
+| Refus explicite d'une garde de sécurité | présente ou absente | bloquée ; détail propre de la garde |
+| Non lancée, sautée ou résultat absent | encore disponible | reste à installer ; mention explicite de l'absence d'exécution |
+| Non lancée ou résultat absent | absente ou contrôle non prouvé | Non lancée ; jamais de mise à jour inventée |
+| Réussie mais contrôle incomplet/indisponible | absence non prouvée | en erreur ou indisponible ; contrôle non prouvé |
+
+Le bilan global et la carte de passe finale restent agrégés ; ils ne fournissent plus le statut des cartes d'application. Un refus d'installation ordinaire ne devient plus un blocage de sécurité par le seul mot « refus ». Cette distinction concerne le bilan, sans modification de ConfirmedPlan ni des gardes d'exécution.
+
+La capture `artifacts/ui-smoke/lot-d1/tout-mettre-a-jour-identites-winget.png` doit être régénérée en plus des deux PNG D1 existants. Elle montre les trois applications homonymes et leurs résultats propres, avec une barre non forcée à 100 % après annulation. Preuve **WPF/STA factice** ; les scans et installations sont factices. Le nouveau run vert est à compléter après exécution Windows.

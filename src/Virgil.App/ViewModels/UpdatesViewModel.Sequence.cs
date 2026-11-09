@@ -153,7 +153,8 @@ public partial class UpdatesViewModel
             _sequenceWasCancelled = result.WasCancelled;
             RebootRequired = result.RebootRequired;
             Operation.Commentary = "Contrôle final des sources en lecture seule…";
-            var checks = await ReadFinalVerificationsAsync(result);
+            var verification = await ReadFinalVerificationsAsync(result);
+            var checks = verification.Sources;
             RebootRequired = result.RebootRequired || checks.Any(check => check.Status == "redémarrage nécessaire");
             var allCurrent = !result.WasRefused && !result.WasCancelled && !RebootRequired
                 && checks.Count > 0 && checks.All(check => check.IsCurrent)
@@ -172,29 +173,35 @@ public partial class UpdatesViewModel
             foreach (var step in result.Steps.Where(outcome => outcome.Step.IsInformational
                 || _confirmedSequenceSteps.Any(selected => selected.Id == outcome.Step.Id && selected.Component == outcome.Step.Component)))
             {
+                if (step.Step.Component == UpdateComponent.Winget)
+                {
+                    var card = WingetCardResult(step.Step, step, verification.Applications);
+                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), card.Status, card.Detail);
+                    continue;
+                }
                 var check = checks.FirstOrDefault(check => check.Component == SourceComponent(step.Step.Component));
                 var status = check?.Status ?? SequenceResultStatus(step);
-                if (step.Step.Component == UpdateComponent.Winget && step.Succeeded && (check?.Status is "en erreur" or "bloquée")
-                    && check.HasRemaining == false) status = "mis à jour";
                 if (step.Message.StartsWith("Non lancée", StringComparison.Ordinal)) status = "Non lancée";
                 else if (UpdateSequenceService.IsSafetyBlocked(step)) status = "bloquée";
                 else if (!step.Succeeded && !step.WasUnavailable && !step.WasSkipped) status = "en erreur";
                 else if (step.WasUnavailable && result.Verifications.Count == 0) status = "Source indisponible";
                 var detail = DisplaySequenceText(step.Message) + (check is null || check.Status == "bloquée" || !step.Succeeded || step.WasUnavailable || step.WasSkipped
                         || (result.Verifications.Count == 0 && check.Component != UpdateComponent.Winget)
-                    ? string.Empty : step.Step.Component == UpdateComponent.Winget
-                        ? "\nContrôle final de la source : " + check.Status + "." : "\n" + check.Detail);
+                    ? string.Empty : "\n" + check.Detail);
                 if (status == "à vérifier" && check is not null) detail = check.Detail;
                 else if (status is not "à jour" and not "mis à jour" and not "Terminée"
                     && detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase))
                     detail = "Étape exécutée ; contrôle final : " + status + "."
                         + (check is not null && !check.Detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase) ? "\n" + check.Detail : string.Empty);
-                if (step.Step.Component == UpdateComponent.Winget) detail = $"Identité : {step.Step.Id}\n" + detail;
                 Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
                 && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
-                Operation.SetStep(SequenceStepKey(step), step.Title, "Non lancée", $"Aucun résultat confirmé. Identité : {step.Id}.");
+            {
+                var card = step.Component == UpdateComponent.Winget ? WingetCardResult(step, null, verification.Applications)
+                    : (Status: "Non lancée", Detail: $"Aucun résultat confirmé. Identité : {step.Id}.");
+                Operation.SetStep(SequenceStepKey(step), step.Title, card.Status, card.Detail);
+            }
             _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + check.Detail))
                 + "\n" + (RebootRequired == result.RebootRequired
                     ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
@@ -262,9 +269,41 @@ public partial class UpdatesViewModel
         .Replace("tout à jour", "état complet non prouvé", StringComparison.OrdinalIgnoreCase)
         .Replace("plus rien à faire", "contrôle final requis", StringComparison.OrdinalIgnoreCase);
 
-    private async Task<IReadOnlyList<UpdateSourceVerification>> ReadFinalVerificationsAsync(UpdateSequenceResult result)
+    private static (string Status, string Detail) WingetCardResult(UpdateSequenceStep step, UpdateSequenceStepResult? outcome, UpdateScanReport? scan)
+    {
+        var identity = $"Identité : {step.Id}\n";
+        var complete = scan is not null && scan.Winget.IsAvailable && scan.Errors.Count == 0;
+        var remains = complete && scan!.Items.Any(item => item.Status == UpdateItemStatus.Available
+            && (item.Source is UpdateSource.Winget or UpdateSource.MicrosoftStore)
+            && string.Equals(item.Id, step.Id, StringComparison.OrdinalIgnoreCase));
+        var notStarted = outcome?.Message.StartsWith("Non lancée", StringComparison.Ordinal) == true;
+        if (outcome is null || notStarted || (outcome.WasSkipped && !UpdateSequenceService.IsSafetyBlocked(outcome)))
+        {
+            var reason = outcome is null ? "Aucun résultat confirmé. Non lancée." : outcome.WasSkipped
+                ? "Non lancée : étape sautée." : DisplaySequenceText(outcome.Message);
+            return (remains ? "reste à installer" : "Non lancée", identity + reason
+                + (remains ? "\nContrôle final : cette application reste à installer." : string.Empty));
+        }
+        var ownDetail = DisplaySequenceText(outcome.Message).Replace("Étape terminée après annulation.",
+            "Annulation demandée après cette étape.", StringComparison.Ordinal);
+        if (UpdateSequenceService.IsSafetyBlocked(outcome))
+            return ("bloquée", identity + (ownDetail.Contains("Terminé", StringComparison.OrdinalIgnoreCase)
+                ? "Installation bloquée par une garde de sécurité." : ownDetail));
+        if (outcome.WasUnavailable) return ("indisponible", identity + "Installation indisponible pour cette application.");
+        if (!outcome.Succeeded)
+            return ("en erreur", identity + (ownDetail.Contains("Terminé", StringComparison.OrdinalIgnoreCase) ? "Installation en échec." : ownDetail));
+        if (!complete)
+            return (scan?.Winget.IsAvailable == true ? "en erreur" : "indisponible", identity
+                + "Étape exécutée ; contrôle final de cette application non prouvé.");
+        if (remains) return ("reste à installer", identity + "Étape exécutée ; contrôle final : cette application reste à installer.");
+        if (outcome.RebootRequired) return ("redémarrage nécessaire", identity + "Étape exécutée ; redémarrage nécessaire pour cette application.");
+        return ("mis à jour", identity + ownDetail + "\nContrôle final : cette application n'est plus proposée.");
+    }
+
+    private async Task<(IReadOnlyList<UpdateSourceVerification> Sources, UpdateScanReport? Applications)> ReadFinalVerificationsAsync(UpdateSequenceResult result)
     {
         var checks = result.Verifications.ToList();
+        UpdateScanReport? finalApplications = null;
         var components = _confirmedSequenceSteps.Where(step => !step.IsInformational).Select(step => SourceComponent(step.Component)).Distinct().ToArray();
         if (components.Contains(UpdateComponent.Winget))
         {
@@ -273,6 +312,7 @@ public partial class UpdatesViewModel
             try
             {
                 var scan = await _scanService.ScanAsync(UpdateScanRequest.DeepPreview with { IncludeDriverInventory = false }, null, timeout.Token).WaitAsync(timeout.Token);
+                finalApplications = scan with { Items = scan.Items.ToArray(), Errors = scan.Errors.ToArray() };
                 if (scan.WindowsUpdate.PendingRebootDetected)
                     checks.Add(new(UpdateComponent.PendingReboot, "redémarrage nécessaire", "Détecté lors de la relecture applicative."));
                 check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "WinGet indisponible au contrôle final.")
@@ -320,7 +360,7 @@ public partial class UpdatesViewModel
             checks.Add(new(UpdateComponent.PendingReboot, rebootStatus.PendingRebootDetected ? "redémarrage nécessaire" : "indisponible",
                 rebootStatus.PendingRebootDetected ? "Détecté par la sonde après les recherches finales." : "Lecture finale du redémarrage indisponible."));
         }
-        return checks;
+        return (checks, finalApplications);
     }
 
     private static string SequenceResultStatus(UpdateSequenceStepResult step) =>
