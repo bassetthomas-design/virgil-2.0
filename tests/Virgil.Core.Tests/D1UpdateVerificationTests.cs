@@ -10,6 +10,36 @@ namespace Virgil.Tests;
 public sealed class D1UpdateVerificationTests
 {
     [Theory]
+    [InlineData(UpdateComponent.Windows)]
+    [InlineData(UpdateComponent.Driver)]
+    [InlineData(UpdateComponent.WindowsFeatureUpgrade)]
+    public async Task Remaining_marker_means_updates_left_and_never_a_safety_block(UpdateComponent component)
+    {
+        var backend = new WindowsUpdateSequenceBackend(new Runner { Result = new(0, "VIRGIL_REMAINING", "") }, null!, null!, () => "");
+        var check = await backend.VerifyAsync(component, CancellationToken.None);
+        Assert.Equal("reste à installer", check.Status);
+        Assert.False(check.IsCurrent);
+    }
+
+    [Fact]
+    public async Task Store_scan_only_requires_manual_verification_not_a_safety_block()
+    {
+        var runner = new Runner();
+        var backend = new WindowsUpdateSequenceBackend(runner, null!, null!, () => "");
+        var check = await backend.VerifyAsync(UpdateComponent.Store, CancellationToken.None);
+        Assert.Equal("à vérifier", check.Status);
+        Assert.Equal("à terminer dans le Microsoft Store", check.Detail);
+        Assert.False(check.IsCurrent);
+        Assert.Empty(runner.Requests);
+    }
+
+    [Theory]
+    [InlineData("à vérifier")]
+    [InlineData("reste à installer")]
+    public void Pending_manual_or_remaining_status_is_never_current(string status) =>
+        Assert.False(new UpdateSourceVerification(UpdateComponent.Store, status, "").IsCurrent);
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Real_service_verifies_each_selected_source_after_execution_even_after_cancellation(bool cancel)
