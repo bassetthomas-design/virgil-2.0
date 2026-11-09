@@ -157,7 +157,7 @@ public sealed class L6PlusExecutionTests
         Assert.Equal(1, probe.Calls);
         if (cancel) Assert.All(result.Steps.Where(s => s.Step.Component != UpdateComponent.PendingReboot), s => Assert.Contains("Non lancée", s.Message));
         Assert.True(result.RebootRequired);
-        Assert.Contains(result.Steps, s => s.Message.Contains("oui (Maintenance des composants)", StringComparison.Ordinal));
+        Assert.Contains(result.Steps, s => s.Message.Contains("oui, signalé par Maintenance des composants", StringComparison.Ordinal));
     }
     [Fact, Trait("Category", "Safety")]
     public async Task Preparation_launch_failure_is_not_reported_as_success_and_still_probes_reboot()

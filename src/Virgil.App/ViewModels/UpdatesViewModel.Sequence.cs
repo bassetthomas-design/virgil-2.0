@@ -160,8 +160,12 @@ public partial class UpdatesViewModel
                 && _confirmedSequenceSteps.Where(step => !step.IsInformational).All(step =>
                     result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component
                         && outcome.Succeeded && !outcome.WasSkipped && !outcome.WasUnavailable));
+            var manualChecks = checks.Where(check => !check.IsCurrent).ToArray();
+            var onlyManualCompletion = !RebootRequired && !result.WasRefused && manualChecks.Length > 0
+                && manualChecks.All(check => check.Status == "à vérifier");
             var conclusion = allCurrent ? "Tout est à jour." : result.WasCancelled
                 ? "Séquence annulée entre deux étapes — contrôle final effectué."
+                : onlyManualCompletion ? "Contrôle final effectué : " + string.Join(" ; ", manualChecks.Select(check => check.Detail).Distinct()) + "."
                 : "Séquence terminée. Contrôle final : des sources restent à vérifier ou à terminer.";
             StatusText = conclusion;
             SequenceStepText = conclusion;
@@ -170,16 +174,22 @@ public partial class UpdatesViewModel
             {
                 var check = checks.FirstOrDefault(check => check.Component == SourceComponent(step.Step.Component));
                 var status = check?.Status ?? SequenceResultStatus(step);
-                if (step.Step.Component == UpdateComponent.Winget && step.Succeeded && check?.Status == "en erreur"
+                if (step.Step.Component == UpdateComponent.Winget && step.Succeeded && (check?.Status is "en erreur" or "bloquée")
                     && check.HasRemaining == false) status = "mis à jour";
                 if (step.Message.StartsWith("Non lancée", StringComparison.Ordinal)) status = "Non lancée";
+                else if (UpdateSequenceService.IsSafetyBlocked(step)) status = "bloquée";
                 else if (!step.Succeeded && !step.WasUnavailable && !step.WasSkipped) status = "en erreur";
                 else if (step.WasUnavailable && result.Verifications.Count == 0) status = "Source indisponible";
-                var detail = (step.Step.Component == UpdateComponent.Winget ? $"Identité : {step.Step.Id}\n" : string.Empty)
-                    + DisplaySequenceText(step.Message) + (check is null || check.Status == "bloquée" || !step.Succeeded || step.WasUnavailable || step.WasSkipped
+                var detail = DisplaySequenceText(step.Message) + (check is null || check.Status == "bloquée" || !step.Succeeded || step.WasUnavailable || step.WasSkipped
                         || (result.Verifications.Count == 0 && check.Component != UpdateComponent.Winget)
                     ? string.Empty : step.Step.Component == UpdateComponent.Winget
                         ? "\nContrôle final de la source : " + check.Status + "." : "\n" + check.Detail);
+                if (status == "à vérifier" && check is not null) detail = check.Detail;
+                else if (status is not "à jour" and not "mis à jour" and not "Terminée"
+                    && detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase))
+                    detail = "Étape exécutée ; contrôle final : " + status + "."
+                        + (check is not null && !check.Detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase) ? "\n" + check.Detail : string.Empty);
+                if (step.Step.Component == UpdateComponent.Winget) detail = $"Identité : {step.Step.Id}\n" + detail;
                 Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
@@ -189,7 +199,7 @@ public partial class UpdatesViewModel
                 + "\n" + (RebootRequired == result.RebootRequired
                     ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
                         ?? $"Redémarrage nécessaire : {(RebootRequired ? "oui" : "non")}."
-                    : "Redémarrage nécessaire : oui (détecté au contrôle final).");
+                    : "Redémarrage nécessaire : oui, détecté au contrôle final.");
             _sequenceReport = _sequenceFinalSummary;
             Operation.Commentary = allCurrent ? "Chaque source cochée a été contrôlée après les installations."
                 : "Le bilan détaille les restes détectés et les contrôles indisponibles. Aucun redémarrage automatique.";
@@ -268,7 +278,7 @@ public partial class UpdatesViewModel
                 check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "WinGet indisponible au contrôle final.")
                     : scan.Errors.Count > 0 ? new(UpdateComponent.Winget, "en erreur", "Recherche applicative incomplète au contrôle final.")
                     : scan.Items.Any(item => item.Status == UpdateItemStatus.Available)
-                        ? new(UpdateComponent.Winget, "bloquée", "Contrôle final : reste applicatif détecté.")
+                        ? new(UpdateComponent.Winget, "reste à installer", "Contrôle final : reste applicatif détecté.")
                         : new(UpdateComponent.Winget, "à jour", "Contrôle final : aucun reste applicatif détecté.");
                 if (scan.Winget.IsAvailable && scan.Errors.Count == 0)
                     check = check with { HasRemaining = scan.Items.Any(item => item.Status == UpdateItemStatus.Available) };
@@ -282,18 +292,22 @@ public partial class UpdatesViewModel
             var outcomes = result.Steps.Where(step => SourceComponent(step.Step.Component) == component).ToArray();
             var check = checks.FirstOrDefault(value => value.Component == component)
                 ?? new(component, "indisponible", "Contrôle final non disponible pour cette source.");
-            if (outcomes.Any(step => step.WasUnavailable)) check = new(component, "indisponible", check.Detail);
+            if (outcomes.Any(UpdateSequenceService.IsSafetyBlocked))
+                check = check with { Status = "bloquée", Detail = string.Join(" ", outcomes.Where(UpdateSequenceService.IsSafetyBlocked).Select(step => DisplaySequenceText(step.Message))) };
+            else if (outcomes.Any(step => step.WasUnavailable)) check = new(component, "indisponible", check.Detail);
             else if (outcomes.Any(step => !step.Succeeded && !step.WasSkipped))
-                check = check with { Status = check.Status == "bloquée" ? "bloquée" : "en erreur", Detail = check.Detail + " "
+                check = check with { Status = outcomes.Any(UpdateSequenceService.IsSafetyBlocked) ? "bloquée" : "en erreur", Detail = check.Detail + " "
                     + string.Join(" ", outcomes.Where(step => !step.Succeeded).Select(step => DisplaySequenceText(step.Message))) };
             if (_confirmedSequenceSteps.Where(step => SourceComponent(step.Component) == component).Any(step =>
                 !outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)
                 || outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Message.StartsWith("Non lancée", StringComparison.Ordinal))))
                 check = new(component, "non lancée", check.Detail);
-            if (component == UpdateComponent.Store && check.IsCurrent)
-                check = new(component, "bloquée", "Recherche Store lancée — reste possible hors WinGet.");
-            if (component == UpdateComponent.Launcher)
-                check = new(component, "bloquée", "Mises à jour à vérifier dans les lanceurs ; fermeture seule sans preuve d'installation.");
+            if (component == UpdateComponent.Store && outcomes.Length > 0 && outcomes.All(step => step.Succeeded && !step.WasUnavailable))
+                check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
+            if (component == UpdateComponent.Launcher && check.Status != "non lancée" && outcomes.Length > 0
+                && outcomes.All(step => (step.Succeeded || step.WasSkipped) && !step.WasUnavailable)
+                && !outcomes.Any(UpdateSequenceService.IsSafetyBlocked))
+                check = new(component, "à vérifier", "à terminer dans le lanceur");
             if (check.IsCurrent && outcomes.Any(step => step.RebootRequired))
                 check = new(component, "redémarrage nécessaire", check.Detail);
             checks.RemoveAll(value => value.Component == component);

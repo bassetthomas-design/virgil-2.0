@@ -114,8 +114,8 @@ public sealed class UpdatesSequenceViewModelTests
         await pending;
         AssertNoD1PositiveConclusion(f);
         var store = Assert.Single(f.Vm.Operation.Steps, step => step.Title.Contains("Store", StringComparison.Ordinal));
-        Assert.Equal(unavailable ? "Source indisponible." : "Scan Store lancé.", store.Detail);
-        Assert.Contains(store.Status, new[] { "bloquée", "indisponible", "redémarrage nécessaire", "en erreur" });
+        Assert.Equal(unavailable ? "Source indisponible." : "à terminer dans le Microsoft Store", store.Detail);
+        Assert.Contains(store.Status, new[] { "à vérifier", "indisponible", "redémarrage nécessaire", "en erreur" });
         Assert.Contains("Store", f.Vm.Operation.FinalSummary);
         if (unavailable) Assert.Contains("indisponible", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
         if (reboot) Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
@@ -186,7 +186,7 @@ public sealed class UpdatesSequenceViewModelTests
             await pending;
             Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == BlockedPreparationSequence.PreparationTitle);
             foreach (var step in elevated)
-                Assert.Equal("en erreur", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
+                Assert.Equal("bloquée", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
             Assert.Equal(new[] { UpdateComponent.MicrosoftUpdate }, f.Backend.Executed);
             Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
             Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
@@ -504,7 +504,7 @@ public sealed class UpdatesSequenceViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.Contains("REDÉMARRAGE WINDOWS REQUIS", f.Vm.RebootStatusText);
-        Assert.Contains("oui (Maintenance des composants)", f.History.Report!.SimpleView);
+        Assert.Contains("oui, signalé par Maintenance des composants", f.History.Report!.SimpleView);
     }
 
     [Fact, Trait("Category", "Safety")]

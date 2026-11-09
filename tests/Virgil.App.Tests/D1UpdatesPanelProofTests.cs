@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Virgil.App.Controls;
+using Virgil.Contracts;
 using Virgil.Core.Updates;
 using Xunit;
 
@@ -17,7 +18,7 @@ public sealed class D1UpdatesPanelProofTests
     [InlineData(true)]
     public Task Real_panel_renders_final_verdict_with_fake_sources(bool reboot) => ThemeContrastTests.OnSta(async () =>
     {
-        var fixture = new UpdatesSequenceViewModelTests.Fixture();
+        var fixture = new UpdatesSequenceViewModelTests.Fixture(scan: new Scan());
         fixture.Backend.Reboot = reboot;
         var pending = fixture.Vm.RunAllCommand.ExecuteAsync(null);
         foreach (var choice in fixture.Vm.SequenceChoices)
@@ -29,6 +30,11 @@ public sealed class D1UpdatesPanelProofTests
         Assert.True(fixture.Vm.Operation.IsVisible);
         Assert.Equal(100, fixture.Vm.Operation.Percent);
         Assert.True(fixture.Vm.Operation.HasDistinctCommentary);
+        if (!reboot) Assert.Contains("à terminer dans le Microsoft Store", fixture.Vm.StatusText);
+        Assert.Equal("à vérifier", Assert.Single(fixture.Vm.Operation.Steps, card => card.Key == "Store:store").Status);
+        foreach (var card in fixture.Vm.Operation.Steps.Where(card => card.Status is not "à jour" and not "mis à jour" and not "Terminée"))
+            Assert.DoesNotContain("Terminé", card.Detail, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("(", Assert.Single(fixture.Vm.Operation.FinalSummary.Split('\n'), line => line.StartsWith("Redémarrage nécessaire", StringComparison.Ordinal)));
         var panel = new OperationProgressPanel { DataContext = fixture.Vm.Operation, VerticalAlignment = VerticalAlignment.Top };
         var host = new Border { Child = panel, Background = (Brush)Application.Current.FindResource("App.BackgroundBrush") };
         var window = new Window { Content = host, Width = 1600, Height = 1000, ShowInTaskbar = false, Background = host.Background };
@@ -48,4 +54,10 @@ public sealed class D1UpdatesPanelProofTests
         }
         finally { window.Close(); }
     });
+
+    private sealed class Scan : IUpdateScanService
+    {
+        public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token) =>
+            Task.FromResult(new UpdateScanReport { Winget = new WingetAvailability { IsAvailable = true } });
+    }
 }

@@ -19,7 +19,7 @@ public sealed class WindowsUpdateSequenceBackend(
     public async Task<UpdateSourceVerification> VerifyAsync(UpdateComponent component, CancellationToken token)
     {
         if (component == UpdateComponent.Store)
-            return new(component, "bloquée", "Recherche Store lancée — reste possible hors WinGet ; installation UWP non prouvée.");
+            return new(component, "à vérifier", "à terminer dans le Microsoft Store");
         // Scripts fermés, en lecture seule, sans élévation ni commande d'installation.
         var query = component switch
         {
@@ -40,7 +40,7 @@ public sealed class WindowsUpdateSequenceBackend(
         return result.StandardOutput.Trim() switch
         {
             "VIRGIL_CURRENT" => new(component, "à jour", "Contrôle final : aucun reste détecté pour cette source."),
-            "VIRGIL_REMAINING" => new(component, "bloquée", "Contrôle final : reste détecté pour cette source."),
+            "VIRGIL_REMAINING" => new(component, "reste à installer", "Contrôle final : reste détecté pour cette source."),
             _ => new(component, "indisponible", "Contrôle final sans résultat exploitable.")
         };
     }

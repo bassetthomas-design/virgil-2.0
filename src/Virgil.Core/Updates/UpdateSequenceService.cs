@@ -90,6 +90,9 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
     }
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
+    public static bool IsSafetyBlocked(UpdateSequenceStepResult result) => !result.Succeeded && !result.WasUnavailable
+        && (result.RestorePointVerified == false || result.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)
+            || result.Message.Contains("refus", StringComparison.OrdinalIgnoreCase) || result.Message.Contains("garde de sécurité", StringComparison.OrdinalIgnoreCase));
 
     public async Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken)
     {
@@ -176,23 +179,23 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 check = new(component, "non lancée", check.Detail);
             else if (outcomes.Any(r => r.WasUnavailable)) check = new(component, "indisponible", check.Detail);
             else if (outcomes.Any(r => !r.Succeeded && !r.WasSkipped))
-                check = new(component, outcomes.Any(r => r.RestorePointVerified == false || r.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)) ? "bloquée" : "en erreur", check.Detail);
+                check = new(component, outcomes.Any(IsSafetyBlocked) ? "bloquée" : "en erreur", check.Detail);
             // UpdateScanMethod ne prouve jamais l'installation des UWP hors WinGet.
             else if (component == UpdateComponent.Store)
-                check = new(component, "bloquée", "Recherche Store lancée — reste possible hors WinGet ; installation UWP non prouvée.");
+                check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             checks.Add(check with { Component = component });
         }
         var sources = new List<string>();
-        if (results.Any(r => r.RebootRequired && r.Step.Component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Windows Update");
-        if (results.Any(r => r.RebootRequired && r.Step.Component is not UpdateComponent.Windows and not UpdateComponent.Driver and not UpdateComponent.WindowsFeatureUpgrade)) sources.Add("Installation");
+        if (results.Any(r => r.RebootRequired && r.Step.Component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.WindowsFeatureUpgrade)) sources.Add("après Windows Update");
+        if (results.Any(r => r.RebootRequired && r.Step.Component is not UpdateComponent.Windows and not UpdateComponent.Driver and not UpdateComponent.WindowsFeatureUpgrade)) sources.Add("après une installation");
         try
         {
-            if (rebootProbe is not null) sources.AddRange(rebootProbe.Read().Sources);
+            if (rebootProbe is not null) sources.AddRange(rebootProbe.Read().Sources.Select(source => "signalé par " + source));
             else checks.Add(new(UpdateComponent.PendingReboot, "indisponible", "Sonde de redémarrage absente."));
         }
         catch { sources.Add("Lecture du redémarrage indisponible"); }
         var reboot = sources.Count > 0;
-        var verdict = "Redémarrage nécessaire : " + (reboot ? "oui (" + string.Join(", ", sources.Distinct()) + ")" : "non") + ".";
+        var verdict = "Redémarrage nécessaire : " + (reboot ? "oui, " + string.Join(" ; ", sources.Distinct()) : "non") + ".";
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
         var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped && !r.WasUnavailable) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
         return new(false, cancellationToken.IsCancellationRequested, reboot, results, message) { Verifications = checks };

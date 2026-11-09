@@ -10,7 +10,7 @@ Branche : `codex/alpha8-lot-d1`. PR unique : [#80](https://github.com/bassetthom
    Deux cas constatent un seul scan au lieu du contrôle final ; trois refusent les statuts Store trompeurs ; le cas des applications homonymes constate la collision de cartes.
 2. Correctif séparé initial : `b136b6dbb6db641d4f0549b8183780e9672279c1`.
    [Run intermédiaire 42610792528](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42610792528) : compilation sans avertissement, quatre assertions encore en échec (course de progression, compatibilité des preuves C et accents), ensuite corrigées sans modifier les fichiers de tests C.
-3. Correctif final : `7cb42cd1388a2ee3b7f0877368857ebdf7612258`.
+3. Premier correctif validé, avant la relecture des statuts : `7cb42cd1388a2ee3b7f0877368857ebdf7612258`.
    [Run vert 42611515703](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42611515703) : **succès complet, 0 avertissement, 0 erreur** ; 1 155 tests Core, 631 tests App et 14 smoke tests UI réussis ; publication et construction de l'installateur réussies.
 
 La CI Windows `build.yml` existante est la référence. Aucun SDK .NET disponible dans la session Linux ; aucun résultat local de compilation ou de tests n'est annoncé.
@@ -19,15 +19,15 @@ La CI Windows `build.yml` existante est la référence. Aucun SDK .NET disponibl
 
 | Source | Action dans la séquence confirmée | Contrôle final | Statuts possibles | Test |
 | --- | --- | --- | --- | --- |
-| WinGet / applications, y compris msstore | Paquets sélectionnés puis passe finale existante ; arguments et confirmation inchangés | Nouveau scan applicatif via `IUpdateScanService`, inventaire pilotes désactivé ; disponibilité et erreurs prises en compte | à jour, mis à jour, bloquée si reste, en erreur, indisponible, non lancée | `D1_final_scan_proves_remaining_or_empty_applications`, `D1_real_service_keeps_same_title_applications_distinct_by_identity` |
-| Windows Update logiciels | Installation existante, jusqu'à trois passes | Nouvelle recherche WUA des logiciels non installés et non masqués ; code de recherche exact 2 requis | à jour, bloquée si reste, en erreur, indisponible, non lancée, redémarrage nécessaire | `Real_service_verifies_each_selected_source_after_execution_even_after_cancellation`, `Backend_final_checks_only_read_and_require_an_exact_success_marker` |
+| WinGet / applications, y compris msstore | Paquets sélectionnés puis passe finale existante ; arguments et confirmation inchangés | Nouveau scan applicatif via `IUpdateScanService`, inventaire pilotes désactivé ; disponibilité et erreurs prises en compte | à jour, mis à jour, reste à installer, bloquée seulement par une garde, en erreur, indisponible, non lancée | `D1_final_scan_proves_remaining_or_empty_applications`, `D1_real_service_keeps_same_title_applications_distinct_by_identity` |
+| Windows Update logiciels | Installation existante, jusqu'à trois passes | Nouvelle recherche WUA des logiciels non installés et non masqués ; code de recherche exact 2 requis | à jour, reste à installer, bloquée seulement par une garde, en erreur, indisponible, non lancée, redémarrage nécessaire | `Real_service_verifies_each_selected_source_after_execution_even_after_cancellation`, `Backend_final_checks_only_read_and_require_an_exact_success_marker` |
 | Pilotes | Installation existante cochée par défaut | Nouvelle recherche WUA des pilotes, uniquement si sélectionnés | mêmes statuts | mêmes tests Core, `Update_plan_lists_script_steps_in_order_with_drivers_checked` |
 | Defender | Préparation/signatures existantes | `Get-MpComputerStatus` : antivirus actif, âge des signatures égal à zéro et absence de signatures obsolètes | mêmes statuts ; échec de lecture visible | tests Core de contrôle final |
 | Microsoft Update | Enregistrement existant | Lecture seule de la présence du service Microsoft Update | à jour, bloquée, en erreur, indisponible, non lancée | tests Core de contrôle final |
-| Microsoft Store | Scan CIM existant ; mises à jour accessibles à WinGet dans ses passes confirmées | Aucun scan Store seul ne prouve l'installation des UWP hors WinGet | bloquée, indisponible, en erreur, non lancée ; jamais à jour sur la seule base du scan | `D1_store_scan_unavailable_or_reboot_cannot_prove_everything_current`, test Core Store sans processus |
+| Microsoft Store | Scan CIM existant ; mises à jour accessibles à WinGet dans ses passes confirmées | Aucun scan Store seul ne prouve l'installation des UWP hors WinGet | à vérifier après scan, indisponible, en erreur, non lancée, bloquée si garde ; jamais à jour sur la seule base du scan | `D1_store_scan_unavailable_or_reboot_cannot_prove_everything_current`, test Core Store sans processus |
 | Nouvelle version Windows | Étape existante | Recherche finale des logiciels WUA ; tout reste logiciel empêche une conclusion positive | à jour, bloquée, en erreur, indisponible, non lancée, redémarrage nécessaire | tests Core de contrôle final |
 | Redémarrage | Étape informative existante | `IPendingRebootProbe` et indicateurs des installations ; sonde absente/illisible interdit une conclusion positive | oui/non, ou contrôle indisponible explicite | `Pending_reboot_probe_drives_banner_and_report`, cas D1 reboot |
-| Lanceurs | Fermeture existante strictement gardée | Fermeture seule ne prouve pas les mises à jour des jeux ; vérification dans les lanceurs nécessaire | bloquée, non lancée | `Blocked_launcher_is_reported_as_not_executed` |
+| Lanceurs | Fermeture existante strictement gardée | Fermeture seule ne prouve pas les mises à jour des jeux ; vérification dans les lanceurs nécessaire | à vérifier, non lancée, bloquée si refus de sécurité | `Blocked_launcher_is_reported_as_not_executed` |
 | Firmware | Information seulement | Hors installation D1 | information | aucun nouveau chemin d'installation |
 
 Les lectures finales du backend utilisent uniquement `IProcessRunner` dans Infrastructure, sans élévation. Les scripts sont fixes, sans entrée libre, installation, téléchargement, acceptation d'EULA ni enregistrement de service. La préparation de l'aperçu et un plan refusé ne les déclenchent pas : `Opening_update_plan_never_searches_Windows_Update` vérifie désormais le comportement du port de contrôle final, plutôt que l'absence textuelle de COM dans tout le backend.
@@ -36,7 +36,7 @@ Chaque source sélectionnée est relue après l'exécution, même après annulat
 
 ## R2 : Store
 
-`UpdateScanMethod` lance une recherche ; son succès ne signifie ni installation des UWP, ni inventaire Store vide. Le bilan indique « Recherche Store lancée — reste possible hors WinGet ; installation UWP non prouvée ». Aucun nouveau jeton helper ni API d'installation n'est ajouté. La passe finale WinGet existante reste dans le plan confirmé et couvre ce que WinGet trouve, dont msstore. Un Store indisponible reste information-only dans les lignes internes du rapport, avec un bilan et une sévérité Warning visibles.
+`UpdateScanMethod` lance une recherche ; son succès ne signifie ni installation des UWP, ni inventaire Store vide. Le bilan indique le statut « à vérifier » et le détail « à terminer dans le Microsoft Store ». Ce statut ne constitue pas une preuve de mise à jour. Aucun nouveau jeton helper ni API d'installation n'est ajouté. La passe finale WinGet existante reste dans le plan confirmé et couvre ce que WinGet trouve, dont msstore. Un Store indisponible reste information-only dans les lignes internes du rapport, avec un bilan et une sévérité Warning visibles.
 
 ## R4 et panneau C
 
@@ -55,7 +55,7 @@ Le test R10 utilise le **vrai `UpdateSequenceService`**, deux applications de m�
 - `artifacts/ui-smoke/lot-d1/tout-mettre-a-jour-bilan.png`
 - `artifacts/ui-smoke/lot-d1/tout-mettre-a-jour-bloque-ou-reboot.png`
 
-Tailles dans le ZIP : respectivement 35 814 et 36 485 octets. Empreinte SHA-256 du ZIP : `560ccf600be1b0c499dd6b3d20f1281afbc4af7ef3ca287c844e168c86f85bd7`. Les captures montrent le Store bloqué faute de preuve d'installation, WinGet indisponible dans ce scénario factice, puis l'état de redémarrage explicite. Le commentaire final est distinct de la conclusion et la barre atteint 100 %.
+Tailles dans le ZIP : respectivement 35 814 et 36 485 octets. Empreinte SHA-256 du ZIP : `560ccf600be1b0c499dd6b3d20f1281afbc4af7ef3ca287c844e168c86f85bd7`. Ces captures historiques montrent le Store bloqué faute de preuve d'installation, WinGet indisponible dans ce scénario factice, puis l'état de redémarrage explicite. Elles précèdent les libellés corrigés après loops (relecture) ; les nouvelles captures sont référencées ci-dessous. Le commentaire final est distinct de la conclusion et la barre atteint 100 %.
 
 Il s'agit d'une **preuve STA/WPF factice**, pas d'une installation réelle. Les fichiers générés restent dans les artefacts CI, jamais dans le commit. Le PC cible alpha.8 doit encore vérifier manuellement la disparition des neuf mises à jour Store restantes et les résultats Windows Update réels.
 
@@ -66,3 +66,23 @@ Périmètre suivant loops (relecture) : D1 uniquement ; aucun changement du mote
 Les quatre échecs de ce run sont corrigés sur la même branche. Le marqueur technique `VIRGIL_WUA_001` est reconnu dans stdout/stderr et traduit en recherche indisponible, même si une sortie contradictoire prétend réussir. Les détails bloqués ou en échec conservent le résultat de leur propre étape ; le contrôle final reste dans le bilan par source. Les tests C de détail et de conclusion unique restent inchangés.
 
 Chaque carte WinGet nomme son identité ; en l'absence d'un résultat, « Aucun résultat confirmé. Identité : … » reste associé à `Component` + `Id`, avec le statut non lancée. `D1_missing_result_keeps_application_identity_without_claiming_success` passe par le vrai service puis simule la perte d'un résultat ; il vérifie les deux identités et interdit la conclusion positive. La CI Windows et les PNG du commit complémentaire sont référencés dans la PR #80.
+
+## Nouvelle preuve après loops (relecture) — statuts honnêtes
+
+Le marqueur `VIRGIL_WUA_001`, identique dans backend et tests, remplace celui contenant le mot anglais rejeté par le garde d'accents. Le run rouge précédent `42612973473`, head `c969c98680aa5e632a30a20edd1f15ee382c62ba`, constitue la preuve de ce rejet ; aucune modification du garde d'accents.
+
+Après cette correction préalable (`a8f43827297e922c67a55f1df3a7abbb94234189`), le commit **tests seuls** `93983a11666e472cc7a6670bdfde04e290e4634a` produit le [nouveau rouge Windows 42613762954](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42613762954) : compilation avec **0 avertissement et 0 erreur**, puis 4 échecs d'assertion sur 1 161 tests Core et 12 sur 644 tests App. Ces 16 échecs reproduisent les problèmes de statut, détail, destination et redémarrage ; aucun échec d'environnement, de compilation ou d'accents.
+
+Le correctif séparé applique les règles suivantes :
+
+- `VIRGIL_REMAINING` et les applications encore disponibles donnent « reste à installer ».
+- Un scan Store seul donne « à vérifier », détail « à terminer dans le Microsoft Store » ; les lanceurs donnent « à vérifier », détail « à terminer dans le lanceur ».
+- « bloquée » est réservé aux points de restauration non vérifiés, refus et gardes de sécurité ; les politiques et le ConfirmedPlan restent inchangés.
+- Les deux nouveaux statuts restent exclus de `IsCurrent`. R4 interdit donc toujours la conclusion positive avec eux.
+- Chaque carte non réussie retire les détails « Terminé » au profit d'une formulation d'exécution et de contrôle final ; les identités restent attachées à leur propre carte.
+- Si seuls le Store et/ou les lanceurs restent « à vérifier », la conclusion nomme directement leurs destinations, aussi dans le résumé persisté.
+- Le redémarrage utilise « oui, après une installation », « après Windows Update » ou « signalé par … », sans parenthèse technique.
+
+`D1ReviewVerdictTests` exerce le vrai `UpdateSequenceService` avec backend et scans factices. Il vérifie les trois destinations possibles Store/lanceur/les deux, les cartes avec reste/indisponibilité/erreur/scan Store, le vrai blocage de restauration et les textes de redémarrage. Les attentes des anciens tests D1/L6+ sont adaptées aux nouveaux libellés ; les fichiers de tests WPF du lot C restent inchangés.
+
+Le nouveau run vert et les PNG régénérés du correctif sont à compléter après exécution Windows. Les captures D1 utilisent désormais un WinGet factice prouvé à jour et un Store à vérifier : le bilan sans reboot montre où terminer ; le second affiche le redémarrage en français clair. La preuve reste **WPF/STA factice** et ne valide pas les installations réelles alpha.8.
