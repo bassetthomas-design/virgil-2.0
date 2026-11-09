@@ -88,6 +88,7 @@ public sealed class LongOperationLotCWpfTests
             Assert.Contains("Désinstallation possible", body.Text);
             Assert.Contains("Inconnue", body.Text);
             Assert.Contains("non renseigné", body.Text);
+            Assert.Contains("Raison : non renseignée", body.Text);
             Assert.DoesNotContain("UninstallAvailable", body.Text);
             Assert.DoesNotContain("Unknown", body.Text);
             Assert.DoesNotContain("N/A", body.Text);

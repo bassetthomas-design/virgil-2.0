@@ -27,6 +27,8 @@ public sealed class UpdatesSequenceViewModelTests
             Assert.Equal(cancel ? "Non lancée" : "Source indisponible", f.Vm.Operation.Steps[1].Status);
             Assert.Contains("fichiers 12/40", f.Vm.SequenceProgress[0]);
             Assert.True(f.Vm.Operation.IsVisible);
+            if (cancel) Assert.NotEqual(100, f.Vm.Operation.Percent);
+            else { Assert.Equal(100, f.Vm.Operation.Percent); Assert.False(f.Vm.Operation.IsIndeterminate); }
             Assert.Contains("Redémarrage nécessaire : oui", f.Vm.Operation.FinalSummary);
             Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
             Assert.NotEmpty(f.Vm.Operation.Commentary);
