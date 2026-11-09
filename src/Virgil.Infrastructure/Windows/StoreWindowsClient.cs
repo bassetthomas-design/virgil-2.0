@@ -45,9 +45,9 @@ public sealed class StoreWindowsClient(IProcessRunner runner) : IStoreUpdateClie
         Add-Type -AssemblyName System.Runtime.WindowsRuntime
         $itemType=[Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallItem,Windows.ApplicationModel.Store.Preview.InstallControl,ContentType=WindowsRuntime]
         $managerType=[Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallManager,Windows.ApplicationModel.Store.Preview.InstallControl,ContentType=WindowsRuntime]
-        function Await-Store($operation,[Type]$resultType) {
+        function Await-Store($opération,[Type]$resultType) {
           $method=[System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {$_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetGenericArguments().Count -eq 1 -and $_.GetParameters().Count -eq 1} | Select-Object -First 1
-          $task=$method.MakeGenericMethod($resultType).Invoke($null,@($operation))
+          $task=$method.MakeGenericMethod($resultType).Invoke($null,@($opération))
           $awaiter=$task.GetAwaiter()
           $awaiter.GetResult()
         }
