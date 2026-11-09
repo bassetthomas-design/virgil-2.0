@@ -227,9 +227,12 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var blocked = outcomes.Any(IsSafetyBlocked);
         var failures = outcomes.Count(r => !r.Succeeded && !r.WasSkipped && !r.WasUnavailable
             && !IsSafetyBlocked(r) && !r.Message.StartsWith("Non lancée", StringComparison.Ordinal));
+        var unsupported = outcomes.Where(r => r.VerifiedStatus == "non pris en charge automatiquement").ToArray();
         var suffix = blocked ? "bloquée" : failures > 0 ? $"{failures} échec" + (failures > 1 ? "s" : "") : null;
         if (check.HasRemaining == true)
-            return check with { Status = "reste à installer" + (suffix is null ? "" : " ; " + suffix) };
+            return check with { Status = "reste à installer" + (suffix is null ? "" : " ; " + suffix)
+                + (unsupported.Length > 0 ? " ; non pris en charge automatiquement" : ""),
+                Detail = unsupported.Length > 0 ? check.Detail + " " + unsupported[0].Message : check.Detail };
         if (blocked) return check with { Status = "bloquée", Detail = "Installation bloquée par une garde de sécurité." };
         if (failures > 0) return check with { Status = "en erreur", Detail = "Échec pendant l'exécution de cette source ; consultez les cartes." };
         if (outcomes.Any(r => r.VerifiedStatus == "non pris en charge automatiquement"))

@@ -59,6 +59,8 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
         try { before = await client.ReadVersionsAsync(token).ConfigureAwait(false); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch { return Unsupported(step, "La version installée ne peut pas être lue avec ce compte."); }
+        if (!before.ContainsKey(package.FamilyName))
+            return Unsupported(step, "La version de cette application ne peut pas être vérifiée avant l'installation.");
         StoreStart started;
         try { started = await client.StartAsync(package, token).ConfigureAwait(false); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
@@ -75,7 +77,7 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
             before.TryGetValue(package.FamilyName, out var oldVersion);
             after.TryGetValue(package.FamilyName, out var newVersion);
             var increased = Version.TryParse(oldVersion, out var oldValue) && Version.TryParse(newVersion, out var newValue) && newValue > oldValue;
-            var gone = rescan.Supported && !rescan.Packages.Any(p => p.ProductId == package.ProductId || p.FamilyName == package.FamilyName);
+            var gone = after.ContainsKey(package.FamilyName) && rescan.Supported && !rescan.Packages.Any(p => p.ProductId == package.ProductId || p.FamilyName == package.FamilyName);
             var status = increased || gone ? "mis à jour" : rescan.Supported ? "reste à installer" : "en erreur";
             var detail = $"Version avant : {oldVersion ?? "non disponible"} ; après : {newVersion ?? "non disponible"}. "
                 + (increased ? "La version installée a augmenté." : gone ? "Cette application n'est plus proposée au contrôle final."

@@ -446,7 +446,7 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     public bool HasHelp => Step.Component == UpdateComponent.WindowsFeatureUpgrade;
     public string HelpText => HasHelp ? "Opération longue, redémarrage obligatoire ; dernière étape de l'élévation Windows Update." : string.Empty;
     public string Title => Step.Application is { } app
-        ? $"{Step.Title} : {app.InstalledVersion} → {app.AvailableVersion} ({UpdatesViewModel.SourceLabel(app.Source)})"
+        ? $"{Step.Title} : {app.InstalledVersion} → {app.AvailableVersion} ({(app.Source == UpdateSource.MicrosoftStore ? "Microsoft Store" : "Applications")})"
         : Step.Title;
     [ObservableProperty] private bool isSelected;
     partial void OnIsSelectedChanged(bool value)
