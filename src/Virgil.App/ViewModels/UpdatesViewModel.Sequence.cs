@@ -124,7 +124,7 @@ public partial class UpdatesViewModel
             IsSequencePreview = false;
             RequestVirgilState(VirgilCoreState.Executing, "MISES À JOUR");
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational))
-                Operation.SetStep(SequenceStepKey(step), DisplaySequenceText(step.Title), "Non lancée");
+                Operation.SetStep(SequenceStepKey(step), DisplaySequenceTitle(step), "Non lancée");
             var acceptingProgress = true;
             var sequenceProgressLock = new object();
             var sequenceCancellation = _operationCancellation;
@@ -176,19 +176,19 @@ public partial class UpdatesViewModel
             {
                 if (step.Step.Component == UpdateComponent.Store && step.VerifiedStatus is not null)
                 {
-                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), step.VerifiedStatus, DisplayApplicationText(step.Step, step.Message));
+                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), step.VerifiedStatus, DisplayApplicationText(step.Step, step.Message));
                     continue;
                 }
                 if (step.Step.Component == UpdateComponent.Store && step.Step.Application is not null
                     && step.Message.StartsWith("Non lancée", StringComparison.Ordinal))
                 {
-                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), "reste à installer", "Non lancée : annulation demandée. Cette application reste à installer.");
+                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), "reste à installer", "Non lancée : annulation demandée. Cette application reste à installer.");
                     continue;
                 }
                 if (step.Step.Component == UpdateComponent.Winget)
                 {
                     var card = WingetCardResult(step.Step, step, verification.Applications);
-                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), card.Status, card.Detail);
+                    Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), card.Status, card.Detail);
                     continue;
                 }
                 var check = checks.FirstOrDefault(check => check.Component == SourceComponent(step.Step.Component));
@@ -205,7 +205,7 @@ public partial class UpdatesViewModel
                     && detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase))
                     detail = "Étape exécutée ; contrôle final : " + status + "."
                         + (check is not null && !check.Detail.Contains("Terminé", StringComparison.OrdinalIgnoreCase) ? "\n" + check.Detail : string.Empty);
-                Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceText(step.Step.Title), status, detail);
+                Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
                 && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
@@ -279,6 +279,9 @@ public partial class UpdatesViewModel
         UpdateComponent.WindowsFeatureUpgrade => "Nouvelle version de Windows",
         UpdateComponent.PendingReboot => "Sonde de redémarrage", _ => "Lanceurs"
     };
+    private static string DisplaySequenceTitle(UpdateSequenceStep step) =>
+        step.Application is null ? DisplaySequenceText(step.Title) : step.Title;
+
     private static string DisplayApplicationText(UpdateSequenceStep step, string text)
     {
         var display = DisplaySequenceText(text);
@@ -290,8 +293,7 @@ public partial class UpdatesViewModel
     private static string DisplaySequenceText(string? text) => string.IsNullOrWhiteSpace(text) ? "non renseigné" : text
         .Replace("tout est à jour", "état complet non prouvé", StringComparison.OrdinalIgnoreCase)
         .Replace("tout à jour", "état complet non prouvé", StringComparison.OrdinalIgnoreCase)
-        .Replace("plus rien à faire", "contrôle final requis", StringComparison.OrdinalIgnoreCase)
-        .Replace("WinGet", "Applications", StringComparison.OrdinalIgnoreCase);
+        .Replace("plus rien à faire", "contrôle final requis", StringComparison.OrdinalIgnoreCase);
 
     private static (string Status, string Detail) WingetCardResult(UpdateSequenceStep step, UpdateSequenceStepResult? outcome, UpdateScanReport? scan)
     {
@@ -345,7 +347,7 @@ public partial class UpdatesViewModel
                 var available = scan.Items.Any(item => item.Status == UpdateItemStatus.Available);
                 var informationOnly = scan.Items.Any(item => item.Status == UpdateItemStatus.InformationOnly);
                 var remaining = available || informationOnly;
-                check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "WinGet indisponible au contrôle final.")
+                check = !scan.Winget.IsAvailable ? new(UpdateComponent.Winget, "indisponible", "Source des applications indisponible au contrôle final.")
                     : scan.Errors.Count > 0 ? new(UpdateComponent.Winget, "en erreur", "Recherche applicative incomplète au contrôle final.")
                     : available
                         ? new(UpdateComponent.Winget, "reste à installer", "Contrôle final : reste applicatif détecté.")
@@ -354,7 +356,7 @@ public partial class UpdatesViewModel
                 if (remaining || (scan.Winget.IsAvailable && scan.Errors.Count == 0))
                     check = check with { HasRemaining = remaining };
             }
-            catch { check = new(UpdateComponent.Winget, "indisponible", "Contrôle final WinGet indisponible ou délai dépassé."); }
+            catch { check = new(UpdateComponent.Winget, "indisponible", "Contrôle final des applications indisponible ou délai dépassé."); }
             checks.RemoveAll(value => value.Component == UpdateComponent.Winget);
             checks.Add(check);
         }
@@ -445,9 +447,18 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     });
     public bool HasHelp => Step.Component == UpdateComponent.WindowsFeatureUpgrade;
     public string HelpText => HasHelp ? "Opération longue, redémarrage obligatoire ; dernière étape de l'élévation Windows Update." : string.Empty;
-    public string Title => Step.Application is { } app
-        ? $"{Step.Title} : {app.InstalledVersion} → {app.AvailableVersion} ({(app.Source == UpdateSource.MicrosoftStore ? "Microsoft Store" : "Applications")})"
-        : Step.Title;
+    public string Title
+    {
+        get
+        {
+            if (Step.Application is not { } app) return Step.Title;
+            var installed = string.IsNullOrWhiteSpace(app.InstalledVersion) ? "version non disponible" : app.InstalledVersion;
+            if (Step.Component == UpdateComponent.OutsideWinget)
+                return $"{Step.Title} : {installed} — non pris en charge automatiquement";
+            var versions = string.IsNullOrWhiteSpace(app.AvailableVersion) ? installed : $"{installed} → {app.AvailableVersion}";
+            return $"{Step.Title} : {versions} ({(app.Source == UpdateSource.MicrosoftStore ? "Microsoft Store" : "Applications")})";
+        }
+    }
     [ObservableProperty] private bool isSelected;
     partial void OnIsSelectedChanged(bool value)
     {
