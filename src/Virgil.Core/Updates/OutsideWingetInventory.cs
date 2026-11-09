@@ -15,9 +15,16 @@ public interface IOutsideWingetBackend
 }
 public sealed class OutsideWingetInventory(IOutsideWingetReader reader)
 {
-    public Task<IReadOnlyList<UpdateItem>> ScanAsync(CancellationToken token)
+    public async Task<IReadOnlyList<UpdateItem>> ScanAsync(CancellationToken token)
     {
-        _ = reader;
-        return Task.FromResult<IReadOnlyList<UpdateItem>>([]);
+        var snapshot = await reader.ReadAsync(token).ConfigureAwait(false);
+        if (!snapshot.IsComplete)
+            return [new UpdateItem { Id = "outside-inventory", Name = "Inventaire des autres logiciels", Status = UpdateItemStatus.InformationOnly,
+                Message = "Inventaire incomplet : les sources de mise à jour n'ont pas pu être comparées." }];
+        var managed = snapshot.ManagedNames.Select(n => n.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return snapshot.Installed.Where(a => !a.SystemComponent && !string.IsNullOrWhiteSpace(a.Name) && !managed.Contains(a.Name.Trim()) && LauncherCatalog.Detect([a.Name]).Count == 0)
+            .DistinctBy(a => a.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select((a, index) => new UpdateItem { Id = "outside-" + index, Name = a.Name.Trim(), InstalledVersion = a.Version,
+                Status = UpdateItemStatus.InformationOnly, Message = "pas de source de mise à jour connue" }).ToArray();
     }
 }

@@ -5,10 +5,10 @@ using Virgil.Core.Actions;
 
 namespace Virgil.Core.Updates;
 
-public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Restore, MicrosoftUpdate, Store, WindowsFeatureUpgrade, WingetFinal, PendingReboot }
+public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Restore, MicrosoftUpdate, Store, WindowsFeatureUpgrade, WingetFinal, PendingReboot, OutsideWinget }
 public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
 {
-    public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot;
+    public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot or UpdateComponent.OutsideWinget;
 }
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status)
 {
@@ -22,6 +22,7 @@ public sealed record UpdateSourceVerification(UpdateComponent Component, string 
 }
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
 {
+    public string? VerifiedStatus { get; init; }
     public bool WasSkipped { get; init; }
     public bool WasUnavailable { get; init; }
     public bool? RestorePointVerified { get; init; }
@@ -29,6 +30,7 @@ public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succ
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
     public IReadOnlyList<UpdateSourceVerification> Verifications { get; init; } = [];
+    public IReadOnlyList<UpdateItem> UnsupportedApplications { get; init; } = [];
     public int SuccessfulCount => Steps.Count(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && step.Succeeded);
     public bool HasFailures => Steps.Any(step => !step.Step.IsInformational && !step.WasSkipped && !step.WasUnavailable && !step.Succeeded);
 }
@@ -58,6 +60,7 @@ public interface IUpdateSequenceService
 }
 public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
 {
+    private IReadOnlyList<UpdateItem> _unsupported = [];
     public async Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken)
     {
         var steps = new List<UpdateSequenceStep>
@@ -74,14 +77,23 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             new("drivers", "Windows Update : pilotes (jusqu'à 3 passes)", UpdateComponent.Driver),
             new("store", "Rechercher les mises à jour du Microsoft Store", UpdateComponent.Store),
             new("windows-feature-upgrade", "Nouvelle version de Windows (si disponible)", UpdateComponent.WindowsFeatureUpgrade),
-            new("winget-final", "Passe finale : tout ce que winget trouve", UpdateComponent.WingetFinal),
+            new("winget-final", "Passe finale : applications disponibles", UpdateComponent.WingetFinal),
             new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot)
         ]);
+        if (backend is IStoreUpdateBackend storeBackend)
+        {
+            steps.RemoveAll(step => step.Component == UpdateComponent.Store);
+            var storeSteps = await storeBackend.StoreUpdates.ScanAsync(apps, cancellationToken).ConfigureAwait(false);
+            steps.InsertRange(steps.FindIndex(step => step.Component == UpdateComponent.WindowsFeatureUpgrade), storeSteps);
+        }
+        _unsupported = backend is IOutsideWingetBackend outside
+            ? await outside.OutsideWinget.ScanAsync(cancellationToken).ConfigureAwait(false) : [];
+        steps.AddRange(_unsupported.Select(app => new UpdateSequenceStep(app.Id, app.Name, UpdateComponent.OutsideWinget, app)));
         return steps;
     }
     public ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected)
     {
-        selected = selected.Where(step => step.Component != UpdateComponent.Restore && step.Component != UpdateComponent.PendingReboot).ToArray();
+        selected = selected.Where(step => !step.IsInformational).ToArray();
         return new(
         "updates.sequence", "Tout mettre à jour", RiskLevel.Sensitive,
         selected.Select(s => s.Title).ToArray(),
@@ -97,7 +109,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
 
     public async Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken)
     {
-        var snapshot = selected.Where(s => s.Component is not UpdateComponent.Restore and not UpdateComponent.PendingReboot).Select(s => s with { Application = s.Application is null ? null : s.Application with { } }).ToArray();
+        var snapshot = selected.Where(s => !s.IsInformational).Select(s => s with { Application = s.Application is null ? null : s.Application with { } }).ToArray();
         var validation = gate.TryConsume(plan, CreatePreview(snapshot));
         if (!validation.IsAccepted) return new(true, false, false, [], validation.Message);
         backend.BeginExecution(Guid.NewGuid().ToString("D"));
@@ -145,10 +157,16 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                     results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
                     handled.Add((step.Component, step.Id));
                 }
+                else if (step.Component == UpdateComponent.Store && backend is IStoreUpdateBackend storeBackend)
+                {
+                    // Même plan et même préparation protégée ; arrêt entre deux applications.
+                    results.Add(await storeBackend.StoreUpdates.ExecuteAsync(step, cancellationToken).ConfigureAwait(false));
+                    handled.Add((step.Component, step.Id));
+                }
                 else if (IsElevated(step.Component))
                 {
                     var prepare = step.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate;
-                    var group = snapshot.Where(s => IsElevated(s.Component) && (s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate) == prepare).ToArray();
+                    var group = snapshot.Where(s => IsElevated(s.Component) && !(s.Component == UpdateComponent.Store && backend is IStoreUpdateBackend) && (s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate) == prepare).ToArray();
                     foreach (var member in group) handled.Add((member.Component, member.Id));
                     results.AddRange(await backend.ExecuteGroupAsync(group, cancellationToken).ConfigureAwait(false));
                 }
@@ -173,15 +191,18 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         {
             UpdateSourceVerification check;
             using var verificationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
-            try { check = await backend.VerifyAsync(component, verificationTimeout.Token).WaitAsync(verificationTimeout.Token).ConfigureAwait(false); }
+            try { check = await (component == UpdateComponent.Store && backend is IStoreUpdateBackend storeBackend
+                ? storeBackend.StoreUpdates.VerifyAsync(verificationTimeout.Token)
+                : backend.VerifyAsync(component, verificationTimeout.Token)).WaitAsync(verificationTimeout.Token).ConfigureAwait(false); }
             catch { check = new(component, "indisponible", "Contrôle final indisponible ou délai dépassé."); }
             var outcomes = results.Where(r => r.Step.Component == component).ToArray();
-            if (outcomes.Length == 0 || outcomes.Any(r => r.Message.StartsWith("Non lancée", StringComparison.Ordinal)))
+            if (component == UpdateComponent.Store && backend is IStoreUpdateBackend)
+                check = SummarizeOutcomes(check, outcomes);
+            else if (outcomes.Length == 0 || outcomes.Any(r => r.Message.StartsWith("Non lancée", StringComparison.Ordinal)))
                 check = new(component, "non lancée", check.Detail);
             else if (outcomes.Any(r => r.WasUnavailable)) check = new(component, "indisponible", check.Detail);
             else if (outcomes.Any(r => !r.Succeeded && !r.WasSkipped))
                 check = new(component, outcomes.Any(IsSafetyBlocked) ? "bloquée" : "en erreur", check.Detail);
-            // UpdateScanMethod ne prouve jamais l'installation des UWP hors WinGet.
             else if (component == UpdateComponent.Store)
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             checks.Add(check with { Component = component });
@@ -199,6 +220,21 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var verdict = "Redémarrage nécessaire : " + (reboot ? "oui, " + string.Join(" ; ", sources.Distinct()) : "non") + ".";
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
         var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped && !r.WasUnavailable) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
-        return new(false, cancellationToken.IsCancellationRequested, reboot, results, message) { Verifications = checks };
+        return new(false, cancellationToken.IsCancellationRequested, reboot, results, message) { Verifications = checks, UnsupportedApplications = _unsupported.ToArray() };
     }
+    public static UpdateSourceVerification SummarizeOutcomes(UpdateSourceVerification check, IReadOnlyList<UpdateSequenceStepResult> outcomes)
+    {
+        var blocked = outcomes.Any(IsSafetyBlocked);
+        var failures = outcomes.Count(r => !r.Succeeded && !r.WasSkipped && !r.WasUnavailable
+            && !IsSafetyBlocked(r) && !r.Message.StartsWith("Non lancée", StringComparison.Ordinal));
+        var suffix = blocked ? "bloquée" : failures > 0 ? $"{failures} échec" + (failures > 1 ? "s" : "") : null;
+        if (check.HasRemaining == true)
+            return check with { Status = "reste à installer" + (suffix is null ? "" : " ; " + suffix) };
+        if (blocked) return check with { Status = "bloquée", Detail = "Installation bloquée par une garde de sécurité." };
+        if (failures > 0) return check with { Status = "en erreur", Detail = "Échec pendant l'exécution de cette source ; consultez les cartes." };
+        if (outcomes.Any(r => r.VerifiedStatus == "non pris en charge automatiquement"))
+            return check with { Status = "non pris en charge automatiquement", Detail = outcomes.First(r => r.VerifiedStatus == "non pris en charge automatiquement").Message };
+        return check;
+    }
+
 }

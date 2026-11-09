@@ -10,8 +10,12 @@ public sealed class WindowsUpdateSequenceBackend(
     ElevatedHelperRequestStore store,
     IElevatedProcessLauncher launcher,
     Func<string> helperPath,
-    WingetAvailabilityService? wingetAvailability = null) : IUpdateSequenceBackend
+    WingetAvailabilityService? wingetAvailability = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend
 {
+    private StoreUpdateService? _storeUpdates;
+    private OutsideWingetInventory? _outsideWinget;
+    public StoreUpdateService StoreUpdates => _storeUpdates ??= new(new StoreWindowsClient(runner));
+    public OutsideWingetInventory OutsideWinget => _outsideWinget ??= new(new OutsideWingetWindowsReader(runner));
     private int? _restorePointSequenceNumber;
     private bool _prepared;
     private bool _sourceUpdated;
