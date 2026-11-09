@@ -92,7 +92,10 @@ public sealed partial class LongOperationViewModel : ObservableObject
         var cancelled = IsCancelling || wasCancelled;
         if (!cancelled) { Percent = 100; IsIndeterminate = false; }
         foreach (var item in Steps.Where(item => item.Status == "En cours"))
-            item.Status = cancelled ? "Annulée" : "Terminée";
+        {
+            item.Status = cancelled ? "Annulée" : "Non lancée";
+            if (!cancelled) item.Detail = "Aucun résultat confirmé.";
+        }
         IsRunning = false; IsVisible = true; Step = result; FinalSummary = result; UpdateTiming();
     }
     private void Dispatch(Action action)

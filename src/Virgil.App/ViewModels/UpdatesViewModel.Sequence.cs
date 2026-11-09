@@ -134,11 +134,13 @@ public partial class UpdatesViewModel
                     Operation.Report(new Virgil.Core.Operations.OperationProgress(progress.Title, progress.Current, progress.Total));
                     SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
                     StatusText = SequenceStepText;
+                    Operation.Commentary = progress.Status;
+                    // Une phase technique sans étape correspondante reste du texte courant.
+                    if (!_confirmedSequenceSteps.Any(step => string.Equals(step.Title, progress.Title, StringComparison.Ordinal))) return;
                     var key = $"{progress.Current}:{progress.Title}";
                     if (_sequenceProgressIndices.TryGetValue(key, out var index)) SequenceProgress[index] = SequenceStepText;
                     else { _sequenceProgressIndices.Add(key, SequenceProgress.Count); SequenceProgress.Add(SequenceStepText); }
                     Operation.SetStep(progress.Title, progress.Title, "En cours", progress.Status);
-                    Operation.Commentary = progress.Status;
                 }), _operationCancellation.Token);
             acceptingProgress = false;
             _sequenceWasCancelled = result.WasCancelled;
@@ -149,7 +151,11 @@ public partial class UpdatesViewModel
                 + $"\nRedémarrage nécessaire : {(result.RebootRequired ? "oui" : "non")}.";
             foreach (var step in result.Steps)
                 Operation.SetStep(step.Step.Title, step.Step.Title, SequenceResultStatus(step), step.Message);
-            _sequenceFinalSummary = result.Message + "\n" + string.Join("\n", result.Steps.Select(step => step.Step.Title + " : " + SequenceResultStatus(step)))
+            foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
+                && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
+                Operation.SetStep(step.Title, step.Title, "Non lancée", "Aucun résultat confirmé.");
+            _sequenceFinalSummary = result.Message + "\n" + string.Join("\n", Operation.Steps.Select(step => step.Title + " : " + step.Status
+                + (step.Status == "Terminée" ? string.Empty : " — " + step.Detail)))
                 + $"\nRedémarrage nécessaire : {(result.RebootRequired ? "oui" : "non")}.";
             Operation.Commentary = result.Message;
             await PersistReportAsync(new ReportEntry

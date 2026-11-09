@@ -100,3 +100,31 @@ et son artefact régénéré sont référencés dans la PR, sans attribuer rétr
 Le style des boutons et la marge gauche restent réservés au lot E. Aucun changement des moteurs de confirmation
 ou de quarantaine, de SafeUi, des workflows ou des réglages. La revue visuelle des nouveaux PNG et la relecture
 du nouveau head exact restent à effectuer par loops (relecture).
+
+## Contre-expertise R3 — préparation élevée et succès non prouvé
+
+La contre-expertise du head `fee691fc10fda83946d71bc59b92bee9c6b8278d` relève que le titre technique
+« Point de restauration et préparation Microsoft Update » pouvait créer une carte sans étape correspondante,
+puis `Complete` pouvait la déclarer terminée sans résultat réussi.
+
+Tests seuls : `0f39b708233bd324595e5be51263270b01c95092`.
+Run rouge Windows : https://github.com/bassetthomas-design/virgil-2.0/actions/runs/42601175148.
+Build : 0 avertissement, 0 erreur. Core : 1148/1148 ; App : 620 tests, 616 réussites et 4 échecs d'assertion.
+Les trois variantes du faux `IUpdateSequenceService` prouvent la carte orpheline, le succès non prouvé et le
+blocage absent du résumé ; `Completing_without_step_result_does_not_invent_success` isole le défaut commun.
+Aucun correctif de production ne précède ce run.
+
+Le correctif reste côté App : une progression ne correspondant à aucun titre de la sélection confirmée
+alimente seulement l'avancement courant, sans carte ni entrée de compatibilité `SequenceProgress`.
+Les résultats réels définissent les statuts finaux. Une étape confirmée sans résultat reste « Non lancée »
+avec « Aucun résultat confirmé. ». `Complete` ne transforme plus « En cours » en réussite : sans résultat,
+il conserve une absence de lancement confirmé, ou l'annulation. Les statuts explicitement issus d'un résultat
+ne sont pas écrasés. Le résumé inclut le motif des échecs, sources bloquées et résultats manquants.
+
+Le test `Real_sequence_service_blocked_preparation_keeps_only_actual_step_results` complète la reproduction
+avec le vrai `UpdateSequenceService` et un backend factice refusant la préparation : aucune carte technique,
+Microsoft Update et Windows en échec, aucune installation Windows lancée. Le service Core, ConfirmedPlan,
+le moteur de quarantaine et les workflows ne sont pas modifiés ; aucune logique D1/D2 n'est ajoutée.
+
+Le rendu STA factice `mises-a-jour-preparation-bloquee.png` s'ajoute aux trois captures lot C existantes,
+toutes régénérées dans le run du correctif. Validation verte de cette contre-expertise : en attente Windows.

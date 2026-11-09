@@ -10,6 +10,32 @@ namespace Virgil.Tests;
 
 public sealed class UpdatesSequenceViewModelTests
 {
+    [Fact]
+    public async Task Real_sequence_service_blocked_preparation_keeps_only_actual_step_results()
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            var f = new Fixture();
+            f.Backend.Handler = (step, _) => Task.FromResult(new UpdateSequenceStepResult(step, false, false,
+                "Préparation bloquée : point de restauration non vérifié.") { RestorePointVerified = false });
+            var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            foreach (var choice in f.Vm.SequenceChoices)
+                choice.IsSelected = choice.Step.Component is UpdateComponent.MicrosoftUpdate or UpdateComponent.Windows;
+            var elevated = f.Vm.SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+            await pending;
+            Assert.DoesNotContain(f.Vm.Operation.Steps, step => step.Title == BlockedPreparationSequence.PreparationTitle);
+            foreach (var step in elevated)
+                Assert.Equal("En échec", Assert.Single(f.Vm.Operation.Steps, item => item.Title == step.Title).Status);
+            Assert.Equal(new[] { UpdateComponent.MicrosoftUpdate }, f.Backend.Executed);
+            Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
+            Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
+
     [Theory]
     [InlineData("cards")]
     [InlineData("unfinished")]

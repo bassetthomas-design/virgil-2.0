@@ -16,6 +16,21 @@ namespace Virgil.Tests;
 public sealed class LongOperationLotCWpfTests
 {
     [Fact]
+    public Task Blocked_preparation_panel_never_claims_unproven_success() => ThemeContrastTests.OnSta(async () =>
+    {
+        var f = new UpdatesSequenceViewModelTests.Fixture(wrap: service => new UpdatesSequenceViewModelTests.BlockedPreparationSequence(service));
+        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        Assert.Equal(new[] { "Signatures Microsoft Defender", "Microsoft Update", "Windows Update" }, f.Vm.Operation.Steps.Select(step => step.Title));
+        Assert.All(f.Vm.Operation.Steps, step => Assert.NotEqual("Terminée", step.Status));
+        Assert.Contains("bloquée", f.Vm.Operation.FinalSummary);
+        Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        await Capture(new OperationProgressPanel { DataContext = f.Vm.Operation }, "mises-a-jour-preparation-bloquee.png");
+    });
+
+    [Fact]
     public Task Updates_final_panel_renders_two_steps_and_pending_reboot() => ThemeContrastTests.OnSta(async () =>
     {
         var f = new UpdatesSequenceViewModelTests.Fixture(wrap: service => new UpdatesSequenceViewModelTests.RepeatingSequence(service));
