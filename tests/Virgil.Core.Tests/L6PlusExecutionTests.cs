@@ -16,7 +16,7 @@ public sealed class L6PlusExecutionTests
     public async Task Store_unavailable_is_informational_not_a_failed_step()
     {
         using var f = new Fixture();
-        f.Launcher.StoreStatus = "UNAVAILABLE";
+        f.Store.Status = "UNAVAILABLE";
         var result = await RunStoreSequence(f);
         Assert.False(result.HasFailures);
         Assert.Equal("Séquence terminée.", result.Message);
@@ -24,14 +24,16 @@ public sealed class L6PlusExecutionTests
         var store = Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Store);
         Assert.False(store.Succeeded);
         AssertUnavailable(store, true);
-        Assert.Equal("Scan Store non disponible sur ce PC (information, best effort).", store.Message);
+        Assert.Equal(StoreClient.UnavailableReason, store.Message);
+        Assert.Equal("non pris en charge automatiquement", store.VerifiedStatus);
+        Assert.Equal(0, f.Store.Starts);
     }
 
     [Fact, Trait("Category", "Safety"), Trait("Category", "Windows")]
     public async Task Store_unavailable_does_not_hide_a_real_failure()
     {
         using var f = new Fixture();
-        f.Launcher.StoreStatus = "UNAVAILABLE";
+        f.Store.Status = "UNAVAILABLE";
         f.Launcher.FailSoftware = true;
         var result = await RunStoreSequence(f);
         Assert.True(result.HasFailures);
@@ -47,11 +49,13 @@ public sealed class L6PlusExecutionTests
     public async Task Store_unavailable_with_a_real_store_failure_remains_failed(string status)
     {
         using var f = new Fixture();
-        f.Launcher.StoreStatus = "UNAVAILABLE";
-        f.Launcher.StoreFailure = status;
+        f.Store.Status = "UNAVAILABLE";
+        f.Store.Failure = status;
         var result = await RunStoreSequence(f);
         Assert.True(result.HasFailures);
         AssertUnavailable(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Store), false);
+        Assert.Equal(1, f.Store.Starts);
+        Assert.Contains(status == "CANCELLED" ? "annulée" : "échoué", Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Store).Message);
     }
 
     [Fact, Trait("Category", "Safety"), Trait("Category", "Windows")]
@@ -72,10 +76,11 @@ public sealed class L6PlusExecutionTests
     private static void AssertUnavailable(UpdateSequenceStepResult result, bool expected) =>
         Assert.Equal(expected, result.WasUnavailable);
 
-    private static Task<UpdateSequenceResult> RunStoreSequence(Fixture f)
+    private static async Task<UpdateSequenceResult> RunStoreSequence(Fixture f)
     {
-        UpdateSequenceStep[] steps = [new("software", "Windows Update", UpdateComponent.Windows), new("store", "Microsoft Store", UpdateComponent.Store)];
-        return f.Service.ExecuteAsync(steps, f.Authority.Issue(f.Service.CreatePreview(steps), new(ConfirmationLevel.Reinforced, null)), null, default);
+        var scanned = await f.Service.ScanAsync([], default);
+        UpdateSequenceStep[] steps = [new("software", "Windows Update", UpdateComponent.Windows), Assert.Single(scanned, s => s.Component == UpdateComponent.Store)];
+        return await f.Service.ExecuteAsync(steps, f.Authority.Issue(f.Service.CreatePreview(steps), new(ConfirmationLevel.Reinforced, null)), null, default);
     }
 
     [Theory, Trait("Category", "Safety")]
@@ -120,7 +125,8 @@ public sealed class L6PlusExecutionTests
         {
             Assert.Equal(42, fixture.Launcher.Requests[1].RestorePointSequenceNumber);
             Assert.Equal(fixture.Launcher.Requests[0].RestoreSessionId, fixture.Launcher.Requests[1].RestoreSessionId);
-            Assert.Equal("software,drivers,store,windows-feature-upgrade", fixture.Launcher.Requests[1].UpdateIdentity);
+            Assert.Equal("software,drivers,windows-feature-upgrade", fixture.Launcher.Requests[1].UpdateIdentity);
+            Assert.DoesNotContain(fixture.Launcher.Requests, request => request.UpdateIdentity.Split(',').Contains("store"));
         }
     }
 
@@ -257,6 +263,25 @@ public sealed class L6PlusExecutionTests
         { Requests.Add(request); return Task.FromResult(new ProcessRunResult(0, version, "")); }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken token) => throw new InvalidOperationException();
     }
+    private sealed class StoreClient : IStoreUpdateClient
+    {
+        public const string UnavailableReason = "Les droits de ce compte ne permettent pas la mise à jour automatique depuis le Microsoft Store.";
+        public string? Status { get; set; }
+        public string? Failure { get; set; }
+        public int Starts { get; private set; }
+        public Task<StoreSearch> SearchAsync(CancellationToken token) => Task.FromResult(
+            Failure is not null ? new StoreSearch(true, "", [new("store-package", "store-family", "Application Store", "1.0")])
+            : Status == "UNAVAILABLE" ? new StoreSearch(false, UnavailableReason, [])
+            : new StoreSearch(true, "", []));
+        public Task<IReadOnlyDictionary<string, string>> ReadVersionsAsync(CancellationToken token) =>
+            Task.FromResult<IReadOnlyDictionary<string, string>>(new Dictionary<string, string> { ["store-family"] = "1.0" });
+        public Task<StoreStart> StartAsync(StorePackage package, CancellationToken token)
+        {
+            Starts++;
+            return Task.FromResult(new StoreStart(false, Failure == "CANCELLED"
+                ? "L'installation a été annulée par le système." : "L'installation a échoué."));
+        }
+    }
     private sealed class Fixture : IDisposable
     {
         private readonly string directory = Path.Combine(Path.GetTempPath(), "Virgil-L6b-" + Guid.NewGuid().ToString("N"));
@@ -265,19 +290,18 @@ public sealed class L6PlusExecutionTests
         public UpdateSequenceService Service { get; }
         public Runner Runner { get; } = new("1.8.0");
         public Shutdown Shutdown { get; } = new();
+        public StoreClient Store { get; } = new();
         public Fixture()
         {
             Directory.CreateDirectory(directory);
             var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(), () => Guid.NewGuid().ToByteArray(), () => DateTimeOffset.UtcNow);
-            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"])), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
+            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"]), Store), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
         }
         public void Dispose() => Directory.Delete(directory, true);
     }
     private sealed class Launcher : IElevatedProcessLauncher
     {
         public List<ElevatedInterventionRequest> Requests { get; } = [];
-        public string? StoreStatus { get; set; }
-        public string? StoreFailure { get; set; }
         public bool FailSoftware { get; set; }
         public bool MicrosoftUnavailable { get; set; }
         public bool FailDefender { get; set; }
@@ -298,17 +322,10 @@ public sealed class L6PlusExecutionTests
                     lines.Add("VIRGIL|restore-point|INFO|point existant du 01/11/2026 (Point vérifié) réutilisé");
                 }
             }
-            if (!prepare && StoreStatus is not null)
-            {
-                lines.Add("VIRGIL|software|" + (FailSoftware ? "FAILED" : "OK") + "|Windows logiciel.");
-                lines.Add("VIRGIL|store|INFO|Recherche des mises à jour du Store.");
-                lines.Add("VIRGIL|store|" + StoreStatus + "|Scan Store non disponible sur ce PC");
-                if (StoreFailure is not null) lines.Add("VIRGIL|store|" + StoreFailure + "|Panne Store.");
-            }
             if (prepare && MicrosoftUnavailable) lines.Add("VIRGIL|microsoft-update|UNAVAILABLE|Windows Update seul.");
             foreach (var tokenName in request.UpdateIdentity.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                if (!(tokenName == "store" && StoreStatus is not null) && !(tokenName == "software" && StoreStatus is not null) && !(tokenName == "microsoft-update" && MicrosoftUnavailable))
-                lines.Add("VIRGIL|" + tokenName + "|" + (tokenName == "defender" && FailDefender ? "FAILED" : "OK") + "|" +
+                if (!(tokenName == "microsoft-update" && MicrosoftUnavailable))
+                lines.Add("VIRGIL|" + tokenName + "|" + ((tokenName == "defender" && FailDefender) || (tokenName == "software" && FailSoftware) ? "FAILED" : "OK") + "|" +
                     (tokenName == "defender" ? "Résultat Defender." : tokenName == "software" ? "Windows logiciel installé." : "Résultat " + tokenName + "."));
             var failed = prepare && (FailRestore || FailDefender);
             var result = new ElevatedInterventionResult { ActionId = request.ActionId, Nonce = request.Nonce, StartedAt = DateTimeOffset.UtcNow, FinishedAt = DateTimeOffset.UtcNow, Status = failed ? InterventionStatus.Failed : InterventionStatus.Completed, SummaryOutput = FailRestore ? "Point de restauration non vérifié." : string.Join("\n", lines) };

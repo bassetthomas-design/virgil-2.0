@@ -32,14 +32,16 @@ public sealed class D1WingetIdentityTests
         var a = Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-a");
         var b = Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-b");
         Assert.Equal("mis à jour", a.Status);
-        Assert.Contains("Installation réussie pour app-a", a.Detail);
+        Assert.Contains("Installation réussie", a.Detail);
+        Assert.DoesNotContain("app-a", a.Detail);
         Assert.DoesNotContain("bloquée", a.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("en erreur", a.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("reste à installer", a.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("app-b", a.Detail);
         Assert.DoesNotContain("app-c", a.Detail);
         Assert.Equal(guardRefusal ? "bloquée" : "en erreur", b.Status);
-        Assert.Contains("app-b", b.Detail);
+        Assert.Equal("Winget:app-b", b.Key);
+        Assert.DoesNotContain("app-b", b.Detail);
         Assert.Contains(guardRefusal ? "garde de sécurité" : "Échec d'installation", b.Detail);
         Assert.DoesNotContain("réussie", b.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Terminé", b.Detail, StringComparison.OrdinalIgnoreCase);
@@ -49,7 +51,8 @@ public sealed class D1WingetIdentityTests
         {
             var c = Assert.Single(f.Vm.Operation.Steps, card => card.Key == "Winget:app-c");
             Assert.Equal("reste à installer", c.Status);
-            Assert.Contains("app-c", c.Detail);
+            Assert.Equal("Winget:app-c", c.Key);
+            Assert.DoesNotContain("app-c", c.Detail);
             Assert.Contains("non lancée", c.Detail, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Étape exécutée", c.Detail, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("réussie", c.Detail, StringComparison.OrdinalIgnoreCase);
@@ -63,7 +66,7 @@ public sealed class D1WingetIdentityTests
 
     [Theory]
     [InlineData(false, false, "reste à installer")]
-    [InlineData(true, false, "reste à installer")]
+    [InlineData(true, false, "reste à installer ; 1 échec")]
     [InlineData(true, true, "en erreur")]
     [InlineData(false, true, "à jour")]
     public async Task Partly_executed_source_uses_final_remains_and_short_summary(bool failSecond, bool emptyFinal, string status)
@@ -84,7 +87,7 @@ public sealed class D1WingetIdentityTests
         Assert.Equal(failSecond ? new[] { "app-a", "app-b" } : ["app-a"], executed);
         foreach (var text in new[] { f.Vm.Operation.FinalSummary, f.History.Report!.SimpleView })
         {
-            var source = Assert.Single(text.Split('\n'), line => line.StartsWith("WinGet / applications", StringComparison.Ordinal));
+            var source = Assert.Single(text.Split('\n'), line => line.StartsWith("Applications", StringComparison.Ordinal));
             Assert.Contains(": " + status + " — ", source);
             Assert.DoesNotContain("non lancée", source, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("app-b", source);

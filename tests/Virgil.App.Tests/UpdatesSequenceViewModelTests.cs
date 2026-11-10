@@ -24,8 +24,8 @@ public sealed class UpdatesSequenceViewModelTests
         await pending;
         var cards = f.Vm.Operation.Steps.Where(step => step.Title == "Même application").ToArray();
         Assert.Collection(cards,
-            card => Assert.Contains("app-a", card.Detail),
-            card => Assert.Contains("app-b", card.Detail));
+            card => Assert.Equal("Winget:app-a", card.Key),
+            card => Assert.Equal("Winget:app-b", card.Key));
         Assert.NotEqual(cards[0].Key, cards[1].Key);
         Assert.NotEqual(cards[0].Status, cards[1].Status);
         Assert.DoesNotContain("app-b", cards[0].Detail);
@@ -46,7 +46,8 @@ public sealed class UpdatesSequenceViewModelTests
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
         Assert.InRange(scan.Calls, 2, int.MaxValue);
-        Assert.Contains("WinGet", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Applications", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("WinGet", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
         if (remaining)
         {
             AssertNoD1PositiveConclusion(f);
@@ -55,8 +56,7 @@ public sealed class UpdatesSequenceViewModelTests
         else
         {
             Assert.Contains("Tout est à jour.", f.Vm.Operation.FinalSummary);
-            var card = Assert.Single(f.Vm.Operation.Steps, step => step.Title.Contains("WinGet", StringComparison.OrdinalIgnoreCase)
-                || step.Title.Contains("winget", StringComparison.Ordinal));
+            var card = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "WingetFinal:winget-final");
             Assert.Contains(card.Status, new[] { "à jour", "mis à jour" });
         }
         Assert.True(f.Vm.Operation.IsVisible);
@@ -76,8 +76,10 @@ public sealed class UpdatesSequenceViewModelTests
         await pending;
         var completed = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Winget:app-a");
         var missing = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Winget:app-b");
-        Assert.Contains("app-a", completed.Detail);
-        Assert.Contains("app-b", missing.Detail);
+        Assert.Equal("Winget:app-a", completed.Key);
+        Assert.Equal("Winget:app-b", missing.Key);
+        Assert.DoesNotContain("Identité", missing.Detail);
+        Assert.DoesNotContain("app-b", missing.Detail);
         Assert.DoesNotContain("app-b", completed.Detail);
         Assert.DoesNotContain("app-a", missing.Detail);
         Assert.Equal("Non lancée", missing.Status);

@@ -10,8 +10,13 @@ public sealed class WindowsUpdateSequenceBackend(
     ElevatedHelperRequestStore store,
     IElevatedProcessLauncher launcher,
     Func<string> helperPath,
-    WingetAvailabilityService? wingetAvailability = null) : IUpdateSequenceBackend
+    WingetAvailabilityService? wingetAvailability = null,
+    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend
 {
+    private StoreUpdateService? _storeUpdates;
+    private OutsideWingetInventory? _outsideWinget;
+    public StoreUpdateService StoreUpdates => _storeUpdates ??= new(storeClient ?? new StoreWindowsClient(runner));
+    public OutsideWingetInventory OutsideWinget => _outsideWinget ??= new(new OutsideWingetWindowsReader(runner));
     private int? _restorePointSequenceNumber;
     private bool _prepared;
     private bool _sourceUpdated;
@@ -72,22 +77,22 @@ public sealed class WindowsUpdateSequenceBackend(
         {
             var app = step.Application;
             if (step.Component == UpdateComponent.Winget && (app is null || string.IsNullOrWhiteSpace(app.Id) || app.IsIdTruncated || !IsSafePackageId(app.Id) || !IsSafeVersion(app.AvailableVersion)))
-                return new(step, false, false, "Identité ou version WinGet incomplète. Relancez l’analyse.");
+                return new(step, false, false, "Identité ou version de l’application incomplète. Relancez l’analyse.");
             var detection = await (wingetAvailability ?? new WingetAvailabilityService(runner)).DetectAsync(cancellationToken).ConfigureAwait(false);
-            if (!detection.IsAvailable || string.IsNullOrWhiteSpace(detection.ExecutablePath)) return new(step, false, false, "WinGet indisponible.");
+            if (!detection.IsAvailable || string.IsNullOrWhiteSpace(detection.ExecutablePath)) return new(step, false, false, "Source des applications indisponible.");
             cancellationToken.ThrowIfCancellationRequested();
             var capabilities = WingetAvailabilityService.GetCapabilities(detection.Version);
             var notes = new List<string>();
             if (!_sourceUpdated || step.Component == UpdateComponent.WingetFinal)
             {
                 var source = await runner.RunAsync(new(detection.ExecutablePath, ["source", "update"], TimeSpan.FromMinutes(2)), cancellationToken).ConfigureAwait(false);
-                notes.Add(source.ExitCode == 0 ? "Sources WinGet actualisées." : "Actualisation des sources WinGet impossible ; poursuite de la passe.");
+                notes.Add(source.ExitCode == 0 ? "Sources des applications actualisées." : "Actualisation des sources des applications impossible ; poursuite de la passe.");
                 _sourceUpdated = true;
             }
             cancellationToken.ThrowIfCancellationRequested();
             var args = step.Component == UpdateComponent.WingetFinal ? BuildFinalArguments(capabilities).ToList() : WingetUpdateExecutionService.BuildUpgradeArguments(app!.Id, capabilities).ToList();
             if (step.Component == UpdateComponent.Winget) args.AddRange(["--version", app!.AvailableVersion]);
-            if (step.Component == UpdateComponent.WingetFinal && !capabilities.SupportsIncludePinned) notes.Add("WinGet antérieur à 1.5 : option --include-pinned retirée.");
+            if (step.Component == UpdateComponent.WingetFinal && !capabilities.SupportsIncludePinned) notes.Add("Version ancienne du gestionnaire d’applications : option --include-pinned retirée.");
             var result = await runner.RunAsync(new(detection.ExecutablePath, args, TimeSpan.FromMinutes(20)), CancellationToken.None).ConfigureAwait(false);
             var success = result.ExitCode == 0 && !result.TimedOut && !result.Cancelled && result.LaunchError is null;
             return new(step, success, result.ExitCode == 3010, string.Join("\n", notes.Append(success ? "Application mise à jour." : "Mise à jour non terminée.")));
