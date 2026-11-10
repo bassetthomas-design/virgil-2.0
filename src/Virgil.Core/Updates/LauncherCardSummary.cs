@@ -16,8 +16,18 @@ public static class LauncherCardSummary
         var launchers = outcomes.Where(r => !r.Step.Id.StartsWith("SteamGame:", StringComparison.Ordinal)).ToArray();
         int Count(string status) => games.Count(r => r.VerifiedStatus == status);
         var parts = new List<string>();
-        if (games.Length > 0)
-            parts.Add($"Steam : {Count("mis à jour")} mis à jour, {Count("à jour selon Steam")} à jour selon Steam, {Count("reste à installer")} reste à installer, {Count("en erreur")} en erreur, {Count("non lancée")} non lancée");
+        var counts = new List<string>();
+        void AddCount(string status, string singular, string plural)
+        {
+            var count = Count(status);
+            if (count > 0) counts.Add($"{count} " + (count == 1 ? singular : plural));
+        }
+        AddCount("mis à jour", "mis à jour", "mis à jour");
+        AddCount("à jour selon Steam", "à jour selon Steam", "à jour selon Steam");
+        AddCount("reste à installer", "reste à installer", "restent à installer");
+        AddCount("en erreur", "en erreur", "en erreur");
+        AddCount("non lancée", "non lancé", "non lancés");
+        if (counts.Count > 0) parts.Add("Steam : " + string.Join(", ", counts));
         var unsupported = launchers.Count(r => r.VerifiedStatus == Unsupported);
         if (unsupported > 0) parts.Add($"{unsupported} lanceur" + (unsupported > 1 ? "s" : "") + " non pris en charge automatiquement");
         parts.AddRange(launchers.Where(r => r.VerifiedStatus is "bloquée" or "non lancée" or "en erreur" || (r.Step.Id == "Steam" && r.VerifiedStatus == Unsupported)).Select(r => r.Message));
