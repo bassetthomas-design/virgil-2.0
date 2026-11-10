@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -19,6 +20,8 @@ public sealed class D1bisCPanelTests
     private const string Unsupported = "non pris en charge automatiquement";
     private const string FirstTitle = "NVIDIA - Display - 32.0.15.7216";
     private const string SecondTitle = "Intel - System - 10.1.1.38";
+    private const string WuTitle = "Windows Update : pilotes (jusqu'à 3 passes)";
+    private const string BiosTitle = "BIOS : information seulement, jamais installé par Virgil — 1.2.3";
 
     [Fact]
     public Task Confirmation_uses_one_plan_and_information_rows_cannot_be_selected() => ThemeContrastTests.OnSta(async () =>
@@ -35,21 +38,21 @@ public sealed class D1bisCPanelTests
             var wu = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "drivers");
             Assert.True(wu.IsSelected);
             Assert.True(wu.CanSelect);
-            Assert.Contains("Windows Update : pilotes", wu.Title);
+            Assert.Equal(WuTitle, wu.Title);
             var package = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "WinGet:" + PackageId);
             Assert.True(package.CanSelect);
             Assert.True(package.IsSelected);
-            Assert.Contains(PackageName, package.Title);
-            Assert.All(f.Vm.SequenceChoices.Where(c => c.Step.Id == "BIOS"), bios =>
-            {
-                Assert.False(bios.CanSelect);
-                Assert.False(bios.IsSelected);
-            });
+            Assert.Equal(PackageName, package.Title);
+            var bios = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "BIOS");
+            Assert.False(bios.CanSelect);
+            Assert.False(bios.IsSelected);
+            Assert.Equal(BiosTitle, bios.Title);
             Assert.Contains("BIOS : information seulement, jamais installé par Virgil", f.Vm.ValidationCommand);
             var provider = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "Provider:Autre fabricant");
             Assert.False(provider.CanSelect);
             Assert.False(provider.IsSelected);
-            Assert.Contains(Unsupported, provider.Title);
+            Assert.Equal("Autre fabricant", provider.Title);
+            Assert.Equal("Autre fabricant — " + Unsupported, Assert.Single(f.Vm.ValidationCommand.Split('\n'), line => line.StartsWith("Autre fabricant", StringComparison.Ordinal)));
             Assert.Contains("point de restauration", f.Vm.ValidationDetails, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("Aucun redémarrage automatique", f.Vm.ValidationSafety);
             var view = new UpdatesView(f.Vm);
@@ -59,6 +62,8 @@ public sealed class D1bisCPanelTests
                 window.Show(); window.UpdateLayout();
                 Assert.DoesNotContain(Descendants<CheckBox>(view), box =>
                     box.DataContext is UpdateSequenceChoiceViewModel choice && choice.Step.Id == "BIOS" && box.IsVisible);
+                Assert.DoesNotContain(Descendants<CheckBox>(view), box =>
+                    box.DataContext is UpdateSequenceChoiceViewModel choice && choice.Step.Id == "Provider:Autre fabricant" && box.IsVisible);
             }
             finally { window.Close(); }
         }
@@ -82,10 +87,16 @@ public sealed class D1bisCPanelTests
         var f = new Fixture(scenario);
         if (scenario == "cancelled") f.Backend.Cancel = f.Vm.CancelActiveOperation;
         var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+        if (scenario == "bios")
+        {
+            try { Assert.True(f.Vm.IsValidationOpen); await Capture(f.Vm, "bios-information"); }
+            catch { f.Vm.SkipDecisionCommand.Execute(null); await pending; throw; }
+        }
         foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.CanSelect && choice.Step.Component == UpdateComponent.Driver;
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
-        await Capture(f.Vm, scenario switch { "partial" => "partial", "none" => "no-drivers", "bios" => "bios-information", _ => "cancellation" });
+        Assert.False(f.Vm.IsValidationOpen);
+        if (scenario != "bios") await Capture(f.Vm, scenario switch { "partial" => "partial", "none" => "no-drivers", _ => "cancellation" });
         Assert.Equal(1, f.Confirmation.Calls);
         Assert.True(f.Vm.IsIdle);
         Assert.Equal(f.Vm.Operation.FinalSummary, f.History.Report!.SimpleView);
@@ -93,6 +104,7 @@ public sealed class D1bisCPanelTests
         Assert.DoesNotContain("0 ", source);
         var bios = Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Driver:BIOS");
         Assert.Equal(Unsupported, bios.Status);
+        Assert.Equal(BiosTitle, bios.Title);
         Assert.Contains("1.2.3", bios.Title + bios.Detail);
         Assert.Contains("Virgil n'installe jamais le BIOS", bios.Detail);
         Assert.DoesNotContain(f.Backend.InstalledPackages, id => id.Contains("Firmware", StringComparison.OrdinalIgnoreCase));
@@ -100,6 +112,8 @@ public sealed class D1bisCPanelTests
         {
             var empty = Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Driver:drivers");
             Assert.Equal("à jour", empty.Status);
+            Assert.Equal(WuTitle, empty.Title);
+            Assert.Equal("Pilotes : à jour", source);
             Assert.DoesNotContain(f.Vm.Operation.Steps, c => c.Key.StartsWith("Driver:WU:", StringComparison.Ordinal));
             Assert.DoesNotContain(f.Vm.Operation.Steps, c => c.Key.StartsWith("Driver:WinGet:", StringComparison.Ordinal));
             Assert.Empty(f.Backend.InstalledPackages);
@@ -116,6 +130,7 @@ public sealed class D1bisCPanelTests
             Assert.Equal(PackageName, package.Title);
             Assert.Equal(scenario == "cancelled" ? "non lancée" : "mis à jour", package.Status);
             Assert.Equal(Unsupported, Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Driver:Provider:Autre fabricant").Status);
+            Assert.Equal("Autre fabricant", Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Driver:Provider:Autre fabricant").Title);
             Assert.DoesNotContain(f.Vm.Operation.Steps, c => c.Key == "Driver:drivers");
             Assert.DoesNotContain("Tout est à jour", f.Vm.Operation.FinalSummary);
             Assert.DoesNotContain("Pilotes : à jour", source);
@@ -125,6 +140,7 @@ public sealed class D1bisCPanelTests
                 Assert.Contains("2 mis à jour", source);
                 Assert.Contains("1 reste à installer", source);
                 Assert.Contains(Unsupported, source);
+                Assert.Equal("Pilotes : reste à installer — 2 mis à jour, 1 reste à installer, 2 non pris en charge automatiquement", source);
             }
             else
             {
@@ -132,6 +148,7 @@ public sealed class D1bisCPanelTests
                 Assert.Equal(new[] { "first" }, f.Backend.DriverCalls);
                 Assert.Contains("1 mis à jour", source);
                 Assert.Contains("2 non lancées", source);
+                Assert.Equal("Pilotes : non lancée — 1 mis à jour, 2 non lancées, 2 non pris en charge automatiquement", source);
             }
         }
         Assert.All(f.Vm.Operation.Steps.Where(c => c.Key.StartsWith("Driver:", StringComparison.Ordinal)), card =>
@@ -205,6 +222,18 @@ public sealed class D1bisCPanelTests
             window.Show(); window.UpdateLayout();
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             window.UpdateLayout();
+            if (vm.IsValidationOpen)
+            {
+                var bios = Assert.Single(vm.SequenceChoices, choice => choice.Step.Id == "BIOS");
+                AssertInformationRow(host, bios, BiosTitle);
+                foreach (var provider in vm.SequenceChoices.Where(choice => choice.Step.Id.StartsWith("Provider:", StringComparison.Ordinal)))
+                    AssertInformationRow(host, provider, provider.Step.Id[9..]);
+                Assert.All(vm.SequenceChoices.Where(choice => choice.Step.IsInformational), choice =>
+                {
+                    Assert.False(choice.CanSelect); Assert.False(choice.IsSelected);
+                    Assert.DoesNotContain(Descendants<CheckBox>(host), box => ReferenceEquals(box.DataContext, choice) && box.IsVisible);
+                });
+            }
             var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-d1bis-c");
             Directory.CreateDirectory(directory);
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(host.ActualWidth), (int)Math.Ceiling(host.ActualHeight), 96, 96, PixelFormats.Pbgra32);
@@ -214,6 +243,28 @@ public sealed class D1bisCPanelTests
             encoder.Save(stream);
         }
         finally { window.Close(); }
+    }
+
+    private static void AssertInformationRow(FrameworkElement host, UpdateSequenceChoiceViewModel choice, string title)
+    {
+        Assert.Equal(title, choice.Title);
+        Assert.True(choice.Step.IsInformational);
+        Assert.False(choice.CanSelect); Assert.False(choice.IsSelected);
+        var label = Assert.Single(Descendants<TextBlock>(host), text => ReferenceEquals(text.DataContext, choice) && text.Text == title);
+        var status = Assert.Single(Descendants<TextBlock>(host), text => ReferenceEquals(text.DataContext, choice) && text.Text == Unsupported);
+        foreach (var text in new[] { label, status })
+        {
+            Assert.True(text.IsVisible);
+            Assert.True(text.ActualWidth > 0 && text.ActualHeight > 0);
+            var bounds = new Rect(host.RenderSize); bounds.Inflate(0.5, 0.5);
+            Assert.True(bounds.Contains(text.TransformToAncestor(host).TransformBounds(new Rect(text.RenderSize))), "Ligne hors de la surface capturée.");
+            for (var parent = VisualTreeHelper.GetParent(text); parent is not null && parent != host; parent = VisualTreeHelper.GetParent(parent))
+                if (parent is ScrollContentPresenter viewport)
+                {
+                    var visible = new Rect(viewport.RenderSize); visible.Inflate(0.5, 0.5);
+                    Assert.True(visible.Contains(text.TransformToAncestor(viewport).TransformBounds(new Rect(text.RenderSize))), "Ligne hors de la zone visible de confirmation.");
+                }
+        }
     }
 
     private sealed class Fixture

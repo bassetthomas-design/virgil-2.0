@@ -33,6 +33,7 @@ public sealed class D1bisCSequenceTests
         Assert.Equal("reste à installer", Card(result, "WU:second").VerifiedStatus);
         Assert.Equal("mis à jour", Card(result, "WinGet:" + AmdId).VerifiedStatus);
         Assert.Equal(Unsupported, Card(result, "Provider:Autre fabricant").VerifiedStatus);
+        Assert.Equal("Autre fabricant", Card(result, "Provider:Autre fabricant").Step.Title);
         var bios = Card(result, "BIOS");
         Assert.Equal(Unsupported, bios.VerifiedStatus);
         Assert.Contains("1.2.3", bios.Step.Title + bios.Message);
@@ -81,6 +82,28 @@ public sealed class D1bisCSequenceTests
         Assert.Equal("à jour", source.VerifiedStatus);
         Assert.DoesNotContain(result.Steps, r => r.Step.Id.StartsWith("WU:", StringComparison.Ordinal));
         Assert.Empty(backend.InstalledPackages);
+        var verification = Assert.Single(result.Verifications, check => check.Component == UpdateComponent.Driver);
+        Assert.Equal("à jour", verification.Status);
+        Assert.True(verification.IsCurrent);
+        Assert.DoesNotContain("0 ", verification.Detail);
+        Assert.Equal(Unsupported, Card(result, "BIOS").VerifiedStatus);
+        Assert.Contains("Virgil n'installe jamais le BIOS", Card(result, "BIOS").Message);
+    }
+
+    [Fact]
+    public async Task Current_drivers_keep_the_updated_source_despite_information_cards()
+    {
+        var backend = new Backend { NoRemaining = true };
+        var authority = new ConfirmationService(TimeProvider.System);
+        var service = new UpdateSequenceService(backend, authority);
+        var selected = (await service.ScanAsync([], default)).Where(step => step.Component == UpdateComponent.Driver).ToArray();
+        var result = await Run(service, authority, selected);
+        var source = Assert.Single(result.Verifications, check => check.Component == UpdateComponent.Driver);
+        Assert.Equal("mis à jour", source.Status);
+        Assert.True(source.IsCurrent);
+        Assert.Equal("à jour", Card(result, "WU:second").VerifiedStatus);
+        Assert.Equal(Unsupported, Card(result, "BIOS").VerifiedStatus);
+        Assert.Equal(Unsupported, Card(result, "Provider:Autre fabricant").VerifiedStatus);
     }
 
     [Theory]
@@ -113,11 +136,18 @@ public sealed class D1bisCSequenceTests
         Assert.True(bios.IsInformational);
         var provider = Assert.Single(steps, s => s.Id == "Provider:Autre fabricant");
         Assert.True(provider.IsInformational);
+        Assert.Equal("Autre fabricant", provider.Title);
+        Assert.Equal("BIOS : information seulement, jamais installé par Virgil — 1.2.3", bios.Title);
         var preview = service.CreatePreview(steps);
         Assert.Contains(preview.Effects, e => e.Contains("Windows Update : pilotes", StringComparison.Ordinal));
         Assert.Contains(preview.Effects, e => e.Contains(AmdName, StringComparison.Ordinal));
         Assert.Contains(preview.Effects, e => e.Contains("BIOS : information seulement, jamais installé par Virgil", StringComparison.Ordinal));
-        Assert.Contains(preview.Effects, e => e.Contains(Unsupported, StringComparison.Ordinal));
+        Assert.Equal("Autre fabricant — " + Unsupported, Assert.Single(preview.Effects, e => e.StartsWith("Autre fabricant", StringComparison.Ordinal)));
+        Assert.Equal("Autre fabricant — " + Unsupported, Assert.Single(preview.Targets, e => e.StartsWith("Autre fabricant", StringComparison.Ordinal)));
+        Assert.Equal("Windows Update : pilotes (jusqu'à 3 passes)", Assert.Single(preview.Effects, e => e.StartsWith("Windows Update : pilotes", StringComparison.Ordinal)));
+        Assert.Equal(AmdName, Assert.Single(preview.Effects, e => e.StartsWith(AmdName, StringComparison.Ordinal)));
+        Assert.Equal(bios.Title, Assert.Single(preview.Effects, e => e.StartsWith("BIOS :", StringComparison.Ordinal)));
+        Assert.DoesNotContain(preview.Effects.Concat(preview.Targets), e => e.Contains(Unsupported + " — " + Unsupported, StringComparison.Ordinal));
         Assert.DoesNotContain(preview.Effects, e => e.Contains("WinGet", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(preview.Effects, e => e.Contains("pnputil", StringComparison.OrdinalIgnoreCase));
         await Run(service, authority, steps.Where(s => s.Component == UpdateComponent.Driver).ToArray());
@@ -190,6 +220,7 @@ public sealed class D1bisCSequenceTests
         public bool RestoreFails { get; init; }
         public bool FirmwareOffer { get; init; }
         public bool AddFailure { get; init; }
+        public bool NoRemaining { get; init; }
         public string OfferedId { get; init; } = AmdId;
         public bool Silent { get; init; } = true;
         public int InventoryReads { get; private set; }
@@ -240,7 +271,8 @@ public sealed class D1bisCSequenceTests
                 ? Empty ? new[] { new UpdateSequenceStepResult(s, true, false, "Aucun pilote proposé.") { VerifiedStatus = "à jour" } }
                     : new[] {
                         new UpdateSequenceStepResult(new("WU:first", "NVIDIA - Display - 32.0.15.7216", UpdateComponent.Driver), true, false, "Pilote installé.") { VerifiedStatus = "mis à jour" },
-                        new UpdateSequenceStepResult(new("WU:second", "Intel - System - 10.1.1.38", UpdateComponent.Driver), true, false, "Ce pilote reste proposé.") { VerifiedStatus = "reste à installer" } }
+                        new UpdateSequenceStepResult(new("WU:second", "Intel - System - 10.1.1.38", UpdateComponent.Driver), true, false,
+                            NoRemaining ? "Ce pilote est déjà installé." : "Ce pilote reste proposé.") { VerifiedStatus = NoRemaining ? "à jour" : "reste à installer" } }
                 : new[] { new UpdateSequenceStepResult(s, true, false, "Étape exécutée.") }).ToList();
             if (AddFailure && steps.Any(s => s.Id == "drivers"))
                 results.Add(new(new("WU:failed", "Intel - System - 10.1.1.39", UpdateComponent.Driver), false, false,
