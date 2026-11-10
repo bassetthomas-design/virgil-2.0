@@ -2,7 +2,10 @@ namespace Virgil.Core.Updates;
 
 public sealed record LauncherProcess(int Id, int ParentId, string ExecutablePath, string? Name = null);
 public sealed record LauncherSnapshot(bool IsComplete, IReadOnlyList<LauncherProcess> Processes, IReadOnlyList<string> LibraryRoots);
-public sealed record LauncherShutdownResult(bool AnyClosed, string Message);
+public sealed record LauncherShutdownResult(bool AnyClosed, string Message)
+{
+    public bool ClosedOrAlreadyClosed { get; init; }
+}
 public interface ILauncherShutdownBackend
 {
     Task<LauncherSnapshot> ReadAsync(string launcherName, CancellationToken token);
@@ -16,16 +19,17 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
     {
         var lines = new List<string>();
         var anyClosed = false;
+        var closedOrAlreadyClosed = true;
         foreach (var name in names)
         {
             token.ThrowIfCancellationRequested();
             if (!LauncherCatalog.Executables.TryGetValue(name, out var executable))
-            { lines.Add(name + " : fermeture refusée, hors catalogue."); continue; }
+            { closedOrAlreadyClosed = false; lines.Add(name + " : fermeture refusée, hors catalogue."); continue; }
             var state = await backend.ReadAsync(name, token).ConfigureAwait(false);
             var launchers = state.Processes.Where(p => ProcessName(p).Equals(executable, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (!state.IsComplete) { lines.Add(name + " : mis à jour au prochain lancement."); continue; }
+            if (!state.IsComplete) { closedOrAlreadyClosed = false; lines.Add(name + " : mis à jour au prochain lancement."); continue; }
             if (launchers.Length == 0) { lines.Add(name + " : déjà fermé."); continue; }
-            if (GameOrUnknown(name, state, launchers)) { lines.Add(name + " : mis à jour au prochain lancement."); continue; }
+            if (GameOrUnknown(name, state, launchers)) { closedOrAlreadyClosed = false; lines.Add(name + " : mis à jour au prochain lancement."); continue; }
             token.ThrowIfCancellationRequested();
             try { await backend.CloseAsync(executable, false, token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
@@ -41,10 +45,10 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
             } while (launchers.Length > 0);
             state = await backend.ReadAsync(name, token).ConfigureAwait(false);
             launchers = state.Processes.Where(p => ProcessName(p).Equals(executable, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (!state.IsComplete) { lines.Add(name + " : mis à jour au prochain lancement."); continue; }
+            if (!state.IsComplete) { closedOrAlreadyClosed = false; lines.Add(name + " : mis à jour au prochain lancement."); continue; }
             if (launchers.Length > 0)
             {
-                if (GameOrUnknown(name, state, launchers)) { lines.Add(name + " : mis à jour au prochain lancement."); continue; }
+                if (GameOrUnknown(name, state, launchers)) { closedOrAlreadyClosed = false; lines.Add(name + " : mis à jour au prochain lancement."); continue; }
                 token.ThrowIfCancellationRequested();
                 await backend.CloseAsync(executable, true, token).ConfigureAwait(false);
                 anyClosed = true;
@@ -52,7 +56,13 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
             }
             else { anyClosed = true; lines.Add(name + " : fermé ; relancez-le quand vous voulez."); }
         }
-        return new(anyClosed, string.Join("\n", lines));
+        return new(anyClosed, string.Join("\n", lines)) { ClosedOrAlreadyClosed = closedOrAlreadyClosed };
+    }
+    internal async Task<bool> CanRestartSteamAsync(CancellationToken token)
+    {
+        var state = await backend.ReadAsync("Steam", token).ConfigureAwait(false);
+        var launchers = state.Processes.Where(p => ProcessName(p).Equals("steam.exe", StringComparison.OrdinalIgnoreCase)).ToArray();
+        return state.IsComplete && launchers.Length == 0 && !GameOrUnknown("Steam", state, launchers);
     }
     private static string FileName(string? path) => (path ?? "").Replace('\\', '/').Split('/').Last();
     private static string ProcessName(LauncherProcess process) => string.IsNullOrWhiteSpace(process.Name) ? FileName(process.ExecutablePath) : process.Name;

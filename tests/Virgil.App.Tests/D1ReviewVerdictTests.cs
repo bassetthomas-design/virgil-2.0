@@ -9,7 +9,7 @@ public sealed class D1ReviewVerdictTests
     [Theory]
     [InlineData(UpdateComponent.WingetFinal, "reste à installer", "reste")]
     [InlineData(UpdateComponent.Store, "à vérifier", "à terminer dans le Microsoft Store")]
-    [InlineData(UpdateComponent.Launcher, "à vérifier", "à terminer dans le lanceur")]
+    [InlineData(UpdateComponent.Launcher, "non pris en charge automatiquement", "Steam n’était pas connecté")]
     public async Task Real_sequence_distinguishes_remaining_manual_completion_and_safety_blocks(UpdateComponent component, string status, string detail)
     {
         var f = new UpdatesSequenceViewModelTests.Fixture(scan: new Scan { Remaining = true });
@@ -18,10 +18,22 @@ public sealed class D1ReviewVerdictTests
         foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == component;
         f.Vm.ExecuteDecisionCommand.Execute(null);
         await pending;
-        var selected = Assert.Single(f.Vm.SequenceChoices, choice => choice.CanSelect && choice.IsSelected);
-        var card = Assert.Single(f.Vm.Operation.Steps, step => step.Key == $"{component}:{selected.Step.Id}");
-        Assert.Equal(status, card.Status);
-        Assert.Contains(detail, card.Detail, StringComparison.OrdinalIgnoreCase);
+        if (component == UpdateComponent.Launcher)
+        {
+            var steam = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Launcher:Steam");
+            var battle = Assert.Single(f.Vm.Operation.Steps, step => step.Key == "Launcher:Battle.net");
+            Assert.Equal(status, steam.Status);
+            Assert.Contains(detail, steam.Detail, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(status, battle.Status);
+            Assert.Contains("le lanceur met ses jeux à jour lui-même à son ouverture", battle.Detail, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            var selected = Assert.Single(f.Vm.SequenceChoices, choice => choice.CanSelect && choice.IsSelected);
+            var card = Assert.Single(f.Vm.Operation.Steps, step => step.Key == $"{component}:{selected.Step.Id}");
+            Assert.Equal(status, card.Status);
+            Assert.Contains(detail, card.Detail, StringComparison.OrdinalIgnoreCase);
+        }
         Assert.DoesNotContain("tout est à jour", f.Vm.Operation.FinalSummary, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -43,7 +55,7 @@ public sealed class D1ReviewVerdictTests
         foreach (var conclusion in new[] { f.Vm.StatusText, f.Vm.Operation.FinalSummary, f.History.Report!.Summary })
         {
             if (store) Assert.Contains("à terminer dans le Microsoft Store", conclusion, StringComparison.OrdinalIgnoreCase);
-            if (launcher) Assert.Contains("à terminer dans le lanceur", conclusion, StringComparison.OrdinalIgnoreCase);
+            if (launcher) Assert.Contains("non pris en charge automatiquement", conclusion, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("tout est à jour", conclusion, StringComparison.OrdinalIgnoreCase);
         }
     }

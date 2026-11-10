@@ -25,6 +25,7 @@ public partial class UpdatesViewModel
     private readonly Dictionary<string, int> _sequenceProgressIndices = new(StringComparer.Ordinal);
     private string? _sequenceFinalSummary;
     private bool _sequenceWasCancelled;
+    private bool _isWaitingForSteam;
     [ObservableProperty] private bool isSequencePreview;
     [ObservableProperty] private bool isRunAllEnabled;
     [ObservableProperty] private string sequenceStepText = "Aucune séquence en cours.";
@@ -138,6 +139,8 @@ public partial class UpdatesViewModel
                         SequenceStepText = $"Étape {progress.Current}/{progress.Total} — {progress.Title} : {progress.Status}";
                         StatusText = SequenceStepText;
                         Operation.Commentary = progress.Status;
+                        _isWaitingForSteam = progress.Component == UpdateComponent.Launcher && progress.Status == LauncherCardSummary.Waiting;
+                        Operation.IsNonInterruptible = !_isWaitingForSteam;
                         // Une phase technique sans étape correspondante reste du texte courant.
                         var confirmed = progress.StepId is not null && progress.Component is not null
                             ? _confirmedSequenceSteps.FirstOrDefault(step => step.Id == progress.StepId && step.Component == progress.Component)
@@ -164,7 +167,7 @@ public partial class UpdatesViewModel
                         && outcome.Succeeded && !outcome.WasSkipped && !outcome.WasUnavailable));
             var manualChecks = checks.Where(check => !check.IsCurrent).ToArray();
             var onlyManualCompletion = !RebootRequired && !result.WasRefused && manualChecks.Length > 0
-                && manualChecks.All(check => check.Status == "à vérifier");
+                && manualChecks.All(check => check.Status is "à vérifier" or "non pris en charge automatiquement");
             var conclusion = allCurrent ? "Tout est à jour." : result.WasCancelled
                 ? "Séquence annulée entre deux étapes — contrôle final effectué."
                 : onlyManualCompletion ? "Contrôle final effectué : " + string.Join(" ; ", manualChecks.Select(check => check.Detail).Distinct()) + "."
@@ -172,8 +175,14 @@ public partial class UpdatesViewModel
             StatusText = conclusion;
             SequenceStepText = conclusion;
             foreach (var step in result.Steps.Where(outcome => outcome.Step.IsInformational
-                || _confirmedSequenceSteps.Any(selected => selected.Id == outcome.Step.Id && selected.Component == outcome.Step.Component)))
+                || _confirmedSequenceSteps.Any(selected => selected.Id == outcome.Step.Id && selected.Component == outcome.Step.Component)
+                || (outcome.Step.Id.StartsWith("SteamGame:", StringComparison.Ordinal) && _confirmedSequenceSteps.Any(selected => selected.Component == UpdateComponent.Launcher && selected.Id == "Steam"))))
             {
+                if (step.Step.Component == UpdateComponent.Launcher && step.VerifiedStatus is not null)
+                {
+                    Operation.SetStep(SequenceStepKey(step.Step), step.Step.Title, step.VerifiedStatus, step.Message);
+                    continue;
+                }
                 if (step.Step.Component == UpdateComponent.Store && step.VerifiedStatus is not null)
                 {
                     Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), step.VerifiedStatus, DisplayApplicationText(step.Step, step.Message));
@@ -264,11 +273,12 @@ public partial class UpdatesViewModel
         finally
         {
             IsSequencePreview = false;
+            _isWaitingForSteam = false;
             EndOperation();
         }
     }
 
-    private static string SequenceStepKey(UpdateSequenceStep step) => $"{step.Component}:{step.Id}";
+    private static string SequenceStepKey(UpdateSequenceStep step) => step.Id.StartsWith("SteamGame:", StringComparison.Ordinal) ? step.Id : $"{step.Component}:{step.Id}";
     private static UpdateComponent SourceComponent(UpdateComponent component) => component == UpdateComponent.WingetFinal ? UpdateComponent.Winget : component;
     private static string SourceTitle(UpdateComponent component) => component switch
     {
@@ -280,7 +290,7 @@ public partial class UpdatesViewModel
         UpdateComponent.PendingReboot => "Sonde de redémarrage", _ => "Lanceurs"
     };
     private static string DisplaySequenceTitle(UpdateSequenceStep step) =>
-        step.Application is null ? DisplaySequenceText(step.Title) : step.Title;
+        step.Application is null && step.Component != UpdateComponent.Launcher ? DisplaySequenceText(step.Title) : step.Title;
 
     private static string DisplayApplicationText(UpdateSequenceStep step, string text)
     {
@@ -383,7 +393,9 @@ public partial class UpdatesViewModel
                 check = check with { Status = "en erreur", Detail = "Échec pendant l'exécution de cette source ; consultez les cartes." };
             if (component == UpdateComponent.Store && !storeProof && outcomes.Length > 0 && outcomes.All(step => step.Succeeded && !step.WasUnavailable))
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
-            if (component == UpdateComponent.Launcher && check.Status != "non lancée" && outcomes.Length > 0
+            if (component == UpdateComponent.Launcher && outcomes.Any(step => step.VerifiedStatus is not null))
+                check = LauncherCardSummary.Summarize(outcomes);
+            else if (component == UpdateComponent.Launcher && check.Status != "non lancée" && outcomes.Length > 0
                 && outcomes.All(step => (step.Succeeded || step.WasSkipped) && !step.WasUnavailable)
                 && !outcomes.Any(UpdateSequenceService.IsSafetyBlocked))
                 check = new(component, "à vérifier", "à terminer dans le lanceur");
@@ -451,6 +463,7 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     {
         get
         {
+            if (Step.Component == UpdateComponent.Launcher && Step.Id != "launchers") return LauncherCardSummary.Confirmation(Step);
             if (Step.Application is not { } app) return Step.Title;
             var installed = string.IsNullOrWhiteSpace(app.InstalledVersion) ? "version non disponible" : app.InstalledVersion;
             if (Step.Component == UpdateComponent.OutsideWinget)

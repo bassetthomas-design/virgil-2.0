@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Virgil.Core.Processes;
 using Virgil.Core.Updates;
@@ -32,15 +31,14 @@ public sealed class WindowsLauncherShutdownBackend(IProcessRunner runner,
             if (name == "Steam")
             {
                 var steam = processes.FirstOrDefault(p => string.Equals(Path.GetFileName(p.ExecutablePath), "steam.exe", StringComparison.OrdinalIgnoreCase));
-                if (steam is null) return (true, []);
-                var directory = Path.GetDirectoryName(steam.ExecutablePath)!;
+                using var steamKey = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam", false);
+                var executable = steam?.ExecutablePath ?? steamKey?.GetValue("SteamExe") as string;
+                if (string.IsNullOrWhiteSpace(executable)) return (false, []);
+                var directory = Path.GetDirectoryName(executable)!;
                 var config = Path.Combine(directory, "steamapps", "libraryfolders.vdf");
                 if (!File.Exists(config)) return (false, []);
-                const string libraryPathPattern = """
-                    "path"\s*"([^"]+)"
-                    """;
-                foreach (Match match in Regex.Matches(File.ReadAllText(config), libraryPathPattern))
-                    roots.Add(Path.Combine(match.Groups[1].Value.Replace(@"\\", @"\"), "steamapps", "common"));
+                roots.AddRange(LauncherManifestParser.SteamLibraries(File.ReadAllText(config))
+                    .Select(library => Path.Combine(library, "steamapps", "common")));
                 roots.Add(Path.Combine(directory, "steamapps", "common"));
                 return (true, roots);
             }
