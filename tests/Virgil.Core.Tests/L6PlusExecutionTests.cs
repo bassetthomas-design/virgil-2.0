@@ -207,6 +207,7 @@ public sealed class L6PlusExecutionTests
         Assert.False(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Windows).Succeeded);
         Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Winget).Succeeded);
         Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.WingetFinal).Succeeded);
+        Assert.Equal(1, f.FinalInventory.Reads);
         Assert.Equal(2, f.Runner.Requests.Count(r => r.Arguments[0] == "upgrade"));
         Assert.Equal(1, f.Shutdown.Reads);
     }
@@ -291,13 +292,20 @@ public sealed class L6PlusExecutionTests
         public Runner Runner { get; } = new("1.8.0");
         public Shutdown Shutdown { get; } = new();
         public StoreClient Store { get; } = new();
+        public FinalInventory FinalInventory { get; } = new();
         public Fixture()
         {
             Directory.CreateDirectory(directory);
             var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(), () => Guid.NewGuid().ToByteArray(), () => DateTimeOffset.UtcNow);
-            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"]), Store), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
+            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"]), Store, FinalInventory), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
         }
         public void Dispose() => Directory.Delete(directory, true);
+    }
+    private sealed class FinalInventory : IDriverFinalPassBackend
+    {
+        public int Reads { get; private set; }
+        public Task<DriverFinalPassInventory> ReadFinalApplicationsAsync(CancellationToken token)
+        { Reads++; return Task.FromResult(new DriverFinalPassInventory(true, [], "Inventaire factice complet, sans firmware.")); }
     }
     private sealed class Launcher : IElevatedProcessLauncher
     {

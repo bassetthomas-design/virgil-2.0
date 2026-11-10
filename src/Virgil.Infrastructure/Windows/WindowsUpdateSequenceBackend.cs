@@ -12,14 +12,16 @@ public sealed class WindowsUpdateSequenceBackend(
     IElevatedProcessLauncher launcher,
     Func<string> helperPath,
     WingetAvailabilityService? wingetAvailability = null,
-    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend, IDriverSequenceBackend, IDriverFinalPassBackend
+    IStoreUpdateClient? storeClient = null,
+    IDriverFinalPassBackend? finalInventory = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend, IDriverSequenceBackend, IDriverFinalPassBackend
 {
     private IDriverPackageSource? _driverPackages;
     public IDriverInventoryReader DriverInventory => new DriverWindowsInventory(runner);
     public IBiosInformationReader Bios => new BiosWindowsReader(runner);
     public IDriverPackageSource DriverPackages => _driverPackages ??= new DriverPackageWindowsSource(runner, wingetAvailability ?? new WingetAvailabilityService(runner));
     public Task<DriverFinalPassInventory> ReadFinalApplicationsAsync(CancellationToken token) =>
-        new DriverFinalPassWindowsReader(runner, wingetAvailability ?? new WingetAvailabilityService(runner)).ReadAsync(token);
+        finalInventory?.ReadFinalApplicationsAsync(token)
+        ?? new DriverFinalPassWindowsReader(runner, wingetAvailability ?? new WingetAvailabilityService(runner)).ReadAsync(token);
     private ISteamClient? _steamClient;
     public ISteamClient SteamClient => _steamClient ??= new SteamWindowsClient(runner);
     private StoreUpdateService? _storeUpdates;
