@@ -143,6 +143,21 @@ public sealed class D1bisBSteamTests
         { Requests.Add(request); return Task.FromResult(new Virgil.Core.Processes.ProcessLaunchResult(true, null)); }
     }
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public async Task Windows_session_adapter_requires_process_and_active_user(bool process, bool activeUser, bool expected)
+    {
+        var processes = new Backend();
+        if (!process) await processes.CloseAsync("steam.exe", false, default);
+        var access = new ReadAccess { ActiveUser = activeUser };
+        var client = new SteamWindowsClient(new Runner(), access, processes, _ => true);
+        Assert.Equal(expected, (await client.ReadSessionAsync(default)).IsOpen);
+        Assert.DoesNotContain(typeof(SteamSession).GetProperties(), property => property.Name.Contains("User", StringComparison.Ordinal));
+    }
+
     private static UpdateSequenceStepResult Own(UpdateSequenceResult result, string id) => Assert.Single(result.Steps, s => s.Step.Id == id);
     private sealed class Fixture
     {
@@ -198,7 +213,8 @@ public sealed class D1bisBSteamTests
     private sealed class ReadAccess : ISteamReadAccess
     {
         public List<string> Reads { get; } = [];
-        public bool ReadHasActiveUser() => true;
+        public bool ActiveUser { get; init; } = true;
+        public bool ReadHasActiveUser() => ActiveUser;
         public string? ReadExecutablePath() { Reads.Add("registry"); return "C:/Steam/steam.exe"; }
         public bool FileExists(string path) => true;
         public string ReadText(string path)

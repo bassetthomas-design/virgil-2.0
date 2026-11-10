@@ -8,6 +8,7 @@ namespace Virgil.Core.Updates;
 public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Restore, MicrosoftUpdate, Store, WindowsFeatureUpgrade, WingetFinal, PendingReboot, OutsideWinget }
 public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
 {
+    public SteamSession? SteamSession { get; init; }
     public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot or UpdateComponent.OutsideWinget;
 }
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status)
@@ -70,7 +71,17 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             new("microsoft-update", "Enregistrer Microsoft Update (Office et produits Microsoft)", UpdateComponent.MicrosoftUpdate)
         };
         var launchers = LauncherCatalog.Detect(await backend.DetectLaunchersAsync(cancellationToken).ConfigureAwait(false));
-        if (launchers.Count > 0) steps.Add(new("launchers", "Virgil fermera : " + string.Join(", ", launchers), UpdateComponent.Launcher));
+        foreach (var name in launchers)
+        {
+            SteamSession? session = null;
+            if (name == "Steam")
+            {
+                try { session = backend is ISteamUpdateBackend steam ? await steam.SteamClient.ReadSessionAsync(cancellationToken).ConfigureAwait(false) : new(false, null); }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch { session = new(false, null); }
+            }
+            steps.Add(new(name, name, UpdateComponent.Launcher) { SteamSession = session });
+        }
         steps.AddRange(apps.Where(a => a.Status == UpdateItemStatus.Available).Select(a => new UpdateSequenceStep(a.Id, a.Name, UpdateComponent.Winget, a)));
         steps.AddRange([
             new("software", "Windows Update : logiciels (jusqu'à 3 passes)", UpdateComponent.Windows),
@@ -96,7 +107,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         selected = selected.Where(step => !step.IsInformational).ToArray();
         return new(
         "updates.sequence", "Tout mettre à jour", RiskLevel.Sensitive,
-        selected.Select(s => s.Title).ToArray(),
+        selected.Select(s => s.Component == UpdateComponent.Launcher && s.Id != "launchers" ? LauncherCardSummary.Confirmation(s) : s.Title).ToArray(),
         new Dictionary<string, string> { ["Steps"] = JsonSerializer.Serialize(selected) },
         ["Installer les composants cochés dans l’ordre présenté.", "Un redémarrage peut être nécessaire ; il restera manuel.", "Les pilotes et Windows exigent un point de restauration vérifié."],
         selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
@@ -116,6 +127,15 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var results = new List<UpdateSequenceStepResult>();
         var handled = new HashSet<(UpdateComponent Component, string Id)>();
         var microsoftBlocked = false;
+        var steamStep = snapshot.FirstOrDefault(s => s.Component == UpdateComponent.Launcher && s.Id == "Steam" && s.SteamSession?.IsOpen == true);
+        IReadOnlyList<SteamGameState> steamGames = [];
+        string? steamReadError = null;
+        if (steamStep is not null && backend is ISteamUpdateBackend steamBackend && !cancellationToken.IsCancellationRequested)
+        {
+            try { steamGames = await steamBackend.SteamClient.ReadGamesAsync(cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            catch { steamReadError = "Steam : lecture des jeux impossible. Aucune relance automatique."; }
+        }
         if (snapshot.Any(s => IsElevated(s.Component)))
         {
             var preparation = snapshot.Where(s => s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate).ToArray();
@@ -152,9 +172,18 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             {
                 if (step.Component == UpdateComponent.Launcher)
                 {
-                    var names = step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ");
+                    var names = step.Id == "launchers" ? step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ") : new[] { step.Id };
                     var shutdown = launcherShutdown is null ? new LauncherShutdownResult(false, "mis à jour au prochain lancement") : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
-                    results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
+                    if (step.Id == "launchers")
+                        results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
+                    else
+                    {
+                        var supported = step.Id == "Steam" && step.SteamSession?.IsOpen == true && backend is ISteamUpdateBackend;
+                        var detail = shutdown.Message + "\n" + (supported ? "Jeux : contrôle Steam après les applications."
+                            : step.Id == "Steam" ? "Jeux : non pris en charge automatiquement — " + LauncherCardSummary.NoSession : LauncherCardSummary.OtherGames);
+                        results.Add(new(step, supported && shutdown.AnyClosed, false, detail)
+                        { WasSkipped = !supported || !shutdown.AnyClosed, VerifiedStatus = supported ? "à vérifier" : LauncherCardSummary.Unsupported });
+                    }
                     handled.Add((step.Component, step.Id));
                 }
                 else if (step.Component == UpdateComponent.Store && backend is IStoreUpdateBackend storeBackend)
@@ -184,6 +213,30 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                         results[index] = results[index] with { Message = results[index].Message + " Étape terminée après annulation." };
             progress?.Report(new(results.Count, snapshot.Length, step.Title, cancellationToken.IsCancellationRequested ? "Étape terminée après annulation." : results.LastOrDefault()?.Message ?? "Étape terminée.") { StepId = step.Id, Component = step.Component });
         }
+        if (steamStep is not null && backend is ISteamUpdateBackend steamSource)
+        {
+            var closure = results.FirstOrDefault(r => r.Step.Id == "Steam")?.Message ?? "Steam : déjà fermé ou non lancé.";
+            results.RemoveAll(r => r.Step.Component == UpdateComponent.Launcher && r.Step.Id == "Steam");
+            try
+            {
+                if (steamReadError is not null)
+                    results.Add(new(steamStep, false, false, steamReadError) { VerifiedStatus = "en erreur" });
+                else
+                    results.AddRange(await new SteamUpdateService(steamSource).ExecuteAsync(steamStep, steamGames,
+                        () => launcherShutdown?.CanRestartSteamAsync(cancellationToken) ?? Task.FromResult(false),
+                        results.Any(r => r.Step.Component == UpdateComponent.WingetFinal && r.Succeeded && !r.WasSkipped), closure,
+                        () => progress?.Report(new(results.Count, snapshot.Length, steamStep.Title, LauncherCardSummary.Waiting)
+                            { StepId = steamStep.Id, Component = steamStep.Component }), cancellationToken).ConfigureAwait(false));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                results.Add(new(steamStep, false, false, "Non lancée : annulation avant la relance de Steam.") { VerifiedStatus = "non lancée", WasSkipped = true });
+                results.AddRange(steamGames.Select(game => new UpdateSequenceStepResult(new("SteamGame:" + game.Id, game.Name, UpdateComponent.Launcher), false, false,
+                    "Non lancée : annulation avant la relance de Steam.") { VerifiedStatus = "non lancée", WasSkipped = true }));
+            }
+            catch { results.Add(new(steamStep, false, false, "Steam : relance bloquée, vérification impossible.") { VerifiedStatus = "bloquée" }); }
+            handled.Add((steamStep.Component, steamStep.Id));
+        }
         results.AddRange(snapshot.Where(s => !handled.Contains((s.Component, s.Id)) && !results.Any(r => r.Step.Component == s.Component && r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
         // Lectures seulement : même après annulation, aucune installation supplémentaire.
         var checks = new List<UpdateSourceVerification>();
@@ -207,6 +260,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             checks.Add(check with { Component = component });
         }
+        var launcherOutcomes = results.Where(r => r.Step.Component == UpdateComponent.Launcher && r.Step.Id != "launchers").ToArray();
+        if (launcherOutcomes.Length > 0) checks.Add(LauncherCardSummary.Summarize(launcherOutcomes));
         var sources = new List<string>();
         if (results.Any(r => r.RebootRequired && r.Step.Component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.WindowsFeatureUpgrade)) sources.Add("après Windows Update");
         if (results.Any(r => r.RebootRequired && r.Step.Component is not UpdateComponent.Windows and not UpdateComponent.Driver and not UpdateComponent.WindowsFeatureUpgrade)) sources.Add("après une installation");

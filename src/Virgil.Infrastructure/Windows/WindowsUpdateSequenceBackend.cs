@@ -11,8 +11,10 @@ public sealed class WindowsUpdateSequenceBackend(
     IElevatedProcessLauncher launcher,
     Func<string> helperPath,
     WingetAvailabilityService? wingetAvailability = null,
-    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend
+    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend
 {
+    private ISteamClient? _steamClient;
+    public ISteamClient SteamClient => _steamClient ??= new SteamWindowsClient(runner);
     private StoreUpdateService? _storeUpdates;
     private OutsideWingetInventory? _outsideWinget;
     public StoreUpdateService StoreUpdates => _storeUpdates ??= new(storeClient ?? new StoreWindowsClient(runner));

@@ -22,6 +22,21 @@ public static class LauncherManifestParser
         return (name, directory);
     }
 
+    public static string SteamGameName(string text) => ParseValvePairs(text)
+        .FirstOrDefault(p => p.Key.Equals("name", StringComparison.OrdinalIgnoreCase)).Value
+        ?? throw new FormatException("Nom du jeu Steam absent.");
+
+    public static (string Name, uint StateFlags, string BuildId) SteamUpdateState(string text)
+    {
+        var pairs = ParseValvePairs(text);
+        string? Value(string key) => pairs.FirstOrDefault(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase)).Value;
+        var name = Value("name");
+        var build = Value("buildid");
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(build) || !uint.TryParse(Value("StateFlags"), out var flags))
+            throw new FormatException("État du jeu Steam incomplet.");
+        return (name, flags, build);
+    }
+
     public static (string Name, string InstallDirectory) EpicApplication(string text)
     {
         using var json = JsonDocument.Parse(text);

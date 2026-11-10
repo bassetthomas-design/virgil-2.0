@@ -54,6 +54,12 @@ public sealed class LauncherShutdownPolicy(ILauncherShutdownBackend backend, Tim
         }
         return new(anyClosed, string.Join("\n", lines));
     }
+    internal async Task<bool> CanRestartSteamAsync(CancellationToken token)
+    {
+        var state = await backend.ReadAsync("Steam", token).ConfigureAwait(false);
+        var launchers = state.Processes.Where(p => ProcessName(p).Equals("steam.exe", StringComparison.OrdinalIgnoreCase)).ToArray();
+        return state.IsComplete && launchers.Length == 0 && !GameOrUnknown("Steam", state, launchers);
+    }
     private static string FileName(string? path) => (path ?? "").Replace('\\', '/').Split('/').Last();
     private static string ProcessName(LauncherProcess process) => string.IsNullOrWhiteSpace(process.Name) ? FileName(process.ExecutablePath) : process.Name;
     private static bool GameOrUnknown(string name, LauncherSnapshot state, LauncherProcess[] launchers)
