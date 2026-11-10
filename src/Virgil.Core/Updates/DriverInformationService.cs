@@ -29,7 +29,7 @@ public sealed class DriverInformationService
         var errors = new List<string>();
         if (result.TimedOut)
         {
-            errors.Add("Inventaire pilotes interrompu par timeout.");
+            errors.Add("Inventaire des pilotes interrompu : délai dépassé.");
         }
         else if (!string.IsNullOrWhiteSpace(result.LaunchError))
         {
@@ -37,7 +37,7 @@ public sealed class DriverInformationService
         }
         else if (result.ExitCode != 0)
         {
-            errors.Add("Inventaire pilotes retourne un statut non nul.");
+            errors.Add("Lecture des pilotes impossible.");
         }
 
         var drivers = errors.Count == 0
@@ -51,7 +51,7 @@ public sealed class DriverInformationService
             Recommendations = new[]
             {
                 "Consulter Windows Update pour les pilotes proposés par Microsoft.",
-                "Pour GPU et chipset, vérifier l'outil officiel du fabricant avant toute installation."
+                "Pour la carte graphique et les composants de la carte mère, vérifier l'outil officiel du fabricant avant toute installation."
             },
             Errors = errors
         };

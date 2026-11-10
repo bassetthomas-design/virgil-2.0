@@ -9,7 +9,8 @@ public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Resto
 public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
 {
     public SteamSession? SteamSession { get; init; }
-    public bool IsInformational => Component is UpdateComponent.Restore or UpdateComponent.PendingReboot or UpdateComponent.OutsideWinget;
+    public bool InformationOnly { get; init; }
+    public bool IsInformational => InformationOnly || Component is UpdateComponent.Restore or UpdateComponent.PendingReboot or UpdateComponent.OutsideWinget;
 }
 public sealed record UpdateSequenceProgress(int Current, int Total, string Title, string Status)
 {
@@ -19,6 +20,7 @@ public sealed record UpdateSequenceProgress(int Current, int Total, string Title
 public sealed record UpdateSourceVerification(UpdateComponent Component, string Status, string Detail)
 {
     public bool? HasRemaining { get; init; }
+    public IReadOnlyList<DriverUpdateOutcome> DriverItems { get; init; } = [];
     public bool IsCurrent => Status is "à jour" or "mis à jour";
 }
 public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succeeded, bool RebootRequired, string Message)
@@ -62,6 +64,8 @@ public interface IUpdateSequenceService
 public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
 {
     private IReadOnlyList<UpdateItem> _unsupported = [];
+    private IReadOnlyList<UpdateSequenceStepResult> _driverInformation = [];
+    private IReadOnlyList<DriverPackageOffer> _driverOffers = [];
     public async Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken)
     {
         var steps = new List<UpdateSequenceStep>
@@ -82,7 +86,10 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             }
             steps.Add(new(name, name, UpdateComponent.Launcher) { SteamSession = session });
         }
-        steps.AddRange(apps.Where(a => a.Status == UpdateItemStatus.Available).Select(a => new UpdateSequenceStep(a.Id, a.Name, UpdateComponent.Winget, a)));
+        _driverInformation = []; _driverOffers = [];
+        steps.AddRange(apps.Where(a => a.Status == UpdateItemStatus.Available && !DriverOfficialPackageCatalog.IsFirmware(a)
+            && !(backend is IDriverSequenceBackend && DriverOfficialPackageCatalog.IsDriverPackage(a)))
+            .Select(a => new UpdateSequenceStep(a.Id, a.Name, UpdateComponent.Winget, a)));
         steps.AddRange([
             new("software", "Windows Update : logiciels (jusqu'à 3 passes)", UpdateComponent.Windows),
             new("drivers", "Windows Update : pilotes (jusqu'à 3 passes)", UpdateComponent.Driver),
@@ -91,6 +98,34 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             new("winget-final", "Passe finale : applications disponibles", UpdateComponent.WingetFinal),
             new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot)
         ]);
+        if (backend is IDriverSequenceBackend driverBackend)
+        {
+            driverBackend.DriverPackages.SetInventory(apps);
+            var inventory = await driverBackend.DriverInventory.ReadAsync(cancellationToken).ConfigureAwait(false);
+            var bios = await driverBackend.Bios.ReadAsync(cancellationToken).ConfigureAwait(false);
+            _driverOffers = await driverBackend.DriverPackages.ScanAsync(cancellationToken).ConfigureAwait(false);
+            var information = new List<UpdateSequenceStepResult>();
+            void Info(string id, string title, string reason, UpdateItem? item = null) => information.Add(new(
+                new(id, title, UpdateComponent.Driver, item) { InformationOnly = true }, false, false, reason)
+                { VerifiedStatus = DriverCardSummary.Unsupported, WasSkipped = true });
+            Info("BIOS", "BIOS : information seulement, jamais installé par Virgil" + (bios.Version.Length > 0 ? " — " + bios.Version : " — version non disponible"),
+                "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.");
+            foreach (var provider in inventory.Drivers.Select(driver => driver.Provider).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
+                Info("Provider:" + provider, provider,
+                    "Ce pilote n'est proposé ni par Windows Update ni par une source officielle connue ; passez par l'outil du fabricant si besoin.");
+            if (inventory.Errors.Count > 0) Info("inventory", "Matériel : lecture incomplète", "Inventaire du matériel incomplet ; les fournisseurs ne sont pas tous connus.");
+            var packages = new List<UpdateSequenceStep>();
+            foreach (var offer in _driverOffers)
+            {
+                if (DriverOfficialPackageCatalog.IsFirmware(offer.Item)) continue;
+                if (DriverOfficialPackageCatalog.CanInstall(offer)) packages.Add(new("WinGet:" + offer.Item.Id, offer.Item.Name, UpdateComponent.Driver, offer.Item));
+                else Info("WinGet:" + offer.Item.Id, offer.Item.Name, string.IsNullOrWhiteSpace(offer.Reason)
+                    ? "Ce paquet n'est pas dans la liste officielle des pilotes installables sans intervention." : offer.Reason, offer.Item);
+            }
+            _driverInformation = information;
+            steps.InsertRange(steps.FindIndex(s => s.Id == "drivers") + 1, packages);
+            steps.AddRange(information.Select(r => r.Step));
+        }
         if (backend is IStoreUpdateBackend storeBackend)
         {
             steps.RemoveAll(step => step.Component == UpdateComponent.Store);
@@ -107,9 +142,12 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         selected = selected.Where(step => !step.IsInformational).ToArray();
         return new(
         "updates.sequence", "Tout mettre à jour", RiskLevel.Sensitive,
-        selected.Select(s => s.Component == UpdateComponent.Launcher && s.Id != "launchers" ? LauncherCardSummary.Confirmation(s) : s.Title).ToArray(),
+        selected.Select(s => s.Component == UpdateComponent.Launcher && s.Id != "launchers" ? LauncherCardSummary.Confirmation(s) : s.Title)
+            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — " + r.VerifiedStatus))).ToArray(),
         new Dictionary<string, string> { ["Steps"] = JsonSerializer.Serialize(selected) },
-        ["Installer les composants cochés dans l’ordre présenté.", "Un redémarrage peut être nécessaire ; il restera manuel.", "Les pilotes et Windows exigent un point de restauration vérifié."],
+        new[] { "Installer les composants cochés dans l’ordre présenté.", "Un redémarrage peut être nécessaire ; il restera manuel.", "Les pilotes et Windows exigent un point de restauration vérifié." }
+            .Concat(selected.Where(s => s.Component == UpdateComponent.Driver).Select(s => s.Title))
+            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — " + r.VerifiedStatus))).ToArray(),
         selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
     }
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
@@ -182,7 +220,46 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours") { StepId = step.Id, Component = step.Component });
             try
             {
-                if (step.Component == UpdateComponent.Launcher)
+                if (step.Component == UpdateComponent.WingetFinal && backend is IDriverFinalPassBackend finalBackend)
+                {
+                    var inventory = await finalBackend.ReadFinalApplicationsAsync(cancellationToken).ConfigureAwait(false);
+                    if (inventory.IsComplete && !inventory.Items.Any(app => DriverOfficialPackageCatalog.IsFirmware(app) || DriverOfficialPackageCatalog.IsDriverPackage(app)))
+                        results.Add(await backend.ExecuteAsync(step, cancellationToken).ConfigureAwait(false));
+                    else
+                    {
+                        var children = new List<UpdateSequenceStepResult>();
+                        foreach (var app in inventory.Items)
+                        {
+                            if (DriverOfficialPackageCatalog.IsFirmware(app) || DriverOfficialPackageCatalog.IsDriverPackage(app))
+                                children.Add(new(new("WinGet:" + app.Id, app.Name, UpdateComponent.Driver, app) { InformationOnly = true }, false, false,
+                                    DriverOfficialPackageCatalog.IsFirmware(app)
+                                        ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
+                                        : "Ce pilote exige une source officielle silencieuse et un point de restauration vérifié ; il n'est pas lancé dans la passe des logiciels.")
+                                    { VerifiedStatus = DriverCardSummary.Unsupported, WasSkipped = true });
+                            else
+                            {
+                                var child = new UpdateSequenceStep(app.Id, app.Name, UpdateComponent.Winget, app);
+                                children.Add(cancellationToken.IsCancellationRequested
+                                    ? new(child, false, false, "Non lancée : annulation demandée.") { WasSkipped = true }
+                                    : await backend.ExecuteAsync(child, cancellationToken).ConfigureAwait(false));
+                            }
+                        }
+                        results.AddRange(children);
+                        results.Add(new(step, children.Any(r => r.Succeeded) && children.All(r => r.Step.IsInformational || r.Succeeded),
+                            children.Any(r => r.RebootRequired), inventory.Detail)
+                            { VerifiedStatus = "à vérifier", WasUnavailable = children.Count == 0 && !inventory.IsComplete });
+                    }
+                    handled.Add((step.Component, step.Id));
+                }
+                else if (step.Component == UpdateComponent.Driver && step.Id.StartsWith("WinGet:", StringComparison.Ordinal))
+                {
+                    var offer = _driverOffers.FirstOrDefault(o => o.Item == step.Application && step.Id == "WinGet:" + o.Item.Id);
+                    results.Add(backend is IDriverSequenceBackend driverBackend && offer is not null && DriverOfficialPackageCatalog.CanInstall(offer)
+                        ? await driverBackend.DriverPackages.InstallAsync(step, cancellationToken).ConfigureAwait(false)
+                        : new(step, false, false, "Installation bloquée : paquet officiel non vérifié.") { VerifiedStatus = "bloquée" });
+                    handled.Add((step.Component, step.Id));
+                }
+                else if (step.Component == UpdateComponent.Launcher)
                 {
                     var names = step.Id == "launchers" ? step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ") : new[] { step.Id };
                     var shutdown = launcherShutdown is null ? new LauncherShutdownResult(false, "mis à jour au prochain lancement") : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
@@ -208,7 +285,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 else if (IsElevated(step.Component))
                 {
                     var prepare = step.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate;
-                    var group = snapshot.Where(s => IsElevated(s.Component) && !(s.Component == UpdateComponent.Store && backend is IStoreUpdateBackend) && (s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate) == prepare).ToArray();
+                    var group = snapshot.Where(s => IsElevated(s.Component) && !(s.Component == UpdateComponent.Driver && s.Id.StartsWith("WinGet:", StringComparison.Ordinal))
+                        && !(s.Component == UpdateComponent.Store && backend is IStoreUpdateBackend) && (s.Component is UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate) == prepare).ToArray();
                     foreach (var member in group) handled.Add((member.Component, member.Id));
                     results.AddRange(await backend.ExecuteGroupAsync(group, cancellationToken).ConfigureAwait(false));
                 }
@@ -222,7 +300,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             catch { results.Add(new(step, false, false, "Étape impossible. Aucune autre action pour ce composant.")); }
             if (cancellationToken.IsCancellationRequested)
                 for (var index = 0; index < results.Count; index++)
-                    if (!results[index].Message.Contains("Étape terminée après annulation.", StringComparison.Ordinal))
+                    if ((results[index].Step.Component != UpdateComponent.Driver || results[index].VerifiedStatus is null)
+                        && !results[index].Message.Contains("Étape terminée après annulation.", StringComparison.Ordinal))
                         results[index] = results[index] with { Message = results[index].Message + " Étape terminée après annulation." };
             progress?.Report(new(results.Count, snapshot.Length, step.Title, cancellationToken.IsCancellationRequested ? "Étape terminée après annulation." : results.LastOrDefault()?.Message ?? "Étape terminée.") { StepId = step.Id, Component = step.Component });
         }
@@ -253,6 +332,11 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             handled.Add((steamStep.Component, steamStep.Id));
         }
         results.AddRange(snapshot.Where(s => !handled.Contains((s.Component, s.Id)) && !results.Any(r => r.Step.Component == s.Component && r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
+        if (snapshot.Any(s => s.Component == UpdateComponent.Driver))
+            results.AddRange(_driverInformation.Where(info => !info.Step.Id.StartsWith("Provider:", StringComparison.Ordinal)
+                || !results.Any(r => r.Step.Component == UpdateComponent.Driver && !r.Step.IsInformational && r.Step.Id != "drivers"
+                    && r.VerifiedStatus != DriverCardSummary.Unsupported && DriverOfficialPackageCatalog.Provider(r.Step.Title + " " + r.Step.Application?.Publisher)
+                        .Contains(DriverOfficialPackageCatalog.Provider(info.Step.Id[9..]), StringComparison.OrdinalIgnoreCase))));
         // Lectures seulement : même après annulation, aucune installation supplémentaire.
         var checks = new List<UpdateSourceVerification>();
         foreach (var component in snapshot.Select(s => s.Component).Distinct().Where(c => IsElevated(c)))
@@ -264,7 +348,18 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 : backend.VerifyAsync(component, verificationTimeout.Token)).WaitAsync(verificationTimeout.Token).ConfigureAwait(false); }
             catch { check = new(component, "indisponible", "Contrôle final indisponible ou délai dépassé."); }
             var outcomes = results.Where(r => r.Step.Component == component).ToArray();
-            if (component == UpdateComponent.Store && backend is IStoreUpdateBackend)
+            if (component == UpdateComponent.Driver && outcomes.Any(r => r.VerifiedStatus is not null))
+            {
+                for (var i = 0; i < results.Count; i++)
+                    if (results[i].Step.Id.StartsWith("WU:", StringComparison.Ordinal) && DriverCardSummary.Status(results[i]) is "mis à jour" or "à jour"
+                        && check.DriverItems.Any(item => "WU:" + item.Identity == results[i].Step.Id))
+                        results[i] = results[i] with { VerifiedStatus = "reste à installer", Message = "Ce pilote reste proposé après les installations." };
+                results.AddRange(check.DriverItems.Where(item => !results.Any(r => r.Step.Id == "WU:" + item.Identity))
+                    .Select(item => new UpdateSequenceStepResult(new("WU:" + item.Identity, item.Title, UpdateComponent.Driver), false, false,
+                        "Ce pilote reste proposé après les installations.") { VerifiedStatus = "reste à installer" }));
+                check = DriverCardSummary.Summarize(results.Where(r => r.Step.Component == component).ToArray());
+            }
+            else if (component == UpdateComponent.Store && backend is IStoreUpdateBackend)
                 check = SummarizeOutcomes(check, outcomes);
             else if (outcomes.Length == 0 || outcomes.Any(r => r.Message.StartsWith("Non lancée", StringComparison.Ordinal)))
                 check = new(component, "non lancée", check.Detail);
@@ -275,6 +370,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             checks.Add(check with { Component = component });
         }
+        if (!checks.Any(check => check.Component == UpdateComponent.Driver) && results.Any(r => r.Step.Component == UpdateComponent.Driver))
+            checks.Add(DriverCardSummary.Summarize(results.Where(r => r.Step.Component == UpdateComponent.Driver).ToArray()));
         var launcherOutcomes = results.Where(r => r.Step.Component == UpdateComponent.Launcher && r.Step.Id != "launchers").ToArray();
         if (launcherOutcomes.Length > 0) checks.Add(LauncherCardSummary.Summarize(launcherOutcomes));
         var sources = new List<string>();

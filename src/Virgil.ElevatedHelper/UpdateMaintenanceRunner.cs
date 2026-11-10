@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Virgil.Contracts;
 
 namespace Virgil.ElevatedHelper;
@@ -146,12 +147,47 @@ public static class UpdateMaintenanceRunner
             }
             cancellationToken.ThrowIfCancellationRequested();
             var updates = found.Where(u => u.IsFeatureUpgrade == feature).ToArray();
+            var individualDrivers = !legacy && kind == "Driver";
+            void DriverResult(IWindowsUpdateItem item, string status, string message, bool needsReboot = false) => output.Add("VIRGIL|driver-item|RESULT|" +
+                JsonSerializer.Serialize(new DriverUpdateOutcome(item.Identity, item.Title, status, message, needsReboot)));
+            if (!legacy)
+            {
+                foreach (var item in updates.Where(u => u.IsFirmware))
+                    DriverResult(item, "non pris en charge automatiquement", "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur.");
+                updates = updates.Where(u => !u.IsFirmware).ToArray();
+            }
             foreach (var update in updates) { cancellationToken.ThrowIfCancellationRequested(); if (!update.EulaAccepted) update.AcceptEula(); }
             if (updates.Length == 0) { Report(step, "OK", legacy ? "Aucune mise à jour nécessaire." : "Rien à installer"); return 0; }
             Report(step, "INFO", "Téléchargement Windows Update — ne peut pas être interrompu");
             cancellationToken.ThrowIfCancellationRequested();
             try { await agent.DownloadAsync(updates).ConfigureAwait(false); }
-            catch (COMException) { success = false; Report(step, "FAILED", "Téléchargement Windows Update impossible."); return 0; }
+            catch (COMException)
+            {
+                success = false; Report(step, "FAILED", "Téléchargement Windows Update impossible.");
+                if (individualDrivers) foreach (var item in updates) DriverResult(item, "en erreur", "Téléchargement du pilote impossible.");
+                return 0;
+            }
+            if (individualDrivers)
+            {
+                var count = 0;
+                foreach (var item in updates)
+                {
+                    if (cancellationToken.IsCancellationRequested) { DriverResult(item, "non lancée", "Non lancée : annulation demandée."); continue; }
+                    if (item.IsInstalled) { DriverResult(item, "à jour", "Ce pilote est déjà installé."); continue; }
+                    if (!item.IsDownloaded) { success = false; DriverResult(item, "en erreur", "Téléchargement du pilote incomplet."); continue; }
+                    Report(step, "INFO", "Installation Windows Update — ne peut pas être interrompue");
+                    try
+                    {
+                        var own = await agent.InstallAsync([item]).ConfigureAwait(false);
+                        var ownSucceeded = own.Items.FirstOrDefault(r => r.Identity == item.Identity)?.Success ?? own.Success;
+                        reboot |= own.RebootRequired; success &= ownSucceeded; count += ownSucceeded ? 1 : 0;
+                        DriverResult(item, ownSucceeded ? "mis à jour" : "en erreur", ownSucceeded ? "Pilote installé." : "Installation du pilote impossible ; un redémarrage peut être nécessaire.", own.RebootRequired);
+                    }
+                    catch (COMException) { success = false; DriverResult(item, "en erreur", "Installation du pilote impossible ; un redémarrage peut être nécessaire."); }
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                return count;
+            }
             cancellationToken.ThrowIfCancellationRequested();
             var downloaded = updates.Where(u => u.IsDownloaded).ToArray();
             if (downloaded.Length < updates.Length) { success = false; Report(step, "FAILED", legacy ? "Téléchargement incomplet ; installation bloquée." : "Téléchargement incomplet."); }

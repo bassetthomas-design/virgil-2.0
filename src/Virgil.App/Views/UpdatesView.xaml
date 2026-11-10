@@ -222,7 +222,13 @@
                                     <DataTemplate>
                                         <StackPanel>
                                             <CheckBox AutomationProperties.AutomationId="{Binding AutomationId}" Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}" IsEnabled="{Binding CanSelect}"
+                                                      Visibility="{Binding IsSelectionVisible, Converter={StaticResource BoolVisibility}}"
                                                       Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,5,0,5" />
+                                            <StackPanel Visibility="{Binding HasStatus, Converter={StaticResource BoolVisibility}}" Margin="0,5,0,5">
+                                                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Status}" Visibility="{Binding HasStatus, Converter={StaticResource BoolVisibility}}"
+                                                           Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" />
+                                            </StackPanel>
                                             <TextBlock Text="{Binding HelpText}" Visibility="{Binding HasHelp, Converter={StaticResource BoolVisibility}}"
                                                        Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" Margin="20,0,0,5" />
                                         </StackPanel>

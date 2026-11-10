@@ -207,6 +207,9 @@ public sealed class L6PlusExecutionTests
         Assert.False(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Windows).Succeeded);
         Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.Winget).Succeeded);
         Assert.True(Assert.Single(result.Steps, s => s.Step.Component == UpdateComponent.WingetFinal).Succeeded);
+        Assert.Equal(1, f.FinalInventory.Reads);
+        Assert.Contains(f.FinalInventory.Reader.Requests, request => request.Arguments[0] == "upgrade");
+        Assert.DoesNotContain(f.FinalInventory.Reader.Requests, request => request.Arguments.Contains("--all") || request.Arguments.Contains("--id"));
         Assert.Equal(2, f.Runner.Requests.Count(r => r.Arguments[0] == "upgrade"));
         Assert.Equal(1, f.Shutdown.Reads);
     }
@@ -258,9 +261,19 @@ public sealed class L6PlusExecutionTests
     }
     private sealed class Runner(string version) : IProcessRunner
     {
+        public bool IsInventoryReader { get; init; }
         public List<ProcessRunRequest> Requests { get; } = [];
         public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken token)
-        { Requests.Add(request); return Task.FromResult(new ProcessRunResult(0, version, "")); }
+        {
+            Requests.Add(request);
+            if (IsInventoryReader && request.Arguments[0] == "upgrade")
+            {
+                var header = $"{"Name",-25}{"Id",-25}{"Version",-15}{"Available",-15}Source";
+                var row = $"{"VLC media player",-25}{"VideoLAN.VLC",-25}{"3.0.20",-15}{"3.0.21",-15}winget";
+                return Task.FromResult(new ProcessRunResult(0, header + "\n" + new string('-', header.Length) + "\n" + row + "\n\n1 upgrade available.", ""));
+            }
+            return Task.FromResult(new ProcessRunResult(0, version, ""));
+        }
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken token) => throw new InvalidOperationException();
     }
     private sealed class StoreClient : IStoreUpdateClient
@@ -291,13 +304,21 @@ public sealed class L6PlusExecutionTests
         public Runner Runner { get; } = new("1.8.0");
         public Shutdown Shutdown { get; } = new();
         public StoreClient Store { get; } = new();
+        public FinalInventory FinalInventory { get; } = new();
         public Fixture()
         {
             Directory.CreateDirectory(directory);
             var store = new ElevatedHelperRequestStore(() => directory, new ElevatedProtocolRoot(), new ElevatedProtocolFiles(), () => Guid.NewGuid().ToByteArray(), () => DateTimeOffset.UtcNow);
-            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"]), Store), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
+            Service = new(new WindowsUpdateSequenceBackend(Runner, store, Launcher, () => "helper", new WingetAvailabilityService(Runner, ["winget.exe"]), Store, FinalInventory), Authority, launcherShutdown: new(Shutdown, TimeProvider.System));
         }
         public void Dispose() => Directory.Delete(directory, true);
+    }
+    private sealed class FinalInventory : IDriverFinalPassBackend
+    {
+        public int Reads { get; private set; }
+        public Runner Reader { get; } = new("1.8.0") { IsInventoryReader = true };
+        public Task<DriverFinalPassInventory> ReadFinalApplicationsAsync(CancellationToken token)
+        { Reads++; return new DriverFinalPassWindowsReader(Reader, new WingetAvailabilityService(Reader, ["winget.exe"])).ReadAsync(token); }
     }
     private sealed class Launcher : IElevatedProcessLauncher
     {
