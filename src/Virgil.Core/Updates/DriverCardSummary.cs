@@ -19,7 +19,7 @@ public static class DriverCardSummary
         Add("reste à installer", "reste à installer", "restent à installer"); Add("en erreur", "en erreur", "en erreur");
         Add("bloquée", "bloquée", "bloquées"); Add("non lancée", "non lancée", "non lancées");
         Add(Unsupported, Unsupported, Unsupported);
-        var status = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", Unsupported, "mis à jour", "à jour" }
+        var status = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", "mis à jour", "à jour", Unsupported }
             .FirstOrDefault(statuses.Contains) ?? "en erreur";
         return new(UpdateComponent.Driver, status, string.Join(", ", counts)) { HasRemaining = statuses.Contains("reste à installer") };
     }

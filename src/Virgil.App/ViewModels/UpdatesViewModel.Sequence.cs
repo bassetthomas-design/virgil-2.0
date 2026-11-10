@@ -103,7 +103,7 @@ public partial class UpdatesViewModel
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
             _operationCancellation.Token.ThrowIfCancellationRequested();
             SequenceChoices.Clear();
-            foreach (var step in steps.Where(step => step.Component != UpdateComponent.Driver || step.Id != "BIOS"))
+            foreach (var step in steps.OrderBy(step => step.Component == UpdateComponent.Driver && step.IsInformational ? 0 : 1))
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));
             _confirmedSequenceSteps = Array.Empty<UpdateSequenceStep>();
             IsSequencePreview = true;
@@ -240,7 +240,8 @@ public partial class UpdatesViewModel
                     : (Status: "Non lancée", Detail: "Aucun résultat confirmé. Non lancée.");
                 Operation.SetStep(SequenceStepKey(step), step.Title, card.Status, card.Detail);
             }
-            _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status + " — " + DisplaySequenceText(check.Detail)))
+            _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status
+                + (check.Component == UpdateComponent.Driver && check.IsCurrent ? string.Empty : " — " + DisplaySequenceText(check.Detail))))
                 + "\n" + (RebootRequired == result.RebootRequired
                     ? result.Steps.LastOrDefault(step => step.Step.Component == UpdateComponent.PendingReboot)?.Message
                         ?? $"Redémarrage nécessaire : {(RebootRequired ? "oui" : "non")}."
@@ -440,9 +441,8 @@ public partial class UpdatesViewModel
 
     private void UpdateSequencePreview()
     {
-        var needsRestore = SequenceChoices.Any(choice => choice.IsSelected && UpdateSequenceService.IsElevated(choice.Step.Component));
-        foreach (var required in SequenceChoices.Where(choice => choice.Step.Component is UpdateComponent.Restore or UpdateComponent.PendingReboot))
-            required.IsSelected = required.Step.Component == UpdateComponent.PendingReboot || needsRestore;
+        foreach (var information in SequenceChoices.Where(choice => choice.Step.IsInformational))
+            information.IsSelected = false;
         var selected = SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
         ValidationDetails = "Les pilotes Windows Update sont cochés par défaut. Décochez-les pour les laisser de côté. Un point de restauration est créé avant toute installation. Certaines étapes ne peuvent pas être interrompues une fois lancées.";
         if (_sequenceService is null || selected.Length == 0)
@@ -469,6 +469,8 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     }
     public UpdateSequenceStep Step { get; }
     public bool CanSelect => !Step.IsInformational;
+    public bool HasStatus => Step.Component == UpdateComponent.Driver && Step.IsInformational;
+    public string Status => HasStatus ? DriverCardSummary.Unsupported : string.Empty;
     public string AutomationId => "UpdatePlanStep." + (Step.Component switch
     {
         UpdateComponent.Winget => "Winget." + Step.Id,
@@ -483,7 +485,7 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
         get
         {
             if (Step.Component == UpdateComponent.Launcher && Step.Id != "launchers") return LauncherCardSummary.Confirmation(Step);
-            if (Step.Component == UpdateComponent.Driver && Step.IsInformational) return Step.Title + " — non pris en charge automatiquement";
+            if (Step.Component == UpdateComponent.Driver) return Step.Title;
             if (Step.Application is not { } app) return Step.Title;
             var installed = string.IsNullOrWhiteSpace(app.InstalledVersion) ? "version non disponible" : app.InstalledVersion;
             if (Step.Component == UpdateComponent.OutsideWinget)

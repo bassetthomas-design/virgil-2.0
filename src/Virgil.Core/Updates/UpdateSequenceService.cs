@@ -111,7 +111,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             Info("BIOS", "BIOS : information seulement, jamais installé par Virgil" + (bios.Version.Length > 0 ? " — " + bios.Version : " — version non disponible"),
                 "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.");
             foreach (var provider in inventory.Drivers.Select(driver => driver.Provider).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
-                Info("Provider:" + provider, provider + " — non pris en charge automatiquement",
+                Info("Provider:" + provider, provider,
                     "Ce pilote n'est proposé ni par Windows Update ni par une source officielle connue ; passez par l'outil du fabricant si besoin.");
             if (inventory.Errors.Count > 0) Info("inventory", "Matériel : lecture incomplète", "Inventaire du matériel incomplet ; les fournisseurs ne sont pas tous connus.");
             var packages = new List<UpdateSequenceStep>();
@@ -143,11 +143,11 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         return new(
         "updates.sequence", "Tout mettre à jour", RiskLevel.Sensitive,
         selected.Select(s => s.Component == UpdateComponent.Launcher && s.Id != "launchers" ? LauncherCardSummary.Confirmation(s) : s.Title)
-            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — non pris en charge automatiquement"))).ToArray(),
+            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — " + r.VerifiedStatus))).ToArray(),
         new Dictionary<string, string> { ["Steps"] = JsonSerializer.Serialize(selected) },
         new[] { "Installer les composants cochés dans l’ordre présenté.", "Un redémarrage peut être nécessaire ; il restera manuel.", "Les pilotes et Windows exigent un point de restauration vérifié." }
             .Concat(selected.Where(s => s.Component == UpdateComponent.Driver).Select(s => s.Title))
-            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — non pris en charge automatiquement"))).ToArray(),
+            .Concat(_driverInformation.Select(r => r.Step.Title + (r.Step.Id == "BIOS" ? "" : " — " + r.VerifiedStatus))).ToArray(),
         selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
     }
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
