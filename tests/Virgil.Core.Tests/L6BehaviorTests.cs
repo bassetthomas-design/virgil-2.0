@@ -164,7 +164,7 @@ public sealed class L6BehaviorTests
         var backend = new Backend { Installed = ["Steam", "Battle.net"] };
         var service = new UpdateSequenceService(backend, authority);
         var scan = await service.ScanAsync([], CancellationToken.None);
-        Assert.Single(scan, step => step.Component == UpdateComponent.Launcher);
+        Assert.Equal(new[] { "Steam", "Battle.net" }, scan.Where(step => step.Component == UpdateComponent.Launcher).Select(step => step.Id));
         var preview = service.CreatePreview(scan);
         Assert.Contains(preview.Targets, target => target.Contains("Steam", StringComparison.Ordinal));
         Assert.Contains("Battle.net", preview.Parameters["Steps"]);
@@ -172,7 +172,9 @@ public sealed class L6BehaviorTests
         var result = await service.ExecuteAsync(scan, plan, null, CancellationToken.None);
         Assert.False(result.WasRefused);
         Assert.DoesNotContain(backend.Executed, step => step.Component == UpdateComponent.Launcher);
-        Assert.Single(result.Steps, step => step.Message == "mis à jour au prochain lancement");
+        Assert.Collection(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher),
+            steam => { Assert.Equal("Steam", steam.Step.Id); Assert.Equal("non pris en charge automatiquement", steam.VerifiedStatus); Assert.Contains("Steam n’était pas connecté", steam.Message); },
+            battle => { Assert.Equal("Battle.net", battle.Step.Id); Assert.Equal("non pris en charge automatiquement", battle.VerifiedStatus); Assert.Contains("le lanceur met ses jeux à jour lui-même à son ouverture", battle.Message); });
         Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => { Assert.False(step.Succeeded); Assert.True(step.WasSkipped); });
         Assert.Equal(7, result.SuccessfulCount);
         Assert.False(result.HasFailures);
