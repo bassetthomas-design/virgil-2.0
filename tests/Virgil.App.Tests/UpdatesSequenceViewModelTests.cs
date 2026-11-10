@@ -539,6 +539,9 @@ public sealed class UpdatesSequenceViewModelTests
         Assert.Empty(f.Backend.Executed);
         Assert.Empty(f.History.Report!.ExecutedActions);
         Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("non pris en charge automatiquement", StringComparison.Ordinal));
+        Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
+        Assert.All(f.Vm.Operation.Steps.Where(card => card.Key.StartsWith("Launcher:", StringComparison.Ordinal)),
+            card => Assert.Contains("mis à jour au prochain lancement", card.Detail, StringComparison.Ordinal));
         Assert.Equal(ReportSeverity.Warning, f.History.Report.Severity);
     }
 

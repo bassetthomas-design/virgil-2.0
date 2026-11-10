@@ -176,6 +176,7 @@ public sealed class L6BehaviorTests
             steam => { Assert.Equal("Steam", steam.Step.Id); Assert.Equal("non pris en charge automatiquement", steam.VerifiedStatus); Assert.Contains("Steam n’était pas connecté", steam.Message); },
             battle => { Assert.Equal("Battle.net", battle.Step.Id); Assert.Equal("non pris en charge automatiquement", battle.VerifiedStatus); Assert.Contains("le lanceur met ses jeux à jour lui-même à son ouverture", battle.Message); });
         Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => { Assert.False(step.Succeeded); Assert.True(step.WasSkipped); });
+        Assert.All(result.Steps.Where(step => step.Step.Component == UpdateComponent.Launcher), step => Assert.Contains("mis à jour au prochain lancement", step.Message, StringComparison.Ordinal));
         Assert.Equal(7, result.SuccessfulCount);
         Assert.False(result.HasFailures);
         backend.Installed = [];
