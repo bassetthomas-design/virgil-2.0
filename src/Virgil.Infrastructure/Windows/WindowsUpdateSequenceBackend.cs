@@ -2,6 +2,7 @@ using Virgil.Contracts;
 using Virgil.Core.Interventions;
 using Virgil.Core.Processes;
 using Virgil.Core.Updates;
+using System.Text.Json;
 
 namespace Virgil.Infrastructure.Windows;
 
@@ -11,8 +12,14 @@ public sealed class WindowsUpdateSequenceBackend(
     IElevatedProcessLauncher launcher,
     Func<string> helperPath,
     WingetAvailabilityService? wingetAvailability = null,
-    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend
+    IStoreUpdateClient? storeClient = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend, IDriverSequenceBackend, IDriverFinalPassBackend
 {
+    private IDriverPackageSource? _driverPackages;
+    public IDriverInventoryReader DriverInventory => new DriverWindowsInventory(runner);
+    public IBiosInformationReader Bios => new BiosWindowsReader(runner);
+    public IDriverPackageSource DriverPackages => _driverPackages ??= new DriverPackageWindowsSource(runner, wingetAvailability ?? new WingetAvailabilityService(runner));
+    public Task<DriverFinalPassInventory> ReadFinalApplicationsAsync(CancellationToken token) =>
+        new DriverFinalPassWindowsReader(runner, wingetAvailability ?? new WingetAvailabilityService(runner)).ReadAsync(token);
     private ISteamClient? _steamClient;
     public ISteamClient SteamClient => _steamClient ??= new SteamWindowsClient(runner);
     private StoreUpdateService? _storeUpdates;
@@ -37,6 +44,9 @@ public sealed class WindowsUpdateSequenceBackend(
             _ => null
         };
         if (query is null) return new(component, "indisponible", "Contrôle final non disponible.");
+        if (component == UpdateComponent.Driver)
+            query = query.Replace("if ($r.Updates.Count -eq 0) { 'VIRGIL_CURRENT' } else { 'VIRGIL_REMAINING' }",
+                "ConvertTo-Json -Compress -InputObject @($r.Updates | ForEach-Object { @{Identity=($_.Identity.UpdateID + ':' + $_.Identity.RevisionNumber);Title=$_.Title;Status='reste à installer';Message='Ce pilote reste proposé.'} })", StringComparison.Ordinal);
         var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
             "$ErrorActionPreference='Stop'; " + query], TimeSpan.FromSeconds(40)), token).ConfigureAwait(false);
         if (result.StandardError.Contains("VIRGIL_WUA_001", StringComparison.Ordinal)
@@ -44,6 +54,15 @@ public sealed class WindowsUpdateSequenceBackend(
             return new(component, "indisponible", "Recherche finale incomplète ; état de la source non prouvé.");
         if (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null)
             return new(component, "indisponible", "Lecture de la source impossible ou délai dépassé.");
+        if (component == UpdateComponent.Driver && result.StandardOutput.TrimStart().StartsWith("[", StringComparison.Ordinal))
+        {
+            try
+            {
+                var items = JsonSerializer.Deserialize<DriverUpdateOutcome[]>(result.StandardOutput) ?? [];
+                return new(component, items.Length > 0 ? "reste à installer" : "à jour", "Contrôle final des pilotes effectué.") { DriverItems = items };
+            }
+            catch (JsonException) { return new(component, "indisponible", "Contrôle final des pilotes illisible."); }
+        }
         return result.StandardOutput.Trim() switch
         {
             "VIRGIL_CURRENT" => new(component, "à jour", "Contrôle final : aucun reste détecté pour cette source."),
@@ -141,6 +160,19 @@ public sealed class WindowsUpdateSequenceBackend(
         }
         foreach (var step in steps)
         {
+            if (step.Component == UpdateComponent.Driver)
+            {
+                var items = output.Where(line => line.Step == "driver-item" && line.Status == "RESULT")
+                    .Select(line => JsonSerializer.Deserialize<DriverUpdateOutcome>(line.Message)!)
+                    .Where(item => !string.IsNullOrWhiteSpace(item.Identity)).GroupBy(item => item.Identity).Select(group => group.Last()).ToArray();
+                if (items.Length > 0)
+                {
+                    results.AddRange(items.Select(item => new UpdateSequenceStepResult(new("WU:" + item.Identity, item.Title, UpdateComponent.Driver),
+                        item.Status is "mis à jour" or "à jour", item.RebootRequired, item.Message)
+                        { VerifiedStatus = item.Status, WasSkipped = item.Status is "non lancée" or "non pris en charge automatiquement" }));
+                    continue;
+                }
+            }
             var lines = output.Where(line => line.Step == Token(step.Component)).ToArray();
             var wasUnavailable = step.Component == UpdateComponent.Store && lines.Any(line => line.Status == "UNAVAILABLE") &&
                 !lines.Any(line => line.Status is "FAILED" or "CANCELLED");
@@ -155,7 +187,8 @@ public sealed class WindowsUpdateSequenceBackend(
                 succeeded = false;
                 message = "Préparation Microsoft bloquée : point de restauration non vérifié.";
             }
-            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null, WasUnavailable = wasUnavailable });
+            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null, WasUnavailable = wasUnavailable,
+                VerifiedStatus = step.Component == UpdateComponent.Driver ? token.IsCancellationRequested ? "non lancée" : succeeded ? "à jour" : "en erreur" : null });
         }
         return results;
     }

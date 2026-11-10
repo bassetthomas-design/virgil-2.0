@@ -103,7 +103,7 @@ public partial class UpdatesViewModel
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
             _operationCancellation.Token.ThrowIfCancellationRequested();
             SequenceChoices.Clear();
-            foreach (var step in steps)
+            foreach (var step in steps.Where(step => step.Component != UpdateComponent.Driver || step.Id != "BIOS"))
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));
             _confirmedSequenceSteps = Array.Empty<UpdateSequenceStep>();
             IsSequencePreview = true;
@@ -174,10 +174,26 @@ public partial class UpdatesViewModel
                 : "Séquence terminée. Contrôle final : des sources restent à vérifier ou à terminer.";
             StatusText = conclusion;
             SequenceStepText = conclusion;
+            var individualDrivers = result.Steps.Any(r => r.Step.Component == UpdateComponent.Driver && r.Step.Id.StartsWith("WU:", StringComparison.Ordinal));
+            if (individualDrivers)
+            {
+                var parent = Operation.Steps.FirstOrDefault(card => card.Key == "Driver:drivers");
+                if (parent is not null) Operation.Steps.Remove(parent);
+            }
             foreach (var step in result.Steps.Where(outcome => outcome.Step.IsInformational
                 || _confirmedSequenceSteps.Any(selected => selected.Id == outcome.Step.Id && selected.Component == outcome.Step.Component)
+                || (outcome.Step.Component == UpdateComponent.Driver && outcome.Step.Id.StartsWith("WU:", StringComparison.Ordinal)
+                    && _confirmedSequenceSteps.Any(selected => selected.Component == UpdateComponent.Driver && selected.Id == "drivers"))
+                || (outcome.Step.Component == UpdateComponent.Winget && outcome.Step.Application is not null
+                    && _confirmedSequenceSteps.Any(selected => selected.Component == UpdateComponent.WingetFinal))
                 || (outcome.Step.Id.StartsWith("SteamGame:", StringComparison.Ordinal) && _confirmedSequenceSteps.Any(selected => selected.Component == UpdateComponent.Launcher && selected.Id == "Steam"))))
             {
+                if (step.Step.Component == UpdateComponent.Driver && (step.VerifiedStatus is not null
+                    || step.Step.Id.StartsWith("WinGet:", StringComparison.Ordinal) || step.Step.Id.StartsWith("WU:", StringComparison.Ordinal)))
+                {
+                    Operation.SetStep(SequenceStepKey(step.Step), step.Step.Title, DriverCardSummary.Status(step), step.Message);
+                    continue;
+                }
                 if (step.Step.Component == UpdateComponent.Launcher && step.VerifiedStatus is not null)
                 {
                     Operation.SetStep(SequenceStepKey(step.Step), step.Step.Title, step.VerifiedStatus, step.Message);
@@ -217,6 +233,7 @@ public partial class UpdatesViewModel
                 Operation.SetStep(SequenceStepKey(step.Step), DisplaySequenceTitle(step.Step), status, detail);
             }
             foreach (var step in _confirmedSequenceSteps.Where(step => !step.IsInformational
+                && !(individualDrivers && step.Component == UpdateComponent.Driver && step.Id == "drivers")
                 && !result.Steps.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)))
             {
                 var card = step.Component == UpdateComponent.Winget ? WingetCardResult(step, null, verification.Applications)
@@ -290,7 +307,7 @@ public partial class UpdatesViewModel
         UpdateComponent.PendingReboot => "Sonde de redémarrage", _ => "Lanceurs"
     };
     private static string DisplaySequenceTitle(UpdateSequenceStep step) =>
-        step.Application is null && step.Component != UpdateComponent.Launcher ? DisplaySequenceText(step.Title) : step.Title;
+        step.Application is null && step.Component is not (UpdateComponent.Launcher or UpdateComponent.Driver) ? DisplaySequenceText(step.Title) : step.Title;
 
     private static string DisplayApplicationText(UpdateSequenceStep step, string text)
     {
@@ -380,7 +397,9 @@ public partial class UpdatesViewModel
                 !outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Step.Component == step.Component)
                 || outcomes.Any(outcome => outcome.Step.Id == step.Id && outcome.Message.StartsWith("Non lancée", StringComparison.Ordinal)));
             var storeProof = component == UpdateComponent.Store && outcomes.Any(step => step.VerifiedStatus is not null);
-            if (storeProof)
+            if (component == UpdateComponent.Driver && outcomes.Any(step => step.VerifiedStatus is not null))
+                check = DriverCardSummary.Summarize(outcomes);
+            else if (storeProof)
                 check = UpdateSequenceService.SummarizeOutcomes(check, outcomes);
             else if (started.Length == 0 && missing)
                 check = check with { Status = "non lancée", Detail = "Aucune étape de cette source n'a été lancée." };
@@ -464,6 +483,7 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
         get
         {
             if (Step.Component == UpdateComponent.Launcher && Step.Id != "launchers") return LauncherCardSummary.Confirmation(Step);
+            if (Step.Component == UpdateComponent.Driver && Step.IsInformational) return Step.Title + " — non pris en charge automatiquement";
             if (Step.Application is not { } app) return Step.Title;
             var installed = string.IsNullOrWhiteSpace(app.InstalledVersion) ? "version non disponible" : app.InstalledVersion;
             if (Step.Component == UpdateComponent.OutsideWinget)

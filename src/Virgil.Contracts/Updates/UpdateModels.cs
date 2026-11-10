@@ -1,5 +1,7 @@
 namespace Virgil.Contracts;
 
+public sealed record DriverUpdateOutcome(string Identity, string Title, string Status, string Message, bool RebootRequired = false);
+
 public enum UpdateScanScope
 {
     AvailabilityOnly,

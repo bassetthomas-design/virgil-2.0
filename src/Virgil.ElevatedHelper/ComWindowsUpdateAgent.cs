@@ -52,13 +52,23 @@ internal sealed class ComWindowsUpdateAgent : IWindowsUpdateAgent
         installer.Updates = Collection(updates);
         dynamic result = installer.Install();
         var count = 0;
+        var items = new List<WindowsUpdateItemInstallResult>();
         for (var i = 0; i < updates.Count; i++)
-            if ((int)result.GetUpdateResult(i).ResultCode == 2) count++;
-        return Task.FromResult(new WindowsUpdateInstallResult(count, (bool)result.RebootRequired, (int)result.ResultCode == 2));
+        {
+            dynamic own = result.GetUpdateResult(i);
+            var succeeded = (int)own.ResultCode == 2;
+            if (succeeded) count++;
+            items.Add(new(updates[i].Identity, succeeded, (int)own.ResultCode, (int)own.HResult));
+        }
+        return Task.FromResult(new WindowsUpdateInstallResult(count, (bool)result.RebootRequired, (int)result.ResultCode == 2) { Items = items });
     }
     private sealed class Item(dynamic value) : IWindowsUpdateItem
     {
         internal dynamic Value => value;
+        public string Identity => (string)value.Identity.UpdateID + ":" + (int)value.Identity.RevisionNumber;
+        public string Title => (string)value.Title;
+        public bool IsFirmware => new[] { "BIOS", "firmware", "UEFI" }.Any(term => Title.Contains(term, StringComparison.OrdinalIgnoreCase))
+            || (int)value.Type == 2 && string.Equals((string)value.DriverClass, "Firmware", StringComparison.OrdinalIgnoreCase);
         public bool IsFeatureUpgrade
         {
             get
@@ -70,6 +80,7 @@ internal sealed class ComWindowsUpdateAgent : IWindowsUpdateAgent
         }
         public bool EulaAccepted => (bool)value.EulaAccepted;
         public bool IsDownloaded => (bool)value.IsDownloaded;
+        public bool IsInstalled => (bool)value.IsInstalled;
         public void AcceptEula() => value.AcceptEula();
     }
 }

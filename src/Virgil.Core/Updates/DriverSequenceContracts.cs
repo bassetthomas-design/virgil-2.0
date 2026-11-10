@@ -12,6 +12,7 @@ public sealed record DriverPackageOffer(UpdateItem Item, bool InstallsDriversSil
 
 public interface IDriverPackageSource
 {
+    void SetInventory(IReadOnlyList<UpdateItem> items) { }
     Task<IReadOnlyList<DriverPackageOffer>> ScanAsync(CancellationToken token);
     Task<UpdateSequenceStepResult> InstallAsync(UpdateSequenceStep step, CancellationToken token);
 }
@@ -21,4 +22,10 @@ public interface IDriverSequenceBackend
     IDriverInventoryReader DriverInventory { get; }
     IBiosInformationReader Bios { get; }
     IDriverPackageSource DriverPackages { get; }
+}
+
+public sealed record DriverFinalPassInventory(bool IsComplete, IReadOnlyList<UpdateItem> Items, string Detail);
+public interface IDriverFinalPassBackend
+{
+    Task<DriverFinalPassInventory> ReadFinalApplicationsAsync(CancellationToken token);
 }
