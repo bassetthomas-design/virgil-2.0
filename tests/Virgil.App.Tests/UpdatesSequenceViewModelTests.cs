@@ -408,10 +408,10 @@ public sealed class UpdatesSequenceViewModelTests
         var driver = Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.Driver);
         Assert.True(driver.IsSelected);
         Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Id == "windows-feature-upgrade").IsSelected);
-        Assert.Equal(new[] { "restore", "defender", "microsoft-update", "launchers", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, f.Vm.SequenceChoices.Select(choice => choice.Step.Id));
-        Assert.Equal(new[] { UpdateComponent.Restore, UpdateComponent.Defender, UpdateComponent.MicrosoftUpdate, UpdateComponent.Launcher, UpdateComponent.Windows, UpdateComponent.Driver, UpdateComponent.Store, UpdateComponent.WindowsFeatureUpgrade, UpdateComponent.WingetFinal, UpdateComponent.PendingReboot }, f.Vm.SequenceChoices.Select(choice => choice.Step.Component));
+        Assert.Equal(new[] { "restore", "defender", "microsoft-update", "Steam", "Battle.net", "software", "drivers", "store", "windows-feature-upgrade", "winget-final", "pending-reboot" }, f.Vm.SequenceChoices.Select(choice => choice.Step.Id));
+        Assert.Equal(new[] { UpdateComponent.Restore, UpdateComponent.Defender, UpdateComponent.MicrosoftUpdate, UpdateComponent.Launcher, UpdateComponent.Launcher, UpdateComponent.Windows, UpdateComponent.Driver, UpdateComponent.Store, UpdateComponent.WindowsFeatureUpgrade, UpdateComponent.WingetFinal, UpdateComponent.PendingReboot }, f.Vm.SequenceChoices.Select(choice => choice.Step.Component));
         var information = f.Vm.SequenceChoices.Where(choice => choice.Step.Component == UpdateComponent.Launcher).ToArray();
-        Assert.Single(information);
+        Assert.Equal(2, information.Length);
         foreach (var choice in information)
         {
             Assert.True(choice.CanSelect);
@@ -538,7 +538,7 @@ public sealed class UpdatesSequenceViewModelTests
         await pending;
         Assert.Empty(f.Backend.Executed);
         Assert.Empty(f.History.Report!.ExecutedActions);
-        Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("mis à jour au prochain lancement", StringComparison.Ordinal));
+        Assert.Contains(f.History.Report.SkippedActions, action => action.Result.Contains("non pris en charge automatiquement", StringComparison.Ordinal));
         Assert.Equal(ReportSeverity.Warning, f.History.Report.Severity);
     }
 
