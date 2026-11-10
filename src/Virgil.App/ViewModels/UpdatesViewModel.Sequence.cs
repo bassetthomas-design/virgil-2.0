@@ -441,8 +441,11 @@ public partial class UpdatesViewModel
 
     private void UpdateSequencePreview()
     {
-        foreach (var information in SequenceChoices.Where(choice => choice.Step.IsInformational))
+        foreach (var information in SequenceChoices.Where(choice => choice.HasStatus))
             information.IsSelected = false;
+        var needsRestore = SequenceChoices.Any(choice => choice.IsSelected && UpdateSequenceService.IsElevated(choice.Step.Component));
+        foreach (var required in SequenceChoices.Where(choice => choice.Step.Component is UpdateComponent.Restore or UpdateComponent.PendingReboot))
+            required.IsSelected = required.Step.Component == UpdateComponent.PendingReboot || needsRestore;
         var selected = SequenceChoices.Where(choice => choice.IsSelected && choice.CanSelect).Select(choice => choice.Step).ToArray();
         ValidationDetails = "Les pilotes Windows Update sont cochés par défaut. Décochez-les pour les laisser de côté. Un point de restauration est créé avant toute installation. Certaines étapes ne peuvent pas être interrompues une fois lancées.";
         if (_sequenceService is null || selected.Length == 0)
@@ -470,6 +473,7 @@ public partial class UpdateSequenceChoiceViewModel : ObservableObject
     public UpdateSequenceStep Step { get; }
     public bool CanSelect => !Step.IsInformational;
     public bool HasStatus => Step.Component == UpdateComponent.Driver && Step.IsInformational;
+    public bool IsSelectionVisible => !HasStatus;
     public string Status => HasStatus ? DriverCardSummary.Unsupported : string.Empty;
     public string AutomationId => "UpdatePlanStep." + (Step.Component switch
     {

@@ -38,6 +38,9 @@ public sealed class D1bisCPanelTests
             var wu = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "drivers");
             Assert.True(wu.IsSelected);
             Assert.True(wu.CanSelect);
+            Assert.True(UpdateSequenceService.IsElevated(wu.Step.Component));
+            Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.Restore).IsSelected);
+            Assert.True(Assert.Single(f.Vm.SequenceChoices, choice => choice.Step.Component == UpdateComponent.PendingReboot).IsSelected);
             Assert.Equal(WuTitle, wu.Title);
             var package = Assert.Single(f.Vm.SequenceChoices, c => c.Step.Id == "WinGet:" + PackageId);
             Assert.True(package.CanSelect);
@@ -228,7 +231,7 @@ public sealed class D1bisCPanelTests
                 AssertInformationRow(host, bios, BiosTitle);
                 foreach (var provider in vm.SequenceChoices.Where(choice => choice.Step.Id.StartsWith("Provider:", StringComparison.Ordinal)))
                     AssertInformationRow(host, provider, provider.Step.Id[9..]);
-                Assert.All(vm.SequenceChoices.Where(choice => choice.Step.IsInformational), choice =>
+                Assert.All(vm.SequenceChoices.Where(choice => choice.Step.Component == UpdateComponent.Driver && choice.Step.IsInformational), choice =>
                 {
                     Assert.False(choice.CanSelect); Assert.False(choice.IsSelected);
                     Assert.DoesNotContain(Descendants<CheckBox>(host), box => ReferenceEquals(box.DataContext, choice) && box.IsVisible);
