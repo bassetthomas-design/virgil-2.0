@@ -71,6 +71,7 @@ public sealed class D1bisBSteamTests
     }
 
     [Theory, Trait("Category", "Safety")]
+    [InlineData("path")]
     [InlineData("missing")]
     [InlineData("name")]
     [InlineData("signature")]
@@ -96,6 +97,71 @@ public sealed class D1bisBSteamTests
         Assert.Empty(f.Backend.Launches);
         await f.Execute(steps);
         Assert.Equal(new[] { "-silent" }, f.Backend.Launches);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Refused_shutdown_cannot_become_a_restart_when_Steam_exits_independently()
+    {
+        var f = new Fixture();
+        f.Backend.GameRunning = true;
+        f.Backend.OnFinal = () => { f.Backend.GameRunning = false; f.Backend.ExitedIndependently = true; };
+        var result = await f.Execute(await f.Scan());
+        Assert.Empty(f.Backend.Closed);
+        Assert.Empty(f.Backend.Launches);
+        Assert.Equal("non lancée", Own(result, "SteamGame:10").VerifiedStatus);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Session_in_confirmed_preview_cannot_be_changed_before_execution()
+    {
+        var f = new Fixture();
+        var steps = await f.Scan();
+        var authority = new ConfirmationService(TimeProvider.System);
+        var service = new UpdateSequenceService(f.Backend, authority, launcherShutdown: new(f.Backend, f.Backend.SteamClock));
+        var plan = authority.Issue(service.CreatePreview(steps), new(ConfirmationLevel.Reinforced, null));
+        var altered = steps.Select(step => step.Id == "Steam" ? step with { SteamSession = new(false, null) } : step).ToArray();
+        Assert.True((await service.ExecuteAsync(altered, plan, null, default)).WasRefused);
+        Assert.Empty(f.Backend.Closed);
+        Assert.Empty(f.Backend.Launches);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Already_closed_Steam_can_restart_only_with_the_preview_session()
+    {
+        var f = new Fixture();
+        var steps = await f.Scan();
+        f.Backend.ExitedIndependently = true;
+        await f.Execute(steps);
+        Assert.Empty(f.Backend.Closed);
+        Assert.Single(f.Backend.Launches);
+    }
+
+    [Fact, Trait("Category", "Safety")]
+    public async Task Cancellation_before_restart_marks_games_not_started_without_reopening_Steam()
+    {
+        var f = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        f.Backend.OnFinal = cancellation.Cancel;
+        var result = await f.Execute(await f.Scan(), cancellation.Token);
+        Assert.True(result.WasCancelled);
+        Assert.Empty(f.Backend.Launches);
+        Assert.Equal("non lancée", Own(result, "SteamGame:10").VerifiedStatus);
+        Assert.False(Assert.Single(result.Verifications, check => check.Component == UpdateComponent.Launcher).IsCurrent);
+    }
+
+    [Theory]
+    [InlineData(4u, false, "reste à installer")]
+    [InlineData(6u, true, "reste à installer")]
+    [InlineData(128u, true, "en erreur")]
+    [InlineData(4u, true, "mis à jour")]
+    public async Task Updated_requires_complete_installation_and_a_changed_build(uint flags, bool changes, string expected)
+    {
+        var f = new Fixture();
+        f.Backend.FlagsAfterPoll = flags;
+        f.Backend.BuildChanges = changes;
+        var result = await f.Execute(await f.Scan());
+        Assert.Equal(expected, Own(result, "SteamGame:10").VerifiedStatus);
+        Assert.Equal("à jour selon Steam", Own(result, "SteamGame:30").VerifiedStatus);
     }
 
     [Fact]
@@ -183,6 +249,10 @@ public sealed class D1bisBSteamTests
         public bool GameRunning { get; set; }
         public string? Guard { get; set; }
         public Action? OnPoll { get; set; }
+        public Action? OnFinal { get; set; }
+        public bool ExitedIndependently { get; set; }
+        public uint FlagsAfterPoll { get; set; } = 4;
+        public bool BuildChanges { get; set; } = true;
         public List<string> Events { get; } = [];
         public List<string> Launches { get; } = [];
         public List<string> Closed { get; } = [];
@@ -190,18 +260,18 @@ public sealed class D1bisBSteamTests
         private int _reads;
         public Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["Steam", "Epic Games"]);
         public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token)
-        { Events.Add("final"); return Task.FromResult(new UpdateSequenceStepResult(step, true, false, "Applications contrôlées.")); }
+        { Events.Add("final"); OnFinal?.Invoke(); return Task.FromResult(new UpdateSequenceStepResult(step, true, false, "Applications contrôlées.")); }
         public Task<LauncherSnapshot> ReadAsync(string name, CancellationToken token) => Task.FromResult(new LauncherSnapshot(true,
             GameRunning ? [new(1, 0, "C:/Steam/steam.exe"), new(2, 1, "C:/Games/Game.exe")]
-            : name == "Steam" && !_closed ? [new(1, 0, "C:/Steam/steam.exe")] : [], ["C:/Games"]));
+            : name == "Steam" && !_closed && !ExitedIndependently ? [new(1, 0, "C:/Steam/steam.exe")] : [], ["C:/Games"]));
         public Task CloseAsync(string executable, bool force, CancellationToken token)
         { Closed.Add(executable); _closed = true; return Task.CompletedTask; }
-        public Task<SteamSession> ReadSessionAsync(CancellationToken token) => Task.FromResult(new SteamSession(Session, "C:/Steam/steam.exe"));
+        public Task<SteamSession> ReadSessionAsync(CancellationToken token) => Task.FromResult(new SteamSession(Session, Guard == "path" ? null : "C:/Steam/steam.exe"));
         public Task<IReadOnlyList<SteamGameState>> ReadGamesAsync(CancellationToken token)
         {
             var poll = ++_reads > 1;
             if (poll) OnPoll?.Invoke();
-            return Task.FromResult<IReadOnlyList<SteamGameState>>([new("10", "Game A", poll ? 4u : 6u, poll ? "2" : "1"),
+            return Task.FromResult<IReadOnlyList<SteamGameState>>([new("10", "Game A", poll ? FlagsAfterPoll : 6u, poll && BuildChanges ? "2" : "1"),
                 new("20", "Game B", 6, "1"), new("30", "Game C", 4, "1")]);
         }
         public Task<SteamExecutableCheck> CheckExecutableAsync(string? path, CancellationToken token) =>

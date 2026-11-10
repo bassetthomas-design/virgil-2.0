@@ -130,11 +130,23 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var steamStep = snapshot.FirstOrDefault(s => s.Component == UpdateComponent.Launcher && s.Id == "Steam" && s.SteamSession?.IsOpen == true);
         IReadOnlyList<SteamGameState> steamGames = [];
         string? steamReadError = null;
+        string? steamGuardError = null;
+        var steamMayRestart = false;
         if (steamStep is not null && backend is ISteamUpdateBackend steamBackend && !cancellationToken.IsCancellationRequested)
         {
-            try { steamGames = await steamBackend.SteamClient.ReadGamesAsync(cancellationToken).ConfigureAwait(false); }
+            try
+            {
+                var check = await steamBackend.SteamClient.CheckExecutableAsync(steamStep.SteamSession?.ExecutablePath, cancellationToken).ConfigureAwait(false);
+                if (!check.IsValid) steamGuardError = check.Reason;
+            }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-            catch { steamReadError = "Steam : lecture des jeux impossible. Aucune relance automatique."; }
+            catch { steamGuardError = "Steam : relance bloquée, vérification du fichier impossible."; }
+            if (steamGuardError is null && !cancellationToken.IsCancellationRequested)
+            {
+                try { steamGames = await steamBackend.SteamClient.ReadGamesAsync(cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+                catch { steamReadError = "Steam : lecture des jeux impossible. Aucune relance automatique."; }
+            }
         }
         if (snapshot.Any(s => IsElevated(s.Component)))
         {
@@ -174,6 +186,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 {
                     var names = step.Id == "launchers" ? step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ") : new[] { step.Id };
                     var shutdown = launcherShutdown is null ? new LauncherShutdownResult(false, "mis à jour au prochain lancement") : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
+                    if (step.Id == "Steam") steamMayRestart = shutdown.ClosedOrAlreadyClosed;
                     if (step.Id == "launchers")
                         results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
                     else
@@ -219,11 +232,13 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             results.RemoveAll(r => r.Step.Component == UpdateComponent.Launcher && r.Step.Id == "Steam");
             try
             {
-                if (steamReadError is not null)
+                if (steamGuardError is not null)
+                    results.Add(new(steamStep, false, false, steamGuardError) { VerifiedStatus = "bloquée" });
+                else if (steamReadError is not null)
                     results.Add(new(steamStep, false, false, steamReadError) { VerifiedStatus = "en erreur" });
                 else
                     results.AddRange(await new SteamUpdateService(steamSource).ExecuteAsync(steamStep, steamGames,
-                        () => launcherShutdown?.CanRestartSteamAsync(cancellationToken) ?? Task.FromResult(false),
+                        () => steamMayRestart && launcherShutdown is not null ? launcherShutdown.CanRestartSteamAsync(cancellationToken) : Task.FromResult(false),
                         results.Any(r => r.Step.Component == UpdateComponent.WingetFinal && r.Succeeded && !r.WasSkipped), closure,
                         () => progress?.Report(new(results.Count, snapshot.Length, steamStep.Title, LauncherCardSummary.Waiting)
                             { StepId = steamStep.Id, Component = steamStep.Component }), cancellationToken).ConfigureAwait(false));

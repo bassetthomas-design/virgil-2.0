@@ -31,7 +31,7 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
         if (!await backend.SteamClient.LaunchSilentAsync(steam.SteamSession!.ExecutablePath!, token).ConfigureAwait(false))
         {
             results.Add(Launcher("bloquée", "Steam : relance bloquée, le lancement silencieux n’a pas été confirmé."));
-            results.AddRange(initial.Select(game => GameResult(game, "non lancée", "Non lancée : Steam n’a pas pu être relancé.")));
+            results.AddRange(initial.Select(game => GameResult(game, "non lancée", "Non lancée : Steam n’a pas pu être ouvert.")));
             return results;
         }
         waiting();
@@ -66,11 +66,11 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
             foreach (var game in initial.Where(game => !Finished(game, states[game.Id], requested, alwaysInstalled)))
                 states[game.Id] = states[game.Id] with { Error = "Lecture de l’état du jeu impossible dans Steam." };
         }
-        results.Add(new(steam, true, false, closure + "\nSteam relancé en silencieux ; jeux contrôlés en lecture seule.") { VerifiedStatus = "à vérifier" });
+        results.Add(new(steam, true, false, closure + "\nSteam ouvert en silencieux ; jeux contrôlés en lecture seule.") { VerifiedStatus = "à vérifier" });
         foreach (var original in initial)
         {
             var state = states[original.Id];
-            var error = state.Error ?? ((state.StateFlags & (32u | 128u)) != 0 || state.StateFlags == 0 ? "Steam signale des fichiers de jeu absents ou endommagés." : null);
+            var error = state.Error ?? ((state.StateFlags & (32u | 128u)) != 0 || state.StateFlags == 0 ? "Steam indique des fichiers de jeu absents ou endommagés." : null);
             var status = error is not null ? "en erreur"
                 : polled && state.StateFlags == 4 && requested.Contains(original.Id) && state.BuildId != original.BuildId ? "mis à jour"
                 : polled && alwaysInstalled.Contains(original.Id) && !requested.Contains(original.Id) ? "à jour selon Steam" : "reste à installer";
