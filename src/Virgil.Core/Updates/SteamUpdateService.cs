@@ -66,7 +66,6 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
             foreach (var game in initial.Where(game => !Finished(game, states[game.Id], requested, alwaysInstalled)))
                 states[game.Id] = states[game.Id] with { Error = "Lecture de l’état du jeu impossible dans Steam." };
         }
-        results.Add(new(steam, true, false, closure + "\nSteam ouvert en silencieux ; jeux contrôlés en lecture seule.") { VerifiedStatus = "à vérifier" });
         foreach (var original in initial)
         {
             var state = states[original.Id];
@@ -76,6 +75,12 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
                 : polled && alwaysInstalled.Contains(original.Id) && !requested.Contains(original.Id) ? "à jour selon Steam" : "reste à installer";
             results.Add(GameResult(original, status, error ?? (status == "reste à installer" ? "Reste à installer — Steam continue en arrière-plan." : status)));
         }
+        var steamStatus = results.Any(game => game.VerifiedStatus == "en erreur") ? "en erreur"
+            : results.Any(game => game.VerifiedStatus == "reste à installer") ? "reste à installer"
+            : results.Any(game => game.VerifiedStatus == "mis à jour") ? "mis à jour" : "à jour selon Steam";
+        results.Insert(0, new(steam, steamStatus is "mis à jour" or "à jour selon Steam", false,
+            closure + "\nSteam ouvert en silencieux ; jeux contrôlés en lecture seule.")
+        { VerifiedStatus = steamStatus, WasSkipped = steamStatus == "reste à installer" });
         return results;
     }
     private static bool Finished(SteamGameState original, SteamGameState state, HashSet<string> requested, HashSet<string> alwaysInstalled) =>
