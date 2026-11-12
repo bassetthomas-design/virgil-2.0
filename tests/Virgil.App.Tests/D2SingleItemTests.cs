@@ -213,6 +213,17 @@ public sealed class D2SingleItemTests
         await Capture(f.Vm, "01-carte-avec-bouton");
     });
 
+    [Fact]
+    public Task Unknown_card_status_requires_verification_instead_of_claiming_current() => ThemeContrastTests.OnSta(async () =>
+    {
+        var f = new UpdatesSequenceViewModelTests.Fixture(scan: new Scan { Items = [App("a")] });
+        await f.Vm.ScanUpdatesCommand.ExecuteAsync(null);
+        var card = Assert.IsType<UpdateTextCardViewModel>(Card(f.Vm, "Winget:a"));
+        card.Status = "résultat inconnu";
+        Assert.Single(f.Vm.Entries.OfType<UpdateItemViewModel>()).IsSelected = true;
+        Assert.Equal("Applications : à vérifier — 1 à vérifier", Read<string>(f.Vm, "SingleSourceSummary"));
+    });
+
     private sealed class Scan : IUpdateScanService
     {
         public int Calls { get; private set; }
