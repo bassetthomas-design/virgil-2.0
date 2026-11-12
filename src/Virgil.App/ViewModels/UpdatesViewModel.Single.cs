@@ -18,7 +18,8 @@ namespace Virgil.App.ViewModels;
 public partial class UpdatesViewModel
 {
     public ObservableCollection<UpdateTextCardViewModel> SingleCards { get; } = new();
-    public IEnumerable<UpdateTextCardViewModel> SourceCards => SingleCards.Where(c => c.Step?.Component != UpdateComponent.Winget);
+    public IEnumerable<UpdateTextCardViewModel> SourceCards => SingleCards.Where(c => c.Step?.Component is not (UpdateComponent.Winget or UpdateComponent.Driver));
+    public IEnumerable<UpdateTextCardViewModel> DriverSourceCards => SingleCards.Where(c => c.Step?.Component == UpdateComponent.Driver);
     public string SingleSourceSummary { get; private set; } = string.Empty;
 
     private void MergeSingleApplications()
@@ -54,16 +55,25 @@ public partial class UpdatesViewModel
         SingleCards.Add(card);
         return card;
     }
-    private async Task LoadSingleSourceCardsAsync(CancellationToken token)
+    private void LoadSingleSourceCards()
     {
         if (_sequenceService is null) return;
-        foreach (var outcome in await _sequenceService.ReadSingleItemsAsync(token))
+        foreach (var outcome in _sequenceService.SingleItems)
         {
             // The software route already owns duplicate Microsoft Store applications.
             if (outcome.Step.Component == UpdateComponent.Store && SingleCards.Any(c => c.Step?.Component == UpdateComponent.Winget
                 && string.Equals(c.Step.Application?.Id, outcome.Step.Id, StringComparison.OrdinalIgnoreCase))) continue;
             AddSingleCard(outcome);
         }
+        RefreshSingleState();
+    }
+    private void LoadSingleDriverReport(DriverInventoryReport report)
+    {
+        foreach (var driver in report.Drivers)
+            AddSingleCard(new(new("Inventory:" + driver.PublishedName, string.IsNullOrWhiteSpace(driver.Provider) ? "Pilote" : driver.Provider,
+                UpdateComponent.Driver) { InformationOnly = true }, false, false,
+                "Ce pilote est inventorié ; aucune mise à jour automatique n'est proposée par cet examen.")
+                { VerifiedStatus = DriverCardSummary.Unsupported });
         RefreshSingleState();
     }
     private void ApplySingleSequenceResults(UpdateSequenceResult result)
@@ -88,9 +98,10 @@ public partial class UpdatesViewModel
         {
             var cards = SingleCards.Where(c => c.Step?.Component == component).ToArray();
             if (cards.Length == 0) continue;
-            var active = cards.Where(c => !c.Step!.IsInformational && c.Status != DriverCardSummary.Unsupported).ToArray();
+            var active = cards.Where(c => c.Status != DriverCardSummary.Unsupported).ToArray();
             var priority = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", "mis à jour", "à jour", "à jour selon Steam" };
-            var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s)) ?? "à jour";
+            foreach (var card in active.Where(c => !priority.Contains(c.Status))) card.Status = "à vérifier";
+            var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s)) ?? (active.Length == 0 ? "à jour" : "à vérifier");
             var counts = new List<string>();
             foreach (var value in new[] { "mis à jour", "à jour", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
             {
@@ -104,6 +115,7 @@ public partial class UpdatesViewModel
         SingleSourceSummary = string.Join("\n", lines);
         OnPropertyChanged(nameof(SingleSourceSummary));
         OnPropertyChanged(nameof(SourceCards));
+        OnPropertyChanged(nameof(DriverSourceCards));
         RunSingleCommand.NotifyCanExecuteChanged();
     }
     private bool CanRunSingle(UpdateSequenceStep? step)
@@ -167,10 +179,12 @@ public partial class UpdatesViewModel
             var own = result.Steps.FirstOrDefault(r => r.Step.Component == target.Component && r.Step.Id == target.Id);
             if (target.Component == UpdateComponent.Winget)
             {
-                var verification = await ReadFinalVerificationsAsync(result);
+                var verification = own?.VerifiedStatus == "non lancée"
+                    ? (Sources: (IReadOnlyList<UpdateSourceVerification>)Array.Empty<UpdateSourceVerification>(), Applications: (UpdateScanReport?)null)
+                    : await ReadFinalVerificationsAsync(result);
                 var state = WingetCardResult(target, own, verification.Applications);
                 card.Status = state.Status == "Non lancée" ? "non lancée" : state.Status;
-                card.Detail = state.Status == "mis à jour" ? "Cette application n'est plus proposée au contrôle final."
+                card.Detail = own?.VerifiedStatus == "non lancée" ? own.Message : state.Status == "mis à jour" ? "Cette application n'est plus proposée au contrôle final."
                     : own is not null && state.Status is "en erreur" or "bloquée" && !own.Succeeded
                         ? Regex.Replace(own.Message, @"(?<![\p{L}\p{N}_.-])" + Regex.Escape(target.Id) + @"(?![\p{L}\p{N}_.-])", "cette application", RegexOptions.IgnoreCase)
                         : state.Detail;

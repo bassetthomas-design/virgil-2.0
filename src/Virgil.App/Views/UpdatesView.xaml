@@ -186,6 +186,7 @@
                 <TextBlock Text="PILOTES"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
+                <ItemsControl ItemsSource="{Binding DriverSourceCards}" ItemTemplate="{StaticResource SingleUpdateCardTemplate}" />
                 <ItemsControl x:Name="DriversListPanel" ItemsSource="{Binding DriverCards}" ItemTemplate="{StaticResource UpdatesTextCardTemplate}" KeyboardNavigation.TabNavigation="Continue" />
             </StackPanel>
         </ScrollViewer>

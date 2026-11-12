@@ -15,6 +15,8 @@ public sealed class WindowsUpdateSequenceBackend(
     IStoreUpdateClient? storeClient = null,
     IDriverFinalPassBackend? finalInventory = null) : IUpdateSequenceBackend, IStoreUpdateBackend, IOutsideWingetBackend, ISteamUpdateBackend, IDriverSequenceBackend, IDriverFinalPassBackend
 {
+    private IReadOnlyList<DriverUpdateOutcome> _knownDriverUpdates = [];
+    public IReadOnlyList<DriverUpdateOutcome> KnownDriverUpdates => _knownDriverUpdates;
     private IDriverPackageSource? _driverPackages;
     public IDriverInventoryReader DriverInventory => new DriverWindowsInventory(runner);
     public IBiosInformationReader Bios => new BiosWindowsReader(runner);
@@ -61,6 +63,7 @@ public sealed class WindowsUpdateSequenceBackend(
             try
             {
                 var items = JsonSerializer.Deserialize<DriverUpdateOutcome[]>(result.StandardOutput) ?? [];
+                _knownDriverUpdates = items.ToArray();
                 return new(component, items.Length > 0 ? "reste à installer" : "à jour", "Contrôle final des pilotes effectué.") { DriverItems = items };
             }
             catch (JsonException) { return new(component, "indisponible", "Contrôle final des pilotes illisible."); }

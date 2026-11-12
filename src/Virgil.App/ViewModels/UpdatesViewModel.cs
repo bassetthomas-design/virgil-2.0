@@ -226,12 +226,11 @@ public partial class UpdatesViewModel : ObservableObject
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = MergeDriverReport(_lastScanReport, report);
             await PersistReportAsync(ReportMapper.FromUpdateScan(_lastScanReport));
+            var knownCards = SingleCards.Where(card => card.Step?.Component != UpdateComponent.Winget).ToArray();
             RenderScanReport(_lastScanReport);
-            if (_sequenceService is not null)
-            {
-                await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
-                await LoadSingleSourceCardsAsync(_operationCancellation.Token);
-            }
+            foreach (var card in knownCards) SingleCards.Add(card);
+            LoadSingleSourceCards();
+            LoadSingleDriverReport(report.Drivers);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PILOTES");
             VirgilMessageRequested?.Invoke("Inventaire pilotes terminé.\nLecture seule.");
         }

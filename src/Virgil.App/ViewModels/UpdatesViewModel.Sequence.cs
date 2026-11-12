@@ -102,7 +102,7 @@ public partial class UpdatesViewModel
             Operation.Report(new Virgil.Core.Operations.OperationProgress(StatusText));
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
             _operationCancellation.Token.ThrowIfCancellationRequested();
-            await LoadSingleSourceCardsAsync(_operationCancellation.Token);
+            LoadSingleSourceCards();
             SequenceChoices.Clear();
             foreach (var step in steps.OrderBy(step => step.Component == UpdateComponent.Driver && step.IsInformational ? 0 : 1))
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));

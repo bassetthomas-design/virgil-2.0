@@ -40,6 +40,8 @@ public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bo
 }
 public interface IUpdateSequenceBackend
 {
+    // Dernier résultat déjà obtenu : cette propriété ne lance aucune lecture.
+    IReadOnlyList<DriverUpdateOutcome> KnownDriverUpdates => [];
     Task<UpdateSourceVerification> VerifyAsync(UpdateComponent component, CancellationToken token) =>
         Task.FromResult(new UpdateSourceVerification(component, "indisponible", "Contrôle final non disponible sur ce PC."));
     Task<IReadOnlyList<string>> DetectLaunchersAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
@@ -66,6 +68,7 @@ public interface IUpdateSequenceService
 }
 public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
 {
+    public const string BiosInformationMessage = "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
     public IReadOnlyList<UpdateSequenceStepResult> SingleItems { get; private set; } = [];
     private IReadOnlyList<UpdateItem> _unsupported = [];
     private IReadOnlyList<UpdateSequenceStepResult> _driverInformation = [];
@@ -113,7 +116,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 new(id, title, UpdateComponent.Driver, item) { InformationOnly = true }, false, false, reason)
                 { VerifiedStatus = DriverCardSummary.Unsupported, WasSkipped = true });
             Info("BIOS", "BIOS : information seulement, jamais installé par Virgil" + (bios.Version.Length > 0 ? " — " + bios.Version : " — version non disponible"),
-                "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.");
+                BiosInformationMessage);
             foreach (var provider in inventory.Drivers.Select(driver => driver.Provider).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
                 Info("Provider:" + provider, provider,
                     "Ce pilote n'est proposé ni par Windows Update ni par une source officielle connue ; passez par l'outil du fabricant si besoin.");
@@ -157,6 +160,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             cards.RemoveAll(c => c.Step.Component == information.Step.Component && c.Step.Id == information.Step.Id);
             cards.Add(information);
         }
+        cards.AddRange(backend.KnownDriverUpdates.Select(DriverCard));
         SingleItems = cards;
         return steps;
     }
@@ -170,17 +174,27 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             try
             {
                 var check = await backend.VerifyAsync(UpdateComponent.Driver, timeout.Token).WaitAsync(timeout.Token).ConfigureAwait(false);
-                cards.AddRange(check.DriverItems.Select(item => new UpdateSequenceStepResult(
-                    new("WU:" + item.Identity, item.Title, UpdateComponent.Driver) { InformationOnly = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title }) },
-                    false, false, DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title })
-                        ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur." : item.Message)
-                    { VerifiedStatus = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title }) ? DriverCardSummary.Unsupported : "reste à installer" }));
+                foreach (var item in check.DriverItems)
+                {
+                    cards.RemoveAll(card => card.Step.Component == UpdateComponent.Driver && card.Step.Id == "WU:" + item.Identity);
+                    cards.Add(DriverCard(item));
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch { /* Une lecture indisponible ne crée aucun élément installable. */ }
+            catch
+            {
+                cards.Add(new(new("driver-read", "Pilotes", UpdateComponent.Driver) { InformationOnly = true }, false, false,
+                    "Les pilotes n'ont pas pu être lus. Relancez leur examen.") { VerifiedStatus = "indisponible", WasUnavailable = true });
+            }
         }
         SingleItems = cards;
         return cards;
+    }
+    private static UpdateSequenceStepResult DriverCard(DriverUpdateOutcome item)
+    {
+        var firmware = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title });
+        return new(new("WU:" + item.Identity, item.Title, UpdateComponent.Driver) { InformationOnly = firmware }, false, false,
+            firmware ? BiosInformationMessage : item.Message) { VerifiedStatus = firmware ? DriverCardSummary.Unsupported : item.Status };
     }
     private static bool IsIndividualCandidate(UpdateSequenceStep step) => step.Component is UpdateComponent.Winget or UpdateComponent.OutsideWinget
         || step.Component == UpdateComponent.Store && step.Application is not null
@@ -298,7 +312,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                             if (DriverOfficialPackageCatalog.IsFirmware(app) || DriverOfficialPackageCatalog.IsDriverPackage(app))
                                 children.Add(new(new("WinGet:" + app.Id, app.Name, UpdateComponent.Driver, app) { InformationOnly = true }, false, false,
                                     DriverOfficialPackageCatalog.IsFirmware(app)
-                                        ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
+                                        ? BiosInformationMessage
                                         : "Ce pilote exige une source officielle silencieuse et un point de restauration vérifié ; il n'est pas lancé dans la passe des logiciels.")
                                     { VerifiedStatus = DriverCardSummary.Unsupported, WasSkipped = true });
                             else
@@ -356,8 +370,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                     else
                     {
                         var supported = step.Id == "Steam" && step.SteamSession?.IsOpen == true && backend is ISteamUpdateBackend;
-                        var detail = shutdown.Message + "\n" + (supported ? "Jeux : contrôle Steam après les applications."
-                            : step.Id == "Steam" ? "Jeux : non pris en charge automatiquement — " + LauncherCardSummary.NoSession : LauncherCardSummary.OtherGames);
+                        var detail = shutdown.Message + (single ? string.Empty : "\n" + (supported ? "Jeux : contrôle Steam après les applications."
+                            : step.Id == "Steam" ? "Jeux : non pris en charge automatiquement — " + LauncherCardSummary.NoSession : LauncherCardSummary.OtherGames));
                         results.Add(new(step, supported && shutdown.AnyClosed, false, detail)
                         { WasSkipped = !supported || !shutdown.AnyClosed, VerifiedStatus = supported ? "à vérifier" : LauncherCardSummary.Unsupported });
                     }
