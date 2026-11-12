@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Windows.Interop;
 using CommunityToolkit.Mvvm.Input;
 using Virgil.App.ViewModels;
 using Virgil.App.Views;
@@ -229,10 +230,17 @@ public sealed class D2SingleItemTests
     internal static async Task Capture(UpdatesViewModel vm, string name)
     {
         var view = new UpdatesView(vm) { Width = 1600, Height = 2400 };
-        var window = new Window { Content = view, Width = 1600, Height = 1400, ShowInTaskbar = false };
+        using var presentation = new HwndSource(new HwndSourceParameters("Preuve WPF D2")
+        {
+            Width = 1600, Height = 2400, PositionX = -20000, PositionY = -20000,
+            WindowStyle = unchecked((int)0x90000000)
+        });
         try
         {
-            window.Show(); window.UpdateLayout();
+            presentation.RootVisual = view;
+            view.Measure(new Size(1600, 2400));
+            view.Arrange(new Rect(0, 0, 1600, 2400));
+            view.UpdateLayout();
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             view.Measure(new Size(1600, 2400));
             view.Arrange(new Rect(0, 0, 1600, 2400));
@@ -273,7 +281,7 @@ public sealed class D2SingleItemTests
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var stream = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(stream);
         }
-        finally { window.Close(); }
+        finally { presentation.RootVisual = null; }
     }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {

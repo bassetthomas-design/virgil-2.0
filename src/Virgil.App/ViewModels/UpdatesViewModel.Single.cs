@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.Input;
 using Virgil.App.Animation;
 using Virgil.Contracts;
@@ -27,8 +28,18 @@ public partial class UpdatesViewModel
         foreach (var item in _lastItems)
         {
             var step = new UpdateSequenceStep(item.Id, item.Name, UpdateComponent.Winget, item);
-            AddSingleCard(new(step, false, false, item.Message ?? "Cette mise à jour reste à installer.")
-                { VerifiedStatus = UpdateSequenceService.IsSingleTarget(step) ? "reste à installer" : DriverCardSummary.Unsupported });
+            var available = UpdateSequenceService.IsSingleTarget(step);
+            var reason = available ? "Cette mise à jour reste à installer."
+                : DriverOfficialPackageCatalog.IsFirmware(item)
+                    ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
+                : item.RiskLevel == UpdateRiskLevel.CriticalInformationOnly
+                    ? "Cet élément est affiché pour information ; aucune installation automatique n'est proposée."
+                : DriverOfficialPackageCatalog.IsDriverPackage(item)
+                    ? "Ce pilote exige une méthode officielle automatique et un point de restauration vérifié ; examinez les pilotes pour connaître la voie disponible."
+                : item.Status == UpdateItemStatus.InformationOnly && !string.IsNullOrWhiteSpace(item.Message) ? item.Message
+                    : "Cet élément ne peut pas être mis à jour automatiquement ; relancez l'analyse pour confirmer sa version.";
+            AddSingleCard(new(step, false, false, reason)
+                { VerifiedStatus = available ? "reste à installer" : DriverCardSummary.Unsupported });
         }
         RefreshSingleState();
     }
@@ -159,7 +170,10 @@ public partial class UpdatesViewModel
                 var verification = await ReadFinalVerificationsAsync(result);
                 var state = WingetCardResult(target, own, verification.Applications);
                 card.Status = state.Status == "Non lancée" ? "non lancée" : state.Status;
-                card.Detail = state.Detail;
+                card.Detail = state.Status == "mis à jour" ? "Cette application n'est plus proposée au contrôle final."
+                    : own is not null && state.Status is "en erreur" or "bloquée" && !own.Succeeded
+                        ? Regex.Replace(own.Message, @"(?<![\p{L}\p{N}_.-])" + Regex.Escape(target.Id) + @"(?![\p{L}\p{N}_.-])", "cette application", RegexOptions.IgnoreCase)
+                        : state.Detail;
                 foreach (var itemAfter in verification.Applications?.Items ?? [])
                     AddSingleCard(new(new(itemAfter.Id, itemAfter.Name, UpdateComponent.Winget, itemAfter), false, false,
                         "Cette application reste proposée.") { VerifiedStatus = "reste à installer" });
