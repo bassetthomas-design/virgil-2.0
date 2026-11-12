@@ -104,6 +104,33 @@ public sealed class D2SingleChannelTests
         Assert.Equal(new[] { "a" }, client.Started);
     }
 
+    [Fact]
+    public async Task Store_duplicate_has_one_card_and_one_software_command_while_native_offer_is_still_present()
+    {
+        var runner = new Runner(); var client = new StoreClient();
+        var backend = new SoftwareStoreBackend(runner, client);
+        var authority = new ConfirmationService(TimeProvider.System);
+        var service = new UpdateSequenceService(backend, authority, new EmptyPendingRebootProbe());
+        var item = new UpdateItem { Id = "a", Name = "Store A", Source = UpdateSource.MicrosoftStore, InstalledVersion = "1.0", AvailableVersion = "2.0" };
+        var scanned = await service.ScanAsync([item], default);
+        var step = Single(Assert.Single(scanned, s => s.Application?.Id == "a"));
+        Assert.Equal(UpdateComponent.Winget, step.Component);
+        Assert.DoesNotContain(scanned, s => s.Component == UpdateComponent.Store && s.Id == "a");
+        var result = await service.ExecuteAsync([step], authority.Issue(service.CreatePreview([step]), new(ConfirmationLevel.Reinforced, null)), null, default);
+        Assert.True(Assert.Single(result.Steps, r => r.Step.Id == "a").Succeeded);
+        Assert.Empty(client.Started);
+        var command = Assert.Single(runner.Requests, r => r.Arguments.FirstOrDefault() == "upgrade");
+        Assert.Equal("a", command.Arguments[command.Arguments.ToList().IndexOf("--id") + 1]);
+        Assert.DoesNotContain("--all", command.Arguments);
+    }
+    private sealed class SoftwareStoreBackend(Runner runner, StoreClient client) : IUpdateSequenceBackend, IStoreUpdateBackend
+    {
+        private readonly WindowsUpdateSequenceBackend _software = new(runner, null!, null!, () => "helper", new WingetAvailabilityService(runner, ["winget.exe"]));
+        public StoreUpdateService StoreUpdates { get; } = new(client);
+        public void BeginExecution(string session) => _software.BeginExecution(session);
+        public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => _software.ExecuteAsync(step, token);
+    }
+
     [Theory]
     [InlineData("f813d575-a123-4788-b34a-d547c15c5663:7", true)]
     [InlineData("f813d575-a123-4788-b34a-d547c15c5663", false)]

@@ -162,6 +162,7 @@ public sealed class D2SingleItemTests
     [InlineData("version")]
     [InlineData("critical")]
     [InlineData("invented")]
+    [InlineData("firmware")]
     public Task Unsafe_or_unseen_target_has_no_button_or_effect(string scenario) => ThemeContrastTests.OnSta(async () =>
     {
         var item = App("a");
@@ -171,6 +172,7 @@ public sealed class D2SingleItemTests
             "ellipsis" => item with { Id = "a…" },
             "version" => item with { AvailableVersion = "" },
             "critical" => item with { RiskLevel = UpdateRiskLevel.CriticalInformationOnly },
+            "firmware" => item with { Name = "System Firmware", Source = UpdateSource.FirmwareInformation },
             _ => item
         };
         var f = new UpdatesSequenceViewModelTests.Fixture(scan: new Scan { Items = [item] });
@@ -178,6 +180,15 @@ public sealed class D2SingleItemTests
         var step = new UpdateSequenceStep(item.Id, item.Name, UpdateComponent.Winget, item);
         if (scenario == "invented") step = Step("unseen");
         var command = Command(f.Vm);
+        if (scenario != "invented")
+        {
+            var card = Card(f.Vm, "Winget:" + item.Id);
+            Assert.Equal("non pris en charge automatiquement", Read<string>(card, "Status"));
+            Assert.Equal(scenario == "firmware"
+                ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
+                : scenario == "critical" ? "Cet élément est affiché pour information ; aucune installation automatique n'est proposée."
+                : "Cet élément ne peut pas être mis à jour automatiquement ; relancez l'analyse pour confirmer sa version.", Read<string>(card, "Detail"));
+        }
         Assert.False(command.CanExecute(step));
         await command.ExecuteAsync(step);
         Assert.False(f.Vm.IsValidationOpen);
@@ -248,6 +259,17 @@ public sealed class D2SingleItemTests
             Directory.CreateDirectory(directory);
             var bitmap = new RenderTargetBitmap((int)view.ActualWidth, (int)view.ActualHeight, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(view);
+            foreach (var text in required.Where(text => !string.IsNullOrWhiteSpace(text.Text)))
+            {
+                var area = text.TransformToAncestor(view).TransformBounds(new Rect(text.RenderSize));
+                var x = Math.Max(0, (int)Math.Floor(area.X)); var y = Math.Max(0, (int)Math.Floor(area.Y));
+                var width = Math.Min(bitmap.PixelWidth - x, Math.Max(1, (int)Math.Ceiling(area.Width)));
+                var height = Math.Min(bitmap.PixelHeight - y, Math.Max(1, (int)Math.Ceiling(area.Height)));
+                Assert.True(width > 0 && height > 0);
+                var pixels = new byte[width * height * 4]; bitmap.CopyPixels(new Int32Rect(x, y, width, height), pixels, width * 4, 0);
+                Assert.True(Enumerable.Range(0, width * height).Any(i => pixels[i * 4 + 3] > 0
+                    && Math.Max(pixels[i * 4], Math.Max(pixels[i * 4 + 1], pixels[i * 4 + 2])) >= 96), "Texte D2 absent des pixels rendus.");
+            }
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var stream = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(stream);
         }

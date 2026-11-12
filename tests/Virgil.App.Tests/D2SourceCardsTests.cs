@@ -117,6 +117,39 @@ public sealed class D2SourceCardsTests
             { Id = id, Name = "Application " + id.ToUpperInvariant(), InstalledVersion = "1.0", AvailableVersion = "2.0" }).ToArray() });
     }
 
+    [Fact]
+    public Task Native_Store_without_confirmed_proposed_version_is_information_only() => ThemeContrastTests.OnSta(async () =>
+    {
+        var authority = new RecordingConfirmation(); var runner = new UpdatesSequenceViewModelTests.Runner();
+        var backend = new StoreSourceBackend();
+        var vm = new UpdatesViewModel(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(runner), runner, authority.Authority),
+            new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), runner, new UpdatesSequenceViewModelTests.History(), authority,
+            new UpdateSequenceService(backend, authority.Authority, new EmptyPendingRebootProbe()));
+        var pending = vm.RunAllCommand.ExecuteAsync(null); vm.SkipDecisionCommand.Execute(null); await pending;
+        var card = Card(vm, "Store:native");
+        Assert.Equal("Store A", Read<string>(card, "Title"));
+        Assert.Equal("non pris en charge automatiquement", Read<string>(card, "Status"));
+        Assert.Equal("La version proposée ne peut pas être confirmée.", Read<string>(card, "Detail"));
+        Assert.Equal("Mettre à jour", Read<string>(card, "ButtonText"));
+        Assert.Equal("Même méthode que « Tout mettre à jour ».", Read<string>(card, "MethodText"));
+        Assert.False(Read<bool>(card, "HasUpdateAction"));
+        Assert.False(Read<bool>(card, "CanUpdate"));
+        Assert.False(Command(vm).CanExecute(Read<UpdateSequenceStep>(card, "Step")));
+        await Command(vm).ExecuteAsync(Read<UpdateSequenceStep>(card, "Step"));
+        Assert.False(vm.IsValidationOpen); Assert.Equal(0, authority.Calls);
+    });
+    private sealed class StoreSourceBackend : IUpdateSequenceBackend, IStoreUpdateBackend
+    {
+        public StoreUpdateService StoreUpdates { get; } = new(new StoreReadOnlyClient());
+        public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => throw new InvalidOperationException("Aucune commande permise.");
+    }
+    private sealed class StoreReadOnlyClient : IStoreUpdateClient
+    {
+        public Task<StoreSearch> SearchAsync(CancellationToken token) => Task.FromResult(new StoreSearch(true, "", [new("native", "family", "Store A", "1.0")]));
+        public Task<IReadOnlyDictionary<string, string>> ReadVersionsAsync(CancellationToken token) => throw new InvalidOperationException("Aucune exécution permise.");
+        public Task<StoreStart> StartAsync(StorePackage package, CancellationToken token) => throw new InvalidOperationException("Aucune installation permise.");
+    }
+
     private sealed class Fixture
     {
         public Backend Backend { get; } = new();
