@@ -139,11 +139,19 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         _unsupported = backend is IOutsideWingetBackend outside
             ? await outside.OutsideWinget.ScanAsync(cancellationToken).ConfigureAwait(false) : [];
         steps.AddRange(_unsupported.Select(app => new UpdateSequenceStep(app.Id, app.Name, UpdateComponent.OutsideWinget, app)));
-        var cards = steps.Where(IsIndividualCandidate).Select(step => new UpdateSequenceStepResult(step, false, false,
-            step.Component == UpdateComponent.Launcher && step.Id == "Steam" && step.SteamSession?.IsOpen != true
-                ? LauncherCardSummary.NoSession : step.Application?.Message ?? "Cette mise à jour reste à installer.")
-            { VerifiedStatus = step.IsInformational || (step.Component == UpdateComponent.Launcher && step.Id == "Steam" && step.SteamSession?.IsOpen != true)
-                ? DriverCardSummary.Unsupported : "reste à installer" }).ToList();
+        var cards = steps.Where(IsIndividualCandidate).Select(step =>
+        {
+            if (step.Component == UpdateComponent.Launcher)
+                step = step with { Application = apps.FirstOrDefault(app => app.Status == UpdateItemStatus.Available
+                    && LauncherCatalog.Detect([app.Name]).Contains(step.Id, StringComparer.OrdinalIgnoreCase)) };
+            var unsupported = step.IsInformational || (step.Component == UpdateComponent.Launcher
+                && (step.Id == "Steam" ? step.SteamSession?.IsOpen != true : step.Application is null));
+            var reason = step.Component == UpdateComponent.Launcher && unsupported
+                ? step.Id == "Steam" ? LauncherCardSummary.NoSession : LauncherCardSummary.OtherGames
+                : step.Application?.Message ?? "Cette mise à jour reste à installer.";
+            return new UpdateSequenceStepResult(step, false, false, reason)
+                { VerifiedStatus = unsupported ? DriverCardSummary.Unsupported : "reste à installer" };
+        }).ToList();
         foreach (var information in _driverInformation)
         {
             cards.RemoveAll(c => c.Step.Component == information.Step.Component && c.Step.Id == information.Step.Id);
@@ -332,6 +340,16 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                     {
                         var package = await backend.ExecuteAsync(new(step.Application.Id, step.Application.Name, UpdateComponent.Winget, step.Application), cancellationToken).ConfigureAwait(false);
                         if (!package.Succeeded) { results.Add(package with { Step = step }); steamMayRestart = false; steamReadError = "Steam : la mise à jour a échoué. Aucune relance automatique."; handled.Add((step.Component, step.Id)); continue; }
+                        if (step.Id != "Steam")
+                        {
+                            results.Add(package with { Step = step, VerifiedStatus = "à vérifier" });
+                            handled.Add((step.Component, step.Id)); continue;
+                        }
+                    }
+                    if (single && step.Application is not null && !shutdown.ClosedOrAlreadyClosed)
+                    {
+                        results.Add(new(step, false, false, "Non lancée : un jeu tourne ou la fermeture du lanceur n'est pas vérifiée.") { WasSkipped = true, VerifiedStatus = "non lancée" });
+                        handled.Add((step.Component, step.Id)); continue;
                     }
                     if (step.Id == "launchers")
                         results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
@@ -468,7 +486,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         if (step.Component == UpdateComponent.Driver && step.Id.StartsWith("WU:", StringComparison.Ordinal))
         {
             var parts = step.Id[3..].Split(':');
-            return parts.Length == 2 && Guid.TryParseExact(parts[0], "D", out _) && int.TryParse(parts[1], out var revision) && revision >= 0;
+            return parts.Length == 2 && Guid.TryParseExact(parts[0], "D", out _) && parts[1].Length > 0
+                && parts[1].All(char.IsAsciiDigit) && int.TryParse(parts[1], out var revision) && revision >= 0;
         }
         if (step.Component == UpdateComponent.Launcher) return LauncherCatalog.Executables.ContainsKey(step.Id)
             && (step.Id == "Steam" || step.Application is not null);
@@ -477,7 +496,9 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             && item.Id.Length > 0 && !DriverOfficialPackageCatalog.IsFirmware(item)
             && (step.Component != UpdateComponent.Winget || !DriverOfficialPackageCatalog.IsDriverPackage(item))
             && item.RiskLevel != UpdateRiskLevel.CriticalInformationOnly
-            && (step.Component == UpdateComponent.Store || !string.IsNullOrWhiteSpace(item.AvailableVersion));
+            && (step.Component == UpdateComponent.Store || (!string.IsNullOrWhiteSpace(item.AvailableVersion)
+                && item.AvailableVersion.Any(char.IsAsciiDigit) && char.IsAsciiLetterOrDigit(item.AvailableVersion[0])
+                && item.AvailableVersion.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-' or '+' or '~')));
     }
     public static UpdateSourceVerification SummarizeOutcomes(UpdateSourceVerification check, IReadOnlyList<UpdateSequenceStepResult> outcomes)
     {

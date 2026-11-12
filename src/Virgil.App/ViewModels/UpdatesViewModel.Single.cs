@@ -170,7 +170,7 @@ public partial class UpdatesViewModel
                     : UpdateSequenceService.IsSafetyBlocked(own) ? "bloquée" : own.VerifiedStatus
                         ?? (own.WasUnavailable ? "indisponible" : own.Succeeded ? "à vérifier" : "en erreur");
                 card.Detail = own?.Message ?? (result.WasRefused ? "Confirmation refusée. Aucune action lancée." : "Aucun résultat confirmé. Non lancée.");
-                if (target.Component == UpdateComponent.Driver && target.Application is not null && own?.Succeeded == true)
+                if (target.Application is not null && own?.Succeeded == true && target.Component is UpdateComponent.Driver or UpdateComponent.Launcher)
                 {
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
                     try
@@ -179,6 +179,8 @@ public partial class UpdatesViewModel
                         if (!check.Winget.IsAvailable || check.Errors.Count > 0) { card.Status = "indisponible"; card.Detail = "Installation exécutée ; contrôle final de cet élément indisponible."; }
                         else if (check.Items.Any(itemAfter => itemAfter.Id == target.Application.Id && itemAfter.Status == UpdateItemStatus.Available))
                         { card.Status = "reste à installer"; card.Detail = "Cet élément reste proposé au contrôle final."; }
+                        else if (target.Component == UpdateComponent.Launcher && target.Id != "Steam")
+                        { card.Status = "mis à jour"; card.Detail = "Cet élément n'est plus proposé au contrôle final."; }
                     }
                     catch { card.Status = "indisponible"; card.Detail = "Installation exécutée ; contrôle final de cet élément indisponible."; }
                 }

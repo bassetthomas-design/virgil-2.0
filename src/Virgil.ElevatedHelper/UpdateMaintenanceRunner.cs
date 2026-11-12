@@ -145,7 +145,7 @@ public static class UpdateMaintenanceRunner
             catch (COMException)
             {
                 cancellationToken.ThrowIfCancellationRequested(); success = false;
-                if (request.ActionId == InterventionId.InstallDriverUpdate) Report(step, "FAILED", "Canal de pilotes Windows Update indisponible.");
+                if (request.ActionId == InterventionId.InstallDriverUpdate || driverIdentity is not null) Report(step, "FAILED", "Canal de pilotes Windows Update indisponible.");
                 else
                 {
                     var fallback = await commands.RunAsync(new("UsoClient.exe", ["StartInteractiveScan"])).ConfigureAwait(false);
@@ -158,6 +158,7 @@ public static class UpdateMaintenanceRunner
                 && (driverIdentity is null || string.Equals(u.Identity, driverIdentity, StringComparison.OrdinalIgnoreCase))).ToArray();
             if (driverIdentity is not null && updates.Length != 1)
             {
+                Report(step, "INFO", "à vérifier : ce pilote n'est plus proposé ; relancez l'examen des pilotes.");
                 output.Add("VIRGIL|driver-item|RESULT|" + JsonSerializer.Serialize(new DriverUpdateOutcome(driverIdentity,
                     "Pilote sélectionné", "à vérifier", "Ce pilote n'est plus proposé ; relancez l'examen des pilotes.")));
                 return 0;

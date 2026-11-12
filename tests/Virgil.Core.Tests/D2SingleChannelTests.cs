@@ -78,6 +78,7 @@ public sealed class D2SingleChannelTests
             var own = Assert.Single(result.Steps, r => r.Step.Id == "Steam");
             Assert.Equal("non pris en charge automatiquement", own.VerifiedStatus);
             Assert.Contains(LauncherCardSummary.NoSession, own.Message);
+            Assert.Equal(LauncherCardSummary.NoSession, own.Message);
         }
     }
 

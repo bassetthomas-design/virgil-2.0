@@ -8,7 +8,7 @@ public sealed record UpdateTextCardViewModel(string Text) : INotifyPropertyChang
 {
     public UpdateSequenceStep? Step { get; init; }
     public string Key => Step is null ? string.Empty : Step.Component + ":" + Step.Id;
-    public string Title => Step?.Title ?? Text;
+    public string Title => Step?.Id == "BIOS" ? "BIOS" : Step?.Title ?? Text;
     public string ButtonText => "Mettre à jour";
     public string MethodText => "Même méthode que « Tout mettre à jour ».";
     private string _status = "reste à installer";

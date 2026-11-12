@@ -26,11 +26,13 @@ public sealed class D2SourceCardsTests
         Assert.False(Read<bool>(bios, "CanUpdate"));
         Assert.Equal("non pris en charge automatiquement", Read<string>(bios, "Status"));
         Assert.Equal("Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.", Read<string>(bios, "Detail"));
+        f.Vm.StatusText = "BIOS : information seulement, aucune installation.";
         await Capture(f.Vm, "05-bios-sans-bouton");
         var unsupported = Card(f.Vm, "Driver:WinGet:Intel.IntelDriverAndSupportAssistant");
         Assert.False(Read<bool>(unsupported, "CanUpdate"));
         Assert.Equal("non pris en charge automatiquement", Read<string>(unsupported, "Status"));
         Assert.Equal("l'outil du fabricant n'installe pas les pilotes tout seul", Read<string>(unsupported, "Detail"));
+        f.Vm.StatusText = "Intel Driver & Support Assistant : non pris en charge automatiquement.";
         await Capture(f.Vm, "06-non-pris-en-charge");
         var pngDirectory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-d2");
         Assert.NotEqual(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(pngDirectory, "05-bios-sans-bouton.png")))),
@@ -77,15 +79,53 @@ public sealed class D2SourceCardsTests
         Assert.False(Read<bool>(Card(f.Vm, "Driver:BIOS"), "CanUpdate"));
     });
 
+    [Fact]
+    public Task Partial_applications_and_BIOS_share_one_screen_with_independent_source_lines() => ThemeContrastTests.OnSta(async () =>
+    {
+        var scan = new MixedScan(); var f = new Fixture(scan); f.Backend.Empty = true;
+        var calls = new List<string>();
+        f.Backend.ApplicationHandler = step =>
+        {
+            Assert.Equal(UpdateComponent.Winget, step.Component);
+            Assert.Contains(step.Id, new[] { "a", "b" }); calls.Add(step.Id);
+            if (step.Id == "a") scan.Remaining.Remove("a");
+            return new(step, step.Id == "a", false, step.Id == "a" ? "Installation réussie." : "Installation impossible.");
+        };
+        await f.Vm.ScanUpdatesCommand.ExecuteAsync(null);
+        var preview = f.Vm.RunAllCommand.ExecuteAsync(null); f.Vm.SkipDecisionCommand.Execute(null); await preview;
+        foreach (var id in new[] { "a", "b" })
+        {
+            var pending = Command(f.Vm).ExecuteAsync(Read<UpdateSequenceStep>(Card(f.Vm, "Winget:" + id), "Step"));
+            f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
+        }
+        Assert.Equal(new[] { "a", "b" }, calls);
+        Assert.Empty(f.Backend.Installed);
+        Assert.Equal("mis à jour", Read<string>(Card(f.Vm, "Winget:a"), "Status"));
+        Assert.Equal("en erreur", Read<string>(Card(f.Vm, "Winget:b"), "Status"));
+        Assert.Equal("reste à installer", Read<string>(Card(f.Vm, "Winget:c"), "Status"));
+        Assert.False(Read<bool>(Card(f.Vm, "Driver:BIOS"), "CanUpdate"));
+        Assert.Contains("Applications : en erreur", Read<string>(f.Vm, "SingleSourceSummary"));
+        Assert.Contains("Pilotes : à jour", Read<string>(f.Vm, "SingleSourceSummary"));
+        Assert.DoesNotContain("Tout est à jour.", f.Vm.Operation.FinalSummary);
+        await Capture(f.Vm, "09-bilan-partiel-avec-bios");
+    });
+    private sealed class MixedScan : IUpdateScanService
+    {
+        public HashSet<string> Remaining { get; } = ["a", "b", "c"];
+        public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token) =>
+            Task.FromResult(new UpdateScanReport { Winget = new() { IsAvailable = true }, Items = Remaining.Select(id => new UpdateItem
+            { Id = id, Name = "Application " + id.ToUpperInvariant(), InstalledVersion = "1.0", AvailableVersion = "2.0" }).ToArray() });
+    }
+
     private sealed class Fixture
     {
         public Backend Backend { get; } = new();
         public UpdatesViewModel Vm { get; }
-        public Fixture()
+        public Fixture(IUpdateScanService? scan = null)
         {
             var confirmation = new RecordingConfirmation();
             var runner = new UpdatesSequenceViewModelTests.Runner();
-            Vm = new(new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(runner), runner, confirmation.Authority),
+            Vm = new(scan ?? new Scan(), new WingetUpdateExecutionService(new WingetAvailabilityService(runner), runner, confirmation.Authority),
                 new WindowsUpdateStatusService(new EmptyPendingRebootProbe()), runner, new UpdatesSequenceViewModelTests.History(), confirmation,
                 new UpdateSequenceService(Backend, confirmation.Authority, new EmptyPendingRebootProbe()));
         }
@@ -121,7 +161,9 @@ public sealed class D2SourceCardsTests
             new UpdateSourceVerification(component, Empty ? "à jour" : "reste à installer", "Contrôle en lecture seule.") { DriverItems = Empty ? [] : new[] {
                 new DriverUpdateOutcome(First, "Pilote A", "reste à installer", "Ce pilote reste proposé.", false),
                 new DriverUpdateOutcome(Second, "Pilote B", "reste à installer", "Ce pilote reste proposé.", false) }.Where(d => !Installed.Contains("WU:" + d.Identity)).ToArray() });
-        public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => throw new InvalidOperationException("Aucun autre élément autorisé.");
+        public Func<UpdateSequenceStep, UpdateSequenceStepResult>? ApplicationHandler { get; set; }
+        public Task<UpdateSequenceStepResult> ExecuteAsync(UpdateSequenceStep step, CancellationToken token) => ApplicationHandler is null
+            ? throw new InvalidOperationException("Aucun autre élément autorisé.") : Task.FromResult(ApplicationHandler(step));
         public Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteGroupAsync(IReadOnlyList<UpdateSequenceStep> steps, CancellationToken token)
         {
             if (steps.Count == 0) return Task.FromResult<IReadOnlyList<UpdateSequenceStepResult>>([

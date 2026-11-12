@@ -217,13 +217,15 @@ public sealed class D2SingleItemTests
 
     internal static async Task Capture(UpdatesViewModel vm, string name)
     {
-        var view = new UpdatesView(vm);
+        var view = new UpdatesView(vm) { Width = 1600, Height = 2400 };
         var window = new Window { Content = view, Width = 1600, Height = 1400, ShowInTaskbar = false };
         try
         {
             window.Show(); window.UpdateLayout();
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-            window.UpdateLayout();
+            view.Measure(new Size(1600, 2400));
+            view.Arrange(new Rect(0, 0, 1600, 2400));
+            view.UpdateLayout();
             var buttons = Descendants<Button>(view).Where(b => Equals(b.Content, "Mettre à jour") && b.IsVisible).ToArray();
             Assert.NotEmpty(buttons);
             if (name == "07-boutons-desactives") Assert.All(buttons, b => Assert.False(b.IsEnabled));
