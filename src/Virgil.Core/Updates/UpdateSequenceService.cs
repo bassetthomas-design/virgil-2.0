@@ -69,6 +69,7 @@ public interface IUpdateSequenceService
 public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
 {
     public const string BiosInformationMessage = "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
+    public const string FirmwareInformationMessage = "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
     public IReadOnlyList<UpdateSequenceStepResult> SingleItems { get; private set; } = [];
     private IReadOnlyList<UpdateItem> _unsupported = [];
     private IReadOnlyList<UpdateSequenceStepResult> _driverInformation = [];
@@ -194,7 +195,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
     {
         var firmware = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title });
         return new(new("WU:" + item.Identity, item.Title, UpdateComponent.Driver) { InformationOnly = firmware }, false, false,
-            firmware ? BiosInformationMessage : item.Message) { VerifiedStatus = firmware ? DriverCardSummary.Unsupported : item.Status };
+            firmware ? FirmwareInformationMessage : item.Message) { VerifiedStatus = firmware ? DriverCardSummary.Unsupported : item.Status };
     }
     private static bool IsIndividualCandidate(UpdateSequenceStep step) => step.Component is UpdateComponent.Winget or UpdateComponent.OutsideWinget
         || step.Component == UpdateComponent.Store && step.Application is not null
@@ -312,7 +313,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                             if (DriverOfficialPackageCatalog.IsFirmware(app) || DriverOfficialPackageCatalog.IsDriverPackage(app))
                                 children.Add(new(new("WinGet:" + app.Id, app.Name, UpdateComponent.Driver, app) { InformationOnly = true }, false, false,
                                     DriverOfficialPackageCatalog.IsFirmware(app)
-                                        ? BiosInformationMessage
+                                        ? FirmwareInformationMessage
                                         : "Ce pilote exige une source officielle silencieuse et un point de restauration vérifié ; il n'est pas lancé dans la passe des logiciels.")
                                     { VerifiedStatus = DriverCardSummary.Unsupported, WasSkipped = true });
                             else
