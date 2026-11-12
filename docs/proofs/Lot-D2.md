@@ -16,7 +16,10 @@ Base vérifiée : `4cca37429270a96c56c012f4a1f1749db90a5954`. Branche `codex/lot
 | [43228487023](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43228487023) | `e0fa49bb3a2ed31a57dc7c5b876b8db43c6d65e3` | Relecture, tests seuls +222/−0 : Core 1247/1247, App 714/722 ; huit nouveaux échecs d'assertion ; 0 avertissement / 0 erreur de build. Aucune modification de production. |
 | [43229609065](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43229609065) | `fca9325ebfdd7660fb65c4dbe2647a5d3d9218c4` | Correctif séparé : App 722/722, Core 1246/1247. Le garde D1-bis-c exige le mot firmware, absent du message BIOS unifié à ce stade. 0 avertissement / 0 erreur de build. |
 | [43235131219](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43235131219) | `37f6b81ff424147840b1bf5866bdeda42271dadf` | Message firmware restauré sans modifier les tests : Core 1247/1247, App 720/722. Les deux attentes D2 exigent encore le texte BIOS sans firmware. 0 avertissement / 0 erreur de build. |
-| [43238905156](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43238905156) | `10cd37466c1a6f95a4397c212c4997a757c2da6e` | **Vert final du correctif : Core 1247/1247, App 722/722, UI 14/14 ; 0 avertissement / 0 erreur de build.** Formulation commune et deux attentes D2 alignées. Publication et installateur réussis. |
+| [43238905156](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43238905156) | `10cd37466c1a6f95a4397c212c4997a757c2da6e` | Vert du correctif BIOS/firmware : Core 1247/1247, App 722/722, UI 14/14 ; 0 avertissement / 0 erreur de build. Formulation commune et deux attentes D2 alignées. Publication et installateur réussis. |
+| [43242808868](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43242808868) | `57fc94e45b7079da5889a1141c70afe38e45d694` | Nouvelle relecture, tests seuls : Core 1247/1247, App 718/727. Neuf échecs d'assertion, dont une attente ajoutée trop large sur le résumé d'une action logicielle refusée. 0 avertissement / 0 erreur de build. |
+| [43243486249](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43243486249) | `ea4e1900a50c3afbed5ebc27f3950732a51ddffe` | Tests seuls : attente du résumé corrigée en « non lancée » lorsque le jeu bloque l'action logicielle. Core 1247/1247, App 719/727 ; huit vrais échecs d'assertion couvrent les quatre régressions. Aucun code de production modifié ; 0 avertissement / 0 erreur de build. |
+| [43244229107](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43244229107) | `bca076022118ae8d5c2282bcc69ee8958c825fa4` | **Vert final du correctif séparé : Core 1247/1247, App 727/727, UI 14/14 ; 0 avertissement / 0 erreur de build.** Aucun test modifié dans ce commit. Publication et installateur réussis. |
 
 Aucun amend, force-push, changement de workflow, de réglage, de secret, du moteur de confirmation ou de l'allowlist. Publication par le connecteur GitHub intégré ; les commits publiés ont été récupérés localement et leurs arbres comparés à l'index avant d'avancer la branche. Aucun nettoyage destructif.
 
@@ -54,7 +57,7 @@ Aucune application, aucun pilote, aucun paquet Store ni jeu réellement install�
 
 ## Captures WPF STA contrôlées
 
-[Virgil-ui-smoke, artefact 13953588420](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43238905156/artifacts/13953588420), head `10cd37466c1a6f95a4397c212c4997a757c2da6e`. Archive téléchargée par le connecteur intégré et relue localement. Digest ZIP : `sha256:1fc43c79fefb73e429f4fabb5f3017c133395a50b6a621c07ecb5d8b66379c0d`.
+[Virgil-ui-smoke, artefact 13956995785](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43244229107/artifacts/13956995785), head `bca076022118ae8d5c2282bcc69ee8958c825fa4`. Archive téléchargée par le connecteur intégré et relue localement. Digest ZIP : `sha256:4e5e4826f5e6319916eb7e92a54c7d24eeb830225bb9da97ed133f397008280d`.
 
 Le vrai `UpdatesView` est rendu sur STA dans une présentation WPF dédiée de 1600 × 2400 ; aucun agrandissement d'image après capture. Les assertions vérifient les bornes du panneau, les zones de défilement et les pixels clairs effectivement dessinés pour chaque texte exigé. Les deux scènes BIOS/non prise en charge sont distinctes. Les onze PNG sont distincts et proviennent de ce run vert du correctif. Les cartes pilotes et BIOS sont désormais sous « PILOTES ». Aucun fichier PNG généré n'est committé.
 
@@ -69,20 +72,28 @@ Le vrai `UpdatesView` est rendu sur STA dans une présentation WPF dédiée de 1
 | `07-boutons-desactives.png` | Action en cours, tous les boutons individuels désactivés |
 | `08-annulation.png` | Installation engagée finie, autres éléments non lancés |
 | `09-bilan-partiel-avec-bios.png` | Applications A/B/C et BIOS dans le même cadre |
-| `10-lanceur-controle-final.png` | Paquet du lanceur : fermeture vérifiée puis commande et contrôle final |
-| `11-steam-controle-final.png` | Session Steam ouverte : relance silencieuse et statut final propre |
+| `10-lanceur-controle-final.png` | Paquet Epic Games : fermeture vérifiée, une commande, cartes Lanceur et Applications synchronisées au contrôle final |
+| `11-steam-controle-final.png` | Session Steam ouverte : relance silencieuse, statut final propre et aucun conseil de le relancer |
 
 ## Corrections de relecture et validation finale
 
 Le libellé « Cet élément est présenté pour information ; aucune installation automatique n'est proposée. » a été reformulé pour respecter la garde d'accents existante. `InterventionCatalog.cs`, `InterfaceAccentTests.cs`, `MotsAccentues.txt` et `ValideSansAccent.txt` restent intacts.
 
-La formulation commune est « Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée. ». Une seule constante `UpdateSequenceService.BiosInformationMessage` est utilisée pour la carte BIOS, les éléments firmware connus ou relus, la passe finale logicielle et l'écran. Le helper, qui ne référence pas Core, conserve exactement ce texte dans son résultat informatif. `FirmwareInformationMessage` est supprimée. Les deux attentes exactes autorisées dans `D2SourceCardsTests.cs` suivent cette phrase ; aucun autre test n'est modifié par ce dernier correctif et aucune assertion n'est retirée.
+La formulation commune est « Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée. ». Une seule constante `UpdateSequenceService.BiosInformationMessage` est utilisée pour la carte BIOS, les éléments firmware connus ou relus, la passe finale logicielle et l'écran. Le helper, qui ne référence pas Core, conserve exactement ce texte dans son résultat informatif. `FirmwareInformationMessage` est supprimée. Les deux attentes exactes autorisées dans `D2SourceCardsTests.cs` suivent cette phrase ; aucun autre test n'a été modifié par le correctif BIOS/firmware `10cd374` et aucune assertion n'est retirée.
 
 L'aperçu de « Tout mettre à jour » consomme `SingleItems` produit par son scan existant et `KnownDriverUpdates`, un instantané en mémoire des résultats déjà obtenus. Il n'appelle plus `ReadSingleItemsAsync` ni `VerifyAsync(Driver)`. L'examen des pilotes utilise son unique rapport et préserve les cartes déjà connues ; il ne relance pas `IUpdateSequenceService.ScanAsync`. Sans identité de mise à jour disponible, aucun élément installable n'est inventé. La lecture explicite reste protégée par un délai ; en cas d'échec, elle fournit une carte informative « indisponible » avec le message exact « Les pilotes n'ont pas pu être lus. Relancez leur examen. ».
 
 `Preview_uses_cached_cards_without_an_extra_driver_read` et `Driver_examination_uses_its_report_without_scanning_the_sequence` vérifient ces nombres d'appels avec le vrai service derrière un adaptateur de comptage. `Explicit_driver_read_failure_has_a_visible_simple_reason` couvre le message d'échec. Les six cas `Launcher_package_closes_before_command_and_verifies_its_own_result` passent par le vrai `LauncherShutdownPolicy`, pour les deux clés de carte : fermeture avant la commande, aucun lancement pendant un jeu, statut non lancé préservé et relecture de la proposition. Les deux cas `Steam_screen_labels_and_final_status_are_exact` vérifient titre, statut, détail, absence de bouton sans session et résultat final avec session ouverte. Le détail Steam seul ne parle plus d'une passe applicative ultérieure. `Unknown_card_status_requires_verification_instead_of_claiming_current` impose « à vérifier » pour un statut inconnu.
 
-Le [run vert final 43238905156](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43238905156), head `10cd37466c1a6f95a4397c212c4997a757c2da6e`, valide Core **1247/1247**, App **722/722**, UI **14/14**, avec **0 avertissement / 0 erreur de build**. Son artefact `Virgil-ui-smoke` et ses onze PNG sont référencés ci-dessus. Les runs rouges précèdent leurs correctifs séparés ; aucun résultat local ne remplace cette validation Windows.
+Les cartes informatives `SteamGame:*` restent visibles, sans bouton, mais ne déterminent ni le statut de source ni ses compteurs d'erreur ou de vérification. Le filtre `!c.Step!.IsInformational` est rétabli ; seule la carte `driver-read` d'échec de lecture reste admise pour signaler la source indisponible. `Informational_Steam_game_does_not_change_the_launcher_source_line` compare la ligne exacte « Lanceurs : à jour » avant et après un jeu « à vérifier » ou « en erreur ».
+
+L'examen ne crée plus de cartes `Inventory:<inf>`. La conservation des cartes connues et `LoadSingleSourceCards()` sont maintenues. `Driver_examination_does_not_create_inventory_cards_and_preserves_known_cards` couvre 1, 16 et 64 pilotes inventoriés, l'absence de carte `Inventory:`, la conservation de la même carte BIOS et l'absence de lecture supplémentaire de la séquence ou des pilotes.
+
+Après une installation de paquet réussie, les cartes logicielles et lanceur de la même identité reprennent le résultat du contrôle final déjà effectué, sans nouveau scan ni seconde commande. Les six cas `Launcher_package_closes_before_command_and_verifies_its_own_result` complètent leurs assertions existantes par `Assert.Equal` du statut de l'autre carte et de la ligne Applications. Un jeu en cours conserve l'action choisie « non lancée » et l'autre carte encore proposée. Une mise à jour confirmée met les deux cartes « mis à jour » (capture 10).
+
+Après la relance silencieuse réussie, `SteamUpdateService` retourne uniquement « Steam ouvert en silencieux ; jeux contrôlés en lecture seule. ». L'attente exacte du test Steam suit ce texte (capture 11). `LauncherShutdownPolicy` n'est pas modifiée ; tous les contrôles de fermeture, de jeu et de relance sont conservés.
+
+Le [run vert final 43244229107](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43244229107), head `bca076022118ae8d5c2282bcc69ee8958c825fa4`, valide Core **1247/1247**, App **727/727**, UI **14/14**, avec **0 avertissement / 0 erreur de build**. Son artefact `Virgil-ui-smoke` et ses onze PNG, dont les nouvelles captures 10 et 11, sont référencés ci-dessus. Les runs de tests seuls sont rouges avant le correctif séparé ; aucun résultat local ne remplace cette validation Windows.
 
 ## Fichiers et hygiène du diff
 
@@ -93,16 +104,16 @@ Seul test présent à la base modifié : `tests/Virgil.App.Tests/LongOperationAr
 | `src/Virgil.App/ViewModels/UpdateTextCardViewModel.cs` | 27 | 1 |
 | `src/Virgil.App/ViewModels/UpdatesItemViewModel.cs` | 1 | 0 |
 | `src/Virgil.App/ViewModels/UpdatesViewModel.Sequence.cs` | 2 | 0 |
-| `src/Virgil.App/ViewModels/UpdatesViewModel.Single.cs` | 242 | 0 |
-| `src/Virgil.App/ViewModels/UpdatesViewModel.cs` | 7 | 1 |
+| `src/Virgil.App/ViewModels/UpdatesViewModel.Single.cs` | 244 | 0 |
+| `src/Virgil.App/ViewModels/UpdatesViewModel.cs` | 6 | 1 |
 | `src/Virgil.App/Views/UpdatesView.xaml` | 18 | 0 |
-| `src/Virgil.Core/Updates/SteamUpdateService.cs` | 2 | 2 |
+| `src/Virgil.Core/Updates/SteamUpdateService.cs` | 3 | 3 |
 | `src/Virgil.Core/Updates/UpdateActionPreviewFactory.cs` | 7 | 0 |
-| `src/Virgil.Core/Updates/UpdateSequenceService.cs` | 130 | 5 |
+| `src/Virgil.Core/Updates/UpdateSequenceService.cs` | 131 | 7 |
 | `src/Virgil.ElevatedHelper/UpdateMaintenanceRunner.cs` | 21 | 5 |
 | `src/Virgil.Infrastructure/Windows/WindowsUpdateSequenceBackend.cs` | 4 | 1 |
 | `tests/Virgil.App.Tests/D2SingleItemTests.cs` | 306 | 0 |
-| `tests/Virgil.App.Tests/D2SourceCardsTests.cs` | 420 | 0 |
+| `tests/Virgil.App.Tests/D2SourceCardsTests.cs` | 472 | 0 |
 | `tests/Virgil.App.Tests/LongOperationArchitectureTests.cs` | 1 | 0 |
 | `tests/Virgil.Core.Tests/D2SingleChannelTests.cs` | 250 | 0 |
-| `docs/proofs/Lot-D2.md` | 108 | 0 |
+| `docs/proofs/Lot-D2.md` | 119 | 0 |
