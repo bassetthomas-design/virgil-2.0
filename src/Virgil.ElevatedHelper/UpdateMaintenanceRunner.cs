@@ -169,7 +169,7 @@ public static class UpdateMaintenanceRunner
             if (!legacy)
             {
                 foreach (var item in updates.Where(u => u.IsFirmware))
-                    DriverResult(item, "non pris en charge automatiquement", "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur.");
+                    DriverResult(item, "non pris en charge automatiquement", "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.");
                 updates = updates.Where(u => !u.IsFirmware).ToArray();
             }
             foreach (var update in updates) { cancellationToken.ThrowIfCancellationRequested(); if (!update.EulaAccepted) update.AcceptEula(); }

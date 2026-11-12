@@ -32,7 +32,7 @@ public partial class UpdatesViewModel
             var available = UpdateSequenceService.IsSingleTarget(step);
             var reason = available ? "Cette mise à jour reste à installer."
                 : DriverOfficialPackageCatalog.IsFirmware(item)
-                    ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
+                    ? UpdateSequenceService.BiosInformationMessage
                 : item.RiskLevel == UpdateRiskLevel.CriticalInformationOnly
                     ? "Cet élément est présenté pour information ; aucune installation automatique n'est proposée."
                 : DriverOfficialPackageCatalog.IsDriverPackage(item)

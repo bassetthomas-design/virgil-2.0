@@ -25,7 +25,7 @@ public sealed class D2SourceCardsTests
         var bios = Card(f.Vm, "Driver:BIOS");
         Assert.False(Read<bool>(bios, "CanUpdate"));
         Assert.Equal("non pris en charge automatiquement", Read<string>(bios, "Status"));
-        Assert.Equal("Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.", Read<string>(bios, "Detail"));
+        Assert.Equal("Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.", Read<string>(bios, "Detail"));
         f.Vm.StatusText = "BIOS : information seulement, aucune installation.";
         await Capture(f.Vm, "05-bios-sans-bouton");
         var unsupported = Card(f.Vm, "Driver:WinGet:Intel.IntelDriverAndSupportAssistant");
@@ -204,7 +204,7 @@ public sealed class D2SourceCardsTests
         var service = new UpdateSequenceService(backend, confirmation.Authority, new EmptyPendingRebootProbe());
         await service.ScanAsync([], default);
         var bios = Assert.Single(service.SingleItems, c => c.Step.Id == "BIOS");
-        const string expected = "Virgil n'installe jamais le BIOS ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
+        const string expected = "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
         Assert.Equal(expected, bios.Message);
         if (finalPass)
         {
