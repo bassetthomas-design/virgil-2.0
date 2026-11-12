@@ -180,6 +180,51 @@ public sealed class D2SourceCardsTests
         Assert.Contains(f.Vm.DriverCards, line => line.Contains("Fabricant détecté", StringComparison.Ordinal));
     });
 
+    [Theory]
+    [InlineData("à vérifier")]
+    [InlineData("en erreur")]
+    public Task Informational_Steam_game_does_not_change_the_launcher_source_line(string status) => ThemeContrastTests.OnSta(async () =>
+    {
+        var f = new ReviewFixture();
+        var preview = f.Vm.RunAllCommand.ExecuteAsync(null); f.Vm.SkipDecisionCommand.Execute(null); await preview;
+        foreach (var card in f.Vm.SingleCards.Where(c => c.Step?.Component == UpdateComponent.Launcher)) card.Status = "à jour";
+        await f.Vm.InspectDriversCommand.ExecuteAsync(null);
+        var before = Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Lanceurs :", StringComparison.Ordinal));
+        Assert.Equal("Lanceurs : à jour", before);
+        var game = new UpdateTextCardViewModel(string.Empty)
+        {
+            Step = new("SteamGame:1", "Jeu Steam", UpdateComponent.Launcher) { InformationOnly = true },
+            Status = status, Detail = "Jeu contrôlé en lecture seule."
+        };
+        f.Vm.SingleCards.Add(game);
+        await f.Vm.InspectDriversCommand.ExecuteAsync(null);
+        Assert.Equal(before, Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Lanceurs :", StringComparison.Ordinal)));
+        Assert.Equal(status, game.Status);
+        Assert.False(game.HasUpdateAction);
+        Assert.Equal(1, f.Sequence.Scans);
+        Assert.Equal(0, f.Sequence.Reads);
+        Assert.Equal(0, f.Backend.Verifications);
+    });
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(16)]
+    [InlineData(64)]
+    public Task Driver_examination_does_not_create_inventory_cards_and_preserves_known_cards(int count) => ThemeContrastTests.OnSta(async () =>
+    {
+        var f = new ReviewFixture(); f.Scan.InventoryCount = count;
+        var preview = f.Vm.RunAllCommand.ExecuteAsync(null); f.Vm.SkipDecisionCommand.Execute(null); await preview;
+        var known = Card(f.Vm, "Driver:BIOS");
+        await f.Vm.InspectDriversCommand.ExecuteAsync(null);
+        Assert.Equal(count, f.Scan.LastInventoryCount);
+        Assert.DoesNotContain(f.Vm.SingleCards, card => card.Step?.Id.StartsWith("Inventory:", StringComparison.Ordinal) == true);
+        Assert.Same(known, Card(f.Vm, "Driver:BIOS"));
+        Assert.Equal(2, f.Scan.Calls);
+        Assert.Equal(1, f.Sequence.Scans);
+        Assert.Equal(0, f.Sequence.Reads);
+        Assert.Equal(0, f.Backend.Verifications);
+    });
+
     [Fact]
     public async Task Explicit_driver_read_failure_has_a_visible_simple_reason()
     {
@@ -245,6 +290,10 @@ public sealed class D2SourceCardsTests
         Assert.Equal(game ? "Non lancée : un jeu tourne ou la fermeture du lanceur n'est pas vérifiée."
             : remaining ? nativeCard ? "Cet élément reste proposé au contrôle final." : "Étape exécutée ; contrôle final : cette application reste à installer."
             : nativeCard ? "Cet élément n'est plus proposé au contrôle final." : "Cette application n'est plus proposée au contrôle final.", Read<string>(card, "Detail"));
+        var other = Card(f.Vm, nativeCard ? "Winget:Epic.Package" : "Launcher:Epic Games");
+        Assert.Equal(game || remaining ? "reste à installer" : "mis à jour", Read<string>(other, "Status"));
+        Assert.Equal(game || remaining ? "Applications : reste à installer — 1 reste à installer" : "Applications : mis à jour — 1 mis à jour",
+            Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Applications :", StringComparison.Ordinal)));
         if (nativeCard && !game && !remaining) await Capture(f.Vm, "10-lanceur-controle-final");
     });
 
@@ -266,7 +315,7 @@ public sealed class D2SourceCardsTests
         await pending;
         Assert.Equal(session ? new[] { "close:steam.exe", "-silent" } : [], f.Backend.Events);
         Assert.Equal(session ? "à jour selon Steam" : "non pris en charge automatiquement", Read<string>(card, "Status"));
-        Assert.Equal(session ? "Steam : fermé ; relancez-le quand vous voulez.\nSteam ouvert en silencieux ; jeux contrôlés en lecture seule."
+        Assert.Equal(session ? "Steam ouvert en silencieux ; jeux contrôlés en lecture seule."
             : LauncherCardSummary.NoSession, Read<string>(card, "Detail"));
         if (session) await Capture(f.Vm, "11-steam-controle-final");
     });
@@ -301,13 +350,16 @@ public sealed class D2SourceCardsTests
     {
         public int Calls { get; private set; }
         public bool Remaining { get; set; }
+        public int InventoryCount { get; set; } = 1;
+        public int LastInventoryCount { get; private set; }
         public List<UpdateScanRequest> Requests { get; } = [];
         public Task<UpdateScanReport> ScanAsync(UpdateScanRequest request, IProgress<string>? progress, CancellationToken token)
         {
-            Calls++; Requests.Add(request);
+            Calls++; Requests.Add(request); LastInventoryCount = InventoryCount;
             return Task.FromResult(new UpdateScanReport { Winget = new() { IsAvailable = true },
                 Items = request.IncludeApplicationUpdates && (!backend.Updated || Remaining) ? [ReviewBackend.Package] : [],
-                Drivers = new() { WasAnalyzed = true, Drivers = [new() { Provider = "Fabricant détecté", PublishedName = "oem1.inf" }] } });
+                Drivers = new() { WasAnalyzed = true, Drivers = Enumerable.Range(1, InventoryCount).Select(i => new DriverInformation
+                { Provider = "Fabricant détecté", PublishedName = "oem" + i + ".inf" }).ToArray() } });
         }
     }
     private sealed class ReviewBackend : IUpdateSequenceBackend, ILauncherShutdownBackend, ISteamUpdateBackend, ISteamClient,
