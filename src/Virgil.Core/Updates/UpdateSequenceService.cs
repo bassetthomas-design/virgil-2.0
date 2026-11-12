@@ -8,6 +8,7 @@ namespace Virgil.Core.Updates;
 public enum UpdateComponent { Windows, Defender, Driver, Winget, Launcher, Restore, MicrosoftUpdate, Store, WindowsFeatureUpgrade, WingetFinal, PendingReboot, OutsideWinget }
 public sealed record UpdateSequenceStep(string Id, string Title, UpdateComponent Component, UpdateItem? Application = null)
 {
+    public bool IsSingleItem { get; init; }
     public SteamSession? SteamSession { get; init; }
     public bool InformationOnly { get; init; }
     public bool IsInformational => InformationOnly || Component is UpdateComponent.Restore or UpdateComponent.PendingReboot or UpdateComponent.OutsideWinget;
@@ -57,12 +58,15 @@ public interface IUpdateSequenceBackend
 }
 public interface IUpdateSequenceService
 {
+    IReadOnlyList<UpdateSequenceStepResult> SingleItems => [];
+    Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken token) => Task.FromResult(SingleItems);
     Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken);
     ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected);
     Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken);
 }
 public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
 {
+    public IReadOnlyList<UpdateSequenceStepResult> SingleItems { get; private set; } = [];
     private IReadOnlyList<UpdateItem> _unsupported = [];
     private IReadOnlyList<UpdateSequenceStepResult> _driverInformation = [];
     private IReadOnlyList<DriverPackageOffer> _driverOffers = [];
@@ -135,11 +139,50 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         _unsupported = backend is IOutsideWingetBackend outside
             ? await outside.OutsideWinget.ScanAsync(cancellationToken).ConfigureAwait(false) : [];
         steps.AddRange(_unsupported.Select(app => new UpdateSequenceStep(app.Id, app.Name, UpdateComponent.OutsideWinget, app)));
+        var cards = steps.Where(IsIndividualCandidate).Select(step => new UpdateSequenceStepResult(step, false, false,
+            step.Component == UpdateComponent.Launcher && step.Id == "Steam" && step.SteamSession?.IsOpen != true
+                ? LauncherCardSummary.NoSession : step.Application?.Message ?? "Cette mise à jour reste à installer.")
+            { VerifiedStatus = step.IsInformational || (step.Component == UpdateComponent.Launcher && step.Id == "Steam" && step.SteamSession?.IsOpen != true)
+                ? DriverCardSummary.Unsupported : "reste à installer" }).ToList();
+        foreach (var information in _driverInformation)
+        {
+            cards.RemoveAll(c => c.Step.Component == information.Step.Component && c.Step.Id == information.Step.Id);
+            cards.Add(information);
+        }
+        SingleItems = cards;
         return steps;
     }
+    public async Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken cancellationToken)
+    {
+        var cards = SingleItems.ToList();
+        if (backend is IDriverSequenceBackend)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(45));
+            try
+            {
+                var check = await backend.VerifyAsync(UpdateComponent.Driver, timeout.Token).WaitAsync(timeout.Token).ConfigureAwait(false);
+                cards.AddRange(check.DriverItems.Select(item => new UpdateSequenceStepResult(
+                    new("WU:" + item.Identity, item.Title, UpdateComponent.Driver) { InformationOnly = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title }) },
+                    false, false, DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title })
+                        ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur." : item.Message)
+                    { VerifiedStatus = DriverOfficialPackageCatalog.IsFirmware(new() { Name = item.Title }) ? DriverCardSummary.Unsupported : "reste à installer" }));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { /* Une lecture indisponible ne crée aucun élément installable. */ }
+        }
+        SingleItems = cards;
+        return cards;
+    }
+    private static bool IsIndividualCandidate(UpdateSequenceStep step) => step.Component is UpdateComponent.Winget or UpdateComponent.OutsideWinget
+        || step.Component == UpdateComponent.Store && step.Application is not null
+        || step.Component == UpdateComponent.Launcher && step.Id != "launchers"
+        || step.Component == UpdateComponent.Driver && step.Id != "drivers";
     public ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected)
     {
         selected = selected.Where(step => !step.IsInformational).ToArray();
+        if (selected.Count == 1 && selected[0].IsSingleItem)
+            return UpdateActionPreviewFactory.CreateSingle(selected[0]);
         return new(
         "updates.sequence", "Tout mettre à jour", RiskLevel.Sensitive,
         selected.Select(s => s.Component == UpdateComponent.Launcher && s.Id != "launchers" ? LauncherCardSummary.Confirmation(s) : s.Title)
@@ -161,6 +204,9 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         var snapshot = selected.Where(s => !s.IsInformational).Select(s => s with { Application = s.Application is null ? null : s.Application with { } }).ToArray();
         var validation = gate.TryConsume(plan, CreatePreview(snapshot));
         if (!validation.IsAccepted) return new(true, false, false, [], validation.Message);
+        var single = snapshot.Any(s => s.IsSingleItem);
+        if (single && (snapshot.Length != 1 || !IsSingleTarget(snapshot[0])))
+            return new(true, false, false, [], "Élément non pris en charge automatiquement.");
         backend.BeginExecution(Guid.NewGuid().ToString("D"));
         var results = new List<UpdateSequenceStepResult>();
         var handled = new HashSet<(UpdateComponent Component, string Id)>();
@@ -220,6 +266,17 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             progress?.Report(new(results.Count + 1, snapshot.Length, step.Title, "En cours") { StepId = step.Id, Component = step.Component });
             try
             {
+                var applicationLauncher = single && step.Component == UpdateComponent.Winget && step.Application is not null
+                    ? LauncherCatalog.Detect([step.Application.Name]).FirstOrDefault() : null;
+                if (applicationLauncher is not null)
+                {
+                    var shutdown = launcherShutdown is null ? null : await launcherShutdown.ExecuteAsync([applicationLauncher], cancellationToken).ConfigureAwait(false);
+                    if (shutdown?.ClosedOrAlreadyClosed != true)
+                    {
+                        results.Add(new(step, false, false, "Non lancée : un jeu tourne ou la fermeture du lanceur n'est pas vérifiée.") { WasSkipped = true, VerifiedStatus = "non lancée" });
+                        handled.Add((step.Component, step.Id)); continue;
+                    }
+                }
                 if (step.Component == UpdateComponent.WingetFinal && backend is IDriverFinalPassBackend finalBackend)
                 {
                     var inventory = await finalBackend.ReadFinalApplicationsAsync(cancellationToken).ConfigureAwait(false);
@@ -261,9 +318,21 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 }
                 else if (step.Component == UpdateComponent.Launcher)
                 {
+                    if (single && step.Id == "Steam" && (steamGuardError is not null || steamReadError is not null))
+                    { handled.Add((step.Component, step.Id)); continue; }
+                    if (single && step.Id == "Steam" && step.SteamSession?.IsOpen != true)
+                    {
+                        results.Add(new(step, false, false, LauncherCardSummary.NoSession) { VerifiedStatus = LauncherCardSummary.Unsupported, WasSkipped = true });
+                        handled.Add((step.Component, step.Id)); continue;
+                    }
                     var names = step.Id == "launchers" ? step.Title.Replace("Virgil fermera : ", "", StringComparison.Ordinal).Split(", ") : new[] { step.Id };
                     var shutdown = launcherShutdown is null ? new LauncherShutdownResult(false, "mis à jour au prochain lancement") : await launcherShutdown.ExecuteAsync(names, cancellationToken).ConfigureAwait(false);
                     if (step.Id == "Steam") steamMayRestart = shutdown.ClosedOrAlreadyClosed;
+                    if (single && step.Application is not null && shutdown.ClosedOrAlreadyClosed)
+                    {
+                        var package = await backend.ExecuteAsync(new(step.Application.Id, step.Application.Name, UpdateComponent.Winget, step.Application), cancellationToken).ConfigureAwait(false);
+                        if (!package.Succeeded) { results.Add(package with { Step = step }); steamMayRestart = false; steamReadError = "Steam : la mise à jour a échoué. Aucune relance automatique."; handled.Add((step.Component, step.Id)); continue; }
+                    }
                     if (step.Id == "launchers")
                         results.Add(new(step, shutdown.AnyClosed, false, shutdown.Message) { WasSkipped = !shutdown.AnyClosed });
                     else
@@ -320,7 +389,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                         () => steamMayRestart && launcherShutdown is not null ? launcherShutdown.CanRestartSteamAsync(cancellationToken) : Task.FromResult(false),
                         results.Any(r => r.Step.Component == UpdateComponent.WingetFinal && r.Succeeded && !r.WasSkipped), closure,
                         () => progress?.Report(new(results.Count, snapshot.Length, steamStep.Title, LauncherCardSummary.Waiting)
-                            { StepId = steamStep.Id, Component = steamStep.Component }), cancellationToken).ConfigureAwait(false));
+                            { StepId = steamStep.Id, Component = steamStep.Component }), cancellationToken, single && steamMayRestart).ConfigureAwait(false));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -348,6 +417,10 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 : backend.VerifyAsync(component, verificationTimeout.Token)).WaitAsync(verificationTimeout.Token).ConfigureAwait(false); }
             catch { check = new(component, "indisponible", "Contrôle final indisponible ou délai dépassé."); }
             var outcomes = results.Where(r => r.Step.Component == component).ToArray();
+            if (single && component == UpdateComponent.Driver && check.Status == "indisponible")
+                for (var i = 0; i < results.Count; i++)
+                    if (results[i].Step.Component == component && !results[i].Step.IsInformational && results[i].Succeeded)
+                        results[i] = results[i] with { VerifiedStatus = "indisponible", Message = "Installation exécutée ; contrôle final de ce pilote indisponible." };
             if (component == UpdateComponent.Driver && outcomes.Any(r => r.VerifiedStatus is not null))
             {
                 for (var i = 0; i < results.Count; i++)
@@ -388,6 +461,23 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         results.Add(new(new("pending-reboot", "Vérifier le redémarrage en attente", UpdateComponent.PendingReboot), true, reboot, verdict));
         var message = cancellationToken.IsCancellationRequested ? "Séquence annulée entre deux étapes." : results.Any(r => !r.Succeeded && !r.Step.IsInformational && !r.WasSkipped && !r.WasUnavailable) ? "Séquence terminée avec erreurs ; consultez les étapes." : "Séquence terminée.";
         return new(false, cancellationToken.IsCancellationRequested, reboot, results, message) { Verifications = checks, UnsupportedApplications = _unsupported.ToArray() };
+    }
+    public static bool IsSingleTarget(UpdateSequenceStep step)
+    {
+        if (step.IsInformational || !IsIndividualCandidate(step)) return false;
+        if (step.Component == UpdateComponent.Driver && step.Id.StartsWith("WU:", StringComparison.Ordinal))
+        {
+            var parts = step.Id[3..].Split(':');
+            return parts.Length == 2 && Guid.TryParseExact(parts[0], "D", out _) && int.TryParse(parts[1], out var revision) && revision >= 0;
+        }
+        if (step.Component == UpdateComponent.Launcher) return LauncherCatalog.Executables.ContainsKey(step.Id)
+            && (step.Id == "Steam" || step.Application is not null);
+        var item = step.Application;
+        return item is not null && item.Status == UpdateItemStatus.Available && !item.IsIdTruncated && !item.Id.Contains('…')
+            && item.Id.Length > 0 && !DriverOfficialPackageCatalog.IsFirmware(item)
+            && (step.Component != UpdateComponent.Winget || !DriverOfficialPackageCatalog.IsDriverPackage(item))
+            && item.RiskLevel != UpdateRiskLevel.CriticalInformationOnly
+            && (step.Component == UpdateComponent.Store || !string.IsNullOrWhiteSpace(item.AvailableVersion));
     }
     public static UpdateSourceVerification SummarizeOutcomes(UpdateSourceVerification check, IReadOnlyList<UpdateSequenceStepResult> outcomes)
     {

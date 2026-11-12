@@ -146,7 +146,7 @@ public sealed class WindowsUpdateSequenceBackend(
             UpdateComponent.Defender => "defender",
             UpdateComponent.MicrosoftUpdate => "microsoft-update",
             UpdateComponent.Windows => "software",
-            UpdateComponent.Driver => "drivers",
+            UpdateComponent.Driver => s.IsSingleItem && s.Id.StartsWith("WU:", StringComparison.Ordinal) ? "driver:" + s.Id[3..] : "drivers",
             UpdateComponent.Store => "store",
             UpdateComponent.WindowsFeatureUpgrade => "windows-feature-upgrade",
             _ => throw new InvalidOperationException("Composant inconnu.")

@@ -19,6 +19,12 @@ public static class UpdateMaintenanceRunner
         if (!Handles(id) || identity is null) return false;
         if (id == InterventionId.InstallDriverUpdate) return Guid.TryParseExact(identity, "D", out _);
         if (id is InterventionId.InstallWindowsUpdates or InterventionId.UpdateDefenderSignatures) return identity.Length == 0;
+        if (id == InterventionId.InstallMicrosoftUpdates && identity.StartsWith("driver:", StringComparison.Ordinal))
+        {
+            var parts = identity[7..].Split(':');
+            return parts.Length == 2 && Guid.TryParseExact(parts[0], "D", out _) && parts[1].Length > 0
+                && parts[1].All(char.IsAsciiDigit) && int.TryParse(parts[1], out _);
+        }
         if (identity.Length == 0) return id == InterventionId.PrepareMicrosoftUpdates;
         string[] allowed = id == InterventionId.PrepareMicrosoftUpdates ? ["defender", "microsoft-update"] : ["software", "drivers", "store", "windows-feature-upgrade"];
         var tokens = identity.Split(',');
@@ -46,6 +52,8 @@ public static class UpdateMaintenanceRunner
             output.Add("VIRGIL|" + step + "|" + status + "|" + message);
             progress?.Report(new() { Step = message });
         }
+        var driverIdentity = request.ActionId == InterventionId.InstallMicrosoftUpdates && request.UpdateIdentity.StartsWith("driver:", StringComparison.Ordinal)
+            ? request.UpdateIdentity[7..] : null;
         var tokens = request.UpdateIdentity.Split(',').ToHashSet(StringComparer.Ordinal);
         bool Has(string token) => tokens.Contains(token);
         if (request.ActionId != InterventionId.UpdateDefenderSignatures)
@@ -94,13 +102,13 @@ public static class UpdateMaintenanceRunner
         using var registration = cancellationToken.Register(() => progress?.Report(new() { Step = CancelMessage }));
         try
         {
-            for (var pass = 1; pass <= (legacy ? 1 : 3); pass++)
+            for (var pass = 1; pass <= (legacy || driverIdentity is not null ? 1 : 3); pass++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var count = 0;
                 if (Has("software") || request.ActionId == InterventionId.InstallWindowsUpdates) count += await InstallKindAsync("Software", false).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (Has("drivers") || request.ActionId == InterventionId.InstallDriverUpdate) count += await InstallKindAsync("Driver", false).ConfigureAwait(false);
+                if (Has("drivers") || driverIdentity is not null || request.ActionId == InterventionId.InstallDriverUpdate) count += await InstallKindAsync("Driver", false).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (count == 0) break;
             }
@@ -146,7 +154,14 @@ public static class UpdateMaintenanceRunner
                 return 0;
             }
             cancellationToken.ThrowIfCancellationRequested();
-            var updates = found.Where(u => u.IsFeatureUpgrade == feature).ToArray();
+            var updates = found.Where(u => u.IsFeatureUpgrade == feature
+                && (driverIdentity is null || string.Equals(u.Identity, driverIdentity, StringComparison.OrdinalIgnoreCase))).ToArray();
+            if (driverIdentity is not null && updates.Length != 1)
+            {
+                output.Add("VIRGIL|driver-item|RESULT|" + JsonSerializer.Serialize(new DriverUpdateOutcome(driverIdentity,
+                    "Pilote sélectionné", "à vérifier", "Ce pilote n'est plus proposé ; relancez l'examen des pilotes.")));
+                return 0;
+            }
             var individualDrivers = !legacy && kind == "Driver";
             void DriverResult(IWindowsUpdateItem item, string status, string message, bool needsReboot = false) => output.Add("VIRGIL|driver-item|RESULT|" +
                 JsonSerializer.Serialize(new DriverUpdateOutcome(item.Identity, item.Title, status, message, needsReboot)));

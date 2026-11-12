@@ -7,6 +7,12 @@ namespace Virgil.Core.Updates;
 
 public static class UpdateActionPreviewFactory
 {
+    public static ActionPreview CreateSingle(UpdateSequenceStep step) => new("updates.single", "Mettre à jour " + step.Title,
+        UpdateSequenceService.IsElevated(step.Component) ? RiskLevel.Sensitive : RiskLevel.Low,
+        [step.Title], new Dictionary<string, string> { ["Step"] = System.Text.Json.JsonSerializer.Serialize(step) },
+        ["Même méthode que « Tout mettre à jour ».", "Aucun redémarrage automatique."],
+        UpdateSequenceService.IsElevated(step.Component), true, Reversibility.Partial, []);
+
     public static ActionPreview Create(UpdateItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
