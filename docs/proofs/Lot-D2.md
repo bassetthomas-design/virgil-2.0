@@ -66,11 +66,13 @@ Le vrai `UpdatesView` est rendu sur STA dans une présentation WPF dédiée de 1
 | `08-annulation.png` | Installation engagée finie, autres éléments non lancés |
 | `09-bilan-partiel-avec-bios.png` | Applications A/B/C et BIOS dans le même cadre |
 
-## Point suspendu par la règle sur les tests antérieurs
+## Correction du libellé et validation
 
-Le run `43191441642` fournit la preuve rouge du garde d'accents antérieur (`tests/Virgil.App.Tests/InterfaceAccentTests.cs:151`). Le mécanisme enrichit son dictionnaire depuis les mots accentués des textes de production ; l'ajout grammaticalement correct de « affiché » dans D2 fait signaler le verbe correct « Affiche » dans `src/Virgil.Core/Interventions/InterventionCatalog.cs:134`.
+Le [run rouge 43192439470](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43192439470), head `28a01e1bc2268b0968f55dd0c8970c2996c7bcbf`, conserve le seul échec du garde d'accents : Core 1247/1247, App 707/708 ; UI non exécutée après l'échec de Test. Le dictionnaire construit depuis les libellés D2 confondait le verbe « Affiche » avec le participe « affiché ».
 
-Diff proposé, non appliqué sans accord : une ligne dans `tests/Virgil.App.Tests/Accents/ValideSansAccent.txt`, `affiche=Verbe afficher, distinct du participe affiché.` Cette voie conserve toutes les assertions et le texte de production. Ce fichier étant hors liste fermée, le point reste suspendu conformément au brief. Le reste du travail et la revue des PNG sont terminés ; aucune CI verte finale n'est revendiquée sur ce head.
+Conformément à la décision de loops (relecture), le nouveau libellé est « Cet élément est présenté pour information ; aucune installation automatique n'est proposée. ». Son attente exacte dans `D2SingleItemTests` suit cette reformulation. `InterventionCatalog.cs`, `InterfaceAccentTests.cs`, `MotsAccentues.txt` et `ValideSansAccent.txt` restent intacts.
+
+La solution corrigée compile localement avec 0 avertissement / 0 erreur. Le corps inchangé de l'assertion `Interface_labels_preserve_french_accents_in_all_source_projects`, exécuté dans un harnais Linux sur les sources corrigées, passe. Ce contrôle ne remplace pas la CI Windows. Le run du nouveau head et ses résultats réels sont accessibles depuis les [vérifications de la PR #84](https://github.com/bassetthomas-design/virgil-2.0/pull/84/checks) ; ils seront consignés dans la PR après exécution.
 
 ## Fichiers et hygiène du diff
 
@@ -93,4 +95,4 @@ Seul test présent à la base modifié : `tests/Virgil.App.Tests/LongOperationAr
 | `tests/Virgil.App.Tests/D2SourceCardsTests.cs` | 209 | 0 |
 | `tests/Virgil.App.Tests/LongOperationArchitectureTests.cs` | 1 | 0 |
 | `tests/Virgil.Core.Tests/D2SingleChannelTests.cs` | 250 | 0 |
-| `docs/proofs/Lot-D2.md` | 96 | 0 |
+| `docs/proofs/Lot-D2.md` | 98 | 0 |

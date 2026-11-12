@@ -187,7 +187,7 @@ public sealed class D2SingleItemTests
             Assert.Equal("non pris en charge automatiquement", Read<string>(card, "Status"));
             Assert.Equal(scenario == "firmware"
                 ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
-                : scenario == "critical" ? "Cet élément est affiché pour information ; aucune installation automatique n'est proposée."
+                : scenario == "critical" ? "Cet élément est présenté pour information ; aucune installation automatique n'est proposée."
                 : "Cet élément ne peut pas être mis à jour automatiquement ; relancez l'analyse pour confirmer sa version.", Read<string>(card, "Detail"));
         }
         Assert.False(command.CanExecute(step));

@@ -33,7 +33,7 @@ public partial class UpdatesViewModel
                 : DriverOfficialPackageCatalog.IsFirmware(item)
                     ? "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée."
                 : item.RiskLevel == UpdateRiskLevel.CriticalInformationOnly
-                    ? "Cet élément est affiché pour information ; aucune installation automatique n'est proposée."
+                    ? "Cet élément est présenté pour information ; aucune installation automatique n'est proposée."
                 : DriverOfficialPackageCatalog.IsDriverPackage(item)
                     ? "Ce pilote exige une méthode officielle automatique et un point de restauration vérifié ; examinez les pilotes pour connaître la voie disponible."
                 : item.Status == UpdateItemStatus.InformationOnly && !string.IsNullOrWhiteSpace(item.Message) ? item.Message
