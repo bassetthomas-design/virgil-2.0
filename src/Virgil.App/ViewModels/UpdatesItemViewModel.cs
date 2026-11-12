@@ -29,6 +29,7 @@ public partial class UpdateItemViewModel : ObservableObject
         Lines = lines;
     }
 
+    public UpdateTextCardViewModel? SingleCard { get; init; }
     public UpdateItem Item { get; }
     public string Header { get; }
     public bool IsSelectable { get; }

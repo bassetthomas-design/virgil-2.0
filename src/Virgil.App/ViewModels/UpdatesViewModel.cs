@@ -226,7 +226,10 @@ public partial class UpdatesViewModel : ObservableObject
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             _lastScanReport = MergeDriverReport(_lastScanReport, report);
             await PersistReportAsync(ReportMapper.FromUpdateScan(_lastScanReport));
+            var knownCards = SingleCards.Where(card => card.Step?.Component != UpdateComponent.Winget).ToArray();
             RenderScanReport(_lastScanReport);
+            foreach (var card in knownCards) SingleCards.Add(card);
+            LoadSingleSourceCards();
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PILOTES");
             VirgilMessageRequested?.Invoke("Inventaire pilotes terminé.\nLecture seule.");
         }
@@ -427,6 +430,7 @@ public partial class UpdatesViewModel : ObservableObject
 
     private void UpdateCommandState()
     {
+        RefreshSingleState();
         IsRunSelectedEnabled = !_operationInProgress && SelectedItems().Any();
         IsRunAllEnabled = !_operationInProgress && _sequenceService is not null;
         IsReportButtonEnabled = !_operationInProgress && HasAnyReport();
@@ -537,6 +541,7 @@ public partial class UpdatesViewModel : ObservableObject
             ? $"{report.Drivers.Drivers.Count} pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour »."
             : "Non inventorié.";
 
+        MergeSingleApplications();
         RenderItems();
         RenderDrivers(report.Drivers);
         UpdateCommandState();
@@ -553,7 +558,7 @@ public partial class UpdatesViewModel : ObservableObject
         }
         foreach (var item in _lastItems.OrderBy(item => item.RiskLevel).ThenBy(item => item.Name))
         {
-            var card = new UpdateItemViewModel(item, UpdateCommandState);
+            var card = new UpdateItemViewModel(item, UpdateCommandState) { SingleCard = SingleCards.FirstOrDefault(c => c.Step?.Application == item) };
             _selectionById[item.Id] = card;
             Entries.Add(card);
         }

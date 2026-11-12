@@ -9,6 +9,20 @@
              FocusManager.IsFocusScope="True">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+        <DataTemplate x:Key="SingleUpdateCardTemplate">
+            <StackPanel Margin="0,6,0,6">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Status}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Detail}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding MethodText}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap"
+                           Visibility="{Binding HasUpdateAction, Converter={StaticResource BoolVisibility}}" />
+                <Button Content="{Binding ButtonText}" IsEnabled="{Binding CanUpdate}"
+                        Visibility="{Binding HasUpdateAction, Converter={StaticResource BoolVisibility}}"
+                        Command="{Binding DataContext.RunSingleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        CommandParameter="{Binding Step}" Style="{StaticResource VirgilSecondaryButton}"
+                        HorizontalAlignment="Left" Margin="0,6,0,0" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:UpdateItemViewModel}">
             <Border Style="{StaticResource VirgilHudCard}" Margin="0,0,0,8">
                 <StackPanel>
@@ -23,6 +37,7 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <ContentControl Content="{Binding SingleCard}" ContentTemplate="{StaticResource SingleUpdateCardTemplate}" />
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -166,9 +181,12 @@
                            Margin="0,8,0,6" />
                 <ItemsControl x:Name="UpdatesListPanel" ItemsSource="{Binding Entries}" KeyboardNavigation.TabNavigation="Continue" />
 
+                <TextBlock Text="{Binding SingleSourceSummary}" Style="{StaticResource VirgilHudSecondaryText}" TextWrapping="Wrap" Margin="0,8,0,6" />
+                <ItemsControl ItemsSource="{Binding SourceCards}" ItemTemplate="{StaticResource SingleUpdateCardTemplate}" />
                 <TextBlock Text="PILOTES"
                            Style="{StaticResource VirgilHudSectionTitle}"
                            Margin="0,8,0,6" />
+                <ItemsControl ItemsSource="{Binding DriverSourceCards}" ItemTemplate="{StaticResource SingleUpdateCardTemplate}" />
                 <ItemsControl x:Name="DriversListPanel" ItemsSource="{Binding DriverCards}" ItemTemplate="{StaticResource UpdatesTextCardTemplate}" KeyboardNavigation.TabNavigation="Continue" />
             </StackPanel>
         </ScrollViewer>

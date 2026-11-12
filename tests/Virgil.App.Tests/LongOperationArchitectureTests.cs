@@ -20,6 +20,7 @@ public sealed class AppLongOperationArchitectureTests
         { "UpdatesViewModel", "InspectDriversAsync", "Views/UpdatesView.xaml" },
         { "UpdatesViewModel", "RunSelectedAsync", "Views/UpdatesView.xaml" },
         { "UpdatesViewModel", "RunAllAsync", "Views/UpdatesView.xaml" },
+        { "UpdatesViewModel", "RunSingleAsync", "Views/UpdatesView.xaml" },
         { "UpdatesViewModel", "InstallWingetModuleAsync", "Views/UpdatesView.xaml" },
         { "InterventionsViewModel", "VerifyHealthAsync", "Views/InterventionsView.xaml" },
         { "InterventionsViewModel", "ScanRepairAsync", "Views/InterventionsView.xaml" },

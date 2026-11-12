@@ -102,6 +102,7 @@ public partial class UpdatesViewModel
             Operation.Report(new Virgil.Core.Operations.OperationProgress(StatusText));
             var steps = await _sequenceService.ScanAsync(_lastItems.ToArray(), _operationCancellation.Token);
             _operationCancellation.Token.ThrowIfCancellationRequested();
+            LoadSingleSourceCards();
             SequenceChoices.Clear();
             foreach (var step in steps.OrderBy(step => step.Component == UpdateComponent.Driver && step.IsInformational ? 0 : 1))
                 SequenceChoices.Add(new UpdateSequenceChoiceViewModel(step, UpdateSequencePreview));
@@ -240,6 +241,7 @@ public partial class UpdatesViewModel
                     : (Status: "Non lancée", Detail: "Aucun résultat confirmé. Non lancée.");
                 Operation.SetStep(SequenceStepKey(step), step.Title, card.Status, card.Detail);
             }
+            ApplySingleSequenceResults(result);
             _sequenceFinalSummary = conclusion + "\n" + string.Join("\n", checks.Select(check => SourceTitle(check.Component) + " : " + check.Status
                 + (check.Component == UpdateComponent.Driver && check.IsCurrent ? string.Empty : " — " + DisplaySequenceText(check.Detail))))
                 + "\n" + (RebootRequired == result.RebootRequired
