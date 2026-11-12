@@ -292,7 +292,7 @@ public sealed class D2SourceCardsTests
             : nativeCard ? "Cet élément n'est plus proposé au contrôle final." : "Cette application n'est plus proposée au contrôle final.", Read<string>(card, "Detail"));
         var other = Card(f.Vm, nativeCard ? "Winget:Epic.Package" : "Launcher:Epic Games");
         Assert.Equal(game || remaining ? "reste à installer" : "mis à jour", Read<string>(other, "Status"));
-        Assert.Equal(game || remaining ? "Applications : reste à installer — 1 reste à installer" : "Applications : mis à jour — 1 mis à jour",
+        Assert.Equal(game && !nativeCard ? "Applications : non lancée — 1 non lancée" : game || remaining ? "Applications : reste à installer — 1 reste à installer" : "Applications : mis à jour — 1 mis à jour",
             Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Applications :", StringComparison.Ordinal)));
         if (nativeCard && !game && !remaining) await Capture(f.Vm, "10-lanceur-controle-final");
     });
