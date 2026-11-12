@@ -67,15 +67,6 @@ public partial class UpdatesViewModel
         }
         RefreshSingleState();
     }
-    private void LoadSingleDriverReport(DriverInventoryReport report)
-    {
-        foreach (var driver in report.Drivers)
-            AddSingleCard(new(new("Inventory:" + driver.PublishedName, string.IsNullOrWhiteSpace(driver.Provider) ? "Pilote" : driver.Provider,
-                UpdateComponent.Driver) { InformationOnly = true }, false, false,
-                "Ce pilote est inventorié ; aucune mise à jour automatique n'est proposée par cet examen.")
-                { VerifiedStatus = DriverCardSummary.Unsupported });
-        RefreshSingleState();
-    }
     private void ApplySingleSequenceResults(UpdateSequenceResult result)
     {
         foreach (var outcome in result.Steps.Where(r => r.Step.Component is UpdateComponent.Winget or UpdateComponent.Driver or UpdateComponent.Store or UpdateComponent.Launcher
@@ -98,14 +89,16 @@ public partial class UpdatesViewModel
         {
             var cards = SingleCards.Where(c => c.Step?.Component == component).ToArray();
             if (cards.Length == 0) continue;
-            var active = cards.Where(c => c.Status != DriverCardSummary.Unsupported).ToArray();
+            var active = cards.Where(c => (!c.Step!.IsInformational || c.Step.Id == "driver-read")
+                && c.Status != DriverCardSummary.Unsupported).ToArray();
             var priority = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", "mis à jour", "à jour", "à jour selon Steam" };
             foreach (var card in active.Where(c => !priority.Contains(c.Status))) card.Status = "à vérifier";
             var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s)) ?? (active.Length == 0 ? "à jour" : "à vérifier");
             var counts = new List<string>();
             foreach (var value in new[] { "mis à jour", "à jour", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
             {
-                var count = cards.Count(c => c.Status == value);
+                var count = cards.Count(c => c.Status == value
+                    && (!c.Step!.IsInformational || c.Step.Id == "driver-read" || value == DriverCardSummary.Unsupported));
                 if (count == 0) continue;
                 var label = count > 1 ? value switch { "reste à installer" => "restent à installer", "non lancée" => "non lancées", "bloquée" => "bloquées", _ => value } : value;
                 counts.Add(count + " " + label);
@@ -214,6 +207,15 @@ public partial class UpdatesViewModel
                 }
                 foreach (var other in result.Steps.Where(r => r.Step.Component is UpdateComponent.Driver or UpdateComponent.Launcher && r.Step.Id != target.Id))
                     AddSingleCard(other);
+            }
+            if (own?.Succeeded == true && target.Application is not null
+                && (target.Component is UpdateComponent.Winget or UpdateComponent.Driver || target.Component == UpdateComponent.Launcher && target.Id != "Steam"))
+            {
+                // A single final check owns all visible cards for this same package.
+                foreach (var other in SingleCards.Where(c => !ReferenceEquals(c, card) && c.Step is not null && !c.Step.IsInformational
+                    && c.Step.Component is UpdateComponent.Winget or UpdateComponent.Driver or UpdateComponent.Launcher
+                    && string.Equals(c.Step.Application?.Id, target.Application.Id, StringComparison.OrdinalIgnoreCase)))
+                { other.Status = card.Status; other.Detail = card.Detail; }
             }
             Operation.SetStep(card.Key, card.Title, card.Status, card.Detail);
             RefreshSingleState();

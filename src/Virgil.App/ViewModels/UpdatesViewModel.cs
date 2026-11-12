@@ -230,7 +230,6 @@ public partial class UpdatesViewModel : ObservableObject
             RenderScanReport(_lastScanReport);
             foreach (var card in knownCards) SingleCards.Add(card);
             LoadSingleSourceCards();
-            LoadSingleDriverReport(report.Drivers);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PILOTES");
             VirgilMessageRequested?.Invoke("Inventaire pilotes terminé.\nLecture seule.");
         }

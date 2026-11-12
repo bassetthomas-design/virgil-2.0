@@ -4,7 +4,7 @@ namespace Virgil.Core.Updates;
 internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
 {
     internal async Task<IReadOnlyList<UpdateSequenceStepResult>> ExecuteAsync(UpdateSequenceStep steam, IReadOnlyList<SteamGameState> initial,
-        Func<Task<bool>> canRestart, bool finalPassSucceeded, string closure, Action waiting, CancellationToken token, bool singleStepSucceeded = false)
+        Func<Task<bool>> canRestart, bool finalPassSucceeded, Action waiting, CancellationToken token, bool singleStepSucceeded = false)
     {
         var results = new List<UpdateSequenceStepResult>();
         UpdateSequenceStepResult Launcher(string status, string message) => new(steam, false, false, message) { VerifiedStatus = status, WasSkipped = status != "bloquée" && status != "en erreur" };
@@ -79,7 +79,7 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
             : results.Any(game => game.VerifiedStatus == "reste à installer") ? "reste à installer"
             : results.Any(game => game.VerifiedStatus == "mis à jour") ? "mis à jour" : "à jour selon Steam";
         results.Insert(0, new(steam, steamStatus is "mis à jour" or "à jour selon Steam", false,
-            closure + "\nSteam ouvert en silencieux ; jeux contrôlés en lecture seule.")
+            "Steam ouvert en silencieux ; jeux contrôlés en lecture seule.")
         { VerifiedStatus = steamStatus, WasSkipped = steamStatus == "reste à installer" });
         return results;
     }

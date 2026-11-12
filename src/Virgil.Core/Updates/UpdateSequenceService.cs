@@ -408,7 +408,6 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         }
         if (steamStep is not null && backend is ISteamUpdateBackend steamSource)
         {
-            var closure = results.FirstOrDefault(r => r.Step.Id == "Steam")?.Message ?? "Steam : déjà fermé ou non lancé.";
             results.RemoveAll(r => r.Step.Component == UpdateComponent.Launcher && r.Step.Id == "Steam");
             try
             {
@@ -419,7 +418,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 else
                     results.AddRange(await new SteamUpdateService(steamSource).ExecuteAsync(steamStep, steamGames,
                         () => steamMayRestart && launcherShutdown is not null ? launcherShutdown.CanRestartSteamAsync(cancellationToken) : Task.FromResult(false),
-                        results.Any(r => r.Step.Component == UpdateComponent.WingetFinal && r.Succeeded && !r.WasSkipped), closure,
+                        results.Any(r => r.Step.Component == UpdateComponent.WingetFinal && r.Succeeded && !r.WasSkipped),
                         () => progress?.Report(new(results.Count, snapshot.Length, steamStep.Title, LauncherCardSummary.Waiting)
                             { StepId = steamStep.Id, Component = steamStep.Component }), cancellationToken, single && steamMayRestart).ConfigureAwait(false));
             }
