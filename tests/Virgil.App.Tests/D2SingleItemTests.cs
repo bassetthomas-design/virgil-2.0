@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -226,6 +227,21 @@ public sealed class D2SingleItemTests
             var buttons = Descendants<Button>(view).Where(b => Equals(b.Content, "Mettre à jour") && b.IsVisible).ToArray();
             Assert.NotEmpty(buttons);
             if (name == "07-boutons-desactives") Assert.All(buttons, b => Assert.False(b.IsEnabled));
+            var required = Descendants<TextBlock>(view).Where(text => text.IsVisible && (vm.IsValidationOpen
+                ? text.Name is "ValidationTitleText" or "ValidationDetailsText" or "ValidationSafetyText"
+                : text.DataContext?.GetType().GetProperty("Key") is not null)).ToArray();
+            Assert.NotEmpty(required);
+            foreach (var text in required)
+            {
+                var bounds = new Rect(view.RenderSize); bounds.Inflate(0.5, 0.5);
+                Assert.True(bounds.Contains(text.TransformToAncestor(view).TransformBounds(new Rect(text.RenderSize))), "Texte D2 hors cadre.");
+                for (var parent = VisualTreeHelper.GetParent(text); parent is not null && parent != view; parent = VisualTreeHelper.GetParent(parent))
+                    if (parent is ScrollContentPresenter viewport)
+                    {
+                        var visible = new Rect(viewport.RenderSize); visible.Inflate(0.5, 0.5);
+                        Assert.True(visible.Contains(text.TransformToAncestor(viewport).TransformBounds(new Rect(text.RenderSize))), "Texte D2 hors de la zone visible.");
+                    }
+            }
             var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-d2");
             Directory.CreateDirectory(directory);
             var bitmap = new RenderTargetBitmap((int)view.ActualWidth, (int)view.ActualHeight, 96, 96, PixelFormats.Pbgra32);

@@ -32,6 +32,9 @@ public sealed class D2SourceCardsTests
         Assert.Equal("non pris en charge automatiquement", Read<string>(unsupported, "Status"));
         Assert.Equal("l'outil du fabricant n'installe pas les pilotes tout seul", Read<string>(unsupported, "Detail"));
         await Capture(f.Vm, "06-non-pris-en-charge");
+        var pngDirectory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-d2");
+        Assert.NotEqual(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(pngDirectory, "05-bios-sans-bouton.png")))),
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(pngDirectory, "06-non-pris-en-charge.png")))));
         var pending = Command(f.Vm).ExecuteAsync(Read<UpdateSequenceStep>(first, "Step"));
         try
         {
