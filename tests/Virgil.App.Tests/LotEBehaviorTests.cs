@@ -37,7 +37,7 @@ public sealed class LotEBehaviorTests
         f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal(expected, LotEProgressColorTests.Read(f.Vm.Operation, "FinalState").ToString());
         Assert.Equal(face, f.Vm.MiniCoreState);
-        Assert.Equal("mis à jour", Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Winget:a").Status);
+        Assert.Equal(reboot ? "redémarrage nécessaire" : "mis à jour", Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Winget:a").Status);
         Assert.Equal(refusal ? "en erreur" : "reste à installer", Assert.Single(f.Vm.Operation.Steps, c => c.Key == "Winget:b").Status);
         Assert.Equal("reste à installer", Assert.Single(f.Vm.SingleCards, c => c.Key == "Winget:c").Status);
         Assert.Equal(100d, f.Vm.Operation.Percent);
