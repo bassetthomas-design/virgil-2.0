@@ -365,7 +365,7 @@ public sealed class UpdatesViewModelTests
         var f = new Fixture(); f.Actions.Handler = (item, _) => throws ? throw new InvalidOperationException() : Task.FromResult(new UpdateExecutionResult { Item = item, Status = UpdateItemStatus.Failed, UserMessage = "Refus" });
         await f.Analyze(); f.SelectAll(); var pending = f.Run(); f.Vm.ExecuteDecisionCommand.Execute(null); await pending;
         Assert.Equal("Séquence terminée avec erreurs.", f.Vm.StatusText);
-        Assert.Equal(VirgilCoreState.Warning, f.Vm.MiniCoreState);
+        Assert.Equal(VirgilCoreState.Error, f.Vm.MiniCoreState);
         Assert.True(f.Vm.IsReportOpen); Assert.Equal(2, f.Persisted);
         Assert.Contains(throws ? "Erreur pendant la séquence guidée." : "Refus", f.Vm.ReportText);
     }

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="340" viewBox="0 0 340 340">
+  <!-- Extraction manuelle du grand visage du dessin validé le 5/11 : mêmes proportions. -->
+  <defs>
+    <radialGradient id="face" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#2b3440"/><stop offset="1" stop-color="#11161c"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c9d1d9"/><stop offset="1" stop-color="#5b6570"/>
+    </linearGradient>
+  </defs>
+  <circle cx="170" cy="170" r="163.2" fill="url(#rim)"/>
+  <circle cx="170" cy="170" r="142.8" fill="url(#face)"/>
+  <circle cx="170" cy="170" r="142.8" fill="none" stroke="#000000" stroke-opacity=".35" stroke-width="3.4"/>
+  <rect x="88" y="140" width="54" height="40" rx="20" fill="#3fe0c5"/>
+  <rect x="198" y="140" width="54" height="40" rx="20" fill="#3fe0c5"/>
+</svg>

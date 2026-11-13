@@ -423,3 +423,18 @@ public sealed class VirgilCoreAnimationController
         }
     }
 }
+
+// Expression table for the face. Legacy motion profiles and controller stay unchanged.
+public enum VirgilEyeShape { Rest, Work, Attention, Error, Success, Sarcastic }
+public sealed record VirgilEyeProfile(VirgilEyeShape Shape, string Color, string AccessibleName);
+public static class VirgilEyeProfiles
+{
+    public static VirgilEyeProfile For(VirgilCoreState state) => state switch
+    {
+        VirgilCoreState.Scanning or VirgilCoreState.Executing => new(VirgilEyeShape.Work, "#4aa8ff", "Virgil au travail"),
+        VirgilCoreState.Warning or VirgilCoreState.SensitiveAction => new(VirgilEyeShape.Attention, "#ffc23d", "Virgil : attention"),
+        VirgilCoreState.Error => new(VirgilEyeShape.Error, "#ff4d4d", "Virgil : erreur"),
+        VirgilCoreState.Success => new(VirgilEyeShape.Success, "#5ee07a", "Virgil : réussi"),
+        _ => new(VirgilEyeShape.Rest, "#3fe0c5", "Virgil au repos")
+    };
+}
