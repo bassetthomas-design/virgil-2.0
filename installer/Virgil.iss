@@ -10,6 +10,7 @@
 #endif
 
 [Setup]
+SetupIconFile=..\assets\virgil.ico
 AppId={{79A190B0-5849-4E86-909F-81950C48A7D1}
 AppName=Virgil
 AppVersion={#AppVersion}
@@ -29,7 +30,7 @@ WizardStyle=modern
 AppMutex=Local\Virgil.SingleInstance.v2,Global\Virgil.Update.v2
 CloseApplications=no
 RestartApplications=no
-UninstallDisplayIcon={app}\Virgil.App.exe
+UninstallDisplayIcon={app}\virgil.ico
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
@@ -38,13 +39,14 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "Créer un raccourci sur le bureau"; Flags: unchecked
 
 [Files]
+Source: "..\assets\virgil.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; La sortie complète inclut explicitement le helper, sans copie en dossier utilisateur.
 Source: "{#PublishDir}\Virgil.ElevatedHelper.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "Virgil.ElevatedHelper.exe"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Virgil"; Filename: "{app}\Virgil.App.exe"
-Name: "{autodesktop}\Virgil"; Filename: "{app}\Virgil.App.exe"; Tasks: desktopicon
+Name: "{group}\Virgil"; Filename: "{app}\Virgil.App.exe"; IconFilename: "{app}\virgil.ico"
+Name: "{autodesktop}\Virgil"; Filename: "{app}\Virgil.App.exe"; IconFilename: "{app}\virgil.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Virgil.App.exe"; Description: "Lancer Virgil"; Flags: nowait postinstall unchecked runasoriginaluser skipifsilent

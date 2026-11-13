@@ -190,13 +190,14 @@ public partial class UpdatesViewModel : ObservableObject
         }
         catch
         {
+            _operationFinalState = OperationFinalState.Failed;
             StatusText = "Scan mises à jour indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
             VirgilMessageRequested?.Invoke("Scan indisponible.\nAucune action effectuée.");
         }
         finally
         {
-            EndOperation();
+            CompleteOperation(useCardState: false);
         }
     }
 
@@ -241,13 +242,14 @@ public partial class UpdatesViewModel : ObservableObject
         }
         catch
         {
+            _operationFinalState = OperationFinalState.Failed;
             StatusText = "Inventaire pilotes indisponible.";
             RequestVirgilState(VirgilCoreState.Error, "ERREUR");
             VirgilMessageRequested?.Invoke("Inventaire indisponible.\nAucune action effectuée.");
         }
         finally
         {
-            EndOperation();
+            CompleteOperation(useCardState: false);
         }
     }
 
@@ -343,6 +345,12 @@ public partial class UpdatesViewModel : ObservableObject
             _lastSessionReport = _executionService.CreateReport(startedAt, results, errors);
             await PersistReportAsync(ReportMapper.FromUpdateSession(_lastSessionReport));
             RenderItems();
+            _sequenceWasCancelled = _lastSessionReport.WasCancelled;
+            _operationFinalState = _lastSessionReport.FailedCount > 0 || _lastSessionReport.Errors.Count > 0
+                ? OperationFinalState.Failed
+                : _lastSessionReport.Results.Any(result => result.Status != UpdateItemStatus.Completed)
+                    || _lastItems.Any(item => item.Status == UpdateItemStatus.Available)
+                    ? OperationFinalState.NeedsReview : OperationFinalState.Succeeded;
             EndOperation();
             CompleteSequenceState(_lastSessionReport);
             ShowReport();
@@ -394,6 +402,8 @@ public partial class UpdatesViewModel : ObservableObject
         }
     }
 
+    private OperationFinalState? _operationFinalState;
+
     private bool BeginOperation(string status)
     {
         if (_operationInProgress)
@@ -403,6 +413,7 @@ public partial class UpdatesViewModel : ObservableObject
         }
 
         _operationInProgress = true;
+        _operationFinalState = null;
         Operation.Start(status);
         _operationCancellation = new CancellationTokenSource();
         StatusText = status;
@@ -410,9 +421,15 @@ public partial class UpdatesViewModel : ObservableObject
         return true;
     }
 
-    private void EndOperation()
+    private void EndOperation() => CompleteOperation(useCardState: true);
+
+    private void CompleteOperation(bool useCardState)
     {
-        Operation.Complete(_sequenceFinalSummary ?? StatusText, _sequenceWasCancelled || _operationCancellation?.IsCancellationRequested == true);
+        var cancelled = _sequenceWasCancelled || _operationCancellation?.IsCancellationRequested == true || Operation.IsCancelling;
+        var finalState = cancelled ? OperationFinalState.Cancelled : _operationFinalState
+            ?? (useCardState ? CardFinalState() : OperationFinalState.Neutral);
+        Operation.Complete(_sequenceFinalSummary ?? StatusText, cancelled, finalState);
+        if (useCardState) RequestFinalFace();
         _sequenceFinalSummary = null;
         _sequenceWasCancelled = false;
         _operationInProgress = false;
@@ -421,6 +438,29 @@ public partial class UpdatesViewModel : ObservableObject
         SetButtonsEnabled(true);
         UpdateCommandState();
     }
+
+    private OperationFinalState CardFinalState()
+    {
+        // Component:Id identities own the status. A source summary and message text are never inputs.
+        var information = SingleCards.Where(c => c.Step is null || c.Step.IsInformational
+            || c.Status == DriverCardSummary.Unsupported).Select(c => c.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var step in _confirmedSequenceSteps.Where(step => step.IsInformational)) information.Add(SequenceStepKey(step));
+        var statuses = Operation.Steps.Where(c => !information.Contains(c.Key))
+            .ToDictionary(c => c.Key, c => c.Status, StringComparer.Ordinal);
+        foreach (var card in SingleCards.Where(c => !information.Contains(c.Key))) statuses[card.Key] = card.Status;
+        if (statuses.Values.Any(status => status is "bloquée" or "en erreur" or "En échec")) return OperationFinalState.Failed;
+        if (statuses.Count == 0) return RebootRequired ? OperationFinalState.NeedsReview : OperationFinalState.Neutral;
+        if (RebootRequired || statuses.Values.Any(status => status is not ("mis à jour" or "à jour" or "à jour selon Steam" or "Terminée")))
+            return OperationFinalState.NeedsReview;
+        return OperationFinalState.Succeeded;
+    }
+    private void RequestFinalFace() => RequestVirgilState(Operation.FinalState switch
+    {
+        OperationFinalState.Succeeded => VirgilCoreState.Success,
+        OperationFinalState.NeedsReview => VirgilCoreState.Warning,
+        OperationFinalState.Failed => VirgilCoreState.Error,
+        _ => VirgilCoreState.Idle
+    }, "MISES À JOUR");
 
     private void SetButtonsEnabled(bool enabled)
     {
@@ -629,19 +669,19 @@ public partial class UpdatesViewModel : ObservableObject
         if (report.WasCancelled)
         {
             StatusText = "Séquence annulée.";
-            RequestVirgilState(VirgilCoreState.Idle, "REPOS");
+            RequestFinalFace();
             return;
         }
 
         if (report.FailedCount > 0 || report.Errors.Count > 0)
         {
             StatusText = "Séquence terminée avec erreurs.";
-            RequestVirgilState(VirgilCoreState.Warning, "ATTENTION");
+            RequestFinalFace();
             return;
         }
 
         StatusText = "Séquence terminée.";
-        RequestVirgilState(VirgilCoreState.Success, "TERMINÉ");
+        RequestFinalFace();
     }
 
     private void ShowReport()

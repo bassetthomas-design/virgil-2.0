@@ -5,6 +5,8 @@ using Virgil.Core.Operations;
 
 namespace Virgil.App.ViewModels;
 
+public enum OperationFinalState { Neutral, Succeeded, NeedsReview, Failed, Cancelled }
+
 /// <summary>État commun ; le propriétaire conserve le jeton et attend la fin des étapes sûres.</summary>
 public sealed partial class LongOperationViewModel : ObservableObject
 {
@@ -28,6 +30,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
     [ObservableProperty] private string timing = string.Empty;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string finalSummary = string.Empty;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string commentary = string.Empty;
+    [ObservableProperty] private OperationFinalState finalState = OperationFinalState.Neutral;
     public bool HasDistinctCommentary => !string.IsNullOrWhiteSpace(Commentary)
         && !FinalSummary.Contains(Commentary, StringComparison.Ordinal);
     public ObservableCollection<OperationStepViewModel> Steps { get; } = new();
@@ -69,6 +72,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
         var generation = ++_generation;
         _context = SynchronizationContext.Current;
         _started = _clock.GetTimestamp(); _immediate = immediately;
+        FinalState = OperationFinalState.Neutral;
         Steps.Clear(); FinalSummary = string.Empty; Commentary = string.Empty;
         IsCancelling = false; IsNonInterruptible = nonInterruptible;
         Step = label; Percent = 0; IsIndeterminate = true; IsRunning = true; IsVisible = immediately;
@@ -86,10 +90,11 @@ public sealed partial class LongOperationViewModel : ObservableObject
             TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
     }
     public void Report(OperationProgress progress) => _progress?.Report(progress);
-    public void Complete(string result, bool wasCancelled = false)
+    public void Complete(string result, bool wasCancelled = false, OperationFinalState finalState = OperationFinalState.Neutral)
     {
         _timer?.Dispose(); _timer = null; _progress?.Dispose(); _progress = null;
-        var cancelled = IsCancelling || wasCancelled;
+        var cancelled = IsCancelling || wasCancelled || finalState == OperationFinalState.Cancelled;
+        FinalState = cancelled ? OperationFinalState.Cancelled : finalState;
         if (!cancelled) { Percent = 100; IsIndeterminate = false; }
         foreach (var item in Steps.Where(item => item.Status == "En cours"))
         {

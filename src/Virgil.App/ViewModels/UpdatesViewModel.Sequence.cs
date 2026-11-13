@@ -276,6 +276,7 @@ public partial class UpdatesViewModel
         }
         catch (ConfirmationRefusedException)
         {
+            _operationFinalState = OperationFinalState.Failed;
             StatusText = "Confirmation refusée. Aucune mise à jour lancée.";
         }
         catch (OperationCanceledException)
@@ -286,6 +287,7 @@ public partial class UpdatesViewModel
         }
         catch
         {
+            _operationFinalState = OperationFinalState.Failed;
             StatusText = "La séquence n’a pas pu se terminer. Consultez les étapes ci-dessous.";
             SequenceStepText = StatusText;
             RequestVirgilState(VirgilCoreState.Warning, "ATTENTION");
