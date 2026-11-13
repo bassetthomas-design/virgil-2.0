@@ -36,7 +36,7 @@ public sealed class LotFSteamTests
         foreach (var (id, status, detail) in new[] { ("10", "mis à jour", ""), ("20", "reste à installer", "Steam continue en arrière-plan."),
             ("30", "à jour selon Steam", ""), ("40", "en erreur", "Lecture du jeu impossible.") })
         {
-            var card = Assert.Single(vm.SingleCards, c => c.Key == "SteamGame:" + id);
+            var card = Assert.Single(vm.SingleCards, c => c.Step?.Id == "SteamGame:" + id);
             Assert.Equal(status, card.Status); Assert.Equal(detail, card.Detail);
             Assert.DoesNotContain(status, detail, StringComparison.OrdinalIgnoreCase);
             if (!single)
@@ -50,8 +50,11 @@ public sealed class LotFSteamTests
         if (!single) LotFRevealTests.Capture(panel, "steam-quatre-statuts", 1000, 1050);
         else
         {
-            var cards = new ItemsControl { ItemsSource = vm.SingleCards.Where(c => c.Key.StartsWith("SteamGame:", StringComparison.Ordinal)).Select(c => c.Title + " — " + c.Status + "\n" + c.Detail).ToArray() };
-            LotFRevealTests.Capture(cards, "steam-seul-quatre-statuts", 1000, 500);
+            var shown = new LongOperationViewModel(() => { }); shown.Start("Steam", immediately: true);
+            foreach (var card in vm.SingleCards.Where(c => c.Step?.Id.StartsWith("SteamGame:", StringComparison.Ordinal) == true))
+                shown.SetStep(card.Key, card.Title, card.Status, card.Detail);
+            shown.Complete("Contrôle des jeux Steam.");
+            LotFRevealTests.Capture(new OperationProgressPanel { DataContext = shown }, "steam-seul-quatre-statuts", 1000, 700);
         }
     });
     private sealed class Scan : IUpdateScanService

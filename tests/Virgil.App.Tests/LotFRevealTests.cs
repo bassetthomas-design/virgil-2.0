@@ -40,6 +40,8 @@ public sealed class LotFRevealTests
         clockSetter.Invoke(null, [block, clock]);
         var full = "[VIRGIL]\nUn texte affiché mot par mot sans bloquer.";
         setter.Invoke(null, [block, full]);
+        var begin = type.GetMethod("Begin", BindingFlags.Static | BindingFlags.NonPublic); Assert.NotNull(begin);
+        begin.Invoke(null, [block, true]);
         Assert.Equal(full, AutomationProperties.GetName(block));
         clock.Advance(200);
         var reveal = type.GetMethod("GetReveal"); Assert.NotNull(reveal);
@@ -48,6 +50,7 @@ public sealed class LotFRevealTests
         Capture(block, "texte-partiel", 760, 150);
         block.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
         Assert.Equal(full, block.Text); Capture(block, "texte-apres-clic", 760, 150);
+        begin.Invoke(null, [block, false]); Assert.Equal(full, block.Text);
         return Task.CompletedTask;
     });
     [Fact]
@@ -67,11 +70,20 @@ public sealed class LotFRevealTests
         public override long GetTimestamp() => ticks;
         public void Advance(int milliseconds) => ticks += TimeSpan.FromMilliseconds(milliseconds).Ticks;
     }
+    private static IEnumerable<TextBlock> Blocks(DependencyObject root)
+    {
+        if (root is TextBlock block) yield return block;
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+            foreach (var child in Blocks(System.Windows.Media.VisualTreeHelper.GetChild(root, i))) yield return child;
+    }
     internal static void Capture(FrameworkElement element, string name, int width = 760, int height = 480)
     {
         var border = new Border { Width = width, Height = height, Child = element,
             Background = (System.Windows.Media.Brush)Application.Current.FindResource("App.BackgroundBrush") };
         border.Measure(new Size(width, height)); border.Arrange(new Rect(0, 0, width, height)); border.UpdateLayout();
+        if (name != "texte-partiel")
+            foreach (var block in Blocks(border))
+                block.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
         var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); bitmap.Render(border);
         var path = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-f"); Directory.CreateDirectory(path);
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
