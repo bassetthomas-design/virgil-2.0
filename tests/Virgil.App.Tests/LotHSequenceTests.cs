@@ -41,8 +41,11 @@ public sealed class LotHSequenceTests
     {
         var backend = new ReviewBackend { ReadFails = true };
         var confirmation = new RecordingConfirmation();
-        var f = new UpdatesSequenceViewModelTests.Fixture(wrap: _ => new UpdateSequenceService(backend, confirmation.Authority, new EmptyPendingRebootProbe()));
+        var sequence = new UpdateSequenceService(backend, confirmation.Authority, new EmptyPendingRebootProbe());
+        var f = new UpdatesSequenceViewModelTests.Fixture(wrap: _ => sequence);
         var pending = f.Vm.RunAllCommand.ExecuteAsync(null); f.Vm.SkipDecisionCommand.Execute(null); await pending;
+        await sequence.ReadSingleItemsAsync(default);
+        await f.Vm.InspectDriversCommand.ExecuteAsync(null);
         var card = Assert.Single(f.Vm.SingleCards, c => c.Step?.Component == UpdateComponent.Driver && c.Step.Id == "driver-read");
         Assert.Equal("Pilotes", card.Title); Assert.Equal("indisponible", card.Status);
         Assert.Equal("Les pilotes n'ont pas pu être lus. Relancez leur examen.", card.Detail);
