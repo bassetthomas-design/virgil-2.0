@@ -11,10 +11,16 @@ Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`,
 | Correctif initial | [407 — 43828807319](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319) | `3a24d27b587324b2180cb9ca25877b6ae137e77d` | Compilation 0 avertissement, 0 erreur ; Core 1248/1249, App 801/806. Rouge, six échecs ; UI non exécutée. |
 | Tests de correction, décisions du 16/11 | [411 — 43830615560](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43830615560) | `451e45dfec7901710a8d6307a96c998b2472752a` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 803/807. Rouge sur quatre assertions App ; inventaire, limite du port et catalogue passent. |
 | Correctif de production après relecture | [412 — 43831007548](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43831007548) | `5f1f15e029c616e647575eddb48bae0e4a226d0e` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 806/807. Seul le scénario Steam seul échoue ligne 27 sur une collection vide ; UI, publication et installateur non exécutés. |
+| Préparation des cartes Steam après scan | [414 — 43832572292](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43832572292) | `59ef00a7d72bf4fcf078c5257782063f854caa96` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 805/807. Les deux cas Steam passent. Deux échecs existants : ligne Lanceurs indue et libellé d’annulation observé après progression. |
+| Correctif Steam final, avant documentation | [415 — 43833285205](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43833285205) | `9965ef70027eccb7c479639f18c28133fb8d1240` | **VERT : compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 807/807, UI 14/14. Publication et installateur réussis.** |
 
-Le run 412 est encore rouge : **aucun run vert final n’est revendiqué**. Son artefact partiel [Virgil-ui-smoke, ID 14208617876](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43831007548/artifacts/14208617876) fait 3 154 959 octets, digest `sha256:7389674ba209c44370cb64f34d5264a2a64febf66dbe95a13fcf1d429732cc50`. Les tests de rendu du panneau, des états vides, du texte et du visage passent ; le scénario Steam seul interrompt sa capture avant toute action. L’archive n’a pas été inspectée visuellement : le transfert du lien de fichier retourné par l’intégration vers le poste Cloud reçoit HTTP 403. Aucun paramètre réseau n’est modifié. Cet artefact rouge ne remplace pas la preuve finale P3/M7.
+## Validation verte et protocole M7 du head final
 
-Le run rouge 407 a produit l’artefact partiel [Virgil-ui-smoke, ID 14207921750](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319/artifacts/14207921750), digest `sha256:b7bfe8b3e988645437d4e6a3a3daed1a9c8365cd9f4b41bb69055fb84c4b11f3`. Il ne constitue pas une preuve finale verte.
+Le run 415 valide tout le code livré, dont les deux parcours de `LotFSteamTests` : séquence complète et Steam seul. L’artefact vert [Virgil-ui-smoke, ID 14210395674](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43833285205/artifacts/14210395674) fait 5 951 471 octets ; digest publié `sha256:15b50b1e3258988ed46389b5152447c4841641e08162604d09ea90454afe8a8d`. Les logs constatent son upload réussi, avec 90 fichiers dans l’ensemble de l’artefact. Les artefacts de l’application et de l’installateur sont également publiés.
+
+Le présent document est le dernier commit autorisé après cette validation verte. **Aucun nouveau push ne suivra ce commit documentaire.** Son propre run Windows sera vérifié ; conformément à M7 du brief, le numéro et l’ID du run vert FINAL sur le head final, le SHA exact de ce head et l’ID de son artefact Virgil-ui-smoke seront inscrits dans la description de la PR #86, après vérification réelle, sans réécrire ce document ni pousser un autre commit. Le run 415 n’est pas présenté comme celui du futur head documentaire.
+
+Les runs 405/406, 407, 411, 412 et 414 restent des preuves rouges historiques ; aucun n’est présenté comme une validation finale verte. La ligne Lanceurs indue du run 414 est corrigée en limitant l’exposition après scan à Steam actionnable. L’échec d’annulation du même run ne s’est pas reproduit au run 415 ; ni le test ni le chemin d’annulation n’ont été modifiés pour le faire passer. La CI du head final vérifie à nouveau ce chemin.
 
 ### Décisions de loops (relecture), 16 novembre
 
@@ -30,23 +36,15 @@ Commit séparé `5f1f15e029c616e647575eddb48bae0e4a226d0e`, après le run rouge 
 2. Le TextBlock de phase du panneau est vide lorsque IsRunning est faux, en plus de rester masqué. Seule FinalSummary porte alors la conclusion. Les propriétés Step, Steps, Commentary, FinalSummary et leurs textes ne sont pas modifiés par ce réglage de présentation ; la réplique reste dans son unique TextBlock.
 3. Les faux positifs d’accents proviennent de l’analyse de littéraux, qui construit son dictionnaire depuis les participes et traite ensuite des homographes corrects comme des fautes. Les quelques mots concernés sont représentés par des expressions littérales constantes, repliées par le compilateur C# : aucun assemblage de phrase à l’exécution. Les frontières de littéraux sont changées, pas les données compilées. Le contrôle statique comparatif a confirmé les 33 répliques et 22 entrées inchangées ; les Assert.Equal du catalogue et de l’annexe B restent la vérification en exécution. Les fichiers hors lot et le garde existant ne sont pas modifiés. Ce choix de représentation source est signalé explicitement dans la PR.
 
-### Point Steam seul à clarifier
+### Correction Steam en production, sans modification de test
 
-Le run 407 échoue dans `LotFSteamTests.cs:27`, sur la recherche de la carte Steam dans une collection vide, avant tout appel à AddSingleCard ou à l’action simple. La règle de détail partagée est déjà appliquée en production dans AddSingleCard et dans la séquence ; le cas de séquence complète passe. Le scan simple du faux scénario ne prépare pas les cartes des sources, contrairement au parcours réel d’aperçu. Ajouter une nouvelle lecture automatique en production serait hors R13 et demanderait un fichier non autorisé.
+La décision de loops (relecture) demande de préparer la carte Steam dès la fin du scan manuel, dans UpdatesViewModel et UpdatesViewModel.Single. Le test LotFSteamTests reste strictement identique à son état antérieur à cette correction : la préparation par aperçu puis annulation, précédemment proposée dans ce document, **n’a pas été appliquée**.
 
-Une clarification est demandée pour cette préparation du nouveau test uniquement, sans modifier ses assertions. Proposition non appliquée tant qu’elle n’est pas autorisée :
+Le commit `59ef00a7d72bf4fcf078c5257782063f854caa96` ajoute un appel après RenderScanReport, au cours du scan explicite, et réutilise `IUpdateSequenceService.ScanAsync` pour préparer les résultats des sources en lecture seule. Aucune installation, fermeture de lanceur ou confirmation n’est déclenchée par cette préparation. Les résultats réels, dont la session Steam, sont conservés par le service existant. Aucun nouveau port, service ou accès OS App n’est ajouté.
 
-```diff
---- tests/Virgil.App.Tests/LotFSteamTests.cs
-+++ tests/Virgil.App.Tests/LotFSteamTests.cs
-@@ scénario single
--            await vm.ScanUpdatesCommand.ExecuteAsync(null);
-+            var preview = vm.RunAllCommand.ExecuteAsync(null);
-+            vm.SkipDecisionCommand.Execute(null);
-+            await preview;
-```
+Le complément `9965ef70027eccb7c479639f18c28133fb8d1240` ne fait apparaître après ce scan que la carte Steam actionnable ; les autres cartes de sources gardent le parcours existant d’aperçu. Un lanceur non pris en charge n’introduit donc plus une ligne « Lanceurs : à jour » sans preuve, et le test D2 existant reste inchangé. La carte Steam conserve l’identité `Step.Id = "Steam"` et son état de session pour la confirmation et l’exécution simple.
 
-M7 : aucun résultat vert final n’est déduit d’un run antérieur. La description de la PR devra porter le run vert final, le SHA exact du head final et l’artefact correspondant après leur vérification ; les résultats rouges ci-dessus restent des preuves d’échec.
+Dans AddSingleCard, toute carte `SteamGame:*` est explicitement InformationOnly, dans le parcours simple comme dans la séquence. La recherche d’une carte déjà présente utilise sa clé App existante `Component:Id`, sans changer cette clé ni les clés d’étapes du panneau. La fonction partagée SteamGameDetail reste l’unique règle de détail dans les deux parcours. Les exclusions des cartes d’information dans la source, les compteurs, la barre, le visage et la catégorie de réplique restent intactes. Les tests verts D2, Lot E et Lot F le vérifient.
 
 Le complément de tests seuls conserve les identités Steam existantes, conformément à R10 (« les statuts, les clés, les compteurs et le résumé de la source Lanceurs ne changent pas ») : la carte simple a une clé `Launcher:SteamGame:<id>`, le panneau d’opération une clé `SteamGame:<id>`. Le nouveau test cherchait initialement la seconde dans les deux collections. Cette correction précède le premier run du correctif et ne change aucune attente de statut ou de détail. Le même commit complète le pilote de captures : texte partiel avec horloge manuelle, clic avant les captures finales et vrai panneau WPF pour les jeux Steam. Aucun test préexistant modifié dans ces deux premiers commits de tests seuls.
 
@@ -78,7 +76,7 @@ Seuls les entrées du chat et la ligne Remark utilisent ce comportement. La norm
 
 `ShowSarcasticGlance` n’ajoute aucun état applicatif et ne modifie ni `SetState`, ni `NotifyCommunication`, ni `RefreshFace`, ni les noms accessibles. La méthode utilise la géométrie sarcastique déjà présente, pendant 1,2 s, au repos ou en communication seulement, contrôle chargé, visible, non compact et animations actives. Elle invalide le profil rendu pour que la prochaine demande d’état reprenne immédiatement sa forme, même si cet état est identique. Un jeton de génération empêche le retour différé d’écraser un état plus récent. Le lancement d’accueil est limité à une fois, après l’animation de démarrage ou le premier rendu si elle ne joue pas.
 
-Couverture exécutée au run 412 (voir la limite Steam ci-dessus) : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF).
+Couverture exécutée au run vert 415 : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF).
 
 ## Priorités : table de l’annexe B
 
@@ -112,7 +110,19 @@ Le ViewModel n’a que trois dépendances : `ISystemStatusStore`, `IProcessRunne
 
 ## Steam
 
-Une seule fonction App `SteamGameDetail` est utilisée par les chemins séquence et action simple : détail vide pour « mis à jour » et « à jour selon Steam » ; « Steam continue en arrière-plan. » pour « reste à installer » ; raison existante pour « en erreur ». Les autres cartes sont renvoyées sans changement. `SteamUpdateService`, les statuts, les clés et la ligne de source restent inchangés. `LotFSteamTests` vise les quatre statuts avec le vrai service de séquence dans les deux parcours : le cas séquence passe aux runs 407 et 412 ; la préparation de la liste des sources du cas Steam seul doit être complétée, comme indiqué ci-dessus.
+Une seule fonction App `SteamGameDetail` est utilisée par les chemins séquence et action simple : détail vide pour « mis à jour » et « à jour selon Steam » ; « Steam continue en arrière-plan. » pour « reste à installer » ; raison existante pour « en erreur ». Les autres cartes sont renvoyées sans changement. `SteamUpdateService`, les statuts, les clés et la ligne de source restent inchangés. `LotFSteamTests` vérifie les quatre statuts avec le vrai service de séquence dans les deux parcours ; les deux cas passent au run vert 415, sans modifier ce test dans le correctif Steam.
+
+## Captures WPF dans Virgil-ui-smoke/lot-f
+
+Les tests verts enregistrent les 16 PNG ci-dessous dans `artifacts/ui-smoke/lot-f/`. Le workflow inchangé téléverse ce répertoire dans Virgil-ui-smoke après les tests. Les vrais contrôles WPF sont rendus en STA ; les captures des jeux utilisent les résultats du vrai service de séquence avec backends factices, après confirmation du scénario.
+
+- `panneau-en-cours.png`, `panneau-Neutral.png`, `panneau-Succeeded.png`, `panneau-NeedsReview.png`, `panneau-Failed.png`, `panneau-Cancelled.png`, `panneau-nettoyage-sobre.png`.
+- `texte-partiel.png`, `texte-apres-clic.png`.
+- `priorites-sans-mesure.png`, `priorites-aucun-point.png`, `priorites-trois-points.png` (dont Ouvrir Sauvegarde Windows).
+- `visage-repos.png`, `visage-coup-oeil.png`.
+- `steam-quatre-statuts.png`, `steam-seul-quatre-statuts.png`.
+
+Les métadonnées et les logs d’upload de l’artefact sont vérifiés. L’archive n’a pas été inspectée visuellement depuis ce poste : le transfert du lien de fichier fourni par l’intégration reçoit HTTP 403. Aucun paramètre réseau n’est modifié. Les tests qui enregistrent les captures passent ; cela ne constitue pas une validation humaine des pixels ni de la vitesse réelle du texte.
 
 ## Périmètre et fichiers
 
@@ -140,6 +150,7 @@ Un seul test préexistant modifié sous l’exception F11 du 16/11 : une entrée
 - `src/Virgil.App/ViewModels/LongOperationViewModel.cs`
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Sequence.cs`
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Single.cs`
+- `src/Virgil.App/ViewModels/UpdatesViewModel.cs` (préparation Steam après scan, explicitement autorisée)
 - `src/Virgil.Core/Status/SystemStatusStore.cs`
 - `tests/Virgil.App.Tests/LotFBackupBoundaryTests.cs`
 - `tests/Virgil.App.Tests/LotFOperationTests.cs`
