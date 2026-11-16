@@ -77,7 +77,7 @@ public sealed class LotGViewModelTests
         Assert.Contains("NavigationPanel.Children.OfType<Button>()", main, StringComparison.Ordinal);
         Assert.Contains("AutomationProperties.GetName(b)", main, StringComparison.Ordinal); Assert.Contains("Equals(b.Tag, \"Active\")", main, StringComparison.Ordinal);
         var composition = File.ReadAllText(Path.Combine(root, "src/Virgil.App/Hosting/ServiceCollectionExtensions.cs"));
-        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(composition, @"Environment\.OSVersion\.Version").Count);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(composition, @"Environment\.OSVersion\.Version").Cast<System.Text.RegularExpressions.Match>());
         var views = composition[composition.IndexOf("public static IServiceCollection AddVirgilViews", StringComparison.Ordinal)..];
         Assert.Contains("AddSingleton<BugReportViewModel>", views, StringComparison.Ordinal); Assert.Contains("AddSingleton<BugReportPanel>", views, StringComparison.Ordinal);
         Assert.Contains("BugReportContext.From", views, StringComparison.Ordinal); Assert.Contains("Environment.OSVersion.Version", views, StringComparison.Ordinal);
