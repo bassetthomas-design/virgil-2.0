@@ -39,7 +39,8 @@ public static class LauncherCardSummary
         if (remaining) parts.Add("Steam continue en arrière-plan.");
         if (failed) parts.Add("Un échec est détaillé sur la carte concernée.");
         var status = blocked ? "bloquée" : failed ? "en erreur" : remaining ? "reste à installer" : notStarted ? "non lancée" : unsupported > 0 ? Unsupported
-            : games.Length > 0 ? "à jour selon Steam" : "à vérifier";
+            : games.Length > 0 || (launchers.Length > 0 && launchers.All(r => r.Step.Id == "Steam" && r.VerifiedStatus == "à jour selon Steam"))
+                ? "à jour selon Steam" : "à vérifier";
         return new(UpdateComponent.Launcher, status, string.Join(" ; ", parts)) { HasRemaining = remaining };
     }
 }

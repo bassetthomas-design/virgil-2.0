@@ -17,15 +17,12 @@ public partial class UpdateItemViewModel : ObservableObject
         IsSelectable = item.Status == UpdateItemStatus.Available && item.RiskLevel != UpdateRiskLevel.CriticalInformationOnly;
         var lines = new List<string>
         {
-            $"ID : {item.Id}",
             $"Version installée : {item.InstalledVersion}",
             $"Version disponible : {item.AvailableVersion}",
             $"Source : {UpdatesViewModel.SourceLabel(item.Source)}",
             $"Risque : {UpdatesViewModel.RiskLabel(item.RiskLevel)} - {item.RiskReason}",
             $"Statut : {UpdatesViewModel.StatusLabel(item.Status)}"
         };
-        if (item.CommandPreview is not null)
-            lines.Add($"Commande : {UpdatesViewModel.FormatCommand(item.CommandPreview)}");
         Lines = lines;
     }
 

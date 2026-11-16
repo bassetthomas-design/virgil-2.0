@@ -62,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IVirgilReleaseSource>(sp => new GitHubVirgilReleaseSource(sp.GetRequiredService<System.Net.Http.HttpClient>()));
         services.AddSingleton<IApplicationVersionSource>(_ => new AssemblyApplicationVersionSource(typeof(App).Assembly));
         services.AddSingleton<ApplicationVersionService>(sp => new ApplicationVersionService(sp.GetRequiredService<IApplicationVersionSource>()));
+        services.AddTransient<IWindowsVersionSource>(_ => new EnvironmentWindowsVersionSource());
         services.AddSingleton<IDiagnosticSource>(_ => new WindowsDiagnosticSource());
         services.AddSingleton<DiagnosticSampler>(sp => new DiagnosticSampler(sp.GetRequiredService<IDiagnosticSource>(), sp.GetRequiredService<TimeProvider>()));
         services.AddTransient<IDiagnosticSignalSource>(sp => new WindowsDiagnosticSignals(sp.GetRequiredService<ProcessProtectionPolicy>()));
@@ -196,7 +197,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
         services.AddSingleton<BugReportViewModel>(sp => new BugReportViewModel(sp.GetRequiredService<IProcessRunner>(),
-            BugReportContext.From(sp.GetRequiredService<ApplicationVersionService>(), Environment.OSVersion.Version)));
+            BugReportContext.From(sp.GetRequiredService<ApplicationVersionService>(), sp.GetRequiredService<IWindowsVersionSource>().Read())));
         services.AddSingleton<BugReportPanel>(sp => new BugReportPanel(sp.GetRequiredService<BugReportViewModel>()));
         services.AddSingleton<HomePrioritiesViewModel>(sp => new HomePrioritiesViewModel(
             sp.GetRequiredService<ISystemStatusStore>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<TimeProvider>()));

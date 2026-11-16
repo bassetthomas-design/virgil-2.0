@@ -515,7 +515,6 @@ public partial class UpdatesViewModel : ObservableObject
         ValidationDetails = string.Join("\n", new[]
         {
             $"Application : {item.Name}",
-            $"ID : {item.Id}",
             $"Version : {item.InstalledVersion} -> {item.AvailableVersion}",
             $"Source : {SourceLabel(item.Source)}",
             $"Risque : {RiskLabel(item.RiskLevel)}",
@@ -523,7 +522,7 @@ public partial class UpdatesViewModel : ObservableObject
         });
         ValidationCommand = item.CommandPreview is null
             ? "Aucune commande exécutable préparée."
-            : FormatCommand(item.CommandPreview);
+            : $"Mettre à jour {item.Name} vers la version {item.AvailableVersion}.";
         ValidationSafety =
             "Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandée par Virgil.";
         ExecuteLabel = item.RiskLevel == UpdateRiskLevel.Sensitive ? "JE CONFIRME" : "INSTALLER";
@@ -789,16 +788,6 @@ public partial class UpdatesViewModel : ObservableObject
         }
     }
 
-    internal static string FormatCommand(UpdateCommandPreview command)
-    {
-        return command.ExecutablePath + " " + string.Join(" ", command.Arguments.Select(QuoteArgument));
-    }
-
-    private static string QuoteArgument(string argument)
-    {
-        return argument.Contains(' ') ? $"\"{argument}\"" : argument;
-    }
-
     internal static string SourceLabel(UpdateSource source)
     {
         return source switch
@@ -807,7 +796,7 @@ public partial class UpdatesViewModel : ObservableObject
             UpdateSource.WindowsUpdate => "Windows Update",
             UpdateSource.Driver => "Pilote",
             UpdateSource.FirmwareInformation => "Firmware information",
-            _ => "WinGet"
+            _ => "Applications"
         };
     }
 

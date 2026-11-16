@@ -20,6 +20,7 @@ public partial class VirgilCoreControl : UserControl
     private bool _isLoaded;
     private bool _animating;
     private VirgilCoreState? _renderedState;
+    private string? _profileAccessibleName;
     private int _generation;
     internal TimeProvider GlanceClock { get; set; } = TimeProvider.System;
 
@@ -122,7 +123,13 @@ public partial class VirgilCoreControl : UserControl
         Eyes.Stroke = profile.Shape == VirgilEyeShape.Success ? brush : null;
         Eyes.StrokeThickness = 18.5;
         Eyes.Data = EyeGeometry(profile.Shape);
-        AutomationProperties.SetName(this, profile.AccessibleName);
+        var accessibleName = AutomationProperties.GetName(this);
+        if (string.IsNullOrEmpty(accessibleName) || accessibleName == _profileAccessibleName)
+        {
+            AutomationProperties.SetName(this, profile.AccessibleName);
+            _profileAccessibleName = profile.AccessibleName;
+        }
+        AutomationProperties.SetItemStatus(this, profile.AccessibleName);
         if (!animate) return;
         if (changed || !wasAnimating || PlayBootSequence)
         {

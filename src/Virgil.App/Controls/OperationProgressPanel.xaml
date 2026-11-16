@@ -18,7 +18,7 @@
      <Setter Property="Foreground" Value="#9fb0c0"/>
      <Style.Triggers>
       <DataTrigger Binding="{Binding FinalState}" Value="{x:Static vm:OperationFinalState.Succeeded}"><Setter Property="Foreground" Value="#5ee07a"/></DataTrigger>
-      <DataTrigger Binding="{Binding FinalState}" Value="{x:Static vm:OperationFinalState.NeedsReview}"><Setter Property="Foreground" Value="#ffc23d"/></DataTrigger>
+      <DataTrigger Binding="{Binding FinalState}" Value="{x:Static vm:OperationFinalState.NeedsReview}"><Setter Property="Foreground" Value="#ff8c1a"/></DataTrigger>
       <DataTrigger Binding="{Binding FinalState}" Value="{x:Static vm:OperationFinalState.Failed}"><Setter Property="Foreground" Value="#ff4d4d"/></DataTrigger>
      </Style.Triggers>
     </Style></ProgressBar.Style>
