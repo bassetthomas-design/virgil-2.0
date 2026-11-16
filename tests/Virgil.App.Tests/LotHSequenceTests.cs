@@ -49,7 +49,7 @@ public sealed class LotHSequenceTests
         var card = Assert.Single(f.Vm.SingleCards, c => c.Step?.Component == UpdateComponent.Driver && c.Step.Id == "driver-read");
         Assert.Equal("Pilotes", card.Title); Assert.Equal("indisponible", card.Status);
         Assert.Equal("Les pilotes n'ont pas pu être lus. Relancez leur examen.", card.Detail);
-        Assert.Equal("Pilotes : indisponible — 1 indisponible", Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Pilotes :", StringComparison.Ordinal)));
+        Assert.Equal("Pilotes : indisponible — 1 indisponible, 1 non pris en charge automatiquement", Assert.Single(f.Vm.SingleSourceSummary.Split('\n'), line => line.StartsWith("Pilotes :", StringComparison.Ordinal)));
     });
     private sealed class Scan : IUpdateScanService
     {
