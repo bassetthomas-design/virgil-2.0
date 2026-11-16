@@ -58,7 +58,7 @@ public partial class MainWindow : Window
         IReportExportService reportExportService,
         CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
         ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView,
-        VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease,
+        VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease, BugReportPanel bugReportPanel,
         StartupView startupView, NetworkView networkView, ISystemStatusStore statusStore,
         HomePrioritiesViewModel homePriorities, TimeProvider clock)
     {
@@ -96,6 +96,9 @@ public partial class MainWindow : Window
         _statusStore.Changed += SystemStatusChanged;
         ApplySystemStatus();
         ReleasePanelHost.Children.Add(releaseView);
+        ReleasePanelHost.Children.Add(bugReportPanel);
+        ((BugReportViewModel)bugReportPanel.DataContext).ScreenSource = () => BugReportScreen.From(
+            NavigationPanel.Children.OfType<Button>().Select(b => (AutomationProperties.GetName(b), Equals(b.Tag, "Active"))));
         DiagnosticModuleView.Visibility = Visibility.Collapsed;
         ModuleHostGrid.Children.Add(DiagnosticModuleView);
         CleanupModuleView.Visibility = Visibility.Collapsed;

@@ -78,3 +78,5 @@ Livré : accents des messages Communication, récapitulatif Nettoyage corrigé e
 **L5** : harmonisation des opérations longues et textes UI restants selon le cadrage produit, dont L5-2 pour les libellés. Puis cibles de [ROADMAP.md](ROADMAP.md). `loops/plan-lots.md`, cité dans le cadrage, est absent du dépôt à `4af1cce` ; aucun découpage supplémentaire n'est inventé ici.
 
 La CI Windows de chaque PR reste la référence. Aucun nouveau résultat de tests, total de tests ou temps Windows n'est déduit de ces descriptions. Les issues #1–#10 restent hors de ce lot ; leur décision appartient à thoms.
+
+Bouton Signaler un problème : livré au lot G, issue GitHub préremplie, rien d'envoyé par Virgil
