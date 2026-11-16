@@ -1,15 +1,15 @@
 # Lot G — Signaler un problème
 
-Périmètre : bouton dans l'en-tête, issue GitHub préremplie dans le navigateur, rien d'envoyé par Virgil. Base exacte : `524fcc243d457b51dd95f94a3b72d01c2a7ce40b`. Décisions : loops (relecture), brief G1–G12 du 16/11/2026. Une seule PR, [#87](https://github.com/bassetthomas-design/virgil-2.0/pull/87), conservée en brouillon ; aucune fusion ni demande de relecture à ce stade.
+Périmètre : bouton dans l'en-tête, issue GitHub préremplie dans le navigateur, rien d'envoyé par Virgil. Base exacte : `524fcc243d457b51dd95f94a3b72d01c2a7ce40b`. Décisions : loops (relecture), brief G1–G12 du 16/11/2026. Une seule PR, [#87](https://github.com/bassetthomas-design/virgil-2.0/pull/87), fusionnée le 16/11/2026 (squash, main `2a204663494a47684ff46b71ce44c129ccddea86`).
 
 ## Séquence Windows
 
 - Tentative initiale tests seuls : `0d2efcbec8d8f73eaf79e494e99b10f5fc2a4a9c`, [run 43845576054](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43845576054). Compilation refusée par xUnit2013 (vérification d'une collection singleton par Assert.Equal). Ce run ne constitue PAS la preuve rouge d'assertion demandée. Aucun test exécuté, aucun PNG ; avertissement de l'action d'upload car aucun artefact.
 - Correction des tests seuls : `8170bcb3fcba99eddd440b5e74b2433e8f08a64a`, [run 43846077675](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43846077675). Assert.Single remplace l'assertion d'égalité du compteur, sans changement d'attente : une seule occurrence de la lecture autorisée. Compilation réussie : 0 avertissement, 0 erreur. Rouge authentique : 18 nouveaux cas App échouent par assertions (types et fichiers absents) et E1 échoue par comparaison de l'inventaire. Core : 1248 réussis / 1249, App : 807 réussis / 825 ; UI non exécutée. Aucun autre test existant en échec. L'action d'upload avertit de l'absence de fichiers, attendue avant le correctif.
 - Correctif de production séparé : `a0209b7dff53f1f743ef0bbdf3bd2fab2c9d258a`, [run vert 43846565970](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43846565970), compilation et publication réussies, 0 avertissement / 0 erreur ; **Core 1249/1249, App 825/825, UI 14/14**. Artefact `Virgil-ui-smoke` **14215781673**, téléchargé et examiné : les deux PNG lot-g/ sont différents et lisibles, avec thème sombre, erreur exacte et URL entière dans le cadre. Installateur réussi. Aucun test existant en échec.
-- Ce document est finalisé après ce premier vert. Le run vert FINAL sur le commit documentaire de tête, son SHA exact et son artefact seront inscrits dans la description de la PR avant toute demande de relecture, conformément à M12. Aucun run rouge n'est une validation finale. Après la demande de relecture, aucun commit supplémentaire sans verdict de loops (relecture).
+- Ce document est finalisé après ce premier vert. Run vert FINAL : [run 43847547056](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43847547056), head `aefc6414a430c11bfb139ee69f441cd097e54b13`, Core 1249/1249, App 825/825, UI 14/14, 0 avertissement, artefact Virgil-ui-smoke 14216851047. Aucun run rouge n'est une validation finale. Après la demande de relecture, aucun commit supplémentaire sans verdict de loops (relecture).
 
-Aucun SDK dotnet disponible dans l'environnement Linux ; aucune compilation ni exécution WPF locale revendiquée. La CI Windows fait foi. Les résultats Windows du correctif sont relevés ci-dessus ; les résultats sur la tête finale seront référencés dans la description de la PR (M12).
+Aucun SDK dotnet disponible dans l'environnement Linux ; aucune compilation ni exécution WPF locale revendiquée. La CI Windows fait foi. Les résultats Windows du correctif sont relevés ci-dessus ; run vert FINAL : [run 43847547056](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43847547056), head `aefc6414a430c11bfb139ee69f441cd097e54b13`, Core 1249/1249, App 825/825, UI 14/14, 0 avertissement, artefact Virgil-ui-smoke 14216851047.
 
 ## Exception E1 (mot pour mot)
 
@@ -18,7 +18,9 @@ E1 tests/Virgil.Core.Tests/LegacyEffectArchitectureTests.cs, méthode `ProcessRu
 `            "HomePrioritiesViewModel.cs", "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);`
 La liste Core (l.87-89), les autres méthodes et le reste du fichier ne changent pas. Ce changement va dans le commit de tests seuls (il y est rouge tant que BugReportViewModel.cs n'existe pas : rouge d'assertion authentique). Lot-G.md le cite.
 
-Aucun autre test existant modifié. Aucun ajout au dictionnaire d'accents. La liste de contrôle externe `/workspace/overmind/revues/liste-controle-virgil.md` est absente de cet environnement ; les huit points et leçons reproduits dans le brief constituent la référence disponible. Aucun statut de carte modifié ; aucun succès affiché sous un échec ; aucune création sans clic ; les trois échecs puis le succès sont testés ; les chemins réels sont utilisés ; aucun feu vert inventé, aucune sortie du brouillon.
+Aucun autre test existant modifié. Aucun ajout au dictionnaire d'accents. La liste de contrôle externe `/workspace/overmind/revues/liste-controle-virgil.md` existe (relue par loops (relecture)) ; ses huit points et leçons sont reproduits dans le brief. Aucun statut de carte modifié ; aucun succès affiché sous un échec ; aucune création sans clic ; les trois échecs puis le succès sont testés ; les chemins réels sont utilisés ; aucun feu vert inventé.
+
+L'avis Codex sur `Environment.OSVersion.Version` (composition App) est traité au lot H : port d'Infrastructure `IWindowsVersionSource`.
 
 ## Exigences et preuves préparées
 

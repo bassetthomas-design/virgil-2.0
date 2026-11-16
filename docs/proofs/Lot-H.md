@@ -1,6 +1,6 @@
 # Lot H — Correctifs avant alpha.8
 
-PR de code [#88](https://github.com/bassetthomas-design/virgil-2.0/pull/88), branche `codex/lot-h`, conservée en brouillon. Base vérifiée : `2a204663494a47684ff46b71ce44c129ccddea86`. H-doc est exclu de cette PR. Aucun merge, amend ou force-push.
+PR de code [#88](https://github.com/bassetthomas-design/virgil-2.0/pull/88), branche `codex/lot-h`, fusionnée le 16/11/2026 (squash, main `411fc89228e5aa2be074a1e80c6ac320b16aaab9`). Base vérifiée : `2a204663494a47684ff46b71ce44c129ccddea86`. H-doc est exclu de cette PR. Aucun merge, amend ou force-push.
 
 ## Séquence de preuve Windows
 
@@ -51,6 +51,8 @@ La tentative 1 du run `43878523455` a aussi échoué dans `L6AppBehaviorTests.Es
 
 ## R10 — portée du test Pilotes et décisions M5
 
+Run vert FINAL : [run 43896869651](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43896869651), head `79d95cd348c6e92d402087d96f8e51504783502c`, Core 1250/1250, App 839/839, UI 14/14, artefact Virgil-ui-smoke 14240036127.
+
 « ReadSingleItemsAsync n'est appelée par aucun code de l'appli ; ce test vérifie l'affichage d'une lecture des pilotes en échec, pas le parcours de l'aperçu » — décision « loops (relecture), 16/11 16h20 », option A (réponse M5b).
 
 Le commit de tests seuls `d734631` conserve une référence au vrai `UpdateSequenceService` injecté via `wrap`, puis appelle explicitement `sequence.ReadSingleItemsAsync(default)` après RunAll/Skip. `InspectDriversCommand` recharge les cartes du cache. Aucun champ privé n'est manipulé, aucune fixture existante n'est modifiée et aucun appel de production n'est ajouté. Ce test constitue une couverture du rendu App depuis le cache, pas une preuve d'un parcours utilisateur d'aperçu.
@@ -94,6 +96,19 @@ Les tests H produisent deux captures en STA avec les ressources du thème, dans 
 
 Les backends de tests et le faux port n'attestent aucune mise à jour réelle sur un PC. L'affichage réel des noms accessibles par un lecteur d'écran et la couleur de la barre restent à vérifier sur le PC de référence à l'alpha.8. Aucune préversion n'est publiée par ce lot. Aucun changement de H-doc, aucune demande de relecture externe, aucun changement d'état brouillon.
 
+Artefact du run vert du correctif : [Virgil-ui-smoke 14238289577](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43895724670/artifacts/14238289577), dossier `lot-h/`. Deux PNG rendus en STA avec le thème chargé, téléchargés et inspectés :
+
+| PNG | Dimensions | SHA-256 |
+| --- | --- | --- |
+| `barre-a-verifier.png` | 900×360 | `6ecda1d14933c16b56cbdf4d8577927a411dbff5f8d01735f23c47f76c8deb56` |
+| `carte-application.png` | 1600×2400 | `d40641e7994a8ca73dc7724da9634480ea62530d3d3fa7d38ad743da28901bb7` |
+
+Les octets des deux captures diffèrent. La première montre la barre orange de NeedsReview ; la seconde montre la vraie UpdatesView, une carte d'application lisible dans le cadre et la ligne « Source : Applications », sans lignes « ID : » ni « Commande : ». Les noms des deux fichiers sont vérifiés dans l'archive. Les captures du head final et leur artefact sont référencés dans la description de la PR.
+
+Exécuté : compilation et tests Windows Core/App/UI ; vérifications de diff, liste fermée et exceptions E1–E5 ; inspection des deux PNG. Non exécuté localement : build/tests .NET, SDK absent. Restant à vérifier sur PC à l'alpha.8 : noms effectivement lus par un lecteur d'écran et couleur de la barre en usage réel. Le test Pilotes ne prouve pas le parcours utilisateur d'aperçu, conformément à la décision M5b ci-dessus. Les essais réels Store, hors WinGet, Steam et navigateur restent les vérifications alpha prévues par le brief.
+
+Aucun fichier H-doc, workflow, réglage ou secret n'est modifié. La PR a été fusionnée le 16/11/2026 après le feu vert de loops (relecture) sur `79d95cd348c6e92d402087d96f8e51504783502c`.
+
 ## Fichiers touchés et hygiène
 
 Le contrôle de liste fermée et `git diff --check` contre la base main sont conformes. Aucun binaire ni fichier généré n'est ajouté ; les PNG restent dans les artefacts CI. Les fichiers touchés sont :
@@ -123,18 +138,3 @@ Le contrôle de liste fermée et `git diff --check` contre la base main sont con
 - `tests/Virgil.App.Tests/UpdatesViewModelTests.cs`
 - `tests/Virgil.Core.Tests/LauncherShutdownTests.cs`
 - `tests/Virgil.Core.Tests/LotHLauncherSummaryTests.cs`
-
-## Captures et limites
-
-Artefact du run vert du correctif : [Virgil-ui-smoke 14238289577](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43895724670/artifacts/14238289577), dossier `lot-h/`. Deux PNG rendus en STA avec le thème chargé, téléchargés et inspectés :
-
-| PNG | Dimensions | SHA-256 |
-| --- | --- | --- |
-| `barre-a-verifier.png` | 900×360 | `6ecda1d14933c16b56cbdf4d8577927a411dbff5f8d01735f23c47f76c8deb56` |
-| `carte-application.png` | 1600×2400 | `d40641e7994a8ca73dc7724da9634480ea62530d3d3fa7d38ad743da28901bb7` |
-
-Les octets des deux captures diffèrent. La première montre la barre orange de NeedsReview ; la seconde montre la vraie UpdatesView, une carte d'application lisible dans le cadre et la ligne « Source : Applications », sans lignes « ID : » ni « Commande : ». Les noms des deux fichiers sont vérifiés dans l'archive. Les captures du head final et leur artefact sont référencés dans la description de la PR.
-
-Exécuté : compilation et tests Windows Core/App/UI ; vérifications de diff, liste fermée et exceptions E1–E5 ; inspection des deux PNG. Non exécuté localement : build/tests .NET, SDK absent. Restant à vérifier sur PC à l'alpha.8 : noms effectivement lus par un lecteur d'écran et couleur de la barre en usage réel. Le test Pilotes ne prouve pas le parcours utilisateur d'aperçu, conformément à la décision M5b ci-dessus. Les essais réels Store, hors WinGet, Steam et navigateur restent les vérifications alpha prévues par le brief.
-
-Aucun fichier H-doc, workflow, réglage ou secret n'est modifié. La PR reste en brouillon ; aucune fusion ni demande de relecture n'est réalisée par ce lot.

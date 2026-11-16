@@ -95,6 +95,8 @@ Après la relance silencieuse réussie, `SteamUpdateService` retourne uniquement
 
 Le [run vert final 43244229107](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43244229107), head `bca076022118ae8d5c2282bcc69ee8958c825fa4`, valide Core **1247/1247**, App **727/727**, UI **14/14**, avec **0 avertissement / 0 erreur de build**. Son artefact `Virgil-ui-smoke` et ses onze PNG, dont les nouvelles captures 10 et 11, sont référencés ci-dessus. Les runs de tests seuls sont rouges avant le correctif séparé ; aucun résultat local ne remplace cette validation Windows.
 
+le head final de la PR #84 est `34cd870241212563d995589d0cc0a36e465aaac0`, [run 43245406325](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43245406325) vert (commit documentaire seul ; Core 1247/1247, App 727/727, UI 14/14), artefact Virgil-ui-smoke 13956239181 ; le run 43244229107 cité plus haut est celui du correctif bca0760, qui a produit les captures 10 et 11.
+
 ## Fichiers et hygiène du diff
 
 Seul test présent à la base modifié : `tests/Virgil.App.Tests/LongOperationArchitectureTests.cs`, +1/−0 (inventaire de `RunSingleAsync`). `UpdatesViewModelTests.cs` et `UpdatesSequenceViewModelTests.cs` sont inchangés. Toutes les assertions antérieures restent intactes. Les trois fichiers D2 sont nouveaux par rapport à la base. Aucun fichier généré, réécriture globale ou changement de fins de ligne ; `git diff --check` sans erreur. Les onze PNG téléchargés ont onze SHA-256 distincts et mesurent chacun 1600 × 2400 pixels.
