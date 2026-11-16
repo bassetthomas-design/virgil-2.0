@@ -1,6 +1,16 @@
 # Lot F — Répliques, texte progressif et Priorités
 
-Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`, PR [#86](https://github.com/bassetthomas-design/virgil-2.0/pull/86), conservée en brouillon. Historique linéaire, aucun merge, amend ni force-push. Les décisions de loops (relecture) du 16/11 corrigent le cadrage précédent du scénario Steam seul.
+Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`, PR [#86](https://github.com/bassetthomas-design/virgil-2.0/pull/86), conservée en brouillon. Historique linéaire, aucun merge, amend ni force-push. Les décisions de loops (relecture) du 16/11 couvrent le scénario Steam seul et les corrections B1/B2 ci-dessous.
+
+## Corrections B1/B2 décidées le 16/11
+
+L’ancienne preuve de coup d’œil était insuffisante : sur le runner sans animations, le test acceptait Rest et les PNG repos/coup d’œil étaient identiques. Les runs verts 419/420 ne prouvaient donc pas ce comportement. Cette affirmation antérieure est corrigée ici.
+
+- Tests seuls B1, commit `6aed8746fedaa0ce50d616f23b7c644273b66e5f` : appel forcé avec true, Sarcastic sans condition, retour Rest à 1 200 ms avec horloge manuelle (1199 puis 1 ms, sans Sleep), comparaison des pixels rendus des deux PNG. Le run rouge 421 échoue réellement sur Assert.NotNull : la surcharge interne bool manque encore ; compilation réussie, aucun échec d’environnement.
+- Correctif B1 séparé, commit `428b8dac845f425e1a9b46d408aa59be36218f53` : la méthode publique appelle `ShowSarcasticGlance(UserAnimationsEnabled())`. La surcharge interne bool permet le test indépendant des préférences CI ; GlanceClock, un TimeProvider interne, pilote le minuteur unique de 1,2 s. Les gardes chargé/visible/compact/état et le jeton de génération sont conservés. Le run propre 422 est vert et l’assertion de différence des pixels passe.
+- B2 séparé, commit `766cb525c5acbdae80d9043103870fbe2449f5d0` : tous les littéraux découpés de VirgilLines et HomePriorityCatalog sont remis en entier. Exception décidée par loops (relecture) le **16/11** : cinq entrées motivées dans ValideSansAccent.txt seulement, `garde`, `fonctionne`, `note`, `charge`, `mesures`, pour distinguer noms/présents des participes accentués. InterfaceAccentTests et MotsAccentues.txt restent identiques à la base. Les Assert.Equal gardent les annexes A 33/33 et B 22/22 exactes.
+
+`texte-partiel.png` utilisait un TextBlock de test sans le style du chat, d’où le noir sur noir. L’interface réelle emploie déjà VirgilChatMessageText, hérité de VirgilHudSecondaryText, et la réplique du panneau est blanche. Le test applique maintenant le style réel du chat et vérifie le rapport de contraste texte/fond ≥ 4,5:1 avant la capture. Ce test passe dès le run rouge B1 ; aucune couleur de production n’a été changée.
 
 ## Décision finale Steam du 16/11 : production restaurée, préparation du test corrigée
 
@@ -45,20 +55,28 @@ Rien d’autre ne change dans ce test : Assert.Single sur Step.Id == "Steam", qu
 | Rouge avant correction de la préparation Steam | [412 — 43831007548](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43831007548) | `5f1f15e029c616e647575eddb48bae0e4a226d0e` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 806/807. Steam seul échoue sur la collection vide. |
 | Changement de production rejeté | [414 — 43832572292](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43832572292) | `59ef00a7d72bf4fcf078c5257782063f854caa96` | Core 1249/1249, App 805/807. Deux tests existants en échec : ligne Lanceurs indue et acquittement d’annulation. Commit annulé. |
 | Version corrigée, avant documentation finale | [419 — 43835834477](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43835834477) | `b5b97cce4100d806d91c50854223aa5e016bf807` | **VERT : compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 807/807, UI 14/14. Publication et installateur réussis.** |
+| Ancien head documentaire, avant B1/B2 | [420 — 43836841119](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43836841119) | `cb070d8f90ec61f722a268375459e6e06c426b5f` | VERT, sans preuve effective du coup d’œil ; remplacé par B1. |
+| B1 tests seuls, rouge | [421 — 43839594162](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43839594162) | `6aed8746fedaa0ce50d616f23b7c644273b66e5f` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 806/807. Unique échec : surcharge bool absente (Assert.NotNull). |
+| B1 correctif, run propre | [422 — 43840180160](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43840180160) | `428b8dac845f425e1a9b46d408aa59be36218f53` | **VERT : 0 avertissement, 0 erreur ; Core 1249/1249, App 807/807, UI 14/14.** |
+| B1+B2, avant dernier commit documentaire | [423 — 43840327391](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43840327391) | `766cb525c5acbdae80d9043103870fbe2449f5d0` | **VERT : 0 avertissement, 0 erreur ; Core 1249/1249, App 807/807, UI 14/14 ; publication et installateur réussis.** |
 
 Les anciens runs verts 415/416 portaient les scans de séquence ajoutés à ScanUpdatesCommand. Leur résultat de CI ne validait pas le respect du périmètre : les deux commits concernés sont annulés. **Ces anciens runs ne sont pas les preuves finales de la version restaurée.** Les runs rouges ci-dessus restent des preuves historiques d’échec.
 
 Le run 419 valide la production restaurée et la préparation de test décidée le 16/11. Artefact vert [Virgil-ui-smoke, ID 14211410685](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43835834477/artifacts/14211410685), 5 948 228 octets ; digest publié `sha256:d049514eff683f854725d5baacd8a17bc10eeab64683b5231d25bce6bdae7bb8`. Les logs confirment l’upload de 90 fichiers au total. Application et installateur sont également publiés.
 
+Artefact propre B1 : [Virgil-ui-smoke 14212842854](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43840180160/artifacts/14212842854), digest `sha256:8b54bb977bde8a7a2d054083e93662a4e01f8bf0a3bf521d3520b65efa2a5a57`.
+
+Artefact B1+B2 : [Virgil-ui-smoke 14212298578](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43840327391/artifacts/14212298578), 5 941 473 octets, digest `sha256:6298e0bd343eae1b4120314a7295c1e63fa02679b6090c1618a6c5d8e54fbd88`. Les tests enregistrent les PNG lot-f, avec différence des pixels repos/coup d’œil et contraste du texte vérifiés par assertions.
+
 ### M7 : dernier commit documentaire, puis vérification du head final
 
-Le présent document est publié seulement après la validation verte du run 419. **Aucun autre push ne suivra ce dernier commit documentaire.** Son propre run Windows sera vérifié jusqu’à sa conclusion réelle. Conformément à M7 du brief, le numéro et l’ID du run vert FINAL sur ce head final, le SHA exact du head et l’ID de son artefact Virgil-ui-smoke seront inscrits dans la description de la PR #86, sans réécrire ce document ni pousser un autre commit. Le run 419 n’est pas présenté comme le run du futur head documentaire.
+Le présent document est publié seulement après la validation verte du run 423. **Aucun autre push ne suivra ce dernier commit documentaire.** Son propre run Windows sera vérifié jusqu’à sa conclusion réelle. Conformément à M7 du brief, le numéro et l’ID du run vert FINAL sur ce head final, le SHA exact du head et l’ID de son artefact Virgil-ui-smoke seront inscrits dans la description de la PR #86, sans réécrire ce document ni pousser un autre commit. Le run 423 n’est pas présenté comme le run du futur head documentaire. Le SHA final et son run ne peuvent être autoréférencés dans ce commit ; la description de PR constitue la référence finale après vérification, comme prévu par M7.
 
 ### Autres exceptions et corrections décidées par loops (relecture), 16/11
 
 - Exception F11 unique sur un test préexistant, commit dédié `ac143e3c224efec6d3fb3506b97d012d6d215374` : seul ajout alphabétique de HomePrioritiesViewModel.cs dans la liste App de LegacyEffectArchitectureTests.ProcessRunnerConsumersRemainExplicitlyInventoried. Aucun autre octet de ce test ni autre test préexistant n’est modifié. Le nouveau LotFBackupBoundaryTests, commit `ee35c949749d0dd8e801ad659a079c26711b3afc`, prouve uniquement ms-settings:backup, sans argument, élévation, attente de processus ni RunAsync ; navigation d’écran sans lancement et point étranger refusé.
 - Correction d’une attente erronée décidée par loops (relecture) le 16/11, commit dédié `451e45dfec7901710a8d6307a96c998b2472752a` : dans le seul nouveau LotFSpeechTests, entrée interdite " COM" conservée et comparaison Ordinal sensible à la casse. Les autres termes restent insensibles à la casse et chaque Assert.Equal du catalogue est conservé. La réplique « Annulation prise en compte. Le détail est ci-dessus. » reste exacte ; cette correction est justifiée selon M5.
-- InterfaceAccentTests, ValideSansAccent et MotsAccentues restent strictement identiques à la base. Les faux positifs sur les homographes sont traités par quelques expressions littérales repliées en constantes par le compilateur. Aucun assemblage de phrase à l’exécution ; les 33 répliques et 22 entrées compilées restent exactes, vérifiées par les Assert.Equal existants du lot. Ce découpage source est signalé dans la PR.
+- Exception B2 du 16/11 : ValideSansAccent.txt reçoit uniquement les cinq homographes motivés ci-dessus. Les littéraux sont entiers ; aucun contournement du contrôle d’accents ne subsiste. InterfaceAccentTests et MotsAccentues.txt ne changent pas.
 - Le commit de production `5f1f15e029c616e647575eddb48bae0e4a226d0e` conserve la normalisation du chat, puis la chaîne exacte `"[VIRGIL]\n" + message`, et vide le TextBlock de phase masqué à la fin pour ne garder qu’une conclusion dans le panneau. Les propriétés Step, Steps, Commentary et FinalSummary conservent leurs textes et règles.
 
 Le complément initial de tests seuls corrigeait l’identification des cartes Steam sans changer leurs clés : Launcher:SteamGame:<id> pour la carte App, SteamGame:<id> pour l’étape du panneau. Cette correction précède les runs du correctif de production et ne modifie aucune attente de statut ou de détail.
@@ -89,7 +107,7 @@ Seuls les entrées du chat et la ligne Remark utilisent ce comportement. La norm
 
 `ShowSarcasticGlance` n’ajoute aucun état applicatif et ne modifie ni `SetState`, ni `NotifyCommunication`, ni `RefreshFace`, ni les noms accessibles. La méthode utilise la géométrie sarcastique déjà présente, pendant 1,2 s, au repos ou en communication seulement, contrôle chargé, visible, non compact et animations actives. Elle invalide le profil rendu pour que la prochaine demande d’état reprenne immédiatement sa forme, même si cet état est identique. Un jeton de génération empêche le retour différé d’écraser un état plus récent. Le lancement d’accueil est limité à une fois, après l’animation de démarrage ou le premier rendu si elle ne joue pas.
 
-Couverture exécutée au run vert 419 : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF).
+Couverture exécutée aux runs verts 422 et 423 : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF, horloge manuelle et pixels différents pour le coup d’œil).
 
 ## Priorités : table de l’annexe B
 
@@ -139,7 +157,7 @@ Les métadonnées et les logs d’upload de l’artefact sont vérifiés. L’ar
 
 ## Périmètre et fichiers
 
-Un seul test préexistant modifié sous l’exception F11 du 16/11 : une entrée de l’inventaire des consommateurs. Aucun autre test préexistant, workflow, réglage, secret, paquet NuGet, helper, garde ou service d’installation modifié. La composition nouvelle reste dans `AddVirgilViews` et la fabrique MainWindow ; `AddVirgilServices` ne change pas. Les trois documents produit ne changent que les phrases d’état du ton autorisées par R14.
+Un seul fichier C# de test préexistant modifié sous l’exception F11 du 16/11 : une entrée de l’inventaire des consommateurs. La ressource ValideSansAccent.txt reçoit les cinq entrées de l’exception B2. Aucun autre test préexistant, workflow, réglage, secret, paquet NuGet, helper, garde ou service d’installation modifié. La composition nouvelle reste dans `AddVirgilViews` et la fabrique MainWindow ; `AddVirgilServices` ne change pas. Les trois documents produit ne changent que les phrases d’état du ton autorisées par R14.
 
 - `docs/ACTIONS.md`
 - `docs/PROJECT_STATUS.md`
@@ -164,6 +182,7 @@ Un seul test préexistant modifié sous l’exception F11 du 16/11 : une entrée
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Sequence.cs`
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Single.cs`
 - `src/Virgil.Core/Status/SystemStatusStore.cs`
+- `tests/Virgil.App.Tests/Accents/ValideSansAccent.txt` (cinq homographes motivés, exception B2)
 - `tests/Virgil.App.Tests/LotFBackupBoundaryTests.cs`
 - `tests/Virgil.App.Tests/LotFOperationTests.cs`
 - `tests/Virgil.App.Tests/LotFPrioritiesTests.cs`
@@ -178,4 +197,4 @@ Un seul test préexistant modifié sous l’exception F11 du 16/11 : une entrée
 
 La CI Windows est la référence ; la compilation croisée Linux antérieure n’est pas une validation WPF. Une tentative locale de test a été interrompue par l’absence de `Microsoft.WindowsDesktop.App` sous Linux : aucun résultat d’exécution local n’est revendiqué.
 
-Le rendu et la vitesse du texte sur le PC cible restent à vérifier à l’alpha.8. Les captures automatisées des contrôles ne remplacent pas cet essai. La liste de contrôle externe `/workspace/overmind/revues/liste-controle-virgil.md` n’est pas présente ; sa version reproduite dans le brief a été utilisée. Aucun feu vert de loops (relecture) n’est revendiqué et aucune relecture n’est demandée avant la vérification finale M7.
+Le rendu et la vitesse du texte sur le PC cible restent à vérifier à l’alpha.8. Les captures automatisées des contrôles ne remplacent pas cet essai. La liste de contrôle externe `/workspace/overmind/revues/liste-controle-virgil.md` existe, comme précisé par loops (relecture). Sa copie n’est pas montée/accessible dans cet environnement Cloud ; sa version reproduite dans le brief a été utilisée. L’ancienne affirmation générale d’inexistence est retirée. Aucun feu vert de loops (relecture) n’est revendiqué et aucune relecture n’est demandée avant la vérification finale M7.
