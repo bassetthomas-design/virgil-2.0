@@ -209,7 +209,7 @@ public sealed class D2SingleItemTests
         var legacy = Assert.Single(f.Vm.Entries.OfType<UpdateItemViewModel>(), c => c.Item.Id == "a");
         legacy.IsSelected = true;
         Assert.True(f.Vm.IsRunSelectedEnabled);
-        Assert.Contains("ID : a", legacy.Lines);
+        Assert.DoesNotContain(legacy.Lines, line => line.StartsWith("ID :", StringComparison.Ordinal));
         await Capture(f.Vm, "01-carte-avec-bouton");
     });
 

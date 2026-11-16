@@ -95,7 +95,7 @@ public partial class UpdatesViewModel
             foreach (var card in active.Where(c => !priority.Contains(c.Status))) card.Status = "à vérifier";
             var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s)) ?? (active.Length == 0 ? "à jour" : "à vérifier");
             var counts = new List<string>();
-            foreach (var value in new[] { "mis à jour", "à jour", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
+            foreach (var value in new[] { "mis à jour", "à jour", "à jour selon Steam", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
             {
                 var count = cards.Count(c => c.Status == value
                     && (!c.Step!.IsInformational || c.Step.Id == "driver-read" || value == DriverCardSummary.Unsupported));

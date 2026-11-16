@@ -325,11 +325,16 @@ public partial class UpdatesViewModel
     private static string DisplayApplicationText(UpdateSequenceStep step, string text)
     {
         var display = DisplaySequenceText(text);
-        if (!string.IsNullOrWhiteSpace(step.Id)) display = display.Replace(step.Id, "cette application", StringComparison.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(step.Id)) display = ReplaceApplicationWord(display, step.Id);
         if (step.Application is { Scope: not "Inconnu" } app && !string.IsNullOrWhiteSpace(app.Scope))
-            display = display.Replace(app.Scope, "cette application", StringComparison.OrdinalIgnoreCase);
+            display = ReplaceApplicationWord(display, app.Scope);
         return display;
     }
+    private static string ReplaceApplicationWord(string text, string word) =>
+        System.Text.RegularExpressions.Regex.Replace(text,
+            @"(?<![\p{L}\p{N}_.-])" + System.Text.RegularExpressions.Regex.Escape(word) + @"(?![\p{L}\p{N}_-]|\.[\p{L}\p{N}])",
+            "cette application", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     private static string DisplaySequenceText(string? text) => string.IsNullOrWhiteSpace(text) ? "non renseigné" : text
         .Replace("tout est à jour", "état complet non prouvé", StringComparison.OrdinalIgnoreCase)
         .Replace("tout à jour", "état complet non prouvé", StringComparison.OrdinalIgnoreCase)

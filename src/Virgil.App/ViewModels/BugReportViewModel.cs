@@ -32,7 +32,10 @@ public partial class BugReportViewModel : ObservableObject
         var url = "";
         try
         {
-            url = BugReportLink.Build(_context, ScreenSource());
+            string screen;
+            try { screen = ScreenSource(); }
+            catch (Exception) { screen = "non déterminé"; }
+            url = BugReportLink.Build(_context, screen);
             var result = await _runner.LaunchAsync(new ProcessLaunchRequest(url, [], UseShellExecute: true), token);
             if (!result.Started || result.LaunchError is not null) ShowFailure(url);
             else

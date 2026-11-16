@@ -30,7 +30,7 @@ public sealed class LotEProgressColorTests
     [Theory]
     [InlineData("Neutral", "#FF9FB0C0")]
     [InlineData("Succeeded", "#FF5EE07A")]
-    [InlineData("NeedsReview", "#FFFFC23D")]
+    [InlineData("NeedsReview", "#FFFF8C1A")]
     [InlineData("Failed", "#FFFF4D4D")]
     [InlineData("Cancelled", "#FF9FB0C0")]
     public Task Typed_final_state_colors_the_real_bar_without_changing_completion(string state, string color) => ThemeContrastTests.OnSta(() =>

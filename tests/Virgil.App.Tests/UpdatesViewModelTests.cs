@@ -98,7 +98,7 @@ public sealed class UpdatesViewModelTests
         Assert.Equal(new[] { "a", "b", "done", "z", "critical" }, f.Cards.Select(c => c.Item.Id));
         var card = f.Cards.First();
         Assert.Equal("a - 2", card.Header);
-        Assert.Equal(new[] { "ID : a", "Version installée : 1", "Version disponible : 2", "Source : WinGet", "Risque : validation requise - Motif", "Statut : disponible", "Commande : winget upgrade \"app test\"" }, card.Lines);
+        Assert.Equal(new[] { "Version installée : 1", "Version disponible : 2", "Source : Applications", "Risque : validation requise - Motif", "Statut : disponible" }, card.Lines);
         card.IsSelected = true;
         Assert.True(f.Vm.IsRunSelectedEnabled);
         card.IsSelected = false;
@@ -166,9 +166,9 @@ public sealed class UpdatesViewModelTests
         Assert.Equal("PASSER", f.Vm.SkipLabel);
         Assert.Equal(state, f.Vm.ValidationCoreState);
         Assert.True(f.Vm.IsCancelSequenceVisible);
-        Assert.Contains("Application : app\nID : app\nVersion : 1 -> 2\nSource : WinGet\nRisque :", f.Vm.ValidationDetails);
+        Assert.Contains("Application : app\nVersion : 1 -> 2\nSource : Applications\nRisque :", f.Vm.ValidationDetails);
         Assert.EndsWith("\nMotif : Motif", f.Vm.ValidationDetails);
-        Assert.Equal("winget upgrade \"app test\"", f.Vm.ValidationCommand);
+        Assert.Equal("Mettre à jour app vers la version 2.", f.Vm.ValidationCommand);
         Assert.Equal("Validation individuelle obligatoire.\nAucun --all, aucune installation pilote, aucun redémarrage, aucune élévation demandée par Virgil.", f.Vm.ValidationSafety);
         Assert.Empty(f.Actions.Order);
         f.Vm.ExecuteDecisionCommand.Execute(null);

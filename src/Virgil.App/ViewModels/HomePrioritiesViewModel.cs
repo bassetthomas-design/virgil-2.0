@@ -44,8 +44,13 @@ public sealed partial class HomePrioritiesViewModel : ObservableObject, IDisposa
         if (item is null || !Items.Contains(item)) return;
         if (item.Destination == "ms-settings:backup")
         {
-            try { await _runner.LaunchAsync(new ProcessLaunchRequest("ms-settings:backup", [], UseShellExecute: true), default); }
-            catch { StatusText = "Le réglage Sauvegarde Windows n'a pas pu être ouvert."; }
+            try
+            {
+                var result = await _runner.LaunchAsync(new ProcessLaunchRequest("ms-settings:backup", [], UseShellExecute: true), default);
+                StatusText = !result.Started || result.LaunchError is not null
+                    ? "Le réglage Sauvegarde Windows n'a pas pu être ouvert." : string.Empty;
+            }
+            catch (Exception) { StatusText = "Le réglage Sauvegarde Windows n'a pas pu être ouvert."; }
         }
         else NavigationRequested?.Invoke(item.Destination);
     }
