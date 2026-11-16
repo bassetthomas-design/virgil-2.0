@@ -44,13 +44,16 @@ public partial class UpdatesViewModel
         }
         RefreshSingleState();
     }
-    private async Task LoadScannedSingleSourceCardsAsync(CancellationToken token)
+    private async Task LoadScannedSteamCardAsync(CancellationToken token)
     {
         if (_sequenceService is null) return;
-        // Explicit scan only: prepare the same read-only source cards as the sequence preview.
+        // Explicit scan only: reuse read-only discovery, exposing the actionable Steam card.
         await _sequenceService.ScanAsync(_lastItems.ToArray(), token);
         token.ThrowIfCancellationRequested();
-        LoadSingleSourceCards();
+        foreach (var source in _sequenceService.SingleItems.Where(outcome => outcome.Step.Component == UpdateComponent.Launcher
+            && outcome.Step.Id == "Steam" && outcome.VerifiedStatus != DriverCardSummary.Unsupported))
+            AddSingleCard(source);
+        RefreshSingleState();
     }
     private UpdateTextCardViewModel AddSingleCard(UpdateSequenceStepResult outcome)
     {

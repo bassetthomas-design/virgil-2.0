@@ -179,7 +179,7 @@ public partial class UpdatesViewModel : ObservableObject
             await PersistReportAsync(ReportMapper.FromUpdateScan(report));
 
             RenderScanReport(report);
-            await LoadScannedSingleSourceCardsAsync(_operationCancellation.Token);
+            await LoadScannedSteamCardAsync(_operationCancellation.Token);
             RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PRÊT");
             AnnounceScan(report);
         }
