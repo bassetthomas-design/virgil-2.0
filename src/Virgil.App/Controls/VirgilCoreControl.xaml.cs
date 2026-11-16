@@ -21,6 +21,7 @@ public partial class VirgilCoreControl : UserControl
     private bool _animating;
     private VirgilCoreState? _renderedState;
     private int _generation;
+    internal TimeProvider GlanceClock { get; set; } = TimeProvider.System;
 
     public VirgilCoreControl()
     {
@@ -45,6 +46,33 @@ public partial class VirgilCoreControl : UserControl
         State = state;
         RefreshFace(UserAnimationsEnabled());
     }
+    public void ShowSarcasticGlance() => ShowSarcasticGlance(UserAnimationsEnabled());
+    internal void ShowSarcasticGlance(bool animationsEnabled)
+    {
+        if (!_isLoaded || !IsVisible || !animationsEnabled || IsCompact()
+            || State is not (VirgilCoreState.Idle or VirgilCoreState.Communicating)) return;
+        var generation = ++_generation;
+        Eyes.BeginAnimation(OpacityProperty, null);
+        var scale = (ScaleTransform)Eyes.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        scale.ScaleY = 1; Eyes.Opacity = 1;
+        Eyes.Tag = VirgilEyeShape.Sarcastic.ToString();
+        Eyes.Data = EyeGeometry(VirgilEyeShape.Sarcastic);
+        // Toute nouvelle demande de rendu, même pour le même état, reprend son profil.
+        _renderedState = null;
+        ITimer? timer = null;
+        timer = GlanceClock.CreateTimer(_ =>
+        {
+            timer?.Dispose();
+            void Restore()
+            {
+                if (generation == _generation) RefreshFace(UserAnimationsEnabled());
+            }
+            if (Dispatcher.CheckAccess()) Restore();
+            else Dispatcher.InvokeAsync(Restore);
+        }, null, TimeSpan.FromSeconds(1.2), Timeout.InfiniteTimeSpan);
+    }
+
     public void NotifyCommunication()
     {
         if (_animating && State is VirgilCoreState.Idle or VirgilCoreState.Communicating)

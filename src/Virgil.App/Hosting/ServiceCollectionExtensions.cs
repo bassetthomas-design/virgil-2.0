@@ -194,6 +194,8 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddSingleton<HomePrioritiesViewModel>(sp => new HomePrioritiesViewModel(
+            sp.GetRequiredService<ISystemStatusStore>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<NetworkViewModel>(sp => new NetworkViewModel(sp.GetRequiredService<INetworkStatusReader>()));
         services.AddSingleton<NetworkView>(sp => new NetworkView { DataContext = sp.GetRequiredService<NetworkViewModel>() });
         services.AddSingleton<StartupViewModel>(sp => new StartupViewModel(sp.GetRequiredService<IStartupInventorySource>(), sp.GetRequiredService<StartupChangeService>(), sp.GetRequiredService<IConfirmationService>()));
@@ -243,7 +245,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
-            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>(), sp.GetRequiredService<StartupView>(), sp.GetRequiredService<NetworkView>(), sp.GetRequiredService<ISystemStatusStore>()));
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>(), sp.GetRequiredService<StartupView>(), sp.GetRequiredService<NetworkView>(), sp.GetRequiredService<ISystemStatusStore>(),
+            sp.GetRequiredService<HomePrioritiesViewModel>(), sp.GetRequiredService<TimeProvider>()));
         return services;
     }
 

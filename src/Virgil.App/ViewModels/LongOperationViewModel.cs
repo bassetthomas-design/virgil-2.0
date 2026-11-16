@@ -1,3 +1,4 @@
+using Virgil.App.Speech;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -12,6 +13,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
 {
     private readonly Action _cancel;
     private readonly TimeProvider _clock;
+    private readonly VirgilLinePicker _lines;
     private ITimer? _timer;
     private ThrottledOperationProgress? _progress;
     private SynchronizationContext? _context;
@@ -19,7 +21,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
     private long _generation;
     private bool _immediate;
     public LongOperationViewModel(Action cancel, TimeProvider? clock = null)
-    { _cancel = cancel; _clock = clock ?? TimeProvider.System; }
+    { _cancel = cancel; _clock = clock ?? TimeProvider.System; _lines = new VirgilLinePicker(_clock); }
     [ObservableProperty] private bool isRunning;
     [ObservableProperty] private bool isVisible;
     [ObservableProperty] private bool isCancelling;
@@ -31,6 +33,8 @@ public sealed partial class LongOperationViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string finalSummary = string.Empty;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDistinctCommentary))] private string commentary = string.Empty;
     [ObservableProperty] private OperationFinalState finalState = OperationFinalState.Neutral;
+    [ObservableProperty] private string remark = string.Empty;
+    public bool HumourAllowed { get; set; } = true;
     public bool HasDistinctCommentary => !string.IsNullOrWhiteSpace(Commentary)
         && !FinalSummary.Contains(Commentary, StringComparison.Ordinal);
     public ObservableCollection<OperationStepViewModel> Steps { get; } = new();
@@ -73,6 +77,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
         _context = SynchronizationContext.Current;
         _started = _clock.GetTimestamp(); _immediate = immediately;
         FinalState = OperationFinalState.Neutral;
+        Remark = _lines.PickRunning(HumourAllowed);
         Steps.Clear(); FinalSummary = string.Empty; Commentary = string.Empty;
         IsCancelling = false; IsNonInterruptible = nonInterruptible;
         Step = label; Percent = 0; IsIndeterminate = true; IsRunning = true; IsVisible = immediately;
@@ -95,6 +100,7 @@ public sealed partial class LongOperationViewModel : ObservableObject
         _timer?.Dispose(); _timer = null; _progress?.Dispose(); _progress = null;
         var cancelled = IsCancelling || wasCancelled || finalState == OperationFinalState.Cancelled;
         FinalState = cancelled ? OperationFinalState.Cancelled : finalState;
+        Remark = _lines.PickFinal(FinalState, HumourAllowed);
         if (!cancelled) { Percent = 100; IsIndeterminate = false; }
         foreach (var item in Steps.Where(item => item.Status == "En cours"))
         {

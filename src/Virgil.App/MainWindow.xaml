@@ -225,6 +225,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <Rectangle Style="{StaticResource VirgilSeparator}" />
                                     <TextBlock Grid.Row="1" Text="RAPPORT TACTIQUE" Style="{StaticResource VirgilHudSectionTitle}" />
@@ -252,6 +253,7 @@
                                             <TextBlock x:Name="ReportErrorsText" Text="AUCUNE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
                                         </StackPanel>
                                     </Grid>
+                                    <controls:HomePrioritiesPanel x:Name="PrioritiesPanel" Grid.Row="3"/>
                                 </Grid>
                             </ScrollViewer>
                         </Grid>

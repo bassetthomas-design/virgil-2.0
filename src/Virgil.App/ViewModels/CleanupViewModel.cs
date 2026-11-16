@@ -60,6 +60,7 @@ public partial class CleanupViewModel : ObservableObject
         ICleanupEstimateService? estimator = null, ISystemStatusStore? statusStore = null)
     {
         Operation = new LongOperationViewModel(CancelActiveOperation);
+        Operation.HumourAllowed = false;
         VirgilMessageRequested += message => Operation.Commentary = message.Split('\n')[0];
         _confirmationService = confirmationService;
         _estimator = estimator;

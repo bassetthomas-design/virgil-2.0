@@ -59,7 +59,7 @@ Une IA locale pourra être étudiée plus tard, uniquement comme couche d'explic
 
 **Cible L11 :** sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord.
 
-**État à 4af1cce :** ton actuel tactique et neutre ; catalogue et réglage en L11.
+**État au lot F :** catalogue de répliques écrites livré, sarcastique et poli par défaut ; listes sobres pour les risques et les écrans Nettoyage, Applications et Réparation. Aucun réglage sobre/humour livré.
 
 Cette section est la définition de référence du ton. ACTIONS et les documents produit y renvoient. Les messages actuels passent par `MainWindow.xaml.cs` et les événements `VirgilMessageRequested`.
 
