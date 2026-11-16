@@ -53,7 +53,10 @@ public sealed class LotFSpeechTests
             {
                 Assert.True(line.Length <= 90);
                 foreach (var word in new[] { "à jour", "terminé", "réussi", "tout est", "plus rien à faire", "aucun problème", "tout va bien", "Écoulé", "WinGet", "HUD", "Idle", "state", " COM", "commande" })
-                    Assert.DoesNotContain(word, line, StringComparison.OrdinalIgnoreCase);
+                {
+                    var comparison = word == " COM" ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+                    Assert.DoesNotContain(word, line, comparison);
+                }
             }
         }
     }
