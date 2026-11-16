@@ -112,6 +112,6 @@ Le futur agent pourrait ouvrir Virgil et proposer des actions, sans agir seul. N
 
 **État à 4af1cce : partiel.**
 
-Les messages `[VIRGIL]` sont à sens unique, sans saisie de chat. Ton actuel tactique et neutre ; catalogue et réglage en **cible L11**. La définition unique du ton est dans [CHATBOX_MODULE.md](modules/CHATBOX_MODULE.md#style-de-communication) ; les documents produit y renvoient.
+Les messages `[VIRGIL]` sont à sens unique, sans saisie de chat. Catalogue de répliques écrites livré au lot F, sarcastique et poli par défaut, avec listes sobres ; aucun réglage sobre/humour livré. La définition unique du ton est dans [CHATBOX_MODULE.md](modules/CHATBOX_MODULE.md#style-de-communication) ; les documents produit y renvoient.
 
-**Cible L11 :** le ton serait sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord. Aucun catalogue sarcastique ni réglage sobre/humour n'est livré. Une IA libre et un avatar nouveau ne sont pas décidés par cette spécification.
+**Cible L11 :** le ton serait sarcastique mais discret ; jamais d'humour dans une confirmation, un risque ou une suppression ; clarté d'abord. Le catalogue est livré au lot F ; le réglage sobre/humour reste une cible. Une IA libre et un avatar nouveau ne sont pas décidés par cette spécification.

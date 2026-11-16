@@ -1,0 +1,19 @@
+<UserControl x:Class="Virgil.App.Controls.HomePrioritiesPanel"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <StackPanel Margin="0,16,0,0" AutomationProperties.AutomationId="HomePrioritiesPanel">
+  <TextBlock Text="PRIORITÉS" Style="{DynamicResource VirgilHudSectionTitle}"/>
+  <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,8,0,0"/>
+  <ItemsControl ItemsSource="{Binding Items}">
+   <ItemsControl.ItemTemplate><DataTemplate>
+    <StackPanel Margin="0,8,0,4">
+     <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+     <Button Content="{Binding Button}" HorizontalAlignment="Left" Margin="0,5,0,0"
+       Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+       AutomationProperties.Name="{Binding Button}"/>
+    </StackPanel>
+   </DataTemplate></ItemsControl.ItemTemplate>
+  </ItemsControl>
+  <TextBlock Text="{Binding MeasuredAt}" Foreground="{DynamicResource App.TextSecondaryBrush}" Margin="0,8,0,0"/>
+ </StackPanel>
+</UserControl>

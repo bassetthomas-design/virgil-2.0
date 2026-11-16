@@ -53,6 +53,7 @@ public partial class ApplicationsViewModel : ObservableObject
         _locationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
         _confirmationService = confirmationService ?? throw new ArgumentNullException(nameof(confirmationService));
         Operation = new LongOperationViewModel(CancelActiveOperation);
+        Operation.HumourAllowed = false;
         _inventoryService = inventoryService ?? throw new ArgumentNullException(nameof(inventoryService));
         _uninstallService = uninstallService ?? throw new ArgumentNullException(nameof(uninstallService));
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));

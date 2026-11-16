@@ -45,6 +45,28 @@ public partial class VirgilCoreControl : UserControl
         State = state;
         RefreshFace(UserAnimationsEnabled());
     }
+    public void ShowSarcasticGlance()
+    {
+        if (!_isLoaded || !IsVisible || !UserAnimationsEnabled() || IsCompact()
+            || State is not (VirgilCoreState.Idle or VirgilCoreState.Communicating)) return;
+        var generation = ++_generation;
+        Eyes.BeginAnimation(OpacityProperty, null);
+        var scale = (ScaleTransform)Eyes.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        scale.ScaleY = 1; Eyes.Opacity = 1;
+        Eyes.Tag = VirgilEyeShape.Sarcastic.ToString();
+        Eyes.Data = EyeGeometry(VirgilEyeShape.Sarcastic);
+        // Toute nouvelle demande de rendu, même pour le même état, reprend son profil.
+        _renderedState = null;
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1.2) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (generation == _generation) RefreshFace(UserAnimationsEnabled());
+        };
+        timer.Start();
+    }
+
     public void NotifyCommunication()
     {
         if (_animating && State is VirgilCoreState.Idle or VirgilCoreState.Communicating)

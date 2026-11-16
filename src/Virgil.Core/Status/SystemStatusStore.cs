@@ -6,6 +6,8 @@ using Virgil.Core.Diagnostic;
 
 namespace Virgil.Core.Status;
 
+public sealed record PriorityPoint(string Id, string Title, string Value, int Order);
+
 public sealed record MeasuredStatus<T>(T Value, DateTimeOffset CapturedAt);
 
 public interface ISystemStatusStore
@@ -14,6 +16,7 @@ public interface ISystemStatusStore
     MeasuredStatus<DiskScanInfo>? LastSystemDisk { get; }
     MeasuredStatus<CleanupScanInfo>? LastCleanupEstimate { get; }
     MeasuredStatus<int>? LastPriorities { get; }
+    MeasuredStatus<IReadOnlyList<PriorityPoint>>? LastPriorityPoints { get; }
     event EventHandler? Changed;
     void PublishScan(SystemScanReport report);
     void PublishDiagnostic(DiagnosticFindings findings);
@@ -28,10 +31,12 @@ public sealed class SystemStatusStore : ISystemStatusStore
     private MeasuredStatus<DiskScanInfo>? _disk;
     private MeasuredStatus<CleanupScanInfo>? _cleanup;
     private MeasuredStatus<int>? _priorities;
+    private MeasuredStatus<IReadOnlyList<PriorityPoint>>? _priorityPoints;
     public MeasuredStatus<MemoryScanInfo>? LastMemory { get { lock (_sync) return _memory; } }
     public MeasuredStatus<DiskScanInfo>? LastSystemDisk { get { lock (_sync) return _disk; } }
     public MeasuredStatus<CleanupScanInfo>? LastCleanupEstimate { get { lock (_sync) return _cleanup; } }
     public MeasuredStatus<int>? LastPriorities { get { lock (_sync) return _priorities; } }
+    public MeasuredStatus<IReadOnlyList<PriorityPoint>>? LastPriorityPoints { get { lock (_sync) return _priorityPoints; } }
     public event EventHandler? Changed;
 
     public void PublishScan(SystemScanReport report)
@@ -43,6 +48,9 @@ public sealed class SystemStatusStore : ISystemStatusStore
             if (disk is { TotalBytes: > 0 }) Set(ref _disk, disk, report.CapturedAt);
             if (report.Cleanup.WasAnalyzed && report.Cleanup.Errors.Count == 0) Set(ref _cleanup, report.Cleanup, report.CapturedAt);
             Set(ref _priorities, report.Findings.Count(f => f.Severity >= ScanSeverity.Attention), report.CapturedAt);
+            Set<IReadOnlyList<PriorityPoint>>(ref _priorityPoints, Array.AsReadOnly(report.Findings
+                .Where(f => f.Severity >= ScanSeverity.Attention).OrderByDescending(f => f.Severity)
+                .Select((f, order) => new PriorityPoint(f.Id, f.Title, f.Value ?? string.Empty, order)).ToArray()), report.CapturedAt);
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -63,6 +71,8 @@ public sealed class SystemStatusStore : ISystemStatusStore
                     (long)(disk.TotalBytes.Value - disk.FreeBytes.Value), 100 * (1 - disk.FreeBytes.Value / disk.TotalBytes.Value),
                     ScanSeverity.Information, "Mesure Diagnostic", true), snapshot.CapturedAtUtc);
             Set(ref _priorities, findings.Issues.Count(i => i.Impact > 0), snapshot.CapturedAtUtc);
+            Set<IReadOnlyList<PriorityPoint>>(ref _priorityPoints, Array.AsReadOnly(findings.Issues.Where(i => i.Impact > 0)
+                .Select((i, order) => new PriorityPoint(i.Id, i.Title, i.Description, order)).ToArray()), snapshot.CapturedAtUtc);
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }

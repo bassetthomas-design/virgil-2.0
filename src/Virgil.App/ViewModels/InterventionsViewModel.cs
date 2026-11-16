@@ -41,6 +41,7 @@ public partial class InterventionsViewModel : ObservableObject
     {
         _confirmationService = confirmationService;
         Operation = new LongOperationViewModel(CancelActiveOperation);
+        Operation.HumourAllowed = false;
         _diagnosticService = diagnosticService;
         _executionService = executionService;
         _reportBuilder = reportBuilder;

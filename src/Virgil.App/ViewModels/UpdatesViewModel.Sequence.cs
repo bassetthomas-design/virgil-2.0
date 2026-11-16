@@ -197,7 +197,7 @@ public partial class UpdatesViewModel
                 }
                 if (step.Step.Component == UpdateComponent.Launcher && step.VerifiedStatus is not null)
                 {
-                    Operation.SetStep(SequenceStepKey(step.Step), step.Step.Title, step.VerifiedStatus, step.Message);
+                    Operation.SetStep(SequenceStepKey(step.Step), step.Step.Title, step.VerifiedStatus, SteamGameDetail(step));
                     continue;
                 }
                 if (step.Step.Component == UpdateComponent.Store && step.VerifiedStatus is not null)
@@ -276,7 +276,7 @@ public partial class UpdatesViewModel
         }
         catch (ConfirmationRefusedException)
         {
-            _operationFinalState = OperationFinalState.Failed;
+            _operationFinalState = OperationFinalState.Neutral;
             StatusText = "Confirmation refusée. Aucune mise à jour lancée.";
         }
         catch (OperationCanceledException)
@@ -299,6 +299,14 @@ public partial class UpdatesViewModel
             EndOperation();
         }
     }
+
+    private static string SteamGameDetail(UpdateSequenceStepResult outcome) =>
+        !outcome.Step.Id.StartsWith("SteamGame:", StringComparison.Ordinal) ? outcome.Message : outcome.VerifiedStatus switch
+        {
+            "mis à jour" or "à jour selon Steam" => string.Empty,
+            "reste à installer" => "Steam continue en arrière-plan.",
+            _ => outcome.Message
+        };
 
     private static string SequenceStepKey(UpdateSequenceStep step) => step.Id.StartsWith("SteamGame:", StringComparison.Ordinal) ? step.Id : $"{step.Component}:{step.Id}";
     private static UpdateComponent SourceComponent(UpdateComponent component) => component == UpdateComponent.WingetFinal ? UpdateComponent.Winget : component;

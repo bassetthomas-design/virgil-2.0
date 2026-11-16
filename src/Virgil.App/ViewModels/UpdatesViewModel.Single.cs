@@ -51,7 +51,7 @@ public partial class UpdatesViewModel
         if (card is not null) return card;
         if (outcome.Step.Component == UpdateComponent.Store && string.IsNullOrWhiteSpace(outcome.Step.Application?.AvailableVersion))
             outcome = outcome with { VerifiedStatus = DriverCardSummary.Unsupported, Message = "La version proposée ne peut pas être confirmée." };
-        card = new(string.Empty) { Step = outcome.Step, Status = outcome.VerifiedStatus ?? "reste à installer", Detail = outcome.Message, Busy = _operationInProgress };
+        card = new(string.Empty) { Step = outcome.Step, Status = outcome.VerifiedStatus ?? "reste à installer", Detail = SteamGameDetail(outcome), Busy = _operationInProgress };
         SingleCards.Add(card);
         return card;
     }

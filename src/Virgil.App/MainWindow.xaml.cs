@@ -1,3 +1,5 @@
+using Virgil.App.Speech;
+using Virgil.App.ViewModels;
 using Virgil.Core.Status;
 using System.Windows.Automation;
 using Virgil.App.Views;
@@ -25,6 +27,9 @@ namespace Virgil.App;
 public partial class MainWindow : Window
 {
     private readonly ISystemStatusStore _statusStore;
+    private readonly HomePrioritiesViewModel HomePriorities;
+    private readonly VirgilLinePicker _welcomeLines;
+    private bool _welcomeGlanceShown;
     private readonly Virgil.App.ViewModels.VirgilReleaseViewModel _virgilRelease;
     private readonly ISystemScanService _systemScanService;
     private readonly IReportHistoryService _reportHistoryService;
@@ -54,9 +59,12 @@ public partial class MainWindow : Window
         CleanupView cleanupView, UpdatesView updatesView, InterventionsView interventionsView,
         ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView,
         VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease,
-        StartupView startupView, NetworkView networkView, ISystemStatusStore statusStore)
+        StartupView startupView, NetworkView networkView, ISystemStatusStore statusStore,
+        HomePrioritiesViewModel homePriorities, TimeProvider clock)
     {
         _statusStore = statusStore;
+        HomePriorities = homePriorities;
+        _welcomeLines = new VirgilLinePicker(clock);
         _virgilRelease = virgilRelease;
         _systemScanService = systemScanService;
         _reportHistoryService = reportHistoryService;
@@ -77,7 +85,9 @@ public partial class MainWindow : Window
         NetworkModuleView = networkView;
         ((Virgil.App.ViewModels.NetworkViewModel)networkView.DataContext).RepairRequested += (_, _) => ShowInterventions();
         InitializeComponent();
-        _scanOperation = new Virgil.App.ViewModels.LongOperationViewModel(() => _activeScanCancellation?.Cancel());
+        PrioritiesPanel.DataContext = HomePriorities;
+        HomePriorities.NavigationRequested += NavigatePriority;
+        _scanOperation = new Virgil.App.ViewModels.LongOperationViewModel(() => _activeScanCancellation?.Cancel(), clock);
         ScanProgressPanel.DataContext = _scanOperation;
         StartupModuleView.Visibility = Visibility.Collapsed;
         NetworkModuleView.Visibility = Visibility.Collapsed;
@@ -118,6 +128,7 @@ public partial class MainWindow : Window
         PrepareStartupVisuals();
         SetVirgilState(VirgilCoreState.Idle, "REPOS");
         AppendVirgilMessage("Système prêt.\nAucune analyse récente.\nEn attente d'instruction.");
+        AppendVirgilMessage(_welcomeLines.Pick("Welcome"));
     }
 
     private void OpenScanProtocol_Click(object sender, RoutedEventArgs e) => OpenScanProtocol();
@@ -133,6 +144,7 @@ public partial class MainWindow : Window
     private async void Window_ContentRendered(object? sender, EventArgs e)
     {
         PlayStartupAnimation();
+        if (_startupStoryboard is null) ShowWelcomeGlance();
         // Signal UIA après le premier rendu et le drainage du dispatcher WPF.
         await Dispatcher.InvokeAsync(() => AutomationProperties.SetItemStatus(this, "Prêt"),
             DispatcherPriority.ApplicationIdle);
@@ -205,6 +217,8 @@ public partial class MainWindow : Window
     {
         ((Virgil.App.ViewModels.NetworkViewModel)NetworkModuleView.DataContext).CancelRefresh();
         _statusStore.Changed -= SystemStatusChanged;
+        HomePriorities.NavigationRequested -= NavigatePriority;
+        HomePriorities.Dispose();
         _virgilRelease.Dispose();
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
@@ -214,6 +228,21 @@ public partial class MainWindow : Window
         ApplicationsModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
+    }
+
+    private void NavigatePriority(string destination)
+    {
+        var args = new RoutedEventArgs();
+        switch (destination)
+        {
+            case "Nettoyage": Cleanup_Click(this, args); break;
+            case "Diagnostic": Diagnostic_Click(this, args); break;
+            case "Ressources": Resources_Click(this, args); break;
+            case "Applications": Applications_Click(this, args); break;
+            case "Mises à jour": Updates_Click(this, args); break;
+            case "Réseau": Network_Click(this, args); break;
+            case "Réparation": Interventions_Click(this, args); break;
+        }
     }
 
     private void Home_Click(object sender, RoutedEventArgs e)
@@ -895,6 +924,14 @@ public partial class MainWindow : Window
         }
 
         FinishStartupVisuals();
+        ShowWelcomeGlance();
+    }
+
+    private void ShowWelcomeGlance()
+    {
+        if (_welcomeGlanceShown) return;
+        _welcomeGlanceShown = true;
+        VirgilCore.ShowSarcasticGlance();
     }
 
     private void StopStartupStoryboard()
@@ -1027,12 +1064,12 @@ public partial class MainWindow : Window
 
         var entry = new TextBlock
         {
-            Text = "[VIRGIL]\n" + cleanMessage,
             Style = TryFindResource("VirgilChatMessageText") as Style,
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
 
+        SpeechText.SetText(entry, "[VIRGIL]\n" + cleanMessage);
         ChatMessagesPanel.Children.Add(entry);
         VirgilCore.NotifyCommunication();
         Dispatcher.BeginInvoke(

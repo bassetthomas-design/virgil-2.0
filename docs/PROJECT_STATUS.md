@@ -23,7 +23,7 @@ Les releases GitHub fournissent un installateur x64 et son SHA-256. La publicati
 | 3 — Maintenance | 3a–3d livrés (#57–#60), périmètre décrit ci-dessous | Complétude des mises à jour : cible L6 ; Démarrage : cible L12 ; Réparation : cible L12b |
 | 4 — Monitoring continu | Non livré ; Diagnostic ponctuel | Fusion Ressources : cible L7 ; capteurs : cible L9 ; suivi continu à planifier |
 | 5 — Agent / tray | Non livré ; aucun projet Agent/Tray | Cible reportée, sous-lot non fixé dans le cadrage L4c |
-| 6 — Personnalité | Messages tactiques neutres ; aucun réglage de ton | Catalogue et réglage : cible L11 |
+| 6 — Personnalité | Catalogue de répliques écrites livré au lot F ; aucun réglage de ton | Réglage sobre/humour : cible L11 |
 
 ## Socle livré avant les correctifs alpha
 
