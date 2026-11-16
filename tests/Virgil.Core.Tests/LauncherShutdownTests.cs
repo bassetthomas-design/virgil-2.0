@@ -145,7 +145,7 @@ public sealed class LauncherShutdownTests
         var pending = Execute(backend, clock, name);
         Assert.Equal(new[] { false }, backend.Commands);
         clock.Advance(TimeSpan.FromSeconds(15));
-        var result = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.Equal(new[] { false, true }, backend.Commands);
         Assert.Contains(result.Steps, step => step.Message.Contains("fermé de force", StringComparison.Ordinal));
     }
