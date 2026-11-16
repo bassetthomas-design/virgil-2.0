@@ -36,7 +36,15 @@ public sealed class LotFRevealTests
         var type = Type("Speech.SpeechText");
         var setter = type.GetMethod("SetText"); Assert.NotNull(setter);
         var clockSetter = type.GetMethod("SetClock"); Assert.NotNull(clockSetter);
-        var clock = new ManualClock(); var block = new TextBlock();
+        var clock = new ManualClock();
+        var block = new TextBlock
+        {
+            Style = (Style)Application.Current.FindResource("VirgilChatMessageText"),
+            TextWrapping = TextWrapping.Wrap
+        };
+        var foreground = Assert.IsType<System.Windows.Media.SolidColorBrush>(block.Foreground).Color;
+        var background = ((System.Windows.Media.SolidColorBrush)Application.Current.FindResource("App.BackgroundBrush")).Color;
+        Assert.True(ContrastChecker.Ratio(foreground, background) >= 4.5);
         clockSetter.Invoke(null, [block, clock]);
         var full = "[VIRGIL]\nUn texte affiché mot par mot sans bloquer.";
         setter.Invoke(null, [block, full]);

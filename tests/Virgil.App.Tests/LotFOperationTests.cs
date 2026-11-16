@@ -96,29 +96,78 @@ public sealed class LotFOperationTests
         {
             window.Show(); window.UpdateLayout(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             var eyes = (FrameworkElement)face.FindName("Eyes");
+            var show = typeof(VirgilCoreControl).GetMethod("ShowSarcasticGlance", BindingFlags.Instance | BindingFlags.NonPublic,
+                null, [typeof(bool)], null);
+            Assert.NotNull(show);
+            var clockProperty = typeof(VirgilCoreControl).GetProperty("GlanceClock", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(clockProperty);
+            var clock = new GlanceClock(); clockProperty.SetValue(face, clock);
             Assert.Equal("Rest", eyes.Tag);
-            // Capture a real rendered control while retaining its loaded window.
-            CaptureFace(face, "visage-repos"); Call(face, "ShowSarcasticGlance");
-            Assert.Equal(SystemParameters.ClientAreaAnimation ? "Sarcastic" : "Rest", eyes.Tag);
+            var restingPixels = CaptureFace(face, "visage-repos");
+            show.Invoke(face, [true]);
+            Assert.Equal("Sarcastic", eyes.Tag);
             Assert.Equal("Virgil au repos", AutomationProperties.GetName(face));
-            CaptureFace(face, "visage-coup-oeil");
-            await Task.Delay(1300); Assert.Equal("Rest", eyes.Tag);
-            Call(face, "ShowSarcasticGlance"); face.SetState(VirgilCoreState.Error); Assert.Equal("Error", eyes.Tag);
+            var glancePixels = CaptureFace(face, "visage-coup-oeil");
+            Assert.False(restingPixels.SequenceEqual(glancePixels), "Le coup d'œil doit changer les pixels du vrai contrôle.");
+            clock.Advance(1199); Assert.Equal("Sarcastic", eyes.Tag);
+            clock.Advance(1); Assert.Equal("Rest", eyes.Tag);
+            show.Invoke(face, [false]); Assert.Equal("Rest", eyes.Tag);
+            show.Invoke(face, [true]); face.SetState(VirgilCoreState.Idle); Assert.Equal("Rest", eyes.Tag);
+            show.Invoke(face, [true]); face.SetState(VirgilCoreState.Error); Assert.Equal("Error", eyes.Tag);
+            clock.Advance(1200); Assert.Equal("Error", eyes.Tag);
             foreach (var state in new[] { VirgilCoreState.Error, VirgilCoreState.Warning, VirgilCoreState.Scanning, VirgilCoreState.Executing })
             {
-                face.SetState(state); var shape = eyes.Tag; Call(face, "ShowSarcasticGlance"); Assert.Equal(shape, eyes.Tag);
+                face.SetState(state); var shape = eyes.Tag; show.Invoke(face, [true]); Assert.Equal(shape, eyes.Tag);
             }
             face.SetState(VirgilCoreState.Idle); face.AnimationDetailLevel = VirgilCoreAnimationDetailLevel.Compact;
-            Call(face, "ShowSarcasticGlance"); Assert.Equal("Rest", eyes.Tag);
+            show.Invoke(face, [true]); Assert.Equal("Rest", eyes.Tag);
         }
         finally { window.Close(); }
     });
-    private static void CaptureFace(FrameworkElement face, string name)
+    private static byte[] CaptureFace(FrameworkElement face, string name)
     {
+        face.UpdateLayout();
         var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(256, 256, 96, 96, PixelFormats.Pbgra32); bitmap.Render(face);
+        var pixels = new byte[256 * 256 * 4]; bitmap.CopyPixels(pixels, 256 * 4, 0);
         var path = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-f"); Directory.CreateDirectory(path);
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(path, name + ".png")); encoder.Save(stream);
+        return pixels;
+    }
+    private sealed class GlanceClock : TimeProvider
+    {
+        private long ticks;
+        private readonly List<ManualTimer> timers = new();
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => ticks;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            Assert.Equal(Timeout.InfiniteTimeSpan, period);
+            var timer = new ManualTimer(this, callback, state); timers.Add(timer); timer.Change(dueTime, period); return timer;
+        }
+        public void Advance(int milliseconds)
+        {
+            ticks += TimeSpan.FromMilliseconds(milliseconds).Ticks;
+            foreach (var timer in timers.ToArray()) timer.FireIfDue();
+        }
+        private sealed class ManualTimer(GlanceClock clock, TimerCallback callback, object? state) : ITimer
+        {
+            private bool disposed;
+            private long? due;
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                if (disposed) return false;
+                due = dueTime == Timeout.InfiniteTimeSpan ? null : clock.ticks + dueTime.Ticks;
+                return true;
+            }
+            public void FireIfDue()
+            {
+                if (disposed || due is null || due > clock.ticks) return;
+                due = null; callback(state);
+            }
+            public void Dispose() { disposed = true; due = null; }
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
     }
     private sealed class Scan : IUpdateScanService
     {
