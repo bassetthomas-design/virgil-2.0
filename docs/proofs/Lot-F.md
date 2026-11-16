@@ -1,6 +1,6 @@
 # Lot F — Répliques, texte progressif et Priorités
 
-Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`, PR [#86](https://github.com/bassetthomas-design/virgil-2.0/pull/86), conservée en brouillon. Aucun merge, amend, rebase ou force-push. Les décisions F1–F11 de loops (relecture) priment sur le brief initial.
+Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`, PR [#86](https://github.com/bassetthomas-design/virgil-2.0/pull/86), conservée en brouillon. Aucun merge, amend, rebase ou force-push. Les décisions F1–F11 de loops (relecture) et les exceptions ciblées du 16/11 priment sur le brief initial.
 
 ## Preuves Windows
 
@@ -8,52 +8,47 @@ Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`,
 | --- | --- | --- | --- |
 | Tests seuls initiaux | [405 — 43446518904](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43446518904) | `373f9d5fa6a8721392b8d2b070d08e4852e85d82` | Compilation 0 avertissement, 0 erreur ; Core 1247 réussis + 2 nouveaux échecs ; App 757 réussis + 49 nouveaux échecs d’assertion. UI non exécutée. |
 | Tests seuls complétés | [406 — 43447219034](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43447219034) | `41b748229322a89174e0b5d4771d1caeae7498bf` | Compilation 0 avertissement, 0 erreur ; mêmes totaux et échecs d’assertion. UI non exécutée. |
-| Correctif séparé | [407 — 43828807319](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319) | `3a24d27b587324b2180cb9ca25877b6ae137e77d` | Compilation 0 avertissement, 0 erreur ; Core 1248/1249, App 801/806. Run rouge. UI et publication non exécutées. |
+| Correctif initial | [407 — 43828807319](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319) | `3a24d27b587324b2180cb9ca25877b6ae137e77d` | Compilation 0 avertissement, 0 erreur ; Core 1248/1249, App 801/806. Rouge, six échecs ; UI non exécutée. |
+| Tests de correction, décisions du 16/11 | [411 — 43830615560](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43830615560) | `451e45dfec7901710a8d6307a96c998b2472752a` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 803/807. Rouge sur quatre assertions App ; inventaire, limite du port et catalogue passent. |
+| Correctif de production après relecture | [412 — 43831007548](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43831007548) | `5f1f15e029c616e647575eddb48bae0e4a226d0e` | Compilation 0 avertissement, 0 erreur ; Core 1249/1249, App 806/807. Seul le scénario Steam seul échoue ligne 27 sur une collection vide ; UI, publication et installateur non exécutés. |
 
-**Validation finale bloquée : aucun run vert final n’existe à ce stade.** Le run 407 est rouge, même si sa compilation est sans avertissement. Son artefact partiel [Virgil-ui-smoke, ID 14207921750](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319/artifacts/14207921750) a été publié ; métadonnées contrôlées : 3 131 208 octets, digest `sha256:b7bfe8b3e988645437d4e6a3a3daed1a9c8365cd9f4b41bb69055fb84c4b11f3`. Le contenu des PNG n’a pas été validé ; cet artefact rouge ne constitue pas la preuve finale P3/M7.
+Le run 412 est encore rouge : **aucun run vert final n’est revendiqué**. Son artefact partiel [Virgil-ui-smoke, ID 14208617876](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43831007548/artifacts/14208617876) fait 3 154 959 octets, digest `sha256:7389674ba209c44370cb64f34d5264a2a64febf66dbe95a13fcf1d429732cc50`. Les tests de rendu du panneau, des états vides, du texte et du visage passent ; le scénario Steam seul interrompt sa capture avant toute action. L’archive n’a pas été inspectée visuellement : le transfert du lien de fichier retourné par l’intégration vers le poste Cloud reçoit HTTP 403. Aucun paramètre réseau n’est modifié. Cet artefact rouge ne remplace pas la preuve finale P3/M7.
 
-### Arrêt imposé par F11 : deux tests existants
+Le run rouge 407 a produit l’artefact partiel [Virgil-ui-smoke, ID 14207921750](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43828807319/artifacts/14207921750), digest `sha256:b7bfe8b3e988645437d4e6a3a3daed1a9c8365cd9f4b41bb69055fb84c4b11f3`. Il ne constitue pas une preuve finale verte.
 
-1. `tests/Virgil.Core.Tests/LegacyEffectArchitectureTests.cs:92`, test `ProcessRunnerConsumersRemainExplicitlyInventoried` : la liste fermée des consommateurs App ne contient pas `HomePrioritiesViewModel.cs`. Or R9 exige explicitement que ce ViewModel reçoive `IProcessRunner`. Déplacer ou dissimuler cette référence pour contourner le garde ne respecterait pas son intention. Diff proposé, non appliqué : ajouter ce seul fichier à l’inventaire attendu, sans retirer les autres consommateurs.
-2. `tests/Virgil.App.Tests/InterfaceAccentTests.cs:151`, test `Interface_labels_preserve_french_accents_in_all_source_projects` : son dictionnaire alimenté par le corpus ajoute automatiquement `charge → chargé`, `note → noté`, `fonctionne → fonctionné`, `mesures → mesurés`, `garde → gardé`. Les annexes A/B exactes introduisent les participes ; le test rejette ensuite des noms ou présents corrects, y compris « Un périphérique ne fonctionne pas correctement. » et « Certaines mesures n’ont pas pu être lues. ». Il signale également des phrases de fichiers hors périmètre, dont DiagnosticViewModel, DiagnosticAnalysis et SystemScanService. Réécrire les annexes ou ces textes existants enfreindrait F1, R13 ou la liste fermée.
+### Décisions de loops (relecture), 16 novembre
 
-Proposition précise pour la relecture, non appliquée :
+- Exception F11 unique, commit dédié `ac143e3c224efec6d3fb3506b97d012d6d215374` : seule addition de `HomePrioritiesViewModel.cs` dans l’ordre alphabétique de la liste App de `LegacyEffectArchitectureTests.ProcessRunnerConsumersRemainExplicitlyInventoried`. Aucun autre octet de ce test ni aucun autre test préexistant n’est modifié. Le test ajouté `LotFBackupBoundaryTests` (commit `ee35c949749d0dd8e801ad659a079c26711b3afc`) prouve un lancement `ms-settings:backup` uniquement, sans argument, verbe d’élévation, attente de processus ni appel RunAsync. Les boutons d’écran émettent seulement la navigation ; un point étranger à la liste est refusé.
+- Correction d’une attente erronée, décidée par loops (relecture) le 16/11 : commit dédié `451e45dfec7901710a8d6307a96c998b2472752a`, intitulé `test(lot-f): compare COM ordinally per review decision of 16 November`. Dans le seul nouveau `LotFSpeechTests.cs`, l’entrée interdite ` COM` est conservée et comparée en Ordinal, sensible à la casse. Les autres termes restent insensibles à la casse et l’Assert.Equal de chaque réplique est intact. Cela conserve exactement « Annulation prise en compte. Le détail est ci-dessus. » de l’annexe A, conformément à la décision et à M5.
+- Aucune autorisation de modifier InterfaceAccentTests, ValideSansAccent ou MotsAccentues : ces fichiers restent strictement identiques à la base.
+
+### Corrections de production
+
+Commit séparé `5f1f15e029c616e647575eddb48bae0e4a226d0e`, après le run rouge 411, sans amend ni force-push :
+
+1. `AppendVirgilMessage` normalise toujours la même chaîne, puis utilise exactement `"[VIRGIL]\n" + message`. Seul le nom de la variable locale change ; aucun message n’est reformulé.
+2. Le TextBlock de phase du panneau est vide lorsque IsRunning est faux, en plus de rester masqué. Seule FinalSummary porte alors la conclusion. Les propriétés Step, Steps, Commentary, FinalSummary et leurs textes ne sont pas modifiés par ce réglage de présentation ; la réplique reste dans son unique TextBlock.
+3. Les faux positifs d’accents proviennent de l’analyse de littéraux, qui construit son dictionnaire depuis les participes et traite ensuite des homographes corrects comme des fautes. Les quelques mots concernés sont représentés par des expressions littérales constantes, repliées par le compilateur C# : aucun assemblage de phrase à l’exécution. Les frontières de littéraux sont changées, pas les données compilées. Le contrôle statique comparatif a confirmé les 33 répliques et 22 entrées inchangées ; les Assert.Equal du catalogue et de l’annexe B restent la vérification en exécution. Les fichiers hors lot et le garde existant ne sont pas modifiés. Ce choix de représentation source est signalé explicitement dans la PR.
+
+### Point Steam seul à clarifier
+
+Le run 407 échoue dans `LotFSteamTests.cs:27`, sur la recherche de la carte Steam dans une collection vide, avant tout appel à AddSingleCard ou à l’action simple. La règle de détail partagée est déjà appliquée en production dans AddSingleCard et dans la séquence ; le cas de séquence complète passe. Le scan simple du faux scénario ne prépare pas les cartes des sources, contrairement au parcours réel d’aperçu. Ajouter une nouvelle lecture automatique en production serait hors R13 et demanderait un fichier non autorisé.
+
+Une clarification est demandée pour cette préparation du nouveau test uniquement, sans modifier ses assertions. Proposition non appliquée tant qu’elle n’est pas autorisée :
 
 ```diff
---- tests/Virgil.Core.Tests/LegacyEffectArchitectureTests.cs
-+++ tests/Virgil.Core.Tests/LegacyEffectArchitectureTests.cs
-@@
--            "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);
-+            "HomePrioritiesViewModel.cs", "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);
+--- tests/Virgil.App.Tests/LotFSteamTests.cs
++++ tests/Virgil.App.Tests/LotFSteamTests.cs
+@@ scénario single
+-            await vm.ScanUpdatesCommand.ExecuteAsync(null);
++            var preview = vm.RunAllCommand.ExecuteAsync(null);
++            vm.SkipDecisionCommand.Execute(null);
++            await preview;
 ```
 
-```diff
---- tests/Virgil.App.Tests/InterfaceAccentTests.cs
-+++ tests/Virgil.App.Tests/InterfaceAccentTests.cs
-@@ BuildDictionary
-         var result = new Dictionary<string, string>(dictionary, StringComparer.OrdinalIgnoreCase);
-+        // Homographes français : ne pas déduire une faute du seul participe rencontré.
-+        var homographs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-+            { "charge", "note", "fonctionne", "mesures", "garde" };
-@@
--            if (!plain.Equals(word, StringComparison.OrdinalIgnoreCase) && !valid.ContainsKey(plain))
-+            if (!plain.Equals(word, StringComparison.OrdinalIgnoreCase) && !valid.ContainsKey(plain)
-+                && !homographs.Contains(plain))
-                 result.TryAdd(plain, word);
-```
+M7 : aucun résultat vert final n’est déduit d’un run antérieur. La description de la PR devra porter le run vert final, le SHA exact du head final et l’artefact correspondant après leur vérification ; les résultats rouges ci-dessus restent des preuves d’échec.
 
-Cette seconde proposition limite seulement l’inférence nouvelle depuis le corpus ; le dictionnaire explicite, les contrôles contextuels existants et les fichiers Accents restent inchangés. Des nouveaux tests LotF devront distinguer homographes corrects et véritables accents manquants, avec preuve rouge puis verte. Ces deux modifications de tests existants requièrent une exception explicite à F11 et à la liste fermée. Elles ne sont ni écrites ni publiées.
-
-### Quatre échecs des nouveaux tests, également à traiter
-
-- `LotFSpeechTests.Catalogue_is_exact_complete_short_and_contains_no_forbidden_claim` : le contrôle par sous-chaîne ` COM` rejette à tort « en compte » de l’annexe A. Selon F1/R1, vérifier le terme technique COM comme mot entier, sans changer le catalogue ; correction d’attente à isoler et justifier selon M5.
-- `LotFRevealTests.Chat_preserves_the_old_message_and_adds_welcome_after_it` : le test cherche le nom de variable `message` alors que le préfixe est ajouté à `cleanMessage`, après la normalisation existante. Les textes ne diffèrent pas. R6/R13 demandent une égalité du texte accessible, pas le nom d’une variable ; correction du nouveau test à isoler selon M5 ou renommage local sans changement de comportement.
-- `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` : le comptage inclut un TextBlock masqué portant Step, d’où 2 au lieu de 1 ; R5/F11 et le test Lot C existant visent le texte visible. Corriger le nouveau test en contrôlant la visibilité réelle dans une fenêtre STA, sans changer les bilans ; M5 s’applique.
-- `LotFSteamTests.Real_sequence_and_Steam_only_share_game_detail_rule(single: true)` : la recherche de carte Steam à la ligne 27 échoue avant toute action : le test ne prépare pas la liste des sources, chargée par le parcours existant d’aperçu. Préparer cet aperçu puis l’annuler dans le test avant l’action Steam seule, sans ajouter une lecture de production ni changer les statuts. Le cas séquence complète passe.
-
-Aucune correction de code supplémentaire n’est entreprise après le constat des échecs existants : arrêt demandé par F11. Le présent document publie les preuves et le diff proposé avant la demande d’exception. La validation complète M7 reste à obtenir après déblocage.
-
-Le complément de tests seuls conserve les identités Steam existantes, conformément à R10 (« les statuts, les clés, les compteurs et le résumé de la source Lanceurs ne changent pas ») : la carte simple a une clé `Launcher:SteamGame:<id>`, le panneau d’opération une clé `SteamGame:<id>`. Le nouveau test cherchait initialement la seconde dans les deux collections. Cette correction précède le premier run du correctif et ne change aucune attente de statut ou de détail. Le même commit complète le pilote de captures : texte partiel avec horloge manuelle, clic avant les captures finales et vrai panneau WPF pour les jeux Steam. Aucun test préexistant modifié.
+Le complément de tests seuls conserve les identités Steam existantes, conformément à R10 (« les statuts, les clés, les compteurs et le résumé de la source Lanceurs ne changent pas ») : la carte simple a une clé `Launcher:SteamGame:<id>`, le panneau d’opération une clé `SteamGame:<id>`. Le nouveau test cherchait initialement la seconde dans les deux collections. Cette correction précède le premier run du correctif et ne change aucune attente de statut ou de détail. Le même commit complète le pilote de captures : texte partiel avec horloge manuelle, clic avant les captures finales et vrai panneau WPF pour les jeux Steam. Aucun test préexistant modifié dans ces deux premiers commits de tests seuls.
 
 Conformément à M7, le run du head final contenant ce document, son SHA exact et l’ID de son artefact seront consignés dans la description de la PR après leur vérification, avant toute demande de relecture. Les runs rouges ci-dessus ne constituent pas une preuve finale verte.
 
@@ -83,7 +78,7 @@ Seuls les entrées du chat et la ligne Remark utilisent ce comportement. La norm
 
 `ShowSarcasticGlance` n’ajoute aucun état applicatif et ne modifie ni `SetState`, ni `NotifyCommunication`, ni `RefreshFace`, ni les noms accessibles. La méthode utilise la géométrie sarcastique déjà présente, pendant 1,2 s, au repos ou en communication seulement, contrôle chargé, visible, non compact et animations actives. Elle invalide le profil rendu pour que la prochaine demande d’état reprenne immédiatement sa forme, même si cet état est identique. Un jeton de génération empêche le retour différé d’écraser un état plus récent. Le lancement d’accueil est limité à une fois, après l’animation de démarrage ou le premier rendu si elle ne joue pas.
 
-Couverture prévue par les tests (voir les échecs et limites ci-dessus) : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF).
+Couverture exécutée au run 412 (voir la limite Steam ci-dessus) : `LotFRevealTests` (horloge manuelle, vrai TextBlock STA, nom accessible, clic, désactivation), `LotFOperationTests.Real_panel_shows_each_remark_and_one_conclusion` et `Loaded_sarcastic_glance_restores_after_1200ms_and_state_change_cancels_it` (vrais contrôles WPF).
 
 ## Priorités : table de l’annexe B
 
@@ -117,11 +112,11 @@ Le ViewModel n’a que trois dépendances : `ISystemStatusStore`, `IProcessRunne
 
 ## Steam
 
-Une seule fonction App `SteamGameDetail` est utilisée par les chemins séquence et action simple : détail vide pour « mis à jour » et « à jour selon Steam » ; « Steam continue en arrière-plan. » pour « reste à installer » ; raison existante pour « en erreur ». Les autres cartes sont renvoyées sans changement. `SteamUpdateService`, les statuts, les clés et la ligne de source restent inchangés. `LotFSteamTests` vise les quatre statuts avec le vrai service de séquence dans les deux parcours : le cas séquence passe au run 407 ; la préparation de la liste des sources du cas Steam seul doit être complétée, comme indiqué ci-dessus.
+Une seule fonction App `SteamGameDetail` est utilisée par les chemins séquence et action simple : détail vide pour « mis à jour » et « à jour selon Steam » ; « Steam continue en arrière-plan. » pour « reste à installer » ; raison existante pour « en erreur ». Les autres cartes sont renvoyées sans changement. `SteamUpdateService`, les statuts, les clés et la ligne de source restent inchangés. `LotFSteamTests` vise les quatre statuts avec le vrai service de séquence dans les deux parcours : le cas séquence passe aux runs 407 et 412 ; la préparation de la liste des sources du cas Steam seul doit être complétée, comme indiqué ci-dessus.
 
 ## Périmètre et fichiers
 
-Aucun test préexistant, workflow, réglage, secret, paquet NuGet, helper, garde ou service d’installation modifié. La composition nouvelle reste dans `AddVirgilViews` et la fabrique MainWindow ; `AddVirgilServices` ne change pas. Les trois documents produit ne changent que les phrases d’état du ton autorisées par R14.
+Un seul test préexistant modifié sous l’exception F11 du 16/11 : une entrée de l’inventaire des consommateurs. Aucun autre test préexistant, workflow, réglage, secret, paquet NuGet, helper, garde ou service d’installation modifié. La composition nouvelle reste dans `AddVirgilViews` et la fabrique MainWindow ; `AddVirgilServices` ne change pas. Les trois documents produit ne changent que les phrases d’état du ton autorisées par R14.
 
 - `docs/ACTIONS.md`
 - `docs/PROJECT_STATUS.md`
@@ -146,11 +141,13 @@ Aucun test préexistant, workflow, réglage, secret, paquet NuGet, helper, garde
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Sequence.cs`
 - `src/Virgil.App/ViewModels/UpdatesViewModel.Single.cs`
 - `src/Virgil.Core/Status/SystemStatusStore.cs`
+- `tests/Virgil.App.Tests/LotFBackupBoundaryTests.cs`
 - `tests/Virgil.App.Tests/LotFOperationTests.cs`
 - `tests/Virgil.App.Tests/LotFPrioritiesTests.cs`
 - `tests/Virgil.App.Tests/LotFRevealTests.cs`
 - `tests/Virgil.App.Tests/LotFSpeechTests.cs`
 - `tests/Virgil.App.Tests/LotFSteamTests.cs`
+- `tests/Virgil.Core.Tests/LegacyEffectArchitectureTests.cs` (une seule entrée autorisée)
 - `tests/Virgil.Core.Tests/LotFPriorityStoreTests.cs`
 - `docs/proofs/Lot-F.md`
 
