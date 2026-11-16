@@ -23,7 +23,9 @@ public sealed class LotFSteamTests
         Task pending;
         if (single)
         {
-            await vm.ScanUpdatesCommand.ExecuteAsync(null);
+            var preview = vm.RunAllCommand.ExecuteAsync(null);
+            vm.SkipDecisionCommand.Execute(null);
+            await preview;
             var card = Assert.Single(vm.SingleCards, c => c.Step?.Id == "Steam");
             pending = D2SingleItemTests.Command(vm).ExecuteAsync(card.Step);
         }
