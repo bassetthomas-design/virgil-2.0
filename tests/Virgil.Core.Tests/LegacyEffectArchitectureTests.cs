@@ -89,7 +89,7 @@ public sealed class LegacyEffectArchitectureTests
             "ProcessRuntime.cs", "WingetAvailabilityService.cs", "WingetUpdateExecutionService.cs", "WingetUpdateScanService.cs" }, core);
         var app = Sources("Virgil.App").Where(p => Regex.IsMatch(File.ReadAllText(p), @"\bIProcessRunner\b"))
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
-        Assert.Equal(new[] { "ApplicationsViewModel.cs", "CleanupEntryItems.cs", "CleanupViewModel.cs",
+        Assert.Equal(new[] { "ApplicationsViewModel.cs", "BugReportViewModel.cs", "CleanupEntryItems.cs", "CleanupViewModel.cs",
             "HomePrioritiesViewModel.cs", "ServiceCollectionExtensions.cs", "UpdatesViewModel.cs", "VirgilReleaseViewModel.cs" }, app);
     }
 
