@@ -1,3 +1,4 @@
+using Virgil.App.Controls;
 using Virgil.Core.Status;
 using Virgil.Core.Network;
 using Virgil.Infrastructure.Windows.Network;
@@ -194,6 +195,9 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddVirgilViews(this IServiceCollection services)
     {
+        services.AddSingleton<BugReportViewModel>(sp => new BugReportViewModel(sp.GetRequiredService<IProcessRunner>(),
+            BugReportContext.From(sp.GetRequiredService<ApplicationVersionService>(), Environment.OSVersion.Version)));
+        services.AddSingleton<BugReportPanel>(sp => new BugReportPanel(sp.GetRequiredService<BugReportViewModel>()));
         services.AddSingleton<HomePrioritiesViewModel>(sp => new HomePrioritiesViewModel(
             sp.GetRequiredService<ISystemStatusStore>(), sp.GetRequiredService<IProcessRunner>(), sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<NetworkViewModel>(sp => new NetworkViewModel(sp.GetRequiredService<INetworkStatusReader>()));
@@ -245,7 +249,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<MainWindow>(sp => new MainWindow(sp.GetRequiredService<ISystemScanService>(),
             sp.GetRequiredService<IReportHistoryService>(), sp.GetRequiredService<IReportExportService>(),
             sp.GetRequiredService<CleanupView>(), sp.GetRequiredService<UpdatesView>(), sp.GetRequiredService<InterventionsView>(),
-            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>(), sp.GetRequiredService<StartupView>(), sp.GetRequiredService<NetworkView>(), sp.GetRequiredService<ISystemStatusStore>(),
+            sp.GetRequiredService<ResourcesView>(), sp.GetRequiredService<ApplicationsView>(), sp.GetRequiredService<ReportsHistoryView>(), sp.GetRequiredService<DiagnosticView>(), sp.GetRequiredService<VirgilReleaseView>(), sp.GetRequiredService<VirgilReleaseViewModel>(), sp.GetRequiredService<BugReportPanel>(), sp.GetRequiredService<StartupView>(), sp.GetRequiredService<NetworkView>(), sp.GetRequiredService<ISystemStatusStore>(),
             sp.GetRequiredService<HomePrioritiesViewModel>(), sp.GetRequiredService<TimeProvider>()));
         return services;
     }
