@@ -2,6 +2,8 @@
 
 Base exacte : `cd7cd53d31232024117510c878e421371d945b7f`. Branche `codex/lot-f`, PR [#86](https://github.com/bassetthomas-design/virgil-2.0/pull/86), conservée en brouillon. Historique linéaire, aucun merge, amend ni force-push. Les décisions de loops (relecture) du 16/11 couvrent le scénario Steam seul et les corrections B1/B2 ci-dessous.
 
+Run vert FINAL de la PR #86 : [run 43841352506](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/43841352506), tentative 2, head `20cfbf925bac3acd233f208e4f0c6cdd35e2e324`, artefact Virgil-ui-smoke 14212574901 (Core 1249, App 807, UI 14) ; la tentative 1 a échoué sur LauncherShutdownTests.Known_launcher_helpers_allow_shutdown (test instable, garde corrigée au lot H).
+
 ## Corrections B1/B2 décidées le 16/11
 
 L’ancienne preuve de coup d’œil était insuffisante : sur le runner sans animations, le test acceptait Rest et les PNG repos/coup d’œil étaient identiques. Les runs verts 419/420 ne prouvaient donc pas ce comportement. Cette affirmation antérieure est corrigée ici.
