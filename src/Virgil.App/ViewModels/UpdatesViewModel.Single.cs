@@ -44,19 +44,9 @@ public partial class UpdatesViewModel
         }
         RefreshSingleState();
     }
-    private async Task LoadScannedSingleSourceCardsAsync(CancellationToken token)
-    {
-        if (_sequenceService is null) return;
-        // Explicit scan only: prepare the same read-only source cards as the sequence preview.
-        await _sequenceService.ScanAsync(_lastItems.ToArray(), token);
-        token.ThrowIfCancellationRequested();
-        LoadSingleSourceCards();
-    }
     private UpdateTextCardViewModel AddSingleCard(UpdateSequenceStepResult outcome)
     {
-        if (outcome.Step.Id.StartsWith("SteamGame:", StringComparison.Ordinal))
-            outcome = outcome with { Step = outcome.Step with { InformationOnly = true } };
-        var key = outcome.Step.Component + ":" + outcome.Step.Id;
+        var key = SequenceStepKey(outcome.Step);
         var card = SingleCards.FirstOrDefault(c => c.Key == key);
         if (card is not null) return card;
         if (outcome.Step.Component == UpdateComponent.Store && string.IsNullOrWhiteSpace(outcome.Step.Application?.AvailableVersion))
