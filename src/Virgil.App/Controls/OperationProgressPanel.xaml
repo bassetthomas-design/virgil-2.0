@@ -7,7 +7,12 @@
  <Grid Margin="0,8" Visibility="{Binding IsVisible, Converter={StaticResource OperationVisibility}}">
   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
   <StackPanel>
-   <TextBlock Text="{Binding Step}" Foreground="White" TextWrapping="Wrap" Visibility="{Binding IsRunning, Converter={StaticResource OperationVisibility}}"/>
+   <TextBlock Foreground="White" TextWrapping="Wrap" Visibility="{Binding IsRunning, Converter={StaticResource OperationVisibility}}">
+    <TextBlock.Style><Style TargetType="TextBlock">
+     <Setter Property="Text" Value="{Binding Step}"/>
+     <Style.Triggers><DataTrigger Binding="{Binding IsRunning}" Value="False"><Setter Property="Text" Value=""/></DataTrigger></Style.Triggers>
+    </Style></TextBlock.Style>
+   </TextBlock>
    <ProgressBar Height="6" Margin="0,6" Minimum="0" Maximum="100" Value="{Binding Percent}" IsIndeterminate="{Binding IsIndeterminate}">
     <ProgressBar.Style><Style TargetType="ProgressBar">
      <Setter Property="Foreground" Value="#9fb0c0"/>

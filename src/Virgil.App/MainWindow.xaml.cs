@@ -1056,8 +1056,8 @@ public partial class MainWindow : Window
 
     private void AppendVirgilMessage(string message)
     {
-        var cleanMessage = NormalizeVirgilMessage(message);
-        if (string.IsNullOrWhiteSpace(cleanMessage))
+        message = NormalizeVirgilMessage(message);
+        if (string.IsNullOrWhiteSpace(message))
         {
             return;
         }
@@ -1069,7 +1069,7 @@ public partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
 
-        SpeechText.SetText(entry, "[VIRGIL]\n" + cleanMessage);
+        SpeechText.SetText(entry, "[VIRGIL]\n" + message);
         ChatMessagesPanel.Children.Add(entry);
         VirgilCore.NotifyCommunication();
         Dispatcher.BeginInvoke(
