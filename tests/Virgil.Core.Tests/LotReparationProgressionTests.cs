@@ -32,22 +32,21 @@ public sealed class LotReparationProgressionTests
     public async Task Summary_output_is_unchanged()
     {
         var result = await Dispatcher().ExecuteValidatedAsync(new() { ActionId = InterventionId.VerifyHealth });
-        const string expected = """
-        VIRGIL|SFC|UNKNOWN|Résultat non interprétable ; consultez la sortie de l’outil
-        Étape : sfc.exe /verifyonly
-        Code sortie : 0.
-        VIRGIL|DISM|UNKNOWN|Résultat non interprétable ; consultez la sortie de l’outil
-        Étape : dism.exe /Online /Cleanup-Image /CheckHealth /English
-        Code sortie : 0.
-        VIRGIL|CHKDSK|OK|Aucune anomalie détectée
-        Étape : chkdsk.exe C: /scan
-        Code sortie : 0.
-
-        Étape : virgil-services
-        Code sortie : 0.
-        VIRGIL|wuauserv|INFO|x
-        Vérification incomplète : certains contrôles sont indisponibles. Consultez les détails.
-        """;
+        const string expected =
+            "VIRGIL|SFC|UNKNOWN|Résultat non interprétable ; consultez la sortie de l’outil\n" +
+            "Étape : sfc.exe /verifyonly\n" +
+            "Code sortie : 0.\n" +
+            "VIRGIL|DISM|UNKNOWN|Résultat non interprétable ; consultez la sortie de l’outil\n" +
+            "Étape : dism.exe /Online /Cleanup-Image /CheckHealth /English\n" +
+            "Code sortie : 0.\n" +
+            "VIRGIL|CHKDSK|OK|Aucune anomalie détectée\n" +
+            "Étape : chkdsk.exe C: /scan\n" +
+            "Code sortie : 0.\n" +
+            "\n" +
+            "Étape : virgil-services \n" +
+            "Code sortie : 0.\n" +
+            "VIRGIL|wuauserv|INFO|x\n" +
+            "Vérification incomplète : certains contrôles sont indisponibles. Consultez les détails.";
         Assert.Equal(expected.Replace("\r\n", "\n"), result.SummaryOutput);
     }
 
