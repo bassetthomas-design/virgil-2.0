@@ -99,7 +99,16 @@ public sealed class CleanupLotAReproductionTests
             await fixture.Analyze();
             var row = Assert.Single(fixture.Vm.Groups.SelectMany(g => g.Rows));
             Assert.False(row.IsSelected);
+            foreach (var group in fixture.Vm.Groups)
+            {
+                group.IsSelected = true;
+                Assert.False(row.IsSelected);
+                group.IsSelected = false;
+                Assert.False(row.IsSelected);
+            }
             fixture.Vm.SelectAllCommand.Execute(null);
+            Assert.Equal(id == CleanupZoneId.RecycleBin, row.IsSelected);
+            fixture.Vm.DeselectAllCommand.Execute(null);
             Assert.False(row.IsSelected);
             foreach (var category in fixture.Vm.Categories)
             {
