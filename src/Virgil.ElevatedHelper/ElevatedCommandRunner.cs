@@ -94,6 +94,7 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
         var line = new StringBuilder();
         var buffer = new char[256];
         int count;
+        var lastPercent = -1;
         while ((count = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false)) > 0)
         {
             foreach (var character in buffer.AsSpan(0, count).ToArray())
@@ -101,10 +102,23 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
                 if (output.Length < 65536) output.Append(character);
                 if (character is '\r' or '\n')
                 {
-                    var match = Regex.Match(line.ToString(), @"(\d{1,3}(?:[.,]\d+)?)\s*%");
+                    var text = line.ToString();
+                    var match = Regex.Match(text, @"Total\s*:\s*(\d{1,3}(?:[.,]\d+)?)\s*%");
+                    if (!match.Success)
+                    {
+                        var percentages = Regex.Matches(text, @"(\d{1,3}(?:[.,]\d+)?)\s*%");
+                        if (percentages.Count == 1) match = percentages[0];
+                    }
                     if (match.Success && double.TryParse(match.Groups[1].Value.Replace(',', '.'),
                         NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var percent))
-                        progress?.Report(Math.Clamp((int)percent, 0, 100));
+                    {
+                        var value = Math.Clamp((int)percent, 0, 100);
+                        if (value > lastPercent)
+                        {
+                            lastPercent = value;
+                            progress?.Report(value);
+                        }
+                    }
                     line.Clear();
                 }
                 else if (line.Length < 2048) line.Append(character);
