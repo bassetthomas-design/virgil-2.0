@@ -20,6 +20,13 @@ public sealed class LotBureauViewModelTests
         var vm = new InterventionsViewModel(new Diagnostics(),
             new InterventionExecutionService(helper, explorer, authority.Authority),
             new InterventionReportBuilder(), history, authority);
+        // La fixture coche explicitement les constats rendus : les réparations du vrai catalogue sont sensibles.
+        foreach (var items in new[] { vm.SystemItems, vm.NetworkItems, vm.StorageItems, vm.InterfaceItems })
+            items.CollectionChanged += (_, change) =>
+            {
+                if (change.NewItems is null) return;
+                foreach (var item in change.NewItems.OfType<InterventionItemViewModel>()) item.IsSelected = true;
+            };
         var decisions = new List<string>();
         await Complete(vm.VerifyHealthCommand.ExecuteAsync(null));
         Assert.Equal(new[] { InterventionId.VerifyHealth }, helper.Actions);

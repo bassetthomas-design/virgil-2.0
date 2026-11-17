@@ -164,11 +164,13 @@ public sealed class LotBureauCleanupTests
         public void Dispose() => Directory.Delete(Root, true);
     }
 
-    private sealed class RecordingStorage : ICleanupDisk, IQuarantineStore
+    private sealed class RecordingStorage : ICleanupDisk, IQuarantineStore, IRecycleBinService
     {
         public List<string> Read { get; } = new();
         public List<string> Quarantined { get; } = new();
-        public IRecycleBinService RecycleBin => throw new InvalidOperationException();
+        public IRecycleBinService RecycleBin => this;
+        public RecycleBinState Query() => throw new InvalidOperationException();
+        public RecycleBinActionResult Empty() => throw new InvalidOperationException();
         public CleanupFileState ReadFile(string path) { Read.Add(path); return new(5, DateTimeOffset.UtcNow.AddDays(-30)); }
         public QuarantineEntry MoveToQuarantine(string path, CleanupZoneDefinition zone, DateTimeOffset now, int retentionDays)
         {
