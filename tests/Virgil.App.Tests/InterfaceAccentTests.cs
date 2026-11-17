@@ -46,8 +46,8 @@ public sealed class InterfaceAccentTests
         try {
           $queues=Get-Printer -ErrorAction Stop
           $stuck=@(foreach($p in $queues){Get-PrintJob -PrinterName $p.Name -ErrorAction Stop | Where-Object { $_.JobStatus -match 'Error|Blocked|Offline|PaperOut|UserIntervention' -or $_.SubmittedTime -lt (Get-Date).AddHours(-1) }})
-          Check 'PrintQueue' ($stuck.Count -eq 0) "$($stuck.Count) tâche(s) d’impression bloquée(s)"
-        } catch { 'VIRGIL|PrintQueue|UNKNOWN|File d’impression indisponible' }
+          Check 'PrintQueue' ($stuck.Count -eq 0) "$($stuck.Count) tâche(s) d'impression bloquée(s)"
+        } catch { "VIRGIL|PrintQueue|UNKNOWN|File d'impression indisponible" }
         try {
           $endpoints=@(Get-PnpDevice -Class AudioEndpoint -PresentOnly -ErrorAction Stop | Where-Object Status -eq 'OK')
           Check 'AudioEndpoint' ($endpoints.Count -gt 0) "$($endpoints.Count) point(s) de sortie audio disponible(s) ; sortie par défaut à vérifier dans Windows"
