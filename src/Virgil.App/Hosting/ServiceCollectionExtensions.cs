@@ -158,7 +158,7 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<ISoftwareFootprintSource>(), sp.GetRequiredService<LeftoverAnalyzer>(),
             sp.GetRequiredService<PersonalFolderPolicy>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IWindowsOldSource>()));
         services.AddTransient<CleanupSafetyClassifier>(_ => new CleanupSafetyClassifier());
-        services.AddTransient<IRecycleBinService>(_ => new WindowsRecycleBinService());
+        services.AddTransient<IRecycleBinService>(_ => new Virgil.Infrastructure.Windows.WindowsRecycleBinService());
         services.AddTransient<CleanupPreviewService>(sp => new CleanupPreviewService(
             CleanupZoneCatalog.CreateDefault(), () => DateTimeOffset.Now,
             sp.GetRequiredService<CleanupSafetyClassifier>(), sp.GetRequiredService<IRecycleBinService>()));
