@@ -60,6 +60,39 @@ public sealed class LotBureauWindowsTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "Windows")]
+    public void B3_Snapshot_tolerates_file_locked_by_another_writer()
+    {
+        var root = CleanupZoneCatalog.CreateDefault().Single(z => z.Id == CleanupZoneId.WindowsThumbnailCache).RootPath;
+        Directory.CreateDirectory(root);
+        var suffix = Guid.NewGuid().ToString("N");
+        var fixture = Path.Combine(root, $"iconcache_lotbureau_verrou_{suffix}.db");
+        var realIcon = Path.Combine(root, $"iconcache_9999_{suffix}.db");
+        const string content = "Fixture verrouillée du lot Bureau.";
+        try
+        {
+            File.WriteAllText(fixture, content);
+            File.WriteAllText(realIcon, content);
+            using var fixtureWriter = new FileStream(fixture, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+            using var iconWriter = new FileStream(realIcon, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+            var ex = Record.Exception(() => Snapshot(root));
+            Assert.Null(ex);
+            var snapshot = Snapshot(root);
+            var info = new FileInfo(fixture);
+            var expected = $"Icônes: F: {Path.GetFileName(fixture)}: {info.Length}: {info.LastWriteTimeUtc:O}: {Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(content)))}";
+            Assert.Contains(expected, snapshot);
+            Assert.DoesNotContain("<verrouillé>", Assert.Single(snapshot, line => line.StartsWith($"Icônes: F: {Path.GetFileName(fixture)}:", StringComparison.Ordinal)));
+            Assert.Equal($"Icônes: P: {Path.GetFileName(realIcon)}",
+                Assert.Single(snapshot, line => line.Contains(Path.GetFileName(realIcon), StringComparison.Ordinal)));
+        }
+        finally
+        {
+            File.Delete(fixture);
+            File.Delete(realIcon);
+        }
+    }
+
     private static string[] Snapshot(string explorerRoot)
     {
         var lines = new List<string>();
