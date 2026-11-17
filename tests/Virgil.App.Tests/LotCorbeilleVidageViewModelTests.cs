@@ -16,7 +16,7 @@ public sealed class LotCorbeilleVidageViewModelTests
     }
 
     [Theory]
-    [InlineData("Windows n'a pas vidé toute la corbeille : 1 élément(s) restant(s) (code 0x00000000).")]
+    [InlineData("Vidage incomplet de la corbeille : 1 élément(s) restant(s) (code 0x00000000).")]
     [InlineData("Windows ne permet pas de confirmer le vidage de la corbeille (code 0x00000000). Ouvrez la Corbeille pour vérifier.")]
     public async Task Failed_or_unverified_empty_is_never_announced_as_done(string message)
     {

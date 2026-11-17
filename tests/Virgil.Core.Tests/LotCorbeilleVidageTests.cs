@@ -29,12 +29,12 @@ public sealed class LotCorbeilleVidageTests
                 break;
             case "incomplet":
                 after = new(true, 1, 100);
-                expected = new(false, 2, 924, "Windows n'a pas vidé toute la corbeille : 1 élément(s) restant(s) (code 0x00000000).");
+                expected = new(false, 2, 924, "Vidage incomplet de la corbeille : 1 élément(s) restant(s) (code 0x00000000).");
                 break;
             case "refus":
                 hresult = unchecked((int)0x80004005);
                 after = new(true, 3, 1024);
-                expected = new(false, 0, 0, "Windows n'a pas vidé toute la corbeille : 3 élément(s) restant(s) (code 0x80004005).");
+                expected = new(false, 0, 0, "Vidage incomplet de la corbeille : 3 élément(s) restant(s) (code 0x80004005).");
                 break;
             case "inverifiable":
                 after = new(false, 0, 0, "Estimation de la corbeille indisponible.");
