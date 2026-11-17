@@ -56,9 +56,10 @@ public sealed class LotCorbeilleVidageTests
     public void Core_recycle_bin_file_has_no_native_call()
     {
         var root = TestRepositoryRoot.FindRepositoryRoot();
-        Assert.Empty(File.ReadAllLines(Path.Combine(root, "src", "Virgil.Core", "Cleanup", "RecycleBinService.cs"))
+        var nativeLines = File.ReadAllLines(Path.Combine(root, "src", "Virgil.Core", "Cleanup", "RecycleBinService.cs"))
             .Where(line => line.Contains("DllImport", StringComparison.Ordinal) ||
-                line.Contains("LibraryImport", StringComparison.Ordinal) || line.Contains("shell32", StringComparison.Ordinal)));
+                line.Contains("LibraryImport", StringComparison.Ordinal) || line.Contains("shell32", StringComparison.Ordinal)).ToArray();
+        Assert.Empty(nativeLines);
     }
 
     [Fact]
@@ -68,9 +69,10 @@ public sealed class LotCorbeilleVidageTests
         Assert.Equal(new[] { "        <requestedExecutionLevel level=\"asInvoker\" uiAccess=\"false\" />" },
             File.ReadAllLines(Path.Combine(root, "src", "Virgil.App", "app.manifest"))
                 .Where(line => line.Contains("requestedExecutionLevel", StringComparison.Ordinal)).ToArray());
-        Assert.Empty(Directory.EnumerateFiles(Path.Combine(root, "src", "Virgil.ElevatedHelper"), "*", SearchOption.AllDirectories)
+        var elevatedFiles = Directory.EnumerateFiles(Path.Combine(root, "src", "Virgil.ElevatedHelper"), "*", SearchOption.AllDirectories)
             .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is "bin" or "obj"))
             .Where(path => File.ReadAllText(path).Contains("Recycle", StringComparison.OrdinalIgnoreCase) ||
-                File.ReadAllText(path).Contains("Corbeille", StringComparison.OrdinalIgnoreCase)));
+                File.ReadAllText(path).Contains("Corbeille", StringComparison.OrdinalIgnoreCase)).ToArray();
+        Assert.Empty(elevatedFiles);
     }
 }

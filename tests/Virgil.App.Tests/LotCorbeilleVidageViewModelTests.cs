@@ -1,3 +1,4 @@
+using Virgil.Contracts;
 using Virgil.Core.Cleanup;
 using Xunit;
 
