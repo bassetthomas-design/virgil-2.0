@@ -227,5 +227,6 @@ public sealed class LotReparationBilanTests
         public Task<ReportSaveResult> SaveAsync(ReportEntry report, CancellationToken cancellationToken) => Task.FromResult(new ReportSaveResult { Success = true });
         public Task<ReportHistoryLoadResult> LoadAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ReportEntry?> GetLatestAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ReportEntry?> GetAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
