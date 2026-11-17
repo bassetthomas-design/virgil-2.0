@@ -26,7 +26,7 @@ public sealed class CleanupSelectAllTests
     }
 
     [Fact]
-    public async Task Select_all_excludes_personal_recycle_bin_windows_old_and_non_executable_rows()
+    public async Task Select_all_excludes_personal_windows_old_and_non_executable_rows_but_checks_available_recycle_bin()
     {
         var f = new CleanupViewModelTests.Fixture();
         var cache = CleanupSelectionTests.Preview(CleanupClassification.Cleanable);
@@ -40,10 +40,10 @@ public sealed class CleanupSelectAllTests
         await f.Analyze();
         f.Vm.SelectAllCommand.Execute(null);
         var rows = f.Vm.Groups.SelectMany(g => g.Rows).ToArray();
-        Assert.Single(rows, r => r.IsSelected);
-        Assert.All(rows.Where(r => !r.CanGroupSelect), r => Assert.False(r.IsSelected));
+        Assert.Equal(new[] { "RecycleBin", "UserTemporaryFiles" }, rows.Where(r => r.IsSelected).Select(r => r.Preview.Definition.Id.ToString()).Order(StringComparer.Ordinal).ToArray());
+        Assert.All(rows.Where(r => !r.CanGroupSelect && r.Preview.Definition.Id != CleanupZoneId.RecycleBin), r => Assert.False(r.IsSelected));
         foreach (var category in f.Vm.Categories) category.Selection.IsSelected = true;
-        Assert.Single(rows, r => r.IsSelected);
+        Assert.Equal(new[] { "RecycleBin", "UserTemporaryFiles" }, rows.Where(r => r.IsSelected).Select(r => r.Preview.Definition.Id.ToString()).Order(StringComparer.Ordinal).ToArray());
         // Les choix personnels restent possibles individuellement et Tout désélectionner les efface.
         foreach (var row in rows.Where(r => r.CanSelect)) row.IsSelected = true;
         f.Vm.DeselectAllCommand.Execute(null);

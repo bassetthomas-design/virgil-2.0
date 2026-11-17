@@ -117,7 +117,6 @@ public sealed class CleanupLotAReproductionTests
 
     [Theory]
     [InlineData(CleanupZoneId.OldDownloads)]
-    [InlineData(CleanupZoneId.RecycleBin)]
     public async Task Personal_ids_remain_excluded_without_personal_flags(CleanupZoneId id)
     {
         var fixture = new CleanupViewModelTests.Fixture();

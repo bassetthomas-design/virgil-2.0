@@ -43,6 +43,24 @@ public static class CleanupSelectionPolicy
     public static bool CanGroupSelect(CleanupZonePreview preview) =>
         CanSelect(preview) && CleanupItemNature.For(preview) != CleanupNature.Personal;
 
+    public static bool IsIncludedInSelectAll(CleanupZonePreview preview) =>
+        CanGroupSelect(preview) || (preview.Definition.Id == CleanupZoneId.RecycleBin && CanSelect(preview));
+
+    public static string? IneligibleReason(CleanupZonePreview preview)
+    {
+        if (CanSelect(preview)) return null;
+        if (preview.Definition.Id == CleanupZoneId.RecycleBin && preview.EligibleFileCount == 0)
+            return preview.Errors.Count > 0
+                ? "Corbeille : estimation indisponible, vidage impossible depuis Virgil."
+                : "Corbeille vide : rien à supprimer.";
+        if (!DefaultDecisions.ContainsKey(preview.Definition.Id)) return "Zone non revue : sélection refusée.";
+        if (preview.Definition.Id == CleanupZoneId.WindowsOld) return "Windows.old : information seulement, suppression non proposée.";
+        if (!preview.Definition.IsExecutable) return "Zone en information seulement : aucune suppression possible.";
+        if (preview.Definition.Classification is not (CleanupClassification.Cleanable or CleanupClassification.AdvancedCleanable))
+            return "Zone en lecture seule : à revoir manuellement.";
+        return "Aucun fichier éligible.";
+    }
+
     public static bool IsSelectedByDefault(CleanupZonePreview preview) =>
         DefaultDecisions.TryGetValue(preview.Definition.Id, out var allowed) && allowed &&
         CanGroupSelect(preview) && preview.Definition.Group == CleanupGroup.Sur &&

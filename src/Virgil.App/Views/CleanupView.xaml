@@ -180,7 +180,7 @@
                         <Button Content="TOUT SÉLECTIONNER" Command="{Binding SelectAllCommand}" Style="{StaticResource VirgilSecondaryButton}"/>
                         <Button Content="TOUT DÉSÉLECTIONNER" Command="{Binding DeselectAllCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0"/>
                     </WrapPanel>
-                    <TextBlock Text="La sélection globale et par catégorie exclut les dossiers personnels, les Téléchargements, la Corbeille (suppression irréversible), Windows.old et les lignes non exécutables." TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                    <TextBlock Text="La sélection globale et par catégorie exclut les dossiers personnels, les Téléchargements, Windows.old et les lignes non exécutables. « Tout sélectionner » coche aussi la Corbeille quand elle contient des éléments : son vidage est définitif et demande la confirmation renforcée." TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                 </StackPanel>
                 <ListBox Grid.Row="2" x:Name="ZonesPanel" ItemContainerStyle="{StaticResource CleanupRowContainer}" Foreground="{DynamicResource App.TextPrimaryBrush}" ItemsSource="{Binding Categories}" Background="{DynamicResource App.BackgroundBrush}" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
@@ -218,7 +218,19 @@
                                                 <ListBox.ItemTemplate><DataTemplate>
                                                     <StackPanel Margin="4,8">
                                                         <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
-                                                            <StackPanel><TextBlock Text="{Binding Title}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/><TextBlock Text="{Binding NatureAndRisk}" Foreground="{DynamicResource App.TextPrimaryBrush}"/></StackPanel>
+                                                            <StackPanel><TextBlock Text="{Binding Title}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap"/><TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                                                                <TextBlock Text="{Binding IneligibleReason}" Foreground="{DynamicResource App.TextPrimaryBrush}" TextWrapping="Wrap">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IneligibleReason}" Value="">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                                <TextBlock Text="{Binding NatureAndRisk}" Foreground="{DynamicResource App.TextPrimaryBrush}"/></StackPanel>
                                                         </CheckBox>
                                                         <Expander Header="Détails techniques" Margin="20,4,0,0">
                                                             <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Style.Triggers>

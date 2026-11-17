@@ -22,6 +22,7 @@ public sealed partial class CleanupSelectionRow : ObservableObject
         Preview.Definition.RootPath + "\n" + string.Join("\n", Preview.Definition.RegistryKeys) + "\n" +
         string.Join("\n", Preview.Candidates.Select(c => c.FullPath)) + "\n" +
         string.Join("\n", Preview.Candidates.Where(c => !c.IsEligible).Select(c => c.ExclusionReason));
+    public string IneligibleReason => CleanupSelectionPolicy.IneligibleReason(Preview) ?? string.Empty;
     public bool CanSelect => CleanupSelectionPolicy.CanSelect(Preview);
     public bool CanGroupSelect => CleanupSelectionPolicy.CanGroupSelect(Preview);
     [ObservableProperty] private bool isSelected;
@@ -30,7 +31,7 @@ public sealed partial class CleanupSelectionRow : ObservableObject
 public sealed class CleanupGroupItem : ObservableObject
 {
     public CleanupGroupItem(CleanupGroup group, IEnumerable<CleanupZonePreview> previews)
-        : this(group, previews.Where(p => p.EligibleBytes > 0).OrderByDescending(p => p.EligibleBytes).Select(p => new CleanupSelectionRow(p)).ToArray()) { }
+        : this(group, previews.Where(p => p.EligibleBytes > 0 || p.Definition.Id == CleanupZoneId.RecycleBin).OrderByDescending(p => p.EligibleBytes).Select(p => new CleanupSelectionRow(p)).ToArray()) { }
     public CleanupGroupItem(CleanupGroup group, IReadOnlyList<CleanupSelectionRow> rows)
     {
         Group = group;
