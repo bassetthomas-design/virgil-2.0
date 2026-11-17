@@ -29,7 +29,7 @@ public sealed class CleanupPreviewService : ICleanupService, ICleanupPreviewServ
         _zones = zones.OrderBy(zone => zone.DisplayOrder).ToList();
         _now = now ?? (() => DateTimeOffset.Now);
         _safetyClassifier = safetyClassifier ?? new CleanupSafetyClassifier();
-        _recycleBinService = recycleBinService ?? new WindowsRecycleBinService();
+        _recycleBinService = recycleBinService ?? new UnavailableRecycleBinService();
     }
 
     public IReadOnlyList<CleanupZoneDefinition> GetZones()

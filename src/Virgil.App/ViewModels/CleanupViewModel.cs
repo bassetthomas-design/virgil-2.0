@@ -423,7 +423,7 @@ public partial class CleanupViewModel : ObservableObject
                     $"{FileCount(result.QuarantinedFiles)} en quarantaine ; {result.SkippedFiles + result.ErrorFiles} non traités.");
             foreach (var zone in selected.Where(zone => !_lastReport.Results.Any(result => result.Zone.Id == zone.Definition.Id)))
                 Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Non lancée", "Aucun résultat confirmé pour cette zone.");
-            StatusText = (IsCancellationReport(_lastReport) ? "Nettoyage interrompu." : HasBlockingFailure(_lastReport) ? "Nettoyage terminé avec erreurs." : "Nettoyage terminé.")
+            StatusText = (IsCancellationReport(_lastReport) ? "Nettoyage interrompu." : (HasBlockingFailure(_lastReport) || _lastReport.Results.Any(result => result.Zone.Id == CleanupZoneId.RecycleBin && result.Status == CleanupStepStatus.Failed)) ? "Nettoyage terminé avec erreurs." : "Nettoyage terminé.")
                 + $"\n{_lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones traitées. " + StatusText
                 + $"\n{selected.Count - _lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones non terminées ; {_lastReport.ErrorFiles} fichiers en erreur. Fichiers hors sélection et racines conservés.";
             AnnounceSessionEnd(_lastReport);
@@ -689,7 +689,16 @@ public partial class CleanupViewModel : ObservableObject
             return;
         }
 
-        VirgilMessageRequested?.Invoke($"Nettoyage terminé.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}\nCorbeille : {FormatBytes(report.DeletedBytes)} libérés.\nRapport disponible.");
+        var failedRecycle = report.Results.FirstOrDefault(result => result.Zone.Id == CleanupZoneId.RecycleBin && result.Status == CleanupStepStatus.Failed);
+        if (failedRecycle is not null)
+        {
+            VirgilMessageRequested?.Invoke($"Nettoyage terminé avec erreurs.\nCorbeille : {failedRecycle.Errors.FirstOrDefault() ?? "échec sans détail."}\nRapport disponible.");
+            return;
+        }
+
+        var recycleSummary = report.Results.Any(result => result.Zone.Id == CleanupZoneId.RecycleBin && result.Status == CleanupStepStatus.Completed)
+            ? $"\nCorbeille vidée et vérifiée : {FormatBytes(report.DeletedBytes)} libérés." : "";
+        VirgilMessageRequested?.Invoke($"Nettoyage terminé.\n{string.Join("\n", report.Results.Where(r => r.QuarantinedFiles > 0).Select(r => r.QuarantineSummary))}{recycleSummary}\nRapport disponible.");
     }
 
     private void AnnounceZoneResult(CleanupStepResult result)
@@ -781,7 +790,11 @@ public partial class CleanupViewModel : ObservableObject
         foreach (var result in report.Results)
         {
             builder.AppendLine($"{result.Zone.DisplayName} : {StatusLabel(result.Status)}");
-            builder.AppendLine(result.Zone.Id == CleanupZoneId.RecycleBin ? $"  Corbeille : {result.DeletedFiles} - {FormatBytes(result.DeletedBytes)}" : result.QuarantineSummary);
+            builder.AppendLine(result.Zone.Id == CleanupZoneId.RecycleBin
+                ? result.Status == CleanupStepStatus.Completed
+                    ? $"  Corbeille vidée et vérifiée : {result.DeletedFiles} élément(s) - {FormatBytes(result.DeletedBytes)}"
+                    : $"  Corbeille : {result.DeletedFiles} - {FormatBytes(result.DeletedBytes)}"
+                : result.QuarantineSummary);
             builder.AppendLine($"  Ignorés : {result.SkippedFiles} - Erreurs : {result.ErrorFiles}");
 
             foreach (var error in result.Errors.Take(3))
