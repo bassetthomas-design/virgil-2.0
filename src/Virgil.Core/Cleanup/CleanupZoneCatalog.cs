@@ -15,7 +15,7 @@ public static class CleanupZoneCatalog
         {
             Zone(CleanupZoneId.UserTemporaryFiles, "TEMP utilisateur", "Fichiers temporaires anciens du profil utilisateur.", SafeTemp(), 24, CleanupRiskLevel.Low, 10),
             Zone(CleanupZoneId.WindowsTemporaryFiles, "TEMP Windows", "Contenu temporaire Windows ancien. Le dossier racine n'est jamais supprimé.", Path.Combine(windows, "Temp"), 48, CleanupRiskLevel.Medium, 20) with { RequiresElevation = true },
-            Zone(CleanupZoneId.WindowsThumbnailCache, "Miniatures Windows", "Bases de miniatures recréées par Windows.", Path.Combine(local, "Microsoft", "Windows", "Explorer"), 168, CleanupRiskLevel.Low, 30) with { AllowedExtensions = new[] { ".db" } },
+            Zone(CleanupZoneId.WindowsThumbnailCache, "Miniatures Windows", "Bases de miniatures (thumbcache) recréées par Windows.", Path.Combine(local, "Microsoft", "Windows", "Explorer"), 168, CleanupRiskLevel.Low, 30) with { AllowedExtensions = new[] { ".db" } },
             Zone(CleanupZoneId.DirectXShaderCache, "Cache DirectX", "Shaders temporaires recréés par les applications graphiques.", Path.Combine(local, "D3DSCache"), 168, CleanupRiskLevel.Low, 40),
             Zone(CleanupZoneId.UserCrashDumps, "Crash dumps anciens", "Dumps utilisateur anciens utiles seulement au diagnostic.", Path.Combine(local, "CrashDumps"), 168, CleanupRiskLevel.Medium, 50) with { AllowedExtensions = new[] { ".dmp", ".mdmp", ".tmp" } },
             Zone(CleanupZoneId.WindowsErrorReports, "Rapports d'erreur Windows", "Archives WER anciennes du profil utilisateur.", Path.Combine(local, "Microsoft", "Windows", "WER", "ReportArchive"), 336, CleanupRiskLevel.Medium, 60),
