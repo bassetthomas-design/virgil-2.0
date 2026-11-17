@@ -95,7 +95,11 @@ public sealed class CleanupScanTransitionTests
         AssertPersonalUnchecked(vm);
         Assert.All(vm.Groups.SelectMany(g => g.Rows), row => Assert.DoesNotContain(row, original));
         vm.SelectAllCommand.Execute(null);
-        AssertPersonalUnchecked(vm);
+        var recycleRows = vm.Groups.SelectMany(g => g.Rows).Where(r => r.Preview.Definition.Id == CleanupZoneId.RecycleBin).ToArray();
+        Assert.NotEmpty(recycleRows);
+        Assert.All(recycleRows, r => Assert.True(r.IsSelected));
+        Assert.All(vm.Groups.SelectMany(g => g.Rows).Where(r => !r.CanGroupSelect && r.Preview.Definition.Id != CleanupZoneId.RecycleBin), r => Assert.False(r.IsSelected));
+        vm.DeselectAllCommand.Execute(null);
         foreach (var category in vm.Categories)
         {
             category.Selection.IsSelected = true;

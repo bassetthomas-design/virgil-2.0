@@ -230,7 +230,8 @@ public partial class CleanupViewModel : ObservableObject
     private void SelectAll()
     {
         if (!IsIdle) return;
-        foreach (var group in Groups) group.IsSelected = true;
+        foreach (var row in Groups.SelectMany(g => g.Rows))
+            if (CleanupSelectionPolicy.IsIncludedInSelectAll(row.Preview)) row.IsSelected = true;
         UpdateCommandState();
     }
 
