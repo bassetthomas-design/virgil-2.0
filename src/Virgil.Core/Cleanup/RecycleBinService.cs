@@ -29,7 +29,7 @@ public static class RecycleBinEmptyPolicy
         {
             var removed = before.EstimateAvailable ? Math.Max(0, before.ItemCount - after.ItemCount) : 0;
             var freed = before.EstimateAvailable ? Math.Max(0, before.SizeBytes - after.SizeBytes) : 0;
-            return new(false, removed, freed, $"Windows n'a pas vidé toute la corbeille : {after.ItemCount} élément(s) restant(s) (code 0x{code}).");
+            return new(false, removed, freed, $"Vidage incomplet de la corbeille : {after.ItemCount} élément(s) restant(s) (code 0x{code}).");
         }
         return new(true, before.EstimateAvailable ? before.ItemCount : 0, before.EstimateAvailable ? before.SizeBytes : 0, null);
     }
