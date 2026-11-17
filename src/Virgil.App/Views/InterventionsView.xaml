@@ -51,6 +51,20 @@
                                    Text="{Binding StatusText}"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                    Margin="0,4,0,0" />
+                        <Expander x:Name="InterventionsTechnicalDetails" Header="Détails techniques" IsExpanded="False">
+                            <Expander.Style>
+                                <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding TechnicalDetailsText}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Expander.Style>
+                            <TextBox Text="{Binding TechnicalDetailsText, Mode=OneWay}" IsReadOnly="True"
+                                     TextWrapping="Wrap" MaxHeight="240" VerticalScrollBarVisibility="Auto"
+                                     AutomationProperties.Name="Détails techniques de la vérification" />
+                        </Expander>
                     </StackPanel>
                 </Grid>
 

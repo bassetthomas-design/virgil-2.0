@@ -151,12 +151,12 @@ public sealed class ElevatedActionDispatcher
             if (cancellationToken.IsCancellationRequested && !renewMustRun)
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs) + "\nParcours annulé entre deux commandes. Commandes suivantes non lancées.", false);
             commandIndex++;
-            progress?.Report(new InterventionProgress { Step = command.FileName });
+            progress?.Report(new InterventionProgress { Step = $"Étape {commandIndex} sur {spec.Commands.Count} : {StepLabel(command)}" });
             // Le canal lit .cancel à Report : revérifier avant de démarrer une commande protégée.
             if (cancellationToken.IsCancellationRequested && !renewMustRun)
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs) + "\nCommandes suivantes non lancées : annulation demandée.", false);
             var commandResult = await _commandRunner.RunAsync(command,
-                new CommandProgress(value => progress?.Report(new InterventionProgress { Step = command.FileName, Percent = value })),
+                new CommandProgress(value => progress?.Report(new InterventionProgress { Step = $"Étape {commandIndex} sur {spec.Commands.Count} : {StepLabel(command)}", Percent = value })),
                 command.NonInterruptible || renewMustRun ? CancellationToken.None : cancellationToken).ConfigureAwait(false);
             exitCode = commandResult.ExitCode;
             checkFailed |= commandResult.ExitCode != 0;
@@ -190,6 +190,33 @@ public sealed class ElevatedActionDispatcher
             ? InterventionStatus.RebootRequired
             : InterventionStatus.Completed;
         return Result(request, startedAt, exitCode, status, string.Join("\n", outputs), spec.RebootRequiredOnSuccess);
+    }
+
+    private static string StepLabel(ElevatedCommandSpec command)
+    {
+        var arguments = command.Arguments;
+        bool Has(string value) => arguments.Contains(value, StringComparer.OrdinalIgnoreCase);
+        return command.FileName.ToLowerInvariant() switch
+        {
+            "sfc.exe" when Has("/verifyonly") => "Fichiers système (SFC, vérification)",
+            "sfc.exe" when Has("/scannow") => "Fichiers système (SFC, réparation)",
+            "dism.exe" when Has("/CheckHealth") => "Image Windows (DISM, contrôle rapide)",
+            "dism.exe" when Has("/ScanHealth") => "Image Windows (DISM, analyse)",
+            "dism.exe" when Has("/RestoreHealth") => "Image Windows (DISM, réparation)",
+            "chkdsk.exe" => "Disque système (CHKDSK, analyse en ligne)",
+            "virgil-services" => "Services Windows",
+            "virgil-update" => "Service Windows Update",
+            "virgil-audio" => "Services audio",
+            "virgil-print" => "File d'impression",
+            "virgil-restore-point" or "powershell.exe" => "Point de restauration",
+            "ipconfig.exe" when Has("/flushdns") => "Cache DNS",
+            "ipconfig.exe" when Has("/release") => "Adresse IP (libération)",
+            "ipconfig.exe" when Has("/renew") => "Adresse IP (renouvellement)",
+            "netsh.exe" when arguments.Count > 0 && arguments[0].Equals("winsock", StringComparison.OrdinalIgnoreCase) => "Winsock",
+            "netsh.exe" when arguments.Count > 1 && arguments[0].Equals("int", StringComparison.OrdinalIgnoreCase)
+                && arguments[1].Equals("ip", StringComparison.OrdinalIgnoreCase) => "Pile TCP/IP",
+            _ => command.FileName
+        };
     }
 
     internal static string IntegrityFinding(ElevatedCommandSpec command, ElevatedCommandResult result)

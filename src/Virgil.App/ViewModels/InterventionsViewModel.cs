@@ -29,8 +29,6 @@ public partial class InterventionsViewModel : ObservableObject
     private InterventionSessionReport? _lastReport;
     private bool _operationInProgress;
     private InterventionExecutionResult? _verificationResult;
-    private string _lastProgressMessage = string.Empty;
-    private DateTimeOffset _lastProgressAt;
 
     public InterventionsViewModel(
         IInterventionDiagnosticService diagnosticService,
@@ -69,6 +67,7 @@ public partial class InterventionsViewModel : ObservableObject
     [ObservableProperty] private string criticalConfirmationPrompt = string.Empty;
     [RelayCommand] private void CancelOperation() => CancelActiveOperation();
 
+    [ObservableProperty] private string technicalDetailsText = string.Empty;
     [ObservableProperty] private string statusText = "DIAGNOSTIC, VALIDATION ET EXÉCUTION";
     [ObservableProperty] private string overallText = "NON ANALYSÉ";
     [ObservableProperty] private string recommendedCountText = "0";
@@ -146,6 +145,7 @@ public partial class InterventionsViewModel : ObservableObject
     private async Task VerifyHealthAsync()
     {
         if (!BeginOperation("Vérification en attente de confirmation de l’élévation.")) return;
+        TechnicalDetailsText = string.Empty;
         var started = DateTimeOffset.Now;
         var results = new List<InterventionExecutionResult>();
         var errors = new List<string>();
@@ -167,8 +167,9 @@ public partial class InterventionsViewModel : ObservableObject
                 new ConfirmationConsent(ConfirmationLevel.Simple, null));
             _verificationResult = await _executionService.ExecuteAsync(checks, plan, CreateProgress(), _operationCancellation!.Token).ConfigureAwait(true);
             results.Add(_verificationResult);
-            StatusText = _verificationResult.ReadableError ?? "Vérification terminée. Consultez le rapport détaillé.";
-            VirgilMessageRequested?.Invoke(StatusText);
+            StatusText = RepairCheckSummary.Build(_verificationResult);
+            TechnicalDetailsText = _verificationResult.SummaryOutput;
+            VirgilMessageRequested?.Invoke(StatusText.Split('\n')[0]);
             _operationCancellation!.Token.ThrowIfCancellationRequested();
             var available = await _diagnosticService.DiagnoseAllAsync(_operationCancellation.Token).ConfigureAwait(true);
             var repairs = InterventionSafety.RepairsFor(_verificationResult.SummaryOutput);
@@ -217,6 +218,7 @@ public partial class InterventionsViewModel : ObservableObject
     private IProgress<InterventionProgress> CreateProgress()
     {
         var session = _operationCancellation;
+        var reportedSteps = new HashSet<string>(StringComparer.Ordinal);
         return new Progress<InterventionProgress>(item =>
         {
             if (!ReferenceEquals(session, _operationCancellation)) return;
@@ -224,13 +226,8 @@ public partial class InterventionsViewModel : ObservableObject
             if (Operation.IsCancelling) return;
             Progress = item.Percent ?? 0;
             ElapsedText = $"Temps écoulé : {item.Elapsed:hh\\:mm\\:ss}";
-            StatusText = item.Step + (item.Percent.HasValue ? $" — {item.Percent} %" : " — en cours…");
-            if (StatusText != _lastProgressMessage || DateTimeOffset.Now - _lastProgressAt >= TimeSpan.FromSeconds(10))
-            {
-                _lastProgressMessage = StatusText;
-                _lastProgressAt = DateTimeOffset.Now;
-                VirgilMessageRequested?.Invoke(StatusText + " · " + ElapsedText);
-            }
+            StatusText = item.Step + " — " + (item.Percent.HasValue ? $"{item.Percent} %" : "en cours…") + " · " + ElapsedText;
+            if (reportedSteps.Add(item.Step)) VirgilMessageRequested?.Invoke(item.Step);
         });
     }
 
