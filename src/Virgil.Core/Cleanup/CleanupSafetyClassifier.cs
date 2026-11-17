@@ -35,6 +35,15 @@ public sealed class CleanupSafetyClassifier
         "extensions", "web data", "autofill", "preferences"
     };
 
+    private const string IconCacheProtectionReason = "Cache d'icônes Windows protégé : le supprimer modifie l'affichage du bureau et de la barre des tâches.";
+
+    private static readonly string[] ProtectedShellRootFragments =
+    {
+        @"\desktop\",
+        @"\microsoft\internet explorer\quick launch\",
+        @"\microsoft\windows\shell\"
+    };
+
     public CleanupClassification ClassifyPath(string path, bool isDirectory = false)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -76,6 +85,21 @@ public sealed class CleanupSafetyClassifier
         }
 
         var extension = Path.GetExtension(normalized);
+        var fileName = Path.GetFileName(normalized);
+        if (fileName.StartsWith("iconcache", StringComparison.OrdinalIgnoreCase) &&
+            extension.Equals(".db", StringComparison.OrdinalIgnoreCase))
+        {
+            reason = IconCacheProtectionReason;
+            return false;
+        }
+
+        var shellPath = "\\" + Normalize(normalized).TrimStart('\\');
+        if (ProtectedShellRootFragments.Any(fragment => shellPath.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+        {
+            reason = "Bureau, raccourcis épinglés et données du shell Windows protégés.";
+            return false;
+        }
+
         if (ProtectedExtensions.Contains(extension))
         {
             reason = "Fichier personnel protégé.";
@@ -89,6 +113,16 @@ public sealed class CleanupSafetyClassifier
         }
 
         var relative = Normalize(Path.GetRelativePath(zone.RootPath, normalized));
+        if (zone.Id == CleanupZoneId.WindowsThumbnailCache &&
+            (relative.Contains('\\') || !fileName.StartsWith("thumbcache_", StringComparison.OrdinalIgnoreCase) ||
+             !extension.Equals(".db", StringComparison.OrdinalIgnoreCase)))
+        {
+            reason = !relative.Contains('\\') && extension.Equals(".db", StringComparison.OrdinalIgnoreCase)
+                ? IconCacheProtectionReason
+                : "Seules les bases de miniatures thumbcache_*.db directement à la racine sont autorisées.";
+            return false;
+        }
+
         if (ProtectedNameFragments.Any(fragment => ContainsPathSegment(relative, fragment)))
         {
             reason = "Nom personnel ou sensible détecté.";
