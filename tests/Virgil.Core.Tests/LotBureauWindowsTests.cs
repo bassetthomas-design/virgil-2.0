@@ -101,7 +101,9 @@ public sealed class LotBureauWindowsTests
         AddDirectory("Épinglages", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar"));
         lines.AddRange(Directory.EnumerateFiles(explorerRoot, "*.db")
-            .Where(p => Path.GetFileName(p).StartsWith("iconcache", StringComparison.OrdinalIgnoreCase)).Select(p => FileLine("Icônes", explorerRoot, p)));
+            .Where(p => Path.GetFileName(p).StartsWith("iconcache", StringComparison.OrdinalIgnoreCase)).Select(p => Path.GetFileName(p).StartsWith("iconcache_lotbureau_", StringComparison.OrdinalIgnoreCase)
+                ? FileLine("Icônes", explorerRoot, p)
+                : $"Icônes: P: {Path.GetRelativePath(explorerRoot, p)}"));
         using var taskband = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband", writable: false);
         if (taskband is null) lines.Add("Taskband: <absente>");
         else ReadKey(taskband, "Taskband");
@@ -140,7 +142,19 @@ public sealed class LotBureauWindowsTests
     private static string FileLine(string name, string root, string path)
     {
         var info = new FileInfo(path);
-        using var input = File.OpenRead(path);
-        return $"{name}: F: {Path.GetRelativePath(root, path)}: {info.Length}: {info.LastWriteTimeUtc:O}: {Convert.ToHexString(SHA256.HashData(input))}";
+        var prefix = $"{name}: F: {Path.GetRelativePath(root, path)}: {info.Length}: {info.LastWriteTimeUtc:O}: ";
+        try
+        {
+            using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return prefix + Convert.ToHexString(SHA256.HashData(input));
+        }
+        catch (IOException) when (name != "Icônes")
+        {
+            return prefix + "<verrouillé>";
+        }
+        catch (UnauthorizedAccessException) when (name != "Icônes")
+        {
+            return prefix + "<verrouillé>";
+        }
     }
 }
