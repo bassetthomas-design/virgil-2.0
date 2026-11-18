@@ -20,8 +20,11 @@ public sealed partial class HomePrioritiesViewModel : ObservableObject, IDisposa
         _store.Changed += StoreChanged; Refresh();
     }
     public ObservableCollection<HomePriorityItem> Items { get; } = new();
+    public ObservableCollection<string> Resolved { get; } = new();
     [ObservableProperty] private string statusText = string.Empty;
     [ObservableProperty] private string measuredAt = string.Empty;
+    [ObservableProperty] private string tileValue = string.Empty;
+    [ObservableProperty] private string tileDetail = string.Empty;
     public event Action<string>? NavigationRequested;
     private void StoreChanged(object? sender, EventArgs args)
     {
@@ -32,12 +35,23 @@ public sealed partial class HomePrioritiesViewModel : ObservableObject, IDisposa
     {
         var measure = _store.LastPriorityPoints;
         Items.Clear();
-        foreach (var point in measure?.Value ?? []) Items.Add(HomePriorityCatalog.For(point));
+        foreach (var point in measure?.Value ?? []) Items.Add(HomePriorityCatalog.For(point, _clock.LocalTimeZone));
+        Resolved.Clear();
+        foreach (var point in _store.LastResolvedPoints) Resolved.Add(HomePriorityCatalog.ResolvedText(point, _clock.LocalTimeZone));
         StatusText = measure is null ? "Aucune analyse récente : lancez un scan pour voir les priorités."
             : Items.Count == 0 ? "Aucun point prioritaire au dernier contrôle." : string.Empty;
         MeasuredAt = measure is null ? string.Empty : "Mesuré à " + TimeZoneInfo.ConvertTime(measure.CapturedAt, _clock.LocalTimeZone)
             .ToString("HH:mm", CultureInfo.GetCultureInfo("fr-FR"));
+        TileValue = measure is null ? "--" : Items.Count.ToString(CultureInfo.InvariantCulture);
+        TileDetail = measure is null ? "ANALYSE À LANCER" : (Items.Count switch
+        {
+            0 => "AUCUNE PRIORITÉ DÉTECTÉE",
+            1 => "1 POINT À VÉRIFIER",
+            _ => $"{TileValue} POINTS À VÉRIFIER"
+        }) + " · " + MeasuredAt;
     }
+    [RelayCommand]
+    private void ShowAll() => NavigationRequested?.Invoke("Priorités");
     [RelayCommand]
     private async Task OpenAsync(HomePriorityItem? item)
     {

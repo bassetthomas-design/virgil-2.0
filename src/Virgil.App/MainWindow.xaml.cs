@@ -86,6 +86,7 @@ public partial class MainWindow : Window
         ((Virgil.App.ViewModels.NetworkViewModel)networkView.DataContext).RepairRequested += (_, _) => ShowInterventions();
         InitializeComponent();
         PrioritiesPanel.DataContext = HomePriorities;
+        PriorityTile.DataContext = HomePriorities;
         HomePriorities.NavigationRequested += NavigatePriority;
         _scanOperation = new Virgil.App.ViewModels.LongOperationViewModel(() => _activeScanCancellation?.Cancel(), clock);
         ScanProgressPanel.DataContext = _scanOperation;
@@ -245,6 +246,10 @@ public partial class MainWindow : Window
             case "Mises à jour": Updates_Click(this, args); break;
             case "Réseau": Network_Click(this, args); break;
             case "Réparation": Interventions_Click(this, args); break;
+            case "Priorités":
+                if (!_scanInProgress && HomeContentGrid.Visibility != Visibility.Visible) ShowHome();
+                _ = Dispatcher.InvokeAsync(() => PrioritiesPanel.BringIntoView(), DispatcherPriority.Loaded);
+                break;
         }
     }
 
@@ -796,11 +801,6 @@ public partial class MainWindow : Window
             CleanupValueText.Text = SystemStatusText.CleanupValue(cleanup.Value);
             CleanupDetailText.Text = SystemStatusText.CleanupDetail(cleanup.Value) + "\n" + SystemStatusText.MeasuredAt(cleanup.CapturedAt);
         }
-        if (_statusStore.LastPriorities is { } priorities)
-        {
-            UpdatePriorities(priorities.Value);
-            PriorityDetailText.Text += " · " + SystemStatusText.MeasuredAt(priorities.CapturedAt);
-        }
     }
 
     private void CompleteScan(SystemScanReport report)
@@ -1049,13 +1049,6 @@ public partial class MainWindow : Window
         storyboard.Children.Add(animation);
     }
 
-    private void UpdatePriorities(int priorityCount)
-    {
-        PriorityValueText.Text = priorityCount.ToString();
-        PriorityDetailText.Text = priorityCount == 0
-            ? "AUCUNE PRIORITÉ"
-            : priorityCount == 1 ? "1 POINT À VÉRIFIER" : $"{priorityCount} POINTS À VÉRIFIER";
-    }
 
     private void AppendVirgilMessage(string message)
     {
