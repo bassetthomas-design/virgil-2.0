@@ -176,6 +176,7 @@
                 <StackPanel Grid.Row="1" Margin="0,8">
                     <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource App.TextPrimaryBrush}" FontSize="20"/>
                     <TextBlock Text="{Binding SafetySummary}" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding SelectionSummary}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
                     <WrapPanel IsEnabled="{Binding IsIdle}" Margin="0,8,0,4">
                         <Button Content="TOUT SÉLECTIONNER" Command="{Binding SelectAllCommand}" Style="{StaticResource VirgilSecondaryButton}"/>
                         <Button Content="TOUT DÉSÉLECTIONNER" Command="{Binding DeselectAllCommand}" Style="{StaticResource VirgilSecondaryButton}" Margin="8,0,0,0"/>
@@ -253,9 +254,18 @@
                 </ListBox>
                 <StackPanel Grid.Row="3">
                     <Expander Header="Informations complémentaires (lecture seule)">
-                        <ListBox ItemsSource="{Binding Entries}" MaxHeight="240" Background="{DynamicResource App.BackgroundBrush}" Foreground="{DynamicResource App.TextPrimaryBrush}" BorderThickness="0"
-                                 ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True"
-                                 VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"/>
+                        <ItemsControl ItemsSource="{Binding AdditionalSections}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:CleanupInfoSection}">
+                                    <Expander Header="{Binding Header}" IsExpanded="False">
+                                        <ListBox ItemsSource="{Binding Items}" MaxHeight="240"
+                                                 Background="{DynamicResource App.BackgroundBrush}" Foreground="{DynamicResource App.TextPrimaryBrush}" BorderThickness="0"
+                                                 ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True"
+                                                 VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"/>
+                                    </Expander>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Expander>
                     <Expander Header="Quarantaine">
                         <Grid Margin="12">

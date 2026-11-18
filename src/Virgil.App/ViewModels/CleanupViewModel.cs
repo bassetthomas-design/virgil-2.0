@@ -5,6 +5,7 @@ using Virgil.Contracts.Actions;
 using Virgil.App.Animation;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -28,6 +29,23 @@ public partial class CleanupViewModel : ObservableObject
     public ObservableCollection<CleanupCategoryItem> Categories { get; } = new();
     public string Summary => $"{FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleBytes))} récupérables · {Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect).Sum(r => r.Preview.EligibleFileCount)} fichiers";
     public string SafetySummary => $"Sans risque : {FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect && r.CanGroupSelect && r.Preview.Definition.Group == CleanupGroup.Sur).Sum(r => r.Preview.EligibleBytes))} · À vérifier : {FormatBytes(Groups.SelectMany(g => g.Rows).Where(r => r.CanSelect && (!r.CanGroupSelect || r.Preview.Definition.Group != CleanupGroup.Sur)).Sum(r => r.Preview.EligibleBytes))}";
+
+    public string SelectionSummary
+    {
+        get
+        {
+            var selected = Groups.SelectMany(group => group.Rows)
+                .Where(row => row.CanSelect && row.IsSelected)
+                .Select(row => row.Preview)
+                .ToArray();
+            var files = selected.Sum(preview => (long)preview.EligibleFileCount);
+            var bytes = selected.Sum(preview => preview.EligibleBytes);
+            var summary = $"Sélection : {selected.Length} zone(s) · {files} fichiers · {FormatBytes(bytes)}";
+            return selected.Any(preview => preview.Definition.Id == CleanupZoneId.RecycleBin)
+                ? summary + " · Corbeille incluse (suppression définitive)"
+                : summary;
+        }
+    }
 
     public ObservableCollection<CleanupGroupItem> Groups { get; } = new();
     [ObservableProperty] private string criticalConfirmationText = string.Empty;
@@ -73,6 +91,7 @@ public partial class CleanupViewModel : ObservableObject
     }
 
     public ObservableCollection<object> Entries { get; private set; } = new();
+    public IReadOnlyList<CleanupInfoSection> AdditionalSections { get; private set; } = [];
     [ObservableProperty] private string statusText = "Aucune analyse nettoyage lancée.";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
@@ -305,8 +324,16 @@ public partial class CleanupViewModel : ObservableObject
             foreach (var zone in _lastPreview)
                 Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Terminée",
                     $"{zone.EligibleFileCount} fichiers éligibles ; aucune modification.");
+            foreach (var row in Groups.SelectMany(group => group.Rows))
+                row.PropertyChanged -= OnSelectionRowChanged;
             Groups.Clear();
-            foreach (var group in groups) Groups.Add(group);
+            foreach (var group in groups)
+            {
+                foreach (var row in group.Rows)
+                    row.PropertyChanged += OnSelectionRowChanged;
+                Groups.Add(group);
+            }
+            OnPropertyChanged(nameof(SelectionSummary));
             var categories = await Task.Run(() => groups.SelectMany(g => g.Rows).GroupBy(r => CategoryLabel(r.Preview.Definition.Id))
                 .Select(g => new CleanupCategoryItem(g.Key, g)).OrderByDescending(c => c.Bytes).ToArray(), token);
             Categories.Clear();
@@ -608,11 +635,44 @@ public partial class CleanupViewModel : ObservableObject
         activeDecision.TrySetResult(decision);
     }
 
+    private void OnSelectionRowChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CleanupSelectionRow.IsSelected))
+            OnPropertyChanged(nameof(SelectionSummary));
+    }
+
     private async Task RenderPreviewsAsync()
     {
         var entries = await Task.Run(BuildPreviewEntries);
         Entries = new ObservableCollection<object>(entries);
+        AdditionalSections = BuildAdditionalSections(entries);
         OnPropertyChanged(nameof(Entries));
+        OnPropertyChanged(nameof(AdditionalSections));
+    }
+
+    private static IReadOnlyList<CleanupInfoSection> BuildAdditionalSections(IReadOnlyList<object> entries)
+    {
+        var zones = entries.OfType<CleanupZoneItemViewModel>().ToArray();
+        var safe = zones.Where(zone => zone.Preview.Definition.Classification == CleanupClassification.Cleanable).ToArray();
+        var advanced = zones.Where(zone => zone.Preview.Definition.Classification is
+            CleanupClassification.AdvancedCleanable or CleanupClassification.InformationOnly).ToArray();
+        var cards = entries.OfType<CleanupTextCardItem>().ToArray();
+        var review = entries.OfType<CleanupReviewItemViewModel>().ToArray();
+
+        return
+        [
+            CreateZoneSection("Nettoyage sûr", safe),
+            CreateZoneSection("Nettoyage avancé", advanced),
+            new("Nettoyage technique bloqué", [cards[0]]),
+            new($"À revoir manuellement — {review.Length} élément(s)", [cards[1], .. review]),
+            new("Protégé", [cards[2]])
+        ];
+    }
+
+    private static CleanupInfoSection CreateZoneSection(string title, CleanupZoneItemViewModel[] zones)
+    {
+        var bytes = zones.Select(zone => zone.Preview).Where(CleanupSelectionPolicy.CanSelect).Sum(preview => preview.EligibleBytes);
+        return new($"{title} — {zones.Length} zone(s) · {FormatBytes(bytes)} sélectionnables", zones);
     }
 
     private IReadOnlyList<object> BuildPreviewEntries()
