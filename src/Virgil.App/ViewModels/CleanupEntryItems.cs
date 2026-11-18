@@ -12,6 +12,7 @@ namespace Virgil.App.ViewModels;
 
 public sealed record CleanupSectionTitleItem(string Text);
 public sealed record CleanupTextCardItem(string Text);
+public sealed record CleanupInfoSection(string Header, IReadOnlyList<object> Items);
 
 public sealed class CleanupZoneItemViewModel
 {
