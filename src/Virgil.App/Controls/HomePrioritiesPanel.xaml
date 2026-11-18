@@ -8,11 +8,19 @@
    <ItemsControl.ItemTemplate><DataTemplate>
     <StackPanel Margin="0,8,0,4">
      <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}"/>
+     <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextSecondaryBrush}"/>
      <Button Content="{Binding Button}" HorizontalAlignment="Left" Margin="0,5,0,0"
        Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
        AutomationProperties.Name="{Binding Button}"/>
     </StackPanel>
    </DataTemplate></ItemsControl.ItemTemplate>
+  </ItemsControl>
+  <ItemsControl ItemsSource="{Binding Resolved}">
+   <ItemsControl.ItemTemplate>
+    <DataTemplate>
+     <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextSecondaryBrush}"/>
+    </DataTemplate>
+   </ItemsControl.ItemTemplate>
   </ItemsControl>
   <TextBlock Text="{Binding MeasuredAt}" Foreground="{DynamicResource App.TextSecondaryBrush}" Margin="0,8,0,0"/>
  </StackPanel>

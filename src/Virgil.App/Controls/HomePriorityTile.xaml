@@ -1,0 +1,26 @@
+<UserControl x:Class="Virgil.App.Controls.HomePriorityTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Button Command="{Binding ShowAllCommand}" AutomationProperties.Name="Voir les priorités"
+            AutomationProperties.AutomationId="HomePriorityTile" Cursor="Hand" Background="Transparent"
+            BorderThickness="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Button.Template>
+            <ControlTemplate TargetType="Button">
+                <Border Background="{TemplateBinding Background}">
+                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </Border>
+            </ControlTemplate>
+        </Button.Template>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="PRIORITÉS" Style="{DynamicResource VirgilMicroLabel}"/>
+            <TextBlock Grid.Row="1" Text="{Binding TileValue}" Style="{DynamicResource VirgilHudMetric}" Margin="0,10,0,4"/>
+            <TextBlock Grid.Row="2" Text="{Binding TileDetail}" Style="{DynamicResource VirgilHudSecondaryText}" TextWrapping="Wrap"/>
+        </Grid>
+    </Button>
+</UserControl>

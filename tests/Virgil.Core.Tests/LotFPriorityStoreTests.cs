@@ -25,7 +25,7 @@ public sealed class LotFPriorityStoreTests
         Assert.Equal("disk-C:", Read(points[1], "Id"));
     }
     [Fact]
-    public void Newer_real_diagnostic_replaces_scan_but_older_measure_does_not()
+    public void Newer_real_diagnostic_keeps_scan_points_and_older_scan_does_not_replace()
     {
         var store = new SystemStatusStore(); var at = DateTimeOffset.UnixEpoch.AddDays(1);
         store.PublishScan(Report(at, new ScanFinding("disk-C:", "", "Disque", "", "", ScanSeverity.Warning, null)));
@@ -34,9 +34,9 @@ public sealed class LotFPriorityStoreTests
         store.PublishDiagnostic(findings);
         var measured = Read(store, "LastPriorityPoints");
         var points = ((IEnumerable)Read(measured, "Value")).Cast<object>().ToArray();
-        Assert.Equal(findings.Issues.Where(i => i.Impact > 0).Select(i => i.Id), points.Select(p => (string)Read(p, "Id")));
+        Assert.Equal(new[] { "disk-C:" }, points.Select(p => (string)Read(p, "Id")));
         Assert.Equal(points.Length, store.LastPriorities!.Value);
-        store.PublishScan(Report(at, new ScanFinding("cpu-usage", "", "Ancien", "", "", ScanSeverity.Critical, null)));
+        store.PublishScan(Report(at.AddMinutes(-1), new ScanFinding("cpu-usage", "", "Ancien", "", "", ScanSeverity.Critical, null)));
         Assert.Same(measured, Read(store, "LastPriorityPoints"));
     }
     private static object Read(object target, string name)
