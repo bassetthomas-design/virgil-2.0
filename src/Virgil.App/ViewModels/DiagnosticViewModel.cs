@@ -11,7 +11,9 @@ namespace Virgil.App.ViewModels;
 
 public sealed partial class DiagnosticViewModel : ObservableObject
 {
+    private static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
     private readonly DiagnosticModule _module;
+    private readonly TimeProvider _clock;
     private readonly ISystemStatusStore? _statusStore;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private CancellationTokenSource? _presentation;
@@ -26,6 +28,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         Operation = new LongOperationViewModel(() => _refreshCancellation?.Cancel(), clock);
         _module = module;
         ArgumentNullException.ThrowIfNull(clock);
+        _clock = clock;
         _confirmation = confirmation;
         _statusStore = statusStore;
         RefreshCommand = new AsyncRelayCommand(() => { _module.InvalidateSignals(); return RefreshAsync(); });
@@ -125,7 +128,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
             ApplySort();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { Status = "Actualisation annulée. Aucun résultat partiel publié."; }
-        catch (Exception) { Status = "Indisponible : lecture Windows impossible. Utilisez Actualiser pour réessayer."; }
+        catch (Exception) { Status = "Indisponible : lecture Windows impossible. Utilisez « Actualiser le diagnostic » pour réessayer."; }
         finally
         {
             Operation.Complete(Status);
@@ -139,6 +142,9 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private IReadOnlyList<DiagnosticFindingRow> _findings = Array.Empty<DiagnosticFindingRow>();
     private IReadOnlyList<string> _top3 = Array.Empty<string>();
     private IReadOnlyList<string> _unavailable = Array.Empty<string>();
+    private bool _hasReading;
+    private string _lastReading = "Aucun relevé terminé pour le moment.";
+    private IReadOnlyList<DiagnosticFindingRow> _topFindings = Array.Empty<DiagnosticFindingRow>();
     private string _health = "Note non calculée";
     private IReadOnlyList<string> _startup = Array.Empty<string>();
     private IMaintenanceAction? _pending;
@@ -152,7 +158,17 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     public string Health => _health;
     public IReadOnlyList<string> Startup => _startup;
     public IReadOnlyList<string> Top3 => _top3;
-    public string Top3Caption => _top3.Count == 0 ? "Aucun problème détecté dans les signaux disponibles." : "Top 3 des problèmes";
+    public string Top3Caption => !_hasReading
+        ? "Constats disponibles après le premier relevé."
+        : _top3.Count == 0 ? "Aucun problème détecté dans les signaux disponibles." : "À vérifier en priorité";
+    public string LastReading => _lastReading;
+    public IReadOnlyList<DiagnosticFindingRow> TopFindings => _topFindings;
+    public string PartialMeasure => _unavailable.Count switch
+    {
+        0 => string.Empty,
+        1 => "Mesure partielle : 1 signal indisponible (liste dans les détails techniques).",
+        var n => $"Mesure partielle : {n.ToString(CultureInfo.InvariantCulture)} signaux indisponibles (liste dans les détails techniques)."
+    };
     public IReadOnlyList<string> Unavailable => _unavailable;
     public IReadOnlyList<DiagnosticFindingRow> Findings => _findings;
     public event Action<DiagnosticSuggestion>? NavigationRequested;
@@ -169,7 +185,13 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         _findings = findings.Issues.Select(issue => new DiagnosticFindingRow(issue, actions.Where(a =>
             a is DiagnosticCloseAction close && issue.Process?.ProcessId == close.ProcessId ||
             a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync)).ToArray();
-        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable), nameof(Findings), nameof(Startup) }) OnPropertyChanged(name);
+        _hasReading = true;
+        _lastReading = "Dernier relevé à " + TimeZoneInfo.ConvertTime(findings.Snapshot.CapturedAtUtc, _clock.LocalTimeZone)
+            .ToString("H' h 'mm", French);
+        _topFindings = _findings.Where((_, index) => findings.Issues[index].Severity > 0).Take(3).ToArray();
+        foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable),
+            nameof(Findings), nameof(Startup), nameof(LastReading), nameof(TopFindings), nameof(PartialMeasure) })
+            OnPropertyChanged(name);
     }
     public async Task PrepareActionAsync(IMaintenanceAction action)
     {

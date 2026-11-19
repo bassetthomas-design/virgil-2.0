@@ -8,44 +8,50 @@
   <DataTemplate DataType="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2"/>
   </DataTemplate>
- </UserControl.Resources>
- <Grid Margin="16">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-  <StackPanel>
-   <TextBlock Text="Diagnostic" FontSize="26" FontWeight="Bold"/>
-   <TextBlock Text="Aucune action sans votre validation" Margin="0,8"/>
-   <TextBlock Text="{Binding Health}" FontSize="22" FontWeight="Bold" Margin="0,8"/>
-   <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
-   <ItemsControl ItemsSource="{Binding Top3}"/>
-   <Button Content="Actualiser" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
-   <controls:OperationProgressPanel DataContext="{Binding Operation}" CancelAutomationId="DiagnosticCancelButton"/>
-   <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
-  </StackPanel>
-  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-   <StackPanel>
-    <TextBlock Text="Tous les constats" FontSize="18" Margin="0,8"/>
-    <ItemsControl ItemsSource="{Binding Findings}">
-     <ItemsControl.ItemTemplate><DataTemplate><Border BorderThickness="1" BorderBrush="Gray" Padding="10" Margin="0,4"><StackPanel>
+  <DataTemplate x:Key="DiagnosticFindingCard">
+   <Border BorderThickness="1" BorderBrush="Gray" Padding="10" Margin="0,4"><StackPanel>
       <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap"/>
       <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
       <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" FontStyle="Italic" Margin="0,4"/>
       <ItemsControl ItemsSource="{Binding Actions}"><ItemsControl.ItemTemplate><DataTemplate>
        <Button Content="{Binding Title}" Command="{Binding PrepareCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4"/>
       </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-     </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
-    </ItemsControl>
+     </StackPanel></Border>
+  </DataTemplate>
+ </UserControl.Resources>
+ <Grid Margin="16">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="Diagnostic" FontSize="26" FontWeight="Bold"/>
+   <TextBlock Text="Mesurer ce qui ralentit le PC et savoir quoi vérifier." TextWrapping="Wrap" Margin="0,4,0,0"/>
+   <TextBlock Text="Aucune action sans votre validation" Margin="0,8"/>
+   <TextBlock Text="{Binding LastReading}" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Health}" FontSize="22" FontWeight="Bold" Margin="0,8"/>
+   <TextBlock Text="{Binding PartialMeasure}" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
+   <ItemsControl ItemsSource="{Binding TopFindings}" ItemTemplate="{StaticResource DiagnosticFindingCard}"/>
+   <Button Content="Actualiser le diagnostic" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
+   <controls:OperationProgressPanel DataContext="{Binding Operation}" CancelAutomationId="DiagnosticCancelButton"/>
+   <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
+  </StackPanel>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+   <StackPanel>
+    <TextBlock Text="Détails techniques" FontSize="18" Margin="0,8"/>
+    <Expander Header="Tous les constats" IsExpanded="False">
+     <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource DiagnosticFindingCard}"/>
+    </Expander>
     <Expander Header="Démarrage" IsExpanded="False"><ItemsControl ItemsSource="{Binding Startup}"/></Expander>
-    <Expander Header="Signaux indisponibles — non mesurés ou lectures en échec"><ItemsControl ItemsSource="{Binding Unavailable}"/></Expander>
-    <Expander Header="Processeur" IsExpanded="True"><ItemsControl ItemsSource="{Binding CpuDetails}"/></Expander>
-    <Expander Header="Mémoire" IsExpanded="True"><ItemsControl ItemsSource="{Binding MemoryDetails}"/></Expander>
-    <Expander Header="Disques" IsExpanded="True"><ItemsControl ItemsSource="{Binding DiskDetails}"/></Expander>
-    <Expander Header="Réseau" IsExpanded="True">
+    <Expander Header="Signaux indisponibles — non mesurés ou lectures en échec" IsExpanded="False"><ItemsControl ItemsSource="{Binding Unavailable}"/></Expander>
+    <Expander Header="Processeur" IsExpanded="False"><ItemsControl ItemsSource="{Binding CpuDetails}"/></Expander>
+    <Expander Header="Mémoire" IsExpanded="False"><ItemsControl ItemsSource="{Binding MemoryDetails}"/></Expander>
+    <Expander Header="Disques" IsExpanded="False"><ItemsControl ItemsSource="{Binding DiskDetails}"/></Expander>
+    <Expander Header="Réseau" IsExpanded="False">
      <StackPanel>
       <TextBlock Text="Débit réseau par programme indisponible. Seuls les connexions TCP établies et les points de terminaison UDP liés sont comptés (IPv4 et IPv6)." TextWrapping="Wrap"/>
       <ItemsControl ItemsSource="{Binding NetworkDetails}"/>
      </StackPanel>
     </Expander>
-    <Expander Header="Carte graphique" IsExpanded="True"><ItemsControl ItemsSource="{Binding GpuDetails}"/></Expander>
+    <Expander Header="Carte graphique" IsExpanded="False"><ItemsControl ItemsSource="{Binding GpuDetails}"/></Expander>
     <TextBlock Text="Processus" FontSize="18" Margin="0,12,0,6"/>
     <DataGrid ItemsSource="{Binding Processes}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
               Sorting="Processes_Sorting" Height="400" EnableRowVirtualization="True" AutomationProperties.Name="Processus en lecture seule">
