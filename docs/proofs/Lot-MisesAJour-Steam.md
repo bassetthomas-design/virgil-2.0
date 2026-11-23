@@ -44,7 +44,11 @@ Le correctif initial est `9772a100a253d1f94ebf3b3e0fdc179169e6f906`. Le [run Win
 | `D1bisBPanelTests.Real_panel_uses_own_results_and_displays_confirmation(scenario: "cancelled")` | `Assert.Equal() Failure: Strings differ`. Le jeu attend « à jour selon Steam » et obtient « reste à installer ». |
 | `LotMisesAJourSteamViewTests.Closed_or_offline_steam_offers_open_steam_action_launching_steam_downloads` | `InvalidOperationException` à la ligne 83 pendant l’écriture de l’artefact. `File.InternalWriteAllLinesAsync` énumère la projection différée qui lit `Button.Content` hors du thread WPF. Les assertions sur le bouton et le lancement restent sans résultat. |
 
-Le commit `1a346bcc2858ea23d565109ffcbc24f05100b1d5` rétablit le résultat fondé sur la dernière lecture réussie quand l’attente est annulée. Le jeu resté installé reprend le statut « à jour selon Steam » et le résumé retrouve un seul jeu qui « reste à installer ». Une attente non annulée conserve la règle des deux lectures. Le test WPF est inchangé sur demande de virgil (relecture). Son écriture d’artefact reste bloquée par l’accès au bouton hors du thread WPF.
+Le commit `1a346bcc2858ea23d565109ffcbc24f05100b1d5` rétablit le résultat fondé sur la dernière lecture réussie quand l’attente est annulée. Le jeu resté installé reprend le statut « à jour selon Steam » et le résumé retrouve un seul jeu qui « reste à installer ». Une attente non annulée conserve la règle des deux lectures.
+
+Le [run Windows #494](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45194368838), SHA `25ff1b04363a92086109da5a81c4bf8833b04ad1`, confirme les deux corrections d’annulation (Core 1332/1332, App 889/890). Le seul échec est l’exception WPF lors de l’écriture de l’artefact.
+
+Le commit de test `45e888f5c560b1effee2962f26006e54b975bd48` capture le texte, l’état d’activation et le type de commande de chaque bouton sur le thread STA avant de fermer la fenêtre. L’artefact et les assertions consomment ces valeurs. Le test vérifie toujours les deux lancements de `steam://open/downloads` avec `UseShellExecute` et les deux messages exacts.
 
 Les statuts Windows se consultent dans les [checks de la PR #101](https://github.com/bassetthomas-design/virgil-2.0/pull/101/checks). Aucun run vert final ni ID d’artefact final `Virgil-ui-smoke` n’est confirmé.
 
