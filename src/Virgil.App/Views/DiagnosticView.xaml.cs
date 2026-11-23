@@ -24,6 +24,7 @@ public partial class DiagnosticView : UserControl
         PreviewKeyDown += View_PreviewKeyDown;
         DataContext = viewModel;
         viewModel.NavigationRequested += destination => NavigationRequested?.Invoke(destination);
+        viewModel.ProcessesRequested += () => ProcessGrid.BringIntoView();
     }
     private void View_Loaded(object sender, RoutedEventArgs e)
     {

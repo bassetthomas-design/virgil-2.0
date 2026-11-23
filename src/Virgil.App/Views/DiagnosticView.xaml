@@ -16,6 +16,7 @@
       <ItemsControl ItemsSource="{Binding Actions}"><ItemsControl.ItemTemplate><DataTemplate>
        <Button Content="{Binding Title}" Command="{Binding PrepareCommand}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4"/>
       </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      <Button Content="Voir les processus" Command="{Binding ShowProcessesCommand}" Visibility="{Binding ShowsProcesses, Converter={StaticResource DiagnosticBoolToVisibility}}" HorizontalAlignment="Left" Padding="12,5" Margin="0,4"/>
      </StackPanel></Border>
   </DataTemplate>
  </UserControl.Resources>
@@ -30,6 +31,7 @@
    <TextBlock Text="{Binding PartialMeasure}" TextWrapping="Wrap"/>
    <TextBlock Text="{Binding Top3Caption}" FontWeight="Bold"/>
    <ItemsControl ItemsSource="{Binding TopFindings}" ItemTemplate="{StaticResource DiagnosticFindingCard}"/>
+   <TextBlock Text="{Binding PendingLoad}" TextWrapping="Wrap"/>
    <Button Content="Actualiser le diagnostic" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" Padding="18,6"/>
    <controls:OperationProgressPanel DataContext="{Binding Operation}" CancelAutomationId="DiagnosticCancelButton"/>
    <TextBlock Text="{Binding Status}" Margin="0,8" AutomationProperties.LiveSetting="Polite"/>
@@ -53,7 +55,7 @@
     </Expander>
     <Expander Header="Carte graphique" IsExpanded="False"><ItemsControl ItemsSource="{Binding GpuDetails}"/></Expander>
     <TextBlock Text="Processus" FontSize="18" Margin="0,12,0,6"/>
-    <DataGrid ItemsSource="{Binding Processes}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+    <DataGrid x:Name="ProcessGrid" ItemsSource="{Binding Processes}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
               Sorting="Processes_Sorting" Height="400" EnableRowVirtualization="True" AutomationProperties.Name="Processus en lecture seule">
      <DataGrid.Columns>
       <DataGridTextColumn Header="Nom" Binding="{Binding Name}" SortMemberPath="Name"/>

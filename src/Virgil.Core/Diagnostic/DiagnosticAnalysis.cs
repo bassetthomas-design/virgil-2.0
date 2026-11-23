@@ -1,3 +1,4 @@
+using System.Globalization;
 using Virgil.Contracts;
 using Virgil.Contracts.Actions;
 using Virgil.Contracts.Diagnostic;
@@ -30,13 +31,31 @@ public sealed record HealthScore(int Value, bool IsPartial)
 }
 
 /// <summary>Analyse pure. Poids maximaux par catégorie : CPU 20, GPU 20, disque 30,
-/// espace 10, erreurs 10, pilotes 10, processus 5. Le score est borné entre 0 et 100.
+/// espace 10, erreurs 10, pilotes 10, processus 5, charge 10 (processeur et mémoire ensemble). Le score est borné entre 0 et 100.
 /// Une catégorie indisponible ne produit aucune pénalité ; le démarrage non mesuré vaut 0.</summary>
 public static class DiagnosticAnalyzer
 {
     private static readonly HashSet<string> Launchers = new(StringComparer.OrdinalIgnoreCase)
         { "steam", "steamwebhelper", "EpicGamesLauncher", "EpicWebHelper", "Battle.net", "Agent", "UbisoftConnect", "upc" };
     public static bool IsLauncher(string name) => Launchers.Contains(name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name);
+    public const double LoadThresholdPercent = 85;
+    public static readonly TimeSpan LoadMinimumGap = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan LoadMaximumGap = TimeSpan.FromMinutes(5);
+
+    public static double? CpuLoad(DiagnosticSnapshot snapshot) =>
+        snapshot.Cpu.TotalPercent is { IsAvailable: true } cpu && double.IsFinite(cpu.Value) && cpu.Value >= 0
+            ? cpu.Value : null;
+
+    public static double? MemoryLoad(DiagnosticSnapshot snapshot)
+    {
+        var total = snapshot.Memory.TotalBytes;
+        var available = snapshot.Memory.AvailableBytes;
+        if (!total.IsAvailable || !available.IsAvailable || !double.IsFinite(total.Value) ||
+            !double.IsFinite(available.Value) || total.Value <= 0 || available.Value < 0 || available.Value > total.Value)
+            return null;
+        return 100 * (total.Value - available.Value) / total.Value;
+    }
+
     private static bool IsKnownLauncher(ProcessDiagnostic process)
     {
         if (!IsLauncher(process.Name)) return false;
@@ -47,7 +66,7 @@ public static class DiagnosticAnalyzer
             process.Path.Value.Contains("Blizzard", StringComparison.OrdinalIgnoreCase)) ||
             process.Publisher.IsAvailable && process.Publisher.Value.Contains("Blizzard", StringComparison.OrdinalIgnoreCase);
     }
-    public static DiagnosticFindings Analyze(DiagnosticSnapshot snapshot, DiagnosticSignals signals)
+    public static DiagnosticFindings Analyze(DiagnosticSnapshot snapshot, DiagnosticSignals signals, DiagnosticSnapshot? previous = null)
     {
         var issues = new List<DiagnosticIssue>();
         var missing = new List<string>();
@@ -119,9 +138,28 @@ public static class DiagnosticAnalyzer
             if ((p.CpuPercent.IsAvailable && p.CpuPercent.Value >= 20) || (p.WorkingSetBytes.IsAvailable && p.WorkingSetBytes.Value >= 512L * 1024 * 1024))
                 issues.Add(new("process." + p.Pid, p.Name + " : lanceur gourmand", "Ce lanceur utilise au moins 20 % CPU ou 512 Mo de RAM. Si vous ne l'utilisez pas, vous pouvez proposer sa fermeture. Une activité utile reste possible.", 1, 5, "process", DiagnosticSuggestion.Close, target));
         }
+        var gap = previous is null ? TimeSpan.Zero : snapshot.CapturedAtUtc - previous.CapturedAtUtc;
+        var comparable = previous is not null && gap >= LoadMinimumGap && gap <= LoadMaximumGap;
+        var pending = new List<string>();
+        void Load(string id, string title, string name, string description, Func<DiagnosticSnapshot, double?> read)
+        {
+            if (read(snapshot) is not { } current || current < LoadThresholdPercent) return;
+            if (comparable && read(previous!) is { } prior && prior >= LoadThresholdPercent)
+                issues.Add(new(id, title, string.Format(CultureInfo.InvariantCulture, description, prior, current), 2, 10, "load"));
+            else
+                pending.Add(name + " " + current.ToString("0", CultureInfo.InvariantCulture) + " %");
+        }
+        Load("cpu.load", "Processeur : très sollicité", "processeur",
+            "Charge totale d'au moins 85 % sur deux relevés consécutifs ({0:0} % puis {1:0} %). Un jeu, un calcul ou une mise à jour peut l'expliquer.", CpuLoad);
+        Load("memory.load", "Mémoire : presque pleine", "mémoire",
+            "Au moins 85 % de la mémoire utilisée sur deux relevés consécutifs ({0:0} % puis {1:0} %). Des programmes ouverts en arrière-plan peuvent l'expliquer.", MemoryLoad);
         // Le démarrage est informatif : aucun de ses signaux ne pondère la note.
         var ordered = issues.OrderByDescending(i => i.Severity).ThenByDescending(i => i.Impact).ThenBy(i => i.Id, StringComparer.Ordinal).ToArray();
         var penalty = ordered.GroupBy(i => i.Category).Sum(g => g.Max(i => i.Impact));
-        return new DiagnosticFindings(snapshot, signals, ordered, new HealthScore(Math.Clamp(100 - penalty, 0, 100), failures.Count > 0) { FailedReadCount = failures.Count }, missing.Distinct().ToArray());
+        return new DiagnosticFindings(snapshot, signals, ordered, new HealthScore(Math.Clamp(100 - penalty, 0, 100), failures.Count > 0) { FailedReadCount = failures.Count }, missing.Distinct().ToArray())
+        {
+            PendingLoad = pending.Count == 0 ? string.Empty : "Charge élevée sur ce relevé (" + string.Join(", ", pending) +
+                "). Actualisez le diagnostic dans quelques secondes pour vérifier qu'elle dure."
+        };
     }
 }

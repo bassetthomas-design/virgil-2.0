@@ -150,6 +150,8 @@ public sealed class SystemStatusStore : ISystemStatusStore
     private static bool DiagnosticCovers(DiagnosticFindings findings, string id)
     {
         var snapshot = findings.Snapshot;
+        if (id == "cpu.load") return DiagnosticAnalyzer.CpuLoad(snapshot) < DiagnosticAnalyzer.LoadThresholdPercent;
+        if (id == "memory.load") return DiagnosticAnalyzer.MemoryLoad(snapshot) < DiagnosticAnalyzer.LoadThresholdPercent;
         if (id == "cpu.hot") return snapshot.Cpu.TemperatureCelsius.IsAvailable;
         if (id == "windows.errors") return findings.Signals.Errors.IsAvailable;
         if (id.StartsWith("device.", StringComparison.Ordinal)) return findings.Signals.Devices.IsAvailable;
