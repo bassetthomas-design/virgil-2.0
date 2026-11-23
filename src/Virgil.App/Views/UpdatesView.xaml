@@ -21,6 +21,10 @@
                         Command="{Binding DataContext.RunSingleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                         CommandParameter="{Binding Step}" Style="{StaticResource VirgilSecondaryButton}"
                         HorizontalAlignment="Left" Margin="0,6,0,0" />
+                <Button Content="Ouvrir le Microsoft Store" IsEnabled="{Binding CanOpenStore}"
+                        Visibility="{Binding HasStoreAction, Converter={StaticResource BoolVisibility}}"
+                        Command="{Binding DataContext.OpenStoreCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:UpdateItemViewModel}">
@@ -153,7 +157,7 @@
                                        Margin="0,4,0,10" />
                             <TextBlock Text="WINGET" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="WingetStatusText"
-                                       Text="{Binding WingetStatus}"
+                                       Text="{Binding WingetStatus}" TextWrapping="Wrap"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,0" />
                         </StackPanel>
@@ -164,12 +168,12 @@
                         <StackPanel>
                             <TextBlock Text="WINDOWS UPDATE" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="WindowsUpdateStatusText"
-                                       Text="{Binding WindowsUpdateStatus}"
+                                       Text="{Binding WindowsUpdateStatus}" TextWrapping="Wrap"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,10" />
                             <TextBlock Text="PILOTES" Style="{StaticResource VirgilMicroLabel}" />
                             <TextBlock x:Name="DriversStatusText"
-                                       Text="{Binding DriversStatus}"
+                                       Text="{Binding DriversStatus}" TextWrapping="Wrap"
                                    Style="{StaticResource VirgilHudSecondaryText}"
                                        Margin="0,4,0,0" />
                         </StackPanel>

@@ -61,6 +61,8 @@ public interface IUpdateSequenceBackend
 public interface IUpdateSequenceService
 {
     IReadOnlyList<UpdateSequenceStepResult> SingleItems => [];
+    Task<IReadOnlyList<UpdateSequenceStepResult>> ScanStoreAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<UpdateSequenceStepResult>>([]);
     Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken token) => Task.FromResult(SingleItems);
     Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken);
     ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected);
@@ -161,8 +163,22 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             cards.Add(information);
         }
         cards.AddRange(backend.KnownDriverUpdates.Select(DriverCard));
+        if (backend is IStoreUpdateBackend { StoreUpdates.Partial: { } storePartial }) cards.Add(storePartial);
         SingleItems = cards;
         return steps;
+    }
+
+    public async Task<IReadOnlyList<UpdateSequenceStepResult>> ScanStoreAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken)
+    {
+        if (backend is not IStoreUpdateBackend storeBackend) return [];
+        var store = storeBackend.StoreUpdates;
+        var steps = await store.ScanAsync(apps, cancellationToken).ConfigureAwait(false);
+        var cards = steps.Where(step => step.Application is not null).Select(step =>
+            new UpdateSequenceStepResult(step, false, false, "Mise à jour détectée dans le Microsoft Store.")
+            { VerifiedStatus = "reste à installer" }).ToList();
+        if (store.Partial is { } partial) cards.Add(partial);
+        else if (cards.Count == 0 && store.ScreenCard is { } status) cards.Add(status);
+        return cards;
     }
     public async Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken cancellationToken)
     {

@@ -178,8 +178,26 @@ public partial class UpdatesViewModel : ObservableObject
             _lastItems.AddRange(report.Items);
             await PersistReportAsync(ReportMapper.FromUpdateScan(report));
 
+            IReadOnlyList<UpdateSequenceStepResult> storeCards = [];
+            if (request.IncludeApplicationUpdates && _sequenceService is not null)
+            {
+                var token = _operationCancellation.Token;
+                try { storeCards = await _sequenceService.ScanStoreAsync(report.Items, token).WaitAsync(token); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch { storeCards = [StoreUpdateService.PartialCard("Lecture du Microsoft Store indisponible.")]; }
+            }
+
             RenderScanReport(report);
-            RequestVirgilState(report.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "PRÊT");
+            foreach (var outcome in storeCards)
+            {
+                if (outcome.Step.Application is { } app && report.Items.Any(item =>
+                    string.Equals(item.Id, app.Id, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(item.Id, app.Scope, StringComparison.OrdinalIgnoreCase))) continue;
+                AddSingleCard(outcome);
+            }
+            UpdateCommandState();
+            var warning = report.Errors.Count > 0 || storeCards.Any(card => card.VerifiedStatus == StoreUpdateService.PartialStatus);
+            RequestVirgilState(warning ? VirgilCoreState.Warning : VirgilCoreState.Success, "PRÊT");
             AnnounceScan(report);
         }
         catch (OperationCanceledException)
@@ -573,8 +591,14 @@ public partial class UpdatesViewModel : ObservableObject
         IsModuleInstallVisible = report.IsWingetClientModuleMissing && _wingetModuleService is not null;
         OverallStatus = report.OverallStatus.ToUpperInvariant();
         WingetStatus = report.Winget.IsAvailable
-            ? report.Winget.Message
-            : "WinGet non détecté.";
+            ? report.Items.Count switch
+            {
+                0 when report.Errors.Count == 0 => "À jour selon WinGet.",
+                0 => report.Winget.Message,
+                1 => "1 mise à jour détectée via WinGet.",
+                _ => $"{report.Items.Count} mises à jour détectées via WinGet."
+            }
+            : report.Winget.Errors.Count > 0 ? "WinGet indisponible : " + report.Winget.Errors[0] : "WinGet non détecté.";
         WindowsUpdateStatus = report.WindowsUpdate.Status;
         DriversStatus = report.Drivers.WasAnalyzed
             ? $"{report.Drivers.Drivers.Count} pilotes inventoriés. Mises à jour facultatives dans « Tout mettre à jour »."
@@ -711,6 +735,9 @@ public partial class UpdatesViewModel : ObservableObject
         VirgilStateRequested?.Invoke(state, label);
     }
 
+    internal Task<ProcessLaunchResult> LaunchUriAsync(string uri, CancellationToken cancellationToken) =>
+        _processRunner.LaunchAsync(new ProcessLaunchRequest(uri, Array.Empty<string>(), UseShellExecute: true), cancellationToken);
+
     private static UpdateScanReport MergeDriverReport(UpdateScanReport? existing, UpdateScanReport driverReport)
     {
         if (existing is null)
@@ -741,6 +768,8 @@ public partial class UpdatesViewModel : ObservableObject
             builder.AppendLine($"Validation : {scanReport.ValidationRequiredCount}");
             builder.AppendLine($"Sensibles : {scanReport.SensitiveCount}");
             builder.AppendLine($"Windows Update : {scanReport.WindowsUpdate.Status}");
+            if (!string.IsNullOrWhiteSpace(scanReport.WindowsUpdate.UnavailableReason))
+                builder.AppendLine($"Windows Update détail : {scanReport.WindowsUpdate.UnavailableReason}");
             builder.AppendLine($"Redémarrage en attente : {(scanReport.WindowsUpdate.PendingRebootDetected ? "oui" : "non")}");
             builder.AppendLine($"Pilotes inventoriés : {scanReport.Drivers.Drivers.Count}");
             AppendList(builder, "Recommandations", scanReport.Recommendations);

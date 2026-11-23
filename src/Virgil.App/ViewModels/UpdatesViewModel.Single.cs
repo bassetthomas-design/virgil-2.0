@@ -49,12 +49,32 @@ public partial class UpdatesViewModel
         var key = SequenceStepKey(outcome.Step);
         var card = SingleCards.FirstOrDefault(c => c.Key == key);
         if (card is not null) return card;
-        if (outcome.Step.Component == UpdateComponent.Store && string.IsNullOrWhiteSpace(outcome.Step.Application?.AvailableVersion))
+        if (outcome.Step.Component == UpdateComponent.Store
+            && outcome.Step.Id is not (StoreUpdateService.PartialStepId or StoreUpdateService.StatusStepId)
+            && string.IsNullOrWhiteSpace(outcome.Step.Application?.AvailableVersion))
             outcome = outcome with { VerifiedStatus = DriverCardSummary.Unsupported, Message = "La version proposée ne peut pas être confirmée." };
         card = new(string.Empty) { Step = outcome.Step, Status = outcome.VerifiedStatus ?? "reste à installer", Detail = SteamGameDetail(outcome), Busy = _operationInProgress };
         SingleCards.Add(card);
         return card;
     }
+    public const string StoreUpdatesUri = "ms-windows-store://downloadsandupdates";
+
+    [RelayCommand]
+    private async Task OpenStoreAsync(CancellationToken cancellationToken)
+    {
+        if (_operationInProgress) return;
+
+        const string failure = "Ouverture du Microsoft Store impossible.";
+        try
+        {
+            var result = await LaunchUriAsync(StoreUpdatesUri, cancellationToken);
+            VirgilMessageRequested?.Invoke(result.LaunchError is null
+                ? "Microsoft Store ouvert.\nVirgil ne lance aucune installation." : failure);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch { VirgilMessageRequested?.Invoke(failure); }
+    }
+
     private void LoadSingleSourceCards()
     {
         if (_sequenceService is null) return;
@@ -89,21 +109,24 @@ public partial class UpdatesViewModel
         {
             var cards = SingleCards.Where(c => c.Step?.Component == component).ToArray();
             if (cards.Length == 0) continue;
-            var active = cards.Where(c => (!c.Step!.IsInformational || c.Step.Id == "driver-read")
+            var active = cards.Where(c => (!c.Step!.IsInformational || c.Step.Id is "driver-read" or StoreUpdateService.PartialStepId)
                 && c.Status != DriverCardSummary.Unsupported).ToArray();
-            var priority = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", "mis à jour", "à jour", "à jour selon Steam" };
+            var priority = new[] { "bloquée", "en erreur", "reste à installer", "non lancée", "indisponible", StoreUpdateService.PartialStatus, "à vérifier", "redémarrage nécessaire", "mis à jour", "à jour", "à jour selon Steam" };
             foreach (var card in active.Where(c => !priority.Contains(c.Status))) card.Status = "à vérifier";
-            var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s)) ?? (active.Length == 0 ? "à jour" : "à vérifier");
+            var needsVerification = cards.Any(c => !c.Step!.IsInformational && c.Status == DriverCardSummary.Unsupported);
+            var status = priority.FirstOrDefault(s => active.Any(c => c.Status == s))
+                ?? (active.Length == 0 && !needsVerification ? "à jour" : "à vérifier");
             var counts = new List<string>();
-            foreach (var value in new[] { "mis à jour", "à jour", "à jour selon Steam", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
+            foreach (var value in new[] { "mis à jour", "à jour", "à jour selon Steam", "en erreur", "bloquée", "reste à installer", "non lancée", "indisponible", StoreUpdateService.PartialStatus, "à vérifier", "redémarrage nécessaire", DriverCardSummary.Unsupported })
             {
                 var count = cards.Count(c => c.Status == value
-                    && (!c.Step!.IsInformational || c.Step.Id == "driver-read" || value == DriverCardSummary.Unsupported));
+                    && (!c.Step!.IsInformational || c.Step.Id is "driver-read" or StoreUpdateService.PartialStepId
+                        || value == DriverCardSummary.Unsupported));
                 if (count == 0) continue;
                 var label = count > 1 ? value switch { "reste à installer" => "restent à installer", "non lancée" => "non lancées", "bloquée" => "bloquées", _ => value } : value;
                 counts.Add(count + " " + label);
             }
-            lines.Add(SourceTitle(component) + " : " + status + (status == "à jour" ? string.Empty : " — " + string.Join(", ", counts)));
+            lines.Add(SourceTitle(component) + " : " + status + (status != "à jour" && counts.Count > 0 ? " — " + string.Join(", ", counts) : string.Empty));
         }
         SingleSourceSummary = string.Join("\n", lines);
         OnPropertyChanged(nameof(SingleSourceSummary));

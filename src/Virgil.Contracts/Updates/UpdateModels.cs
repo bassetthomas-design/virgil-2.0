@@ -149,6 +149,12 @@ public sealed record WindowsUpdateInformation
 {
     public string Status { get; init; } = "À examiner dans Windows Update.";
 
+    public string AvailabilityState { get; init; } = "inconnu";
+
+    public int AvailableCount { get; init; }
+
+    public string? UnavailableReason { get; init; }
+
     public string SettingsUri { get; init; } = "ms-settings:windowsupdate";
 
     public bool ServiceRegistryKeyPresent { get; init; }

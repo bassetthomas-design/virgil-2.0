@@ -2,7 +2,15 @@ using Virgil.Contracts;
 
 namespace Virgil.Core.Updates;
 
-public sealed class WindowsUpdateStatusService(IPendingRebootProbe probe)
+public sealed record WindowsUpdateProbeResult(string AvailabilityState, int AvailableCount, string Status,
+    string? UnavailableReason = null, IReadOnlyList<string>? Notes = null);
+
+public interface IWindowsUpdateReader
+{
+    Task<WindowsUpdateProbeResult> ReadAsync(CancellationToken cancellationToken);
+}
+
+public sealed class WindowsUpdateStatusService(IPendingRebootProbe probe, IWindowsUpdateReader? reader = null)
 {
     public WindowsUpdateInformation ReadStatus()
     {
@@ -28,6 +36,32 @@ public sealed class WindowsUpdateStatusService(IPendingRebootProbe probe)
             PendingRebootDetected = status.Sources.Count > 0,
             Notes = notes,
             Errors = errors
+        };
+    }
+
+    public async Task<WindowsUpdateInformation> ScanAsync(CancellationToken cancellationToken)
+    {
+        var local = ReadStatus();
+        if (reader is null) return local;
+
+        WindowsUpdateProbeResult result;
+        try { result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch
+        {
+            const string reason = "Lecture Windows Update indisponible ; ouvrez Windows Update pour vérifier.";
+            result = new("inconnu", 0, reason, reason);
+        }
+
+        return local with
+        {
+            AvailabilityState = result.AvailabilityState,
+            AvailableCount = result.AvailableCount,
+            Status = result.Status,
+            UnavailableReason = result.UnavailableReason,
+            Notes = result.Notes is null ? local.Notes : local.Notes.Concat(result.Notes).ToArray(),
+            Errors = result.AvailabilityState == "inconnu" && !string.IsNullOrWhiteSpace(result.UnavailableReason)
+                ? local.Errors.Append(result.UnavailableReason).ToArray() : local.Errors
         };
     }
 }
