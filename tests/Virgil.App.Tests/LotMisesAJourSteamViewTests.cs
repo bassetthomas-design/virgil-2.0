@@ -58,7 +58,7 @@ public sealed class LotMisesAJourSteamViewTests
     public Task Closed_or_offline_steam_offers_open_steam_action_launching_steam_downloads() =>
         ThemeContrastTests.OnSta(async () =>
         {
-            var scenarios = new List<(string[] Texts, Button[] Buttons, string[] Messages, Fixture Fixture)>();
+            var scenarios = new List<(string[] Texts, (string Text, bool IsEnabled, bool HasAsyncCommand)[] Buttons, string[] Messages, Fixture Fixture)>();
             foreach (var running in new[] { false, true })
             {
                 var fixture = new Fixture(running, connected: false);
@@ -76,11 +76,13 @@ public sealed class LotMisesAJourSteamViewTests
                     fixture.Runner.FailLaunch = true;
                     await command.ExecuteAsync(null).WaitAsync(Deadline);
                 }
-                scenarios.Add((texts, buttons, messages.ToArray(), fixture));
+                var buttonValues = buttons.Select(button =>
+                    (button.Content?.ToString() ?? "", button.IsEnabled, button.Command is IAsyncRelayCommand)).ToArray();
+                scenarios.Add((texts, buttonValues, messages.ToArray(), fixture));
             }
 
             await Write("steam-open-action.txt", scenarios.SelectMany(scenario =>
-                scenario.Texts.Concat(scenario.Buttons.Select(button => button.Content?.ToString() ?? "")).Concat(scenario.Messages)));
+                scenario.Texts.Concat(scenario.Buttons.Select(button => button.Text)).Concat(scenario.Messages)));
             var counts = "1 jeu en téléchargement, 1 jeu en file d’attente, 1 jeu arrêté, 1 jeu à jour localement.";
             Assert.Contains("Steam est fermé : " + counts + " Ouvrez Steam pour vérifier « Téléchargements ».", scenarios[0].Texts);
             Assert.Contains("Steam est hors ligne ou sans session active : " + counts + " Connectez Steam puis vérifiez « Téléchargements ».", scenarios[1].Texts);
@@ -90,9 +92,9 @@ public sealed class LotMisesAJourSteamViewTests
                 var property = typeof(UpdateTextCardViewModel).GetProperty("HasSteamAction");
                 Assert.NotNull(property);
                 Assert.True(Assert.IsType<bool>(property.GetValue(card)));
-                var button = Assert.Single(scenario.Buttons, button => Equals(button.Content, "Ouvrir Steam"));
+                var button = Assert.Single(scenario.Buttons, button => button.Text == "Ouvrir Steam");
                 Assert.True(button.IsEnabled);
-                Assert.IsAssignableFrom<IAsyncRelayCommand>(button.Command);
+                Assert.True(button.HasAsyncCommand);
                 Assert.Equal(2, scenario.Fixture.Runner.Launches.Count);
                 Assert.All(scenario.Fixture.Runner.Launches, launch =>
                 {
