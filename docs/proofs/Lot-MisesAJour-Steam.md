@@ -36,7 +36,17 @@ Le même run rapporte une `TimeoutException` après 10 secondes sur `LotDiagnost
 
 ## Correctif et validation finale
 
-Correctif `9772a100a253d1f94ebf3b3e0fdc179169e6f906`. Les statuts des runs Windows du correctif et du head final se consultent dans les [checks de la PR #101](https://github.com/bassetthomas-design/virgil-2.0/pull/101/checks). La description de la PR centralise la référence du run vert final, le SHA testé et l’ID de l’artefact `Virgil-ui-smoke`. Aucune validation verte n’est consignée à ce stade.
+Le correctif initial est `9772a100a253d1f94ebf3b3e0fdc179169e6f906`. Le [run Windows #492](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45189290156), SHA `45e390281823ece9589106c6474c05b2dd7cf1a3`, compile avec 0 avertissement et 0 erreur et rapporte trois échecs.
+
+| Test | Résultat du run #492 |
+| --- | --- |
+| `D1bisBSteamTests.Cancellation_during_wait_keeps_Steam_running_and_remaining_games_coherent` | `Assert.Contains() Failure: Sub-string not found`. Le résumé attend « reste à installer » et contient « 2 restent à installer ». |
+| `D1bisBPanelTests.Real_panel_uses_own_results_and_displays_confirmation(scenario: "cancelled")` | `Assert.Equal() Failure: Strings differ`. Le jeu attend « à jour selon Steam » et obtient « reste à installer ». |
+| `LotMisesAJourSteamViewTests.Closed_or_offline_steam_offers_open_steam_action_launching_steam_downloads` | `InvalidOperationException` à la ligne 83 pendant l’écriture de l’artefact. `File.InternalWriteAllLinesAsync` énumère la projection différée qui lit `Button.Content` hors du thread WPF. Les assertions sur le bouton et le lancement restent sans résultat. |
+
+Le commit `1a346bcc2858ea23d565109ffcbc24f05100b1d5` rétablit le résultat fondé sur la dernière lecture réussie quand l’attente est annulée. Le jeu resté installé reprend le statut « à jour selon Steam » et le résumé retrouve un seul jeu qui « reste à installer ». Une attente non annulée conserve la règle des deux lectures. Le test WPF est inchangé sur demande de virgil (relecture). Son écriture d’artefact reste bloquée par l’accès au bouton hors du thread WPF.
+
+Les statuts Windows se consultent dans les [checks de la PR #101](https://github.com/bassetthomas-design/virgil-2.0/pull/101/checks). Aucun run vert final ni ID d’artefact final `Virgil-ui-smoke` n’est confirmé.
 
 ## Vérifications manuelles restantes sous Windows
 
