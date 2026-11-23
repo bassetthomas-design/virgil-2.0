@@ -52,6 +52,8 @@ public static class ServiceCollectionExtensions
         services.AddVirgilConfirmation();
         services.AddSingleton<ISystemStatusStore>(_ => new SystemStatusStore());
         services.AddTransient<INetworkStatusReader>(_ => new WindowsNetworkStatusReader());
+        services.AddTransient<IConnectionStatusProbe>(sp => new WindowsConnectionSecurityProbe(sp.GetRequiredService<System.Net.Http.HttpClient>()));
+        services.AddSingleton<IConnectionStatusStore>(sp => new ConnectionStatusStore(sp.GetRequiredService<IConnectionStatusProbe>(), sp.GetRequiredService<TimeProvider>()));
         services.AddTransient<IStartupApprovalStore>(sp => new WindowsStartupApprovalStore(sp.GetRequiredService<ElevatedHelperClient>()));
         services.AddTransient<IStartupRestorePointService>(sp => new WindowsStartupRestorePointService(sp.GetRequiredService<IInterventionElevatedHelperClient>()));
         services.AddTransient<StartupChangeService>(sp => new StartupChangeService(sp.GetRequiredService<IStartupApprovalStore>(), sp.GetRequiredService<IStartupRestorePointService>(), sp.GetRequiredService<IConfirmedPlanGate>()));
