@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Virgil.Core.Network;
@@ -6,8 +7,13 @@ namespace Virgil.App.ViewModels;
 
 public sealed partial class ConnectionStatusViewModel : ObservableObject, IDisposable
 {
-    private const string InitialInternet = "Internet : État Internet indéterminé";
-    private const string InitialVpn = "VPN : État VPN indéterminé";
+    private const string InternetUnknown = "État Internet indéterminé";
+    private const string VpnUnknown = "État VPN indéterminé";
+    private const string WifiUnknown = "Chiffrement Wi-Fi non lisible";
+    private const string InitialInternet = "Internet : " + InternetUnknown;
+    private const string InitialVpn = "VPN : " + VpnUnknown;
+    private const string CaptivePortal = "Réseau local sans Internet (portail captif probable)";
+    private const string InitialAdvice = "Aucune mesure récente : utilisez Actualiser pour lire l'état actuel.";
     private const string Scope = "Mesure locale en lecture seule uniquement.";
     private readonly IConnectionStatusStore _store;
     private readonly TimeProvider _clock;
@@ -40,12 +46,37 @@ public sealed partial class ConnectionStatusViewModel : ObservableObject, IDispo
     [ObservableProperty] private string explanationToolTip = string.Join(Environment.NewLine, InitialInternet, InitialVpn, Scope);
     [ObservableProperty] private ConnectionLevel internetLevel;
     [ObservableProperty] private ConnectionLevel vpnLevel;
+    [ObservableProperty] private string internetStatusText = InternetUnknown;
+    [ObservableProperty] private string vpnStatusText = VpnUnknown;
+    [ObservableProperty] private string wifiProtectionText = WifiUnknown;
+    [ObservableProperty] private string captivePortalText = string.Empty;
+    [ObservableProperty] private string explanationText = string.Join(" · ", InternetUnknown, VpnUnknown, WifiUnknown);
+    [ObservableProperty] private string adviceText = InitialAdvice;
+    [ObservableProperty] private string checkedAtText = string.Empty;
+    [ObservableProperty] private string vpnProviderText = string.Empty;
+    [ObservableProperty] private ConnectionLevel securityLevel = ConnectionLevel.Unknown;
+
+    public string ScopeNoteText => Scope;
 
     public event Action<string>? VirgilMessageRequested;
     public event Action<string>? NavigationRequested;
 
     [RelayCommand]
     private void OpenNetwork() => NavigationRequested?.Invoke("Réseau");
+
+    [RelayCommand]
+    private Task ActualiserAsync()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+                return Task.CompletedTask;
+
+            var refresh = RefreshAsync(_lifetime.Token);
+            _refresh = Task.WhenAll(_refresh, refresh);
+            return refresh;
+        }
+    }
 
     public void Start()
     {
@@ -80,7 +111,45 @@ public sealed partial class ConnectionStatusViewModel : ObservableObject, IDispo
         ExplanationToolTip = snapshot is null
             ? string.Join(Environment.NewLine, InternetBadgeText, VpnBadgeText, Scope)
             : string.Join(Environment.NewLine, InternetBadgeText, VpnBadgeText, snapshot.SecurityLabel, Scope);
+
+        InternetStatusText = snapshot?.InternetLabel ?? InternetUnknown;
+        VpnStatusText = snapshot?.VpnLabel ?? VpnUnknown;
+        WifiProtectionText = snapshot?.SecurityLabel ?? WifiUnknown;
+        CaptivePortalText = snapshot?.InternetLabel == CaptivePortal ? CaptivePortal : string.Empty;
+        ExplanationText = string.Join(" · ", InternetStatusText, VpnStatusText, WifiProtectionText);
+        AdviceText = GetAdvice(snapshot);
+        CheckedAtText = snapshot is null ? string.Empty : "Mesuré à " +
+            TimeZoneInfo.ConvertTime(snapshot.CheckedAtUtc, _clock.LocalTimeZone)
+                .ToString("HH:mm", CultureInfo.GetCultureInfo("fr-FR"));
+        SecurityLevel = snapshot?.SecurityLevel ?? ConnectionLevel.Unknown;
+        VpnProviderText = snapshot switch
+        {
+            { Vpn: VpnState.ActiveFullTunnel or VpnState.ActiveSplitTunnel } =>
+                snapshot.VpnProvider ?? "fournisseur non identifié",
+            { Vpn: VpnState.Unknown } when snapshot.VpnLabel.EndsWith("routage non vérifiable", StringComparison.Ordinal) =>
+                snapshot.VpnProvider ?? "fournisseur non identifié",
+            _ => string.Empty
+        };
     }
+
+    private static string GetAdvice(ConnectionSecuritySnapshot? snapshot) => snapshot switch
+    {
+        null => InitialAdvice,
+        { Internet: InternetState.NoNetwork } => "Vérifiez le câble ou le Wi-Fi de ce poste.",
+        { InternetLabel: CaptivePortal } =>
+            "Ce réseau demande souvent une ouverture de session dans le navigateur avant d'accéder à Internet.",
+        { Internet: InternetState.LocalWithoutInternet } => "Le poste est sur un réseau local, sans accès Internet mesuré.",
+        { Internet: InternetState.Limited } => "Les requêtes HTTPS sont bloquées. Le réseau peut filtrer l'accès.",
+        { Wifi: WifiProtection.Open } => "Ce Wi-Fi n'est pas chiffré. Évitez d'y transmettre des informations personnelles.",
+        { Wifi: WifiProtection.Wep } => "Le chiffrement WEP est obsolète. Préférez un réseau WPA2 ou WPA3.",
+        { Wifi: WifiProtection.Wpa } => "Préférez un réseau WPA2 ou WPA3 si c'est possible.",
+        { Wifi: WifiProtection.Unknown } => "Le chiffrement Wi-Fi n'a pas pu être lu sur ce poste.",
+        { Vpn: VpnState.ActiveSplitTunnel } => "Une partie du trafic passe hors du VPN.",
+        { Vpn: VpnState.InstalledInactive } => "Un client VPN est installé mais n'est pas actif.",
+        { Vpn: VpnState.ActiveFullTunnel } =>
+            "Le VPN actif oriente tout le trafic mesuré. La protection dépend aussi du fournisseur et du réseau.",
+        _ => "État mesuré localement, en lecture seule. Ce n'est pas une garantie de sécurité globale."
+    };
 
     private void Dispatch(Action action)
     {

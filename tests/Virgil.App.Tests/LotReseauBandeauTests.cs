@@ -133,7 +133,6 @@ public sealed class LotReseauBandeauTests
 
         AssertBadge(host, "Internet", "Internet : État Internet indéterminé");
         AssertBadge(host, "Vpn", "VPN : État VPN indéterminé");
-        Assert.DoesNotContain(window.Descendants(), element => element.Name.LocalName == "ConnectionSecurityPanel");
     }
 
     [Fact]
@@ -178,7 +177,6 @@ public sealed class LotReseauBandeauTests
         Assert.Matches(@"ReleasePanelHost\.Children\.Add\(releaseView\);\s*ReleasePanelHost\.Children\.Add\(bugReportPanel\);", main);
 
         var xaml = ReadSource(App + "MainWindow.xaml");
-        Assert.DoesNotContain("ConnectionSecurityPanel", xaml, StringComparison.Ordinal);
         var metrics = Find(XElement.Parse(xaml), "MetricsContainer");
         Assert.Equal("4", (string?)metrics.Attribute("Columns"));
         Assert.Equal(new[] { "MemoryMetricCard", "DiskMetricCard", "CleanupMetricCard", "PriorityMetricCard" },

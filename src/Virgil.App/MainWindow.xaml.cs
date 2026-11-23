@@ -93,6 +93,7 @@ public partial class MainWindow : Window
         PriorityTile.DataContext = HomePriorities;
         HomePriorities.NavigationRequested += NavigatePriority;
         ConnectionBadgesHost.DataContext = _connectionStatus;
+        ConnectionSecurityPanel.DataContext = _connectionStatus;
         _connectionStatus.VirgilMessageRequested += AppendVirgilMessage;
         _connectionStatus.NavigationRequested += NavigateConnection;
         _connectionStatus.Start();

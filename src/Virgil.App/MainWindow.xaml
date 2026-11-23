@@ -313,7 +313,14 @@
                                             <TextBlock x:Name="ReportErrorsText" Text="AUCUNE" Style="{StaticResource VirgilHudSecondaryText}" Margin="0,3,0,0" />
                                         </StackPanel>
                                     </Grid>
-                                    <controls:HomePrioritiesPanel x:Name="PrioritiesPanel" Grid.Row="3"/>
+                                    <Grid Grid.Row="3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:HomePrioritiesPanel x:Name="PrioritiesPanel" Grid.Column="0"/>
+                                        <controls:ConnectionSecurityPanel x:Name="ConnectionSecurityPanel" Grid.Column="1"/>
+                                    </Grid>
                                 </Grid>
                             </ScrollViewer>
                         </Grid>
