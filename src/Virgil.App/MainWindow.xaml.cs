@@ -1,3 +1,5 @@
+global using ConnectionChangeSignal = Virgil.Core.Network.INetworkChangeSignal;
+
 using Virgil.App.Speech;
 using Virgil.App.ViewModels;
 using Virgil.Core.Status;
@@ -28,6 +30,7 @@ public partial class MainWindow : Window
 {
     private readonly ISystemStatusStore _statusStore;
     private readonly HomePrioritiesViewModel HomePriorities;
+    private readonly ConnectionStatusViewModel _connectionStatus;
     private readonly VirgilLinePicker _welcomeLines;
     private bool _welcomeGlanceShown;
     private readonly Virgil.App.ViewModels.VirgilReleaseViewModel _virgilRelease;
@@ -60,10 +63,11 @@ public partial class MainWindow : Window
         ResourcesView resourcesView, ApplicationsView applicationsView, ReportsHistoryView reportsHistoryView, DiagnosticView diagnosticView,
         VirgilReleaseView releaseView, Virgil.App.ViewModels.VirgilReleaseViewModel virgilRelease, BugReportPanel bugReportPanel,
         StartupView startupView, NetworkView networkView, ISystemStatusStore statusStore,
-        HomePrioritiesViewModel homePriorities, TimeProvider clock)
+        HomePrioritiesViewModel homePriorities, ConnectionStatusViewModel connectionStatus, TimeProvider clock)
     {
         _statusStore = statusStore;
         HomePriorities = homePriorities;
+        _connectionStatus = connectionStatus;
         _welcomeLines = new VirgilLinePicker(clock);
         _virgilRelease = virgilRelease;
         _systemScanService = systemScanService;
@@ -88,6 +92,10 @@ public partial class MainWindow : Window
         PrioritiesPanel.DataContext = HomePriorities;
         PriorityTile.DataContext = HomePriorities;
         HomePriorities.NavigationRequested += NavigatePriority;
+        ConnectionBadgesHost.DataContext = _connectionStatus;
+        _connectionStatus.VirgilMessageRequested += AppendVirgilMessage;
+        _connectionStatus.NavigationRequested += NavigateConnection;
+        _connectionStatus.Start();
         _scanOperation = new Virgil.App.ViewModels.LongOperationViewModel(() => _activeScanCancellation?.Cancel(), clock);
         ScanProgressPanel.DataContext = _scanOperation;
         StartupModuleView.Visibility = Visibility.Collapsed;
@@ -223,6 +231,9 @@ public partial class MainWindow : Window
         _statusStore.Changed -= SystemStatusChanged;
         HomePriorities.NavigationRequested -= NavigatePriority;
         HomePriorities.Dispose();
+        _connectionStatus.VirgilMessageRequested -= AppendVirgilMessage;
+        _connectionStatus.NavigationRequested -= NavigateConnection;
+        _connectionStatus.Dispose();
         _virgilRelease.Dispose();
         _activeScanCancellation?.Cancel();
         CleanupModuleView.CancelActiveOperation();
@@ -232,6 +243,12 @@ public partial class MainWindow : Window
         ApplicationsModuleView.CancelActiveOperation();
         StopStartupStoryboard();
         VirgilCore.SetState(VirgilCoreState.Idle);
+    }
+
+    private void NavigateConnection(string destination)
+    {
+        if (destination == "Réseau")
+            Network_Click(this, new RoutedEventArgs());
     }
 
     private void NavigatePriority(string destination)
