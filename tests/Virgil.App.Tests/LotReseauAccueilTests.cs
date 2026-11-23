@@ -185,7 +185,7 @@ public sealed class LotReseauAccueilTests
             ("VpnStatusText", "État VPN indéterminé"),
             ("WifiProtectionText", "Chiffrement Wi-Fi non lisible"),
             ("ExplanationText", "État Internet indéterminé · État VPN indéterminé · Chiffrement Wi-Fi non lisible"),
-            ("AdviceText", InitialAdvice),
+            ("AdviceText", @"Aucune mesure récente : utilisez Actualiser pour lire l\'état actuel."),
             ("ScopeNoteText", Scope)
         })
             Assert.Contains("{Binding " + property + ", FallbackValue='" + fallback + "'}", text);
