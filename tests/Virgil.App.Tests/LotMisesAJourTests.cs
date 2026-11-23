@@ -206,7 +206,7 @@ public sealed class LotMisesAJourTests
 
     private static ServiceProvider Services(FakeRunner runner)
     {
-        var services = new ServiceCollection().AddVirgilServices();
+        var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
         services.Replace(ServiceDescriptor.Singleton<IProcessRunner>(runner));
         services.Replace(ServiceDescriptor.Transient<WingetAvailabilityService>(_ => new(runner, [@"C:\tools\winget.exe"])));
         services.Replace(ServiceDescriptor.Transient<IPendingRebootProbe>(_ => new RebootProbe(new(false, []))));
