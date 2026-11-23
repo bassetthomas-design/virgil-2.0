@@ -4,21 +4,52 @@ using Virgil.Core.Updates;
 
 namespace Virgil.Infrastructure.Windows;
 
-public sealed class OutsideWingetWindowsReader(IProcessRunner runner) : IOutsideWingetReader
+public interface IOutsideWingetRegistryAccess
+{
+    IReadOnlyList<OutsideWingetInstalledEntry> ReadUninstallEntries();
+}
+
+public sealed record OutsideWingetInstalledEntry(string Name, string Version, bool SystemComponent);
+
+public sealed class OutsideWingetWindowsReader(IProcessRunner runner, IOutsideWingetRegistryAccess? registry = null) : IOutsideWingetReader
 {
     public async Task<OutsideWingetSnapshot> ReadAsync(CancellationToken token)
     {
-        var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", Script], TimeSpan.FromSeconds(45)), token).ConfigureAwait(false);
+        var script = registry is null ? Script : ScriptPreamble + "\n" + ManagedScript;
+        var snapshot = await ReadSnapshotAsync(script, token).ConfigureAwait(false);
+        if (registry is null) return snapshot;
+
+        token.ThrowIfCancellationRequested();
+        try
+        {
+            var installed = registry.ReadUninstallEntries().Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+                .Select(entry => new OutsideWingetApplication(entry.Name, entry.Version, entry.SystemComponent)).ToArray();
+            return snapshot with { Installed = installed };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return snapshot with { IsComplete = false };
+        }
+    }
+
+    private async Task<OutsideWingetSnapshot> ReadSnapshotAsync(string script, CancellationToken token)
+    {
+        var result = await runner.RunAsync(new("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], TimeSpan.FromSeconds(45)), token).ConfigureAwait(false);
         if (result.ExitCode != 0 || result.TimedOut || result.Cancelled || result.LaunchError is not null)
             return new([], [], false);
         try { return JsonSerializer.Deserialize<OutsideWingetSnapshot>(result.StandardOutput, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new([], [], false); }
         catch (JsonException) { return new([], [], false); }
     }
 
-    // Clés ouvertes avec writable=false, quatre combinaisons ruche/vue ; aucun désinstalleur n'est lu ou lancé.
-    private const string Script = """
+    private const string Script = ScriptPreamble + "\n" + RegistryScript + "\n" + ManagedScript;
+
+    private const string ScriptPreamble = """
         $ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8
         $installed=@(); $managed=@(); $complete=$true
+        """;
+
+    // Clés ouvertes avec writable=false, quatre combinaisons ruche/vue ; aucun désinstalleur n'est lu ou lancé.
+    private const string RegistryScript = """
         foreach($hive in @([Microsoft.Win32.RegistryHive]::LocalMachine,[Microsoft.Win32.RegistryHive]::CurrentUser)) {
           foreach($view in @([Microsoft.Win32.RegistryView]::Registry32,[Microsoft.Win32.RegistryView]::Registry64)) {
             $root=$null; $key=$null
@@ -39,6 +70,9 @@ public sealed class OutsideWingetWindowsReader(IProcessRunner runner) : IOutside
             } catch {$complete=$false} finally {if($null -ne $key){$key.Dispose()};if($null -ne $root){$root.Dispose()}}
           }
         }
+        """;
+
+    private const string ManagedScript = """
         try {
           $packages=@(Get-AppxPackage -ErrorAction Stop)
           foreach($package in $packages) {

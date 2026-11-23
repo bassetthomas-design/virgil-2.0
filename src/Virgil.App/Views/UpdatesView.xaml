@@ -25,6 +25,10 @@
                         Visibility="{Binding HasStoreAction, Converter={StaticResource BoolVisibility}}"
                         Command="{Binding DataContext.OpenStoreCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                         Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
+                <Button Content="Ouvrir Steam" IsEnabled="{Binding CanOpenSteam}"
+                        Visibility="{Binding HasSteamAction, Converter={StaticResource BoolVisibility}}"
+                        Command="{Binding DataContext.OpenSteamCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        Style="{StaticResource VirgilSecondaryButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:UpdateItemViewModel}">

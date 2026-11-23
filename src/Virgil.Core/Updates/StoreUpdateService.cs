@@ -69,7 +69,7 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
         }
         // Le paquet doit appartenir à l'aperçu figé : aucun paquet découvert après confirmation n'est installé.
         if (!_packages.TryGetValue(step.Id, out var package) || package.FamilyName != step.Application.Scope)
-            return new(step, false, false, "Installation bloquée : application absente de l'aperçu confirmé.") { VerifiedStatus = "bloquée" };
+            return new(step, false, false, "Installation bloquée : application absente de l'aperçu confirmé.") { VerifiedStatus = "bloquée", SafetyBlocked = true };
         token.ThrowIfCancellationRequested();
         IReadOnlyDictionary<string, string> before;
         try { before = await client.ReadVersionsAsync(token).ConfigureAwait(false); }
@@ -86,7 +86,8 @@ public sealed class StoreUpdateService(IStoreUpdateClient client)
             if (started.WasUnsupported) return Unsupported(step, started.Reason);
             var failure = new UpdateSequenceStepResult(step, false, false,
                 string.IsNullOrWhiteSpace(started.Reason) ? "Échec de l'installation." : started.Reason);
-            return failure with { VerifiedStatus = UpdateSequenceService.IsSafetyBlocked(failure) ? "bloquée" : "en erreur" };
+            var blocked = UpdateSequenceService.IsSafetyBlocked(failure);
+            return failure with { VerifiedStatus = blocked ? "bloquée" : "en erreur", SafetyBlocked = blocked };
         }
         // Une installation lancée se termine ; l'annulation bloque l'application suivante.
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));

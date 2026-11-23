@@ -57,7 +57,17 @@ public partial class UpdatesViewModel
         SingleCards.Add(card);
         return card;
     }
+    private void ApplyScannedSteamCards(IReadOnlyList<UpdateSequenceStepResult> steamCards)
+    {
+        foreach (var card in SingleCards.Where(card => card.Step is { Component: UpdateComponent.Launcher } step
+            && (step.Id == "Steam" || step.Id.StartsWith("SteamGame:", StringComparison.Ordinal))).ToArray())
+            SingleCards.Remove(card);
+        foreach (var outcome in steamCards)
+            AddSingleCard(outcome);
+    }
+
     public const string StoreUpdatesUri = "ms-windows-store://downloadsandupdates";
+    public const string SteamDownloadsUri = "steam://open/downloads";
 
     [RelayCommand]
     private async Task OpenStoreAsync(CancellationToken cancellationToken)
@@ -70,6 +80,22 @@ public partial class UpdatesViewModel
             var result = await LaunchUriAsync(StoreUpdatesUri, cancellationToken);
             VirgilMessageRequested?.Invoke(result.LaunchError is null
                 ? "Microsoft Store ouvert.\nVirgil ne lance aucune installation." : failure);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch { VirgilMessageRequested?.Invoke(failure); }
+    }
+
+    [RelayCommand]
+    private async Task OpenSteamAsync(CancellationToken cancellationToken)
+    {
+        if (_operationInProgress) return;
+
+        const string failure = "Ouverture de Steam impossible.";
+        try
+        {
+            var result = await LaunchUriAsync(SteamDownloadsUri, cancellationToken);
+            VirgilMessageRequested?.Invoke(result.LaunchError is null
+                ? "Steam ouvert.\nVirgil ne lance aucune installation." : failure);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch { VirgilMessageRequested?.Invoke(failure); }

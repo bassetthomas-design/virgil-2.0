@@ -1,7 +1,10 @@
 namespace Virgil.Core.Updates;
 
-public sealed record SteamGameState(string Id, string Name, uint StateFlags, string BuildId, string? Error = null);
-public sealed record SteamSession(bool IsOpen, string? ExecutablePath);
+public sealed record SteamGameState(string Id, string Name, uint StateFlags, string BuildId, string? Error = null, DateTimeOffset? LastUpdatedUtc = null);
+public sealed record SteamSession(bool IsOpen, string? ExecutablePath)
+{
+    public bool IsProcessRunning { get; init; }
+}
 public sealed record SteamExecutableCheck(bool IsValid, string Reason);
 public interface ISteamClient
 {
