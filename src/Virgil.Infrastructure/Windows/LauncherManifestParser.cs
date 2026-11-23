@@ -37,6 +37,25 @@ public static class LauncherManifestParser
         return (name, flags, build);
     }
 
+    public static (string Name, uint StateFlags, string BuildId, DateTimeOffset? LastUpdatedUtc) SteamDetailedState(string text)
+    {
+        var pairs = ParseValvePairs(text);
+        string? Value(string key) => pairs.FirstOrDefault(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase)).Value;
+        var name = Value("name");
+        var build = Value("buildid");
+        if (string.IsNullOrWhiteSpace(name) || !uint.TryParse(Value("StateFlags"), out var flags))
+            throw new FormatException("État du jeu Steam incomplet.");
+        if (build is null && (flags & (256u | 1024u | 1048576u | 512u | 8388608u)) != 0)
+            build = string.Empty;
+        else if (string.IsNullOrWhiteSpace(build))
+            throw new FormatException("État du jeu Steam incomplet.");
+
+        DateTimeOffset? updated = long.TryParse(Value("LastUpdated"), out var epoch)
+            && epoch > 0 && epoch <= DateTimeOffset.MaxValue.ToUnixTimeSeconds()
+            ? DateTimeOffset.FromUnixTimeSeconds(epoch) : null;
+        return (name, flags, build, updated);
+    }
+
     public static (string Name, string InstallDirectory) EpicApplication(string text)
     {
         using var json = JsonDocument.Parse(text);

@@ -141,9 +141,9 @@ public sealed class WindowsUpdateSequenceBackend(
         if (!_prepared && !prepare)
         {
             var protection = await RunHelperAsync(InterventionId.PrepareMicrosoftUpdates, "", token).ConfigureAwait(false);
-            if (!_prepared || token.IsCancellationRequested) return steps.Select(s => new UpdateSequenceStepResult(s, false, protection.Reboot, ReadableOutput(protection.Message))).ToArray();
+            if (!_prepared || token.IsCancellationRequested) return steps.Select(s => new UpdateSequenceStepResult(s, false, protection.Reboot, ReadableOutput(protection.Message)) { SafetyBlocked = !_prepared }).ToArray();
         }
-        if (!prepare && _restorePointSequenceNumber is null) return steps.Select(s => new UpdateSequenceStepResult(s, false, false, "Point de restauration non vérifié. Installation bloquée.")).ToArray();
+        if (!prepare && _restorePointSequenceNumber is null) return steps.Select(s => new UpdateSequenceStepResult(s, false, false, "Point de restauration non vérifié. Installation bloquée.") { SafetyBlocked = true }).ToArray();
         var identity = string.Join(",", steps.Select(s => s.Component switch
         {
             UpdateComponent.Defender => "defender",
@@ -161,7 +161,7 @@ public sealed class WindowsUpdateSequenceBackend(
         {
             var restoreNotes = output.Where(line => line.Step == "restore-point" && line.Status != "OK").Select(line => line.Message);
             var restoreMessage = _prepared ? string.Join("\n", restoreNotes.Prepend($"Point de restauration vérifié (numéro {_restorePointSequenceNumber}).")) : ReadableOutput(result.Message);
-            results.Add(new(new("restore", "Point de restauration", UpdateComponent.Restore), _prepared, false, restoreMessage) { RestorePointVerified = _prepared });
+            results.Add(new(new("restore", "Point de restauration", UpdateComponent.Restore), _prepared, false, restoreMessage) { RestorePointVerified = _prepared, SafetyBlocked = !_prepared });
         }
         foreach (var step in steps)
         {
@@ -192,7 +192,7 @@ public sealed class WindowsUpdateSequenceBackend(
                 succeeded = false;
                 message = "Préparation Microsoft bloquée : point de restauration non vérifié.";
             }
-            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null, WasUnavailable = wasUnavailable,
+            results.Add(new(step, succeeded, result.Reboot, message) { RestorePointVerified = prepare ? _prepared : null, SafetyBlocked = prepare && !_prepared ? true : null, WasUnavailable = wasUnavailable,
                 VerifiedStatus = step.Component == UpdateComponent.Driver ? token.IsCancellationRequested ? "non lancée" : succeeded ? "à jour" : "en erreur" : null });
         }
         return results;

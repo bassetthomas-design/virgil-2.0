@@ -30,6 +30,7 @@ public sealed record UpdateSequenceStepResult(UpdateSequenceStep Step, bool Succ
     public bool WasSkipped { get; init; }
     public bool WasUnavailable { get; init; }
     public bool? RestorePointVerified { get; init; }
+    public bool? SafetyBlocked { get; init; }
 }
 public sealed record UpdateSequenceResult(bool WasRefused, bool WasCancelled, bool RebootRequired, IReadOnlyList<UpdateSequenceStepResult> Steps, string Message)
 {
@@ -63,12 +64,14 @@ public interface IUpdateSequenceService
     IReadOnlyList<UpdateSequenceStepResult> SingleItems => [];
     Task<IReadOnlyList<UpdateSequenceStepResult>> ScanStoreAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<UpdateSequenceStepResult>>([]);
+    Task<IReadOnlyList<UpdateSequenceStepResult>> ScanSteamAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<UpdateSequenceStepResult>>([]);
     Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken token) => Task.FromResult(SingleItems);
     Task<IReadOnlyList<UpdateSequenceStep>> ScanAsync(IReadOnlyList<UpdateItem> apps, CancellationToken cancellationToken);
     ActionPreview CreatePreview(IReadOnlyList<UpdateSequenceStep> selected);
     Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken);
 }
-public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null) : IUpdateSequenceService
+public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfirmedPlanGate gate, IPendingRebootProbe? rebootProbe = null, LauncherShutdownPolicy? launcherShutdown = null, TimeProvider? clock = null) : IUpdateSequenceService
 {
     public const string BiosInformationMessage = "Virgil n'installe jamais le BIOS ni le firmware ; passez par l'outil officiel du fabricant de l'ordinateur si une mise à jour est proposée.";
     public IReadOnlyList<UpdateSequenceStepResult> SingleItems { get; private set; } = [];
@@ -180,6 +183,43 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         else if (cards.Count == 0 && store.ScreenCard is { } status) cards.Add(status);
         return cards;
     }
+    public async Task<IReadOnlyList<UpdateSequenceStepResult>> ScanSteamAsync(CancellationToken cancellationToken)
+    {
+        if (backend is not ISteamUpdateBackend steamBackend) return [];
+        var launchers = LauncherCatalog.Detect(await backend.DetectLaunchersAsync(cancellationToken).ConfigureAwait(false));
+        if (!launchers.Contains("Steam", StringComparer.Ordinal)) return [];
+
+        SteamSession session;
+        try { session = await steamBackend.SteamClient.ReadSessionAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { session = new(false, null); }
+
+        var launcher = new UpdateSequenceStep("Steam", "Steam", UpdateComponent.Launcher) { SteamSession = session };
+        IReadOnlyList<SteamGameState> games;
+        try { games = await steamBackend.SteamClient.ReadGamesAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch
+        {
+            return [new(launcher, false, false, "Lecture des fichiers locaux Steam impossible.")
+                { VerifiedStatus = "indisponible", WasUnavailable = true }];
+        }
+
+        var scanClock = clock ?? steamBackend.SteamClock;
+        var (status, detail) = SteamUpdateService.SummarizeScannedLauncher(session, games, clock: scanClock);
+        var cards = new List<UpdateSequenceStepResult>
+        {
+            new(launcher, false, false, detail)
+            { VerifiedStatus = status, WasSkipped = status == "à vérifier", WasUnavailable = status == "indisponible" }
+        };
+        foreach (var game in games)
+        {
+            var (gameStatus, gameDetail) = SteamUpdateService.ClassifyScannedGame(game, scanClock);
+            cards.Add(new(new("SteamGame:" + game.Id, game.Name, UpdateComponent.Launcher) { InformationOnly = true },
+                false, false, gameDetail) { VerifiedStatus = gameStatus, WasSkipped = true });
+        }
+        return cards;
+    }
+
     public async Task<IReadOnlyList<UpdateSequenceStepResult>> ReadSingleItemsAsync(CancellationToken cancellationToken)
     {
         var cards = SingleItems.ToList();
@@ -232,10 +272,16 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
         selected.Any(s => IsElevated(s.Component)), true, Reversibility.Partial, ["Point de restauration"]);
     }
     public static bool IsElevated(UpdateComponent component) => component is UpdateComponent.Windows or UpdateComponent.Driver or UpdateComponent.Defender or UpdateComponent.MicrosoftUpdate or UpdateComponent.Store or UpdateComponent.WindowsFeatureUpgrade;
-    public static bool IsSafetyBlocked(UpdateSequenceStepResult result) => !result.Succeeded && !result.WasUnavailable
-        && (result.RestorePointVerified == false || result.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)
+    public static bool IsSafetyBlocked(UpdateSequenceStepResult result)
+    {
+        if (result.Succeeded || result.WasUnavailable) return false;
+        if (result.SafetyBlocked.HasValue) return result.SafetyBlocked.Value;
+        return result.RestorePointVerified == false
+            || result.Message.Contains("bloquée", StringComparison.OrdinalIgnoreCase)
             || result.Message.Contains("garde de sécurité", StringComparison.OrdinalIgnoreCase)
-            || (result.Message.Contains("refus", StringComparison.OrdinalIgnoreCase) && result.Message.Contains("hors catalogue", StringComparison.OrdinalIgnoreCase)));
+            || (result.Message.Contains("refus", StringComparison.OrdinalIgnoreCase)
+                && result.Message.Contains("hors catalogue", StringComparison.OrdinalIgnoreCase));
+    }
 
     public async Task<UpdateSequenceResult> ExecuteAsync(IReadOnlyList<UpdateSequenceStep> selected, ConfirmedPlan? plan, IProgress<UpdateSequenceProgress>? progress, CancellationToken cancellationToken)
     {
@@ -283,8 +329,8 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 catch
                 {
                     protectedResults = preparation.Length > 0
-                        ? preparation.Select(s => new UpdateSequenceStepResult(s, false, false, "Installation bloquée : préparation non vérifiée.")).ToArray()
-                        : [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.")];
+                        ? preparation.Select(s => new UpdateSequenceStepResult(s, false, false, "Installation bloquée : préparation non vérifiée.") { SafetyBlocked = true }).ToArray()
+                        : [new(new("restore", "Point de restauration", UpdateComponent.Restore), false, false, "Installation bloquée : préparation non vérifiée.") { SafetyBlocked = true }];
                 }
                 results.AddRange(protectedResults);
                 microsoftBlocked = protectedResults.Any(r => r.RestorePointVerified == false) ||
@@ -297,7 +343,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             if (cancellationToken.IsCancellationRequested) break;
             if (microsoftBlocked && IsElevated(step.Component))
             {
-                results.Add(new(step, false, false, "Installation Microsoft bloquée : point de restauration non vérifié."));
+                results.Add(new(step, false, false, "Installation Microsoft bloquée : point de restauration non vérifié.") { SafetyBlocked = true });
                 handled.Add((step.Component, step.Id));
                 continue;
             }
@@ -351,7 +397,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                     var offer = _driverOffers.FirstOrDefault(o => o.Item == step.Application && step.Id == "WinGet:" + o.Item.Id);
                     results.Add(backend is IDriverSequenceBackend driverBackend && offer is not null && DriverOfficialPackageCatalog.CanInstall(offer)
                         ? await driverBackend.DriverPackages.InstallAsync(step, cancellationToken).ConfigureAwait(false)
-                        : new(step, false, false, "Installation bloquée : paquet officiel non vérifié.") { VerifiedStatus = "bloquée" });
+                        : new(step, false, false, "Installation bloquée : paquet officiel non vérifié.") { VerifiedStatus = "bloquée", SafetyBlocked = true });
                     handled.Add((step.Component, step.Id));
                 }
                 else if (step.Component == UpdateComponent.Launcher)
@@ -428,7 +474,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
             try
             {
                 if (steamGuardError is not null)
-                    results.Add(new(steamStep, false, false, steamGuardError) { VerifiedStatus = "bloquée" });
+                    results.Add(new(steamStep, false, false, steamGuardError) { VerifiedStatus = "bloquée", SafetyBlocked = true });
                 else if (steamReadError is not null)
                     results.Add(new(steamStep, false, false, steamReadError) { VerifiedStatus = "en erreur" });
                 else
@@ -444,7 +490,7 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 results.AddRange(steamGames.Select(game => new UpdateSequenceStepResult(new("SteamGame:" + game.Id, game.Name, UpdateComponent.Launcher), false, false,
                     "Non lancée : annulation avant la relance de Steam.") { VerifiedStatus = "non lancée", WasSkipped = true }));
             }
-            catch { results.Add(new(steamStep, false, false, "Steam : relance bloquée, vérification impossible.") { VerifiedStatus = "bloquée" }); }
+            catch { results.Add(new(steamStep, false, false, "Steam : relance bloquée, vérification impossible.") { VerifiedStatus = "bloquée", SafetyBlocked = true }); }
             handled.Add((steamStep.Component, steamStep.Id));
         }
         results.AddRange(snapshot.Where(s => !handled.Contains((s.Component, s.Id)) && !results.Any(r => r.Step.Component == s.Component && r.Step.Id == s.Id)).Select(s => new UpdateSequenceStepResult(s, false, false, "Non lancée : annulation demandée.")));
@@ -483,9 +529,9 @@ public sealed class UpdateSequenceService(IUpdateSequenceBackend backend, IConfi
                 check = SummarizeOutcomes(check, outcomes);
             else if (outcomes.Length == 0 || outcomes.Any(r => r.Message.StartsWith("Non lancée", StringComparison.Ordinal)))
                 check = new(component, "non lancée", check.Detail);
-            else if (outcomes.Any(r => r.WasUnavailable)) check = new(component, "indisponible", check.Detail);
-            else if (outcomes.Any(r => !r.Succeeded && !r.WasSkipped))
+            else if (outcomes.Any(r => !r.Succeeded && !r.WasSkipped && !r.WasUnavailable))
                 check = new(component, outcomes.Any(IsSafetyBlocked) ? "bloquée" : "en erreur", check.Detail);
+            else if (outcomes.Any(r => r.WasUnavailable)) check = new(component, "indisponible", check.Detail);
             else if (component == UpdateComponent.Store)
                 check = new(component, "à vérifier", "à terminer dans le Microsoft Store");
             checks.Add(check with { Component = component });

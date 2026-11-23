@@ -22,7 +22,7 @@ public sealed class DriverPackageWindowsSource(IProcessRunner runner, WingetAvai
     {
         var offer = _offers.FirstOrDefault(o => o.Item == step.Application);
         if (offer is null || !DriverOfficialPackageCatalog.CanInstall(offer) || !WindowsUpdateSequenceBackend.IsSafeVersion(offer.Item.AvailableVersion))
-            return new(step, false, false, "Installation bloquée : paquet officiel ou version non vérifié.") { VerifiedStatus = "bloquée" };
+            return new(step, false, false, "Installation bloquée : paquet officiel ou version non vérifié.") { VerifiedStatus = "bloquée", SafetyBlocked = true };
         var source = await availability.DetectAsync(token).ConfigureAwait(false);
         var capabilities = WingetAvailabilityService.GetCapabilities(source.Version);
         if (!source.IsAvailable || source.ExecutablePath is null || !capabilities.SupportsDisableInteractivity)

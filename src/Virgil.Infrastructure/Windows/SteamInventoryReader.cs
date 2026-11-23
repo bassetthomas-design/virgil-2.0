@@ -11,7 +11,9 @@ public sealed class SteamInventoryReader(ISteamReadAccess access)
         var directory = Path.GetDirectoryName(executable.Replace('\\', Path.DirectorySeparatorChar));
         if (string.IsNullOrWhiteSpace(directory)) throw new IOException("Dossier de Steam incomplet.");
         var libraries = LauncherManifestParser.SteamLibraries(access.ReadText(Path.Combine(directory, "steamapps", "libraryfolders.vdf")))
-            .Append(directory).Distinct(StringComparer.OrdinalIgnoreCase);
+            .Append(directory)
+            .Select(path => path.Replace('\\', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar, '/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
         var games = new Dictionary<string, SteamGameState>(StringComparer.Ordinal);
         foreach (var library in libraries)
         {
@@ -27,8 +29,8 @@ public sealed class SteamInventoryReader(ISteamReadAccess access)
                 {
                     var text = access.ReadText(file);
                     name = LauncherManifestParser.SteamGameName(text);
-                    var state = LauncherManifestParser.SteamUpdateState(text);
-                    games[id] = new(id, state.Name, state.StateFlags, state.BuildId);
+                    var state = LauncherManifestParser.SteamDetailedState(text);
+                    games[id] = new(id, state.Name, state.StateFlags, state.BuildId, LastUpdatedUtc: state.LastUpdatedUtc);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
                 { games[id] = new(id, name, 0, "", "Impossible de lire l’état de ce jeu dans Steam."); }

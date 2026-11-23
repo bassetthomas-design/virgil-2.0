@@ -24,7 +24,7 @@ public sealed class SteamWindowsClient : ISteamClient
         var processes = await _processes.ReadAsync("Steam", token).ConfigureAwait(false);
         var running = processes.Processes.Any(p =>
             string.Equals(p.Name ?? Path.GetFileName(p.ExecutablePath), "steam.exe", StringComparison.OrdinalIgnoreCase));
-        return new(running && _access.ReadHasActiveUser(), path);
+        return new(running && _access.ReadHasActiveUser(), path) { IsProcessRunning = running };
     }
     public Task<IReadOnlyList<SteamGameState>> ReadGamesAsync(CancellationToken token) => Task.Run(() =>
     {

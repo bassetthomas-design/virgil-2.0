@@ -178,25 +178,39 @@ public partial class UpdatesViewModel : ObservableObject
             _lastItems.AddRange(report.Items);
             await PersistReportAsync(ReportMapper.FromUpdateScan(report));
 
+            var knownDrivers = DriverSourceCards.ToArray();
+            RenderScanReport(report);
+            foreach (var card in knownDrivers) SingleCards.Add(card);
+
             IReadOnlyList<UpdateSequenceStepResult> storeCards = [];
+            IReadOnlyList<UpdateSequenceStepResult> steamCards = [];
             if (request.IncludeApplicationUpdates && _sequenceService is not null)
             {
                 var token = _operationCancellation.Token;
                 try { storeCards = await _sequenceService.ScanStoreAsync(report.Items, token).WaitAsync(token); }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                 catch { storeCards = [StoreUpdateService.PartialCard("Lecture du Microsoft Store indisponible.")]; }
-            }
+                foreach (var outcome in storeCards)
+                {
+                    if (outcome.Step.Application is { } app && report.Items.Any(item =>
+                        string.Equals(item.Id, app.Id, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(item.Id, app.Scope, StringComparison.OrdinalIgnoreCase))) continue;
+                    AddSingleCard(outcome);
+                }
 
-            RenderScanReport(report);
-            foreach (var outcome in storeCards)
-            {
-                if (outcome.Step.Application is { } app && report.Items.Any(item =>
-                    string.Equals(item.Id, app.Id, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(item.Id, app.Scope, StringComparison.OrdinalIgnoreCase))) continue;
-                AddSingleCard(outcome);
+                try { steamCards = await _sequenceService.ScanSteamAsync(token).WaitAsync(token).ConfigureAwait(true); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch
+                {
+                    steamCards = [new(new("Steam", "Steam", UpdateComponent.Launcher), false, false,
+                        "Lecture des fichiers locaux Steam impossible.") { VerifiedStatus = "indisponible", WasUnavailable = true }];
+                }
+                ApplyScannedSteamCards(steamCards);
             }
             UpdateCommandState();
-            var warning = report.Errors.Count > 0 || storeCards.Any(card => card.VerifiedStatus == StoreUpdateService.PartialStatus);
+            var warning = report.Errors.Count > 0
+                || storeCards.Any(card => card.VerifiedStatus == StoreUpdateService.PartialStatus)
+                || steamCards.Any(card => card.VerifiedStatus == "indisponible");
             RequestVirgilState(warning ? VirgilCoreState.Warning : VirgilCoreState.Success, "PRÊT");
             AnnounceScan(report);
         }
@@ -824,7 +838,7 @@ public partial class UpdatesViewModel : ObservableObject
             UpdateSource.MicrosoftStore => "Microsoft Store",
             UpdateSource.WindowsUpdate => "Windows Update",
             UpdateSource.Driver => "Pilote",
-            UpdateSource.FirmwareInformation => "Firmware information",
+            UpdateSource.FirmwareInformation => "Microprogramme (BIOS)",
             _ => "Applications"
         };
     }

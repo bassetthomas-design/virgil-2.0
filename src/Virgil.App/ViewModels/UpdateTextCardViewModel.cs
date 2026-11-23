@@ -23,10 +23,12 @@ public sealed record UpdateTextCardViewModel(string Text) : INotifyPropertyChang
     public bool HasStoreAction => Step?.Id == StoreUpdateService.PartialStepId
         || (Step?.Component == UpdateComponent.Store && !Step.IsInformational && Status == DriverCardSummary.Unsupported);
     public bool CanOpenStore => HasStoreAction && !Busy;
+    public bool HasSteamAction => Step?.Component == UpdateComponent.Launcher && Step.Id == "Steam";
+    public bool CanOpenSteam => HasSteamAction && !Busy;
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed()
     {
-        foreach (var property in new[] { nameof(Status), nameof(Detail), nameof(Busy), nameof(HasUpdateAction), nameof(CanUpdate), nameof(HasStoreAction), nameof(CanOpenStore) })
+        foreach (var property in new[] { nameof(Status), nameof(Detail), nameof(Busy), nameof(HasUpdateAction), nameof(CanUpdate), nameof(HasStoreAction), nameof(CanOpenStore), nameof(HasSteamAction), nameof(CanOpenSteam) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
 }
