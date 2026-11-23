@@ -1,0 +1,94 @@
+<UserControl x:Class="Virgil.App.Controls.ConnectionSecurityPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel AutomationProperties.AutomationId="ConnectionSecurityPanel" Margin="18,16,0,0">
+        <StackPanel.Resources>
+            <Style x:Key="ConnectionStatusTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+            </Style>
+            <Style x:Key="InternetStatusTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ConnectionStatusTextStyle}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding InternetLevel}" Value="Healthy">
+                        <Setter Property="Foreground" Value="{DynamicResource App.SuccessBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding InternetLevel}" Value="Attention">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding InternetLevel}" Value="Alert">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AlertBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding InternetLevel}" Value="Unknown">
+                        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="VpnStatusTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ConnectionStatusTextStyle}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding VpnLevel}" Value="Healthy">
+                        <Setter Property="Foreground" Value="{DynamicResource App.SuccessBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding VpnLevel}" Value="Attention">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding VpnLevel}" Value="Alert">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AlertBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding VpnLevel}" Value="Unknown">
+                        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="WifiProtectionTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ConnectionStatusTextStyle}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding SecurityLevel}" Value="Healthy">
+                        <Setter Property="Foreground" Value="{DynamicResource App.SuccessBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding SecurityLevel}" Value="Attention">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding SecurityLevel}" Value="Alert">
+                        <Setter Property="Foreground" Value="{DynamicResource App.AlertBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding SecurityLevel}" Value="Unknown">
+                        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </StackPanel.Resources>
+
+        <TextBlock Text="CONNEXION ET SÉCURITÉ RÉSEAU" Style="{DynamicResource VirgilHudSectionTitle}" TextWrapping="Wrap" />
+        <TextBlock Text="Internet" Style="{DynamicResource VirgilMicroLabel}" Margin="0,8,0,0" />
+        <TextBlock Text="{Binding InternetStatusText, FallbackValue='État Internet indéterminé'}"
+                   Style="{StaticResource InternetStatusTextStyle}" TextWrapping="Wrap" />
+        <TextBlock Text="VPN" Style="{DynamicResource VirgilMicroLabel}" Margin="0,4,0,0" />
+        <TextBlock Text="{Binding VpnStatusText, FallbackValue='État VPN indéterminé'}"
+                   Style="{StaticResource VpnStatusTextStyle}" TextWrapping="Wrap" />
+        <TextBlock Text="Protection Wi-Fi" Style="{DynamicResource VirgilMicroLabel}" Margin="0,4,0,0" />
+        <TextBlock Text="{Binding WifiProtectionText, FallbackValue='Chiffrement Wi-Fi non lisible'}"
+                   Style="{StaticResource WifiProtectionTextStyle}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding CaptivePortalText}" TextWrapping="Wrap"
+                   Foreground="{DynamicResource App.TextPrimaryBrush}" />
+        <TextBlock Text="{Binding ExplanationText, FallbackValue='État Internet indéterminé · État VPN indéterminé · Chiffrement Wi-Fi non lisible'}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,8,0,0" />
+        <TextBlock Text="{Binding AdviceText, FallbackValue='Aucune mesure récente : utilisez Actualiser pour lire l\&apos;état actuel.'}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource App.TextPrimaryBrush}" Margin="0,4,0,0" />
+
+        <WrapPanel Margin="0,8,0,0">
+            <Button Content="Actualiser" AutomationProperties.Name="Actualiser" Command="{Binding ActualiserCommand}"
+                    Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,6,4" />
+            <Button Content="Voir l'écran Réseau" AutomationProperties.Name="Voir l'écran Réseau" Command="{Binding OpenNetworkCommand}"
+                    Style="{DynamicResource VirgilSecondaryButton}" Margin="0,0,0,4" />
+        </WrapPanel>
+        <Expander Header="Détails" Margin="0,4,0,0">
+            <Expander.Style>
+                <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}" />
+            </Expander.Style>
+            <StackPanel>
+                <TextBlock Text="{Binding CheckedAtText}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextSecondaryBrush}" />
+                <TextBlock Text="{Binding ScopeNoteText, FallbackValue='Mesure locale en lecture seule uniquement.'}"
+                           TextWrapping="Wrap" Foreground="{DynamicResource App.TextSecondaryBrush}" />
+                <TextBlock Text="{Binding VpnProviderText}" TextWrapping="Wrap" Foreground="{DynamicResource App.TextSecondaryBrush}" />
+            </StackPanel>
+        </Expander>
+    </StackPanel>
+</UserControl>
