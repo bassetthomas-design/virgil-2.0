@@ -301,7 +301,7 @@ public sealed class LotMisesAJourSteamViewTests
         public Task<ProcessLaunchResult> LaunchAsync(ProcessLaunchRequest request, CancellationToken token)
         {
             Launches.Add(request);
-            return Task.FromResult(new ProcessLaunchResult(!FailLaunch, FailLaunch ? "Échec." : null));
+            return Task.FromResult(new ProcessLaunchResult(!FailLaunch, ExitCode: null, LaunchError: FailLaunch ? "Échec." : null));
         }
     }
 }
