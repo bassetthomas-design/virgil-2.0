@@ -145,6 +145,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     private bool _hasReading;
     private string _lastReading = "Aucun relevé terminé pour le moment.";
     private IReadOnlyList<DiagnosticFindingRow> _topFindings = Array.Empty<DiagnosticFindingRow>();
+    private string _pendingLoad = string.Empty;
     private string _health = "Note non calculée";
     private IReadOnlyList<string> _startup = Array.Empty<string>();
     private IMaintenanceAction? _pending;
@@ -163,6 +164,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         : _top3.Count == 0 ? "Aucun problème détecté dans les signaux disponibles." : "À vérifier en priorité";
     public string LastReading => _lastReading;
     public IReadOnlyList<DiagnosticFindingRow> TopFindings => _topFindings;
+    public string PendingLoad => _pendingLoad;
     public string PartialMeasure => _unavailable.Count switch
     {
         0 => string.Empty,
@@ -172,6 +174,7 @@ public sealed partial class DiagnosticViewModel : ObservableObject
     public IReadOnlyList<string> Unavailable => _unavailable;
     public IReadOnlyList<DiagnosticFindingRow> Findings => _findings;
     public event Action<DiagnosticSuggestion>? NavigationRequested;
+    public event Action? ProcessesRequested;
     public void ApplyFindings(DiagnosticFindings findings)
     {
         _health = $"Note de santé : {findings.Score.Value}/100" + (findings.Score.IsPartial ? $" — partielle ({findings.Score.FailedReadCount} lecture{(findings.Score.FailedReadCount > 1 ? "s" : "")} en échec)" : "");
@@ -184,13 +187,14 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         var actions = _module.GetActions(findings);
         _findings = findings.Issues.Select(issue => new DiagnosticFindingRow(issue, actions.Where(a =>
             a is DiagnosticCloseAction close && issue.Process?.ProcessId == close.ProcessId ||
-            a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync)).ToArray();
+            a is DiagnosticNavigationAction nav && issue.Suggestion == nav.Destination).ToArray(), PrepareActionAsync, ShowProcesses)).ToArray();
         _hasReading = true;
         _lastReading = "Dernier relevé à " + TimeZoneInfo.ConvertTime(findings.Snapshot.CapturedAtUtc, _clock.LocalTimeZone)
             .ToString("H' h 'mm", French);
         _topFindings = _findings.Where((_, index) => findings.Issues[index].Severity > 0).Take(3).ToArray();
+        _pendingLoad = findings.PendingLoad;
         foreach (var name in new[] { nameof(Health), nameof(Top3), nameof(Top3Caption), nameof(Unavailable),
-            nameof(Findings), nameof(Startup), nameof(LastReading), nameof(TopFindings), nameof(PartialMeasure) })
+            nameof(Findings), nameof(Startup), nameof(LastReading), nameof(TopFindings), nameof(PartialMeasure), nameof(PendingLoad) })
             OnPropertyChanged(name);
     }
     public async Task PrepareActionAsync(IMaintenanceAction action)
@@ -254,6 +258,13 @@ public sealed partial class DiagnosticViewModel : ObservableObject
         _sort = sort;
         ApplySort();
     }
+    public void ShowProcesses(DiagnosticProcessSort sort)
+    {
+        _sort = sort;
+        _descending = true;
+        ApplySort();
+        ProcessesRequested?.Invoke();
+    }
     private void ApplySort() => Processes = _snapshot is null ? Array.Empty<DiagnosticProcessRow>()
         : DiagnosticProcessOrdering.Sort(_snapshot.Processes, _sort, _descending).Select(p => new DiagnosticProcessRow(p)).ToArray();
 }
@@ -286,23 +297,30 @@ public static class DiagnosticDisplay
 
 public sealed class DiagnosticFindingRow
 {
-    public DiagnosticFindingRow(DiagnosticIssue issue, IReadOnlyList<IMaintenanceAction> actions, Func<IMaintenanceAction, Task> prepare)
+    public DiagnosticFindingRow(DiagnosticIssue issue, IReadOnlyList<IMaintenanceAction> actions, Func<IMaintenanceAction, Task> prepare,
+        Action<DiagnosticProcessSort>? showProcesses = null)
     {
         Title = issue.Title;
         Description = issue.Description;
         Recommendation = issue.Suggestion switch
         {
             DiagnosticSuggestion.None when issue.Category == "disk" => "Action proposée : sauvegardez vos fichiers et faites contrôler le disque.",
+            DiagnosticSuggestion.None when issue.Category == "load" => "Action proposée : regardez les programmes les plus gourmands dans la liste des processus, puis quittez ceux que vous n'utilisez pas.",
             DiagnosticSuggestion.None => "Action proposée : vérifiez la ventilation et réduisez la charge.",
             DiagnosticSuggestion.StartupLater => "Modification du démarrage disponible plus tard (sauvegarde et point de restauration requis)",
             _ => "Choisissez une proposition ci-dessous, puis validez son aperçu."
         };
         Actions = actions.Select(a => new DiagnosticActionRow(a, prepare)).ToArray();
+        ShowsProcesses = issue.Category == "load" && showProcesses is not null;
+        ShowProcessesCommand = new RelayCommand(() =>
+            showProcesses?.Invoke(issue.Id == "memory.load" ? DiagnosticProcessSort.Memory : DiagnosticProcessSort.Cpu));
     }
     public string Title { get; }
     public string Description { get; }
     public string Recommendation { get; }
     public IReadOnlyList<DiagnosticActionRow> Actions { get; }
+    public bool ShowsProcesses { get; }
+    public IRelayCommand ShowProcessesCommand { get; }
 }
 public sealed class DiagnosticActionRow(IMaintenanceAction action, Func<IMaintenanceAction, Task> prepare)
 {

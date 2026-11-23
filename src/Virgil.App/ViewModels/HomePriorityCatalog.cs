@@ -32,6 +32,8 @@ public static class HomePriorityCatalog
         new("network-active-interface", "Aucune connexion réseau active.", "Ouvrir Réseau", "Réseau", false, "Connexion réseau"),
         new("cpu.hot", "Le processeur chauffe (90 °C ou plus).", "Ouvrir Diagnostic", "Diagnostic", false, "Température du processeur"),
         new("gpu.hot.", "La carte graphique chauffe (90 °C ou plus).", "Ouvrir Diagnostic", "Diagnostic", true, "Température de la carte graphique"),
+        new("cpu.load", "Le processeur est très chargé.", "Ouvrir Diagnostic", "Diagnostic", false, "Charge du processeur"),
+        new("memory.load", "La mémoire est presque pleine.", "Ouvrir Diagnostic", "Diagnostic", false, "Mémoire"),
         new("disk.failure.", "Windows prévoit une panne de disque : sauvegardez vos fichiers maintenant.", "Ouvrir Sauvegarde Windows", "ms-settings:backup", true, "Santé du disque {X}"),
         new("process.", "Un lanceur de jeux consomme beaucoup en arrière-plan.", "Ouvrir Diagnostic", "Diagnostic", true, "Lanceur de jeux"),
         new("partial-error-", "Certaines mesures n'ont pas pu être lues.", "Ouvrir Diagnostic", "Diagnostic", true, "Mesures du scan"),

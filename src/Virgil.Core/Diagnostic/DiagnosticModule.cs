@@ -8,6 +8,7 @@ public sealed class DiagnosticModule(DiagnosticSampler sampler, IDiagnosticSigna
     Virgil.Core.Resources.IProcessActionService? processes = null, IConfirmedPlanGate? gate = null) : IMaintenanceModule
 {
     private DiagnosticSignals? _cached;
+    private DiagnosticSnapshot? _previous;
     public string Id => "diagnostic";
     public string Title => "Diagnostic";
     public string Category => "Observation";
@@ -18,7 +19,9 @@ public sealed class DiagnosticModule(DiagnosticSampler sampler, IDiagnosticSigna
         var observed = _cached ?? (signals is null ? DiagnosticSignals.Unavailable : await signals.ReadAsync(cancellationToken).ConfigureAwait(false));
         cancellationToken.ThrowIfCancellationRequested();
         _cached = observed;
-        return DiagnosticAnalyzer.Analyze(snapshot, observed);
+        var findings = DiagnosticAnalyzer.Analyze(snapshot, observed, _previous);
+        _previous = snapshot;
+        return findings;
     }
     public IReadOnlyList<IMaintenanceAction> GetActions(Findings findings)
     {
@@ -45,6 +48,7 @@ public sealed class DiagnosticFindings : Findings
     public HealthScore Score { get; }
     public IReadOnlyList<DiagnosticIssue> Top3 => Issues.Where(i => i.Severity > 0).Take(3).ToArray();
     public IReadOnlyList<string> Unavailable { get; }
+    public string PendingLoad { get; init; } = string.Empty;
 }
 
 public enum DiagnosticProcessSort { Cpu, Memory, Disk, Network, Name }
