@@ -64,6 +64,66 @@
                                        Style="{StaticResource VirgilMicroLabel}"
                                        Foreground="{DynamicResource App.TextPrimaryBrush}" />
                         </Border>
+                        <StackPanel x:Name="ConnectionBadgesHost" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border x:Name="InternetStatusBadge" Style="{StaticResource VirgilBadge}">
+                                <Button x:Name="InternetStatusButton" Command="{Binding OpenNetworkCommand}"
+                                        ToolTip="{Binding ExplanationToolTip}" ToolTipService.ShowOnDisabled="True"
+                                        Cursor="Hand" FocusVisualStyle="{StaticResource VirgilFocusVisual}"
+                                        Background="Transparent" BorderThickness="0" Padding="0"
+                                        AutomationProperties.Name="{Binding InternetBadgeText}">
+                                    <TextBlock Text="{Binding InternetBadgeText, FallbackValue='Internet : État Internet indéterminé'}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource VirgilMicroLabel}">
+                                                <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding InternetLevel}" Value="Healthy">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.SuccessBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding InternetLevel}" Value="Attention">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding InternetLevel}" Value="Alert">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.AlertBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding InternetLevel}" Value="Unknown">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Button>
+                            </Border>
+                            <Border x:Name="VpnStatusBadge" Style="{StaticResource VirgilBadge}">
+                                <Button x:Name="VpnStatusButton" Command="{Binding OpenNetworkCommand}"
+                                        ToolTip="{Binding ExplanationToolTip}" ToolTipService.ShowOnDisabled="True"
+                                        Cursor="Hand" FocusVisualStyle="{StaticResource VirgilFocusVisual}"
+                                        Background="Transparent" BorderThickness="0" Padding="0"
+                                        AutomationProperties.Name="{Binding VpnBadgeText}">
+                                    <TextBlock Text="{Binding VpnBadgeText, FallbackValue='VPN : État VPN indéterminé'}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource VirgilMicroLabel}">
+                                                <Setter Property="Foreground" Value="{DynamicResource App.TextPrimaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding VpnLevel}" Value="Healthy">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.SuccessBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding VpnLevel}" Value="Attention">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.AccentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding VpnLevel}" Value="Alert">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.AlertBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding VpnLevel}" Value="Unknown">
+                                                        <Setter Property="Foreground" Value="{DynamicResource App.TextSecondaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Button>
+                            </Border>
+                        </StackPanel>
                         <Border Style="{StaticResource VirgilBadge}">
                             <TextBlock Text="LOCAL"
                                        Style="{StaticResource VirgilMicroLabel}"
