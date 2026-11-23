@@ -64,11 +64,13 @@ public sealed class StoreWindowsClient(IProcessRunner runner) : IStoreUpdateClie
           $installed=@(Get-AppxPackage -ErrorAction Stop)
           $packages=@(foreach($item in $items) {
             $package=$installed | Where-Object {$_.PackageFamilyName -eq $item.PackageFamilyName} | Select-Object -First 1
-            if($null -eq $package){throw 'Version installée introuvable'}
+            if($null -eq $package){@{ProductId=[string]$item.ProductId;FamilyName=[string]$item.PackageFamilyName;Name='';Version=''};continue}
             $name='Application du Microsoft Store'
-            $manifest=Get-AppxPackageManifest -Package $package.PackageFullName -ErrorAction Stop
-            $display=[string]$manifest.Package.Properties.DisplayName
-            if($display -and -not $display.StartsWith('ms-resource:')){$name=$display}
+            try {
+              $manifest=Get-AppxPackageManifest -Package $package.PackageFullName -ErrorAction Stop
+              $display=[string]$manifest.Package.Properties.DisplayName
+              if($display -and -not $display.StartsWith('ms-resource:')){$name=$display}
+            } catch {}
             @{ProductId=[string]$item.ProductId;FamilyName=[string]$item.PackageFamilyName;Name=$name;Version=$package.Version.ToString()}
           })
           @{Supported=$true;Reason='';Packages=@($packages)} | ConvertTo-Json -Depth 5 -Compress

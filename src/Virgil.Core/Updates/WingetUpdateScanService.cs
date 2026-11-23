@@ -52,7 +52,9 @@ public sealed class WingetUpdateScanService : IUpdateScanService
         errors.AddRange(winget.Errors);
 
         progress?.Report("Lecture Windows Update.");
-        var windowsUpdate = _windowsUpdateStatusService.ReadStatus();
+        var windowsUpdate = request.Scope == UpdateScanScope.DeepPreview
+            ? await _windowsUpdateStatusService.ScanAsync(cancellationToken).ConfigureAwait(false)
+            : _windowsUpdateStatusService.ReadStatus();
         errors.AddRange(windowsUpdate.Errors);
 
         var drivers = new DriverInventoryReport();
@@ -264,6 +266,11 @@ public sealed class WingetUpdateScanService : IUpdateScanService
         {
             recommendations.Add("Redémarrage en attente détecté : vérifier Windows Update.");
         }
+
+        if (windowsUpdate.AvailabilityState == "mises à jour détectées")
+            recommendations.Add("Windows Update propose des mises à jour disponibles : ouvrez Windows Update ou utilisez « Tout mettre à jour ».");
+        else if (windowsUpdate.AvailabilityState == "inconnu" && !string.IsNullOrWhiteSpace(windowsUpdate.UnavailableReason))
+            recommendations.Add(windowsUpdate.UnavailableReason);
 
         recommendations.AddRange(drivers.Recommendations);
         return recommendations;

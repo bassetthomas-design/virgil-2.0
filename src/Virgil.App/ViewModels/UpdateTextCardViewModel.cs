@@ -20,10 +20,13 @@ public sealed record UpdateTextCardViewModel(string Text) : INotifyPropertyChang
     public bool HasUpdateAction => Step is not null && UpdateSequenceService.IsSingleTarget(Step)
         && Status != DriverCardSummary.Unsupported;
     public bool CanUpdate => HasUpdateAction && !Busy && Status is not ("mis à jour" or "à jour" or "à jour selon Steam");
+    public bool HasStoreAction => Step?.Id == StoreUpdateService.PartialStepId
+        || (Step?.Component == UpdateComponent.Store && !Step.IsInformational && Status == DriverCardSummary.Unsupported);
+    public bool CanOpenStore => HasStoreAction && !Busy;
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed()
     {
-        foreach (var property in new[] { nameof(Status), nameof(Detail), nameof(Busy), nameof(HasUpdateAction), nameof(CanUpdate) })
+        foreach (var property in new[] { nameof(Status), nameof(Detail), nameof(Busy), nameof(HasUpdateAction), nameof(CanUpdate), nameof(HasStoreAction), nameof(CanOpenStore) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
 }

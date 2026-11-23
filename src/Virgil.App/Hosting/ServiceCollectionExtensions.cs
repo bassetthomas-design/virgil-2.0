@@ -96,7 +96,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<WingetAvailabilityService>(sp => new WingetAvailabilityService(sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<UpdateRiskClassifier>(_ => new UpdateRiskClassifier());
         services.AddTransient<IPendingRebootProbe>(_ => new Virgil.Infrastructure.Windows.RegistryPendingRebootProbe());
-        services.AddTransient<WindowsUpdateStatusService>(sp => new WindowsUpdateStatusService(sp.GetRequiredService<IPendingRebootProbe>()));
+        services.AddTransient<IWindowsUpdateReader>(sp => new Virgil.Infrastructure.Windows.WindowsUpdateReader(sp.GetRequiredService<IProcessRunner>()));
+        services.AddTransient<WindowsUpdateStatusService>(sp => new WindowsUpdateStatusService(
+            sp.GetRequiredService<IPendingRebootProbe>(), sp.GetRequiredService<IWindowsUpdateReader>()));
         services.AddTransient<DriverInformationService>(sp => new DriverInformationService(sp.GetRequiredService<IProcessRunner>()));
         services.AddTransient<IUpdateScanService>(sp => new WingetUpdateScanService(
             sp.GetRequiredService<WingetAvailabilityService>(), sp.GetRequiredService<IProcessRunner>(),
