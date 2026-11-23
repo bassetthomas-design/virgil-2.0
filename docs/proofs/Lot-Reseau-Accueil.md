@@ -28,6 +28,13 @@ Les huit tests de `LotReseauBandeauTests` passent dès le commit de tests seuls 
 
 Les runs #506, #507 et #508 ne recensent aucun échec des tests fragiles répertoriés pour le lot.
 
+Le [run Windows #509](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45225285119), sur le commit `10654484f1642476bcf33cfaca723da425eae987`, compile avec 0 avertissement et 0 erreur. Tous les tests hors UI passent. Les deux seuls échecs appartiennent à la suite fragile `UiSmokeTests` :
+
+- `Smoke_run_has_no_destructive_side_effect`
+- `Cleanup_summary_is_captured_without_execution`
+
+Les deux tests remontent `Assert.Null() Failure: Value is not null` avec `Xunit.Sdk.FailException: Vue/contrôle UIA invisible : UpdatePlanStep.Drivers`. L’[artefact Virgil-ui-smoke](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45225285119/artifacts/14844755476) de ce diagnostic porte l’ID `14844755476`.
+
 ## Validation du head relu
 
 La section « Vérifications réalisées » de la [PR #104](https://github.com/bassetthomas-design/virgil-2.0/pull/104) est la référence pour le run Windows de validation du head de relecture, son SHA et l’ID de l’artefact associé.
