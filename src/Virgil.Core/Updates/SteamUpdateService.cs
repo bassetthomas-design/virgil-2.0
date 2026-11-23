@@ -69,13 +69,14 @@ internal sealed class SteamUpdateService(ISteamUpdateBackend backend)
             foreach (var game in initial.Where(game => !Finished(game, states[game.Id], requested, alwaysInstalled, polls, waitLimit)))
                 states[game.Id] = states[game.Id] with { Error = "Lecture de l’état du jeu impossible dans Steam." };
         }
+        var canConfirmInstalled = polls > 0 && (token.IsCancellationRequested || HasEnoughPolls(polls, waitLimit));
         foreach (var original in initial)
         {
             var state = states[original.Id];
             var error = state.Error ?? ((state.StateFlags & (32u | 128u)) != 0 || state.StateFlags == 0 ? "Steam indique des fichiers de jeu absents ou endommagés." : null);
             var status = error is not null ? "en erreur"
                 : polls > 0 && state.StateFlags == 4 && requested.Contains(original.Id) && state.BuildId != original.BuildId ? "mis à jour"
-                : polls > 0 && HasEnoughPolls(polls, waitLimit) && alwaysInstalled.Contains(original.Id) && !requested.Contains(original.Id) ? "à jour selon Steam" : "reste à installer";
+                : canConfirmInstalled && alwaysInstalled.Contains(original.Id) && !requested.Contains(original.Id) ? "à jour selon Steam" : "reste à installer";
             results.Add(GameResult(original, status, error ?? (status == "reste à installer" ? "Reste à installer — Steam continue en arrière-plan." : status)));
         }
         var steamStatus = results.Any(game => game.VerifiedStatus == "en erreur") ? "en erreur"
