@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Capturing;
+using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using Xunit;
 
@@ -160,9 +161,9 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         {
             await ui!.Click("UpdatesNavButton");
             var before = SessionFiles.SnapshotReports();
+            var previewElapsed = Stopwatch.StartNew();
             await ui.Click("RunSelectedButton");
-            await WaitVisibleAsync("UpdatePlanStep.Drivers");
-            var drivers = Find("UpdatePlanStep.Drivers")!;
+            var drivers = await WaitForDriverPreviewAsync(previewElapsed);
             Assert.Equal(FlaUI.Core.Definitions.ToggleState.On, drivers.Patterns.Toggle.Pattern.ToggleState.Value);
             SaveWindow("14-plan-mises-a-jour.png");
             await ui.Click("SkipUpdateButton");
@@ -308,6 +309,80 @@ public sealed class UiSession : IAsyncLifetime, IDisposable
         var actual = Directory.EnumerateFiles(SessionFiles.ArtifactDirectory, "*.png")
             .Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(expected, actual);
+    }
+
+    private async Task<AutomationElement> WaitForDriverPreviewAsync(Stopwatch elapsed)
+    {
+        const string driverId = "UpdatePlanStep.Drivers";
+        const string driverName = "Windows Update : pilotes (jusqu'à 3 passes)";
+        const string title = "TOUT METTRE À JOUR";
+        string observed = "aucune observation";
+        try
+        {
+            var opening = Stopwatch.StartNew();
+            while (true)
+            {
+                var skip = Find("SkipUpdateButton");
+                var heading = Find("ValidationTitleText");
+                if (skip is not null && IsVisible(skip) && heading is not null && IsVisible(heading) && heading.Name == title)
+                    break;
+                observed = $"annulation : {Describe(skip)}, titre : {Describe(heading)}";
+                if (opening.Elapsed >= TimeSpan.FromSeconds(120))
+                    Assert.Fail($"Aperçu « {title} » avec bouton d’annulation visible attendu sous 120 s. Observé : {observed}.");
+                await Task.Delay(100);
+            }
+
+            var walker = automation!.TreeWalkerFactory.GetRawViewWalker();
+            var visibility = Stopwatch.StartNew();
+            do
+            {
+                var rows = window!.FindAllDescendants(cf => cf.ByAutomationId(driverId));
+                // L’identifiant est partagé par le BIOS et les paquets de pilotes du fabricant.
+                var candidates = rows.Where(row => row.Name == driverName && row.IsEnabled
+                    && row.Patterns.Toggle.IsSupported).ToArray();
+                observed = $"{candidates.Length} case(s) correspondante(s) ; {string.Join(" | ", rows.Select(Describe))}";
+                if (candidates.Length == 1)
+                {
+                    var drivers = candidates[0];
+                    if (IsVisible(drivers)) return drivers;
+                    for (var parent = walker.GetParent(drivers); parent is not null; parent = walker.GetParent(parent))
+                    {
+                        if (!parent.Patterns.Scroll.TryGetPattern(out var scroll) ||
+                            !scroll.VerticallyScrollable.ValueOrDefault) continue;
+
+                        // Le motif UIA Scroll révèle la ligne sans cliquer ni modifier la sélection.
+                        var percent = scroll.VerticalScrollPercent.ValueOrDefault;
+                        observed += $" ; défilement vertical : {percent:F1} %";
+                        if (percent < 100)
+                            scroll.Scroll(ScrollAmount.NoAmount, ScrollAmount.SmallIncrement);
+                        break;
+                    }
+                }
+                await Task.Delay(100);
+            } while (visibility.Elapsed < TimeSpan.FromSeconds(10));
+
+            Assert.Fail($"Case unique et visible « {driverName} » attendue sous 10 s, activée et avec le motif Toggle. Observé : {observed}.");
+            throw new InvalidOperationException("Attente de la case pilotes échouée.");
+        }
+        catch (Exception)
+        {
+            var rows = window!.FindAllDescendants()
+                .Where(row => row.Properties.AutomationId.ValueOrDefault?.StartsWith("UpdatePlanStep.", StringComparison.Ordinal) == true);
+            File.WriteAllLines(Path.Combine(SessionFiles.ArtifactDirectory, "14-plan-mises-a-jour-diagnostic.txt"),
+                new[] { $"Temps écoulé : {elapsed.Elapsed}", $"Dernière observation : {observed}",
+                    $"SkipUpdateButton : {Describe(Find("SkipUpdateButton"))}" }.Concat(rows.Select(Describe)),
+                new System.Text.UTF8Encoding(false));
+            throw;
+        }
+    }
+
+    private static string Describe(AutomationElement? element)
+    {
+        if (element is null) return "absent";
+        var toggle = element.Patterns.Toggle.TryGetPattern(out var pattern)
+            ? pattern.ToggleState.ValueOrDefault.ToString() : "non pris en charge";
+        return $"AutomationId={element.Properties.AutomationId.ValueOrDefault}, nom={element.Name}, " +
+            $"IsOffscreen={element.IsOffscreen}, rectangle={element.BoundingRectangle}, Toggle={toggle}, IsEnabled={element.IsEnabled}";
     }
 
     private AutomationElement? Find(string id) => window!.FindFirstDescendant(cf => cf.ByAutomationId(id));

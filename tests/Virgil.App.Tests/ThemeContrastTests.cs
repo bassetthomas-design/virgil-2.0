@@ -240,4 +240,11 @@ public sealed class ThemeContrastTests(ITestOutputHelper output)
         var dispatcher = await Sta.Value;
         await await dispatcher.InvokeAsync(action);
     }
+
+    internal static Task OnStaWithin(TimeSpan budget, Func<CancellationToken, Task> action) =>
+        OnSta(async () =>
+        {
+            using var deadline = new CancellationTokenSource(budget);
+            await action(deadline.Token);
+        });
 }

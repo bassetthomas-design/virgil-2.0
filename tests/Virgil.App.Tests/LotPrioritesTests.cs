@@ -5,7 +5,6 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using System.Xml.Linq;
 using CommunityToolkit.Mvvm.Input;
 using Virgil.App.Controls;
@@ -95,7 +94,7 @@ public sealed class LotPrioritesTests
 
     [Fact, Trait("Category", "Windows")]
     public Task Rendered_panel_and_tile_show_source_time_return_to_normal_and_open_the_list() =>
-        ThemeContrastTests.OnSta(async () =>
+        ThemeContrastTests.OnStaWithin(TimeSpan.FromSeconds(10), async deadline =>
         {
             var store = new SystemStatusStore();
             using var runner = new Runner();
@@ -105,7 +104,8 @@ public sealed class LotPrioritesTests
             try
             {
                 PublishDiskAndWindows(store);
-                await Settle(window);
+                await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(panel), deadline,
+                    DiskText, "Scan · mesuré à 18 h 24", "Diagnostic · mesuré à 18 h 34");
                 var texts = VisibleTexts(panel);
                 WriteEvidence(1, texts);
                 Assert.Contains(DiskText, texts);
@@ -113,7 +113,8 @@ public sealed class LotPrioritesTests
                 Assert.Contains("Diagnostic · mesuré à 18 h 34", texts);
 
                 store.PublishScan(Scan(T0.AddMinutes(20), [C]));
-                await Settle(window);
+                await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(panel), deadline,
+                    DiskResolved);
                 texts = VisibleTexts(panel);
                 WriteEvidence(2, texts);
                 Assert.Contains(DiskResolved, texts);
@@ -124,7 +125,8 @@ public sealed class LotPrioritesTests
                 var tileWindow = Show(tile);
                 try
                 {
-                    await Settle(tileWindow);
+                    await WpfConditionWait.LayoutAsync(tileWindow, () => VisibleTexts(tile), deadline,
+                        "PRIORITÉS", "1", "1 POINT À VÉRIFIER · Mesuré à 18:44");
                     texts = VisibleTexts(tile);
                     WriteEvidence(3, texts);
                     Assert.Equal(new[] { "PRIORITÉS", "1", "1 POINT À VÉRIFIER · Mesuré à 18:44" }, texts);
@@ -138,7 +140,7 @@ public sealed class LotPrioritesTests
                 finally { tileWindow.Close(); }
             }
             finally { window.Close(); }
-        }).WaitAsync(TimeSpan.FromSeconds(10));
+        });
 
     [Fact]
     public void Main_window_hosts_the_tile_and_routes_it_to_the_home_list()
@@ -164,7 +166,7 @@ public sealed class LotPrioritesTests
 
     [Fact, Trait("Category", "Windows")]
     public Task Rendered_panel_distinguishes_analysis_to_run_from_no_priority() =>
-        ThemeContrastTests.OnSta(async () =>
+        ThemeContrastTests.OnStaWithin(TimeSpan.FromSeconds(10), async deadline =>
         {
             var store = new SystemStatusStore();
             using var runner = new Runner();
@@ -173,16 +175,18 @@ public sealed class LotPrioritesTests
             var window = Show(panel);
             try
             {
-                await Settle(window);
+                await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(panel), deadline,
+                    "Aucune analyse récente : lancez un scan pour voir les priorités.");
                 Assert.Contains("Aucune analyse récente : lancez un scan pour voir les priorités.", VisibleTexts(panel));
                 store.PublishScan(Scan(T0, []));
-                await Settle(window);
+                await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(panel), deadline,
+                    "Aucun point prioritaire au dernier contrôle.", "Mesuré à 18:24");
                 var texts = VisibleTexts(panel);
                 Assert.Contains("Aucun point prioritaire au dernier contrôle.", texts);
                 Assert.Contains("Mesuré à 18:24", texts);
             }
             finally { window.Close(); }
-        }).WaitAsync(TimeSpan.FromSeconds(10));
+        });
 
     private static HomePrioritiesViewModel Make(SystemStatusStore store, Runner runner) => new(store, runner, new Clock());
 
@@ -232,13 +236,6 @@ public sealed class LotPrioritesTests
         window.Show();
         window.UpdateLayout();
         return window;
-    }
-
-    private static async Task Settle(Window window)
-    {
-        window.UpdateLayout();
-        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        window.UpdateLayout();
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

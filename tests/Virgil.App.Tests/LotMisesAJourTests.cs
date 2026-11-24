@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -112,7 +111,7 @@ public sealed class LotMisesAJourTests
 
     [Fact, Trait("Category", "Windows")]
     public Task Rendered_updates_screen_exposes_partial_store_card_and_opens_store_without_installing() =>
-        ThemeContrastTests.OnSta(async () =>
+        ThemeContrastTests.OnStaWithin(Deadline, async deadline =>
         {
             var runner = new FakeRunner { Store = new(false, StoreReason, []) };
             using var services = Services(runner);
@@ -125,30 +124,40 @@ public sealed class LotMisesAJourTests
                 WindowStyle = 0x10000000
             });
             window.RootVisual = view;
-            await vm.ScanUpdatesCommand.ExecuteAsync(null).WaitAsync(Deadline);
-            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-            view.UpdateLayout();
+            await WpfConditionWait.CompletionAsync(vm.ScanUpdatesCommand.ExecuteAsync(null), "scan des mises à jour", deadline);
+            string[] VisibleTexts() => Descendants<TextBlock>(view)
+                .Where(element => element.IsVisible).Select(element => element.Text).ToArray();
+            await WpfConditionWait.LayoutAsync(view, VisibleTexts, deadline,
+                "1 mise à jour détectée via WinGet.", "À jour selon Windows Update.", "vérification partielle", StoreReason);
 
-            var texts = Descendants<TextBlock>(view).Where(element => element.IsVisible).Select(element => element.Text).ToArray();
+            var texts = VisibleTexts();
             var buttons = Descendants<Button>(view).Where(element => element.IsVisible).ToArray();
-            var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-t6a");
-            Directory.CreateDirectory(directory);
-            await File.WriteAllLinesAsync(Path.Combine(directory, "mises-a-jour-sources.txt"),
-                new[] { "# textes" }.Concat(texts).Append("# boutons").Concat(buttons.Select(button => button.Content?.ToString() ?? "")),
-                new UTF8Encoding(false), TestContextToken).WaitAsync(Deadline);
-
-            Assert.Contains("1 mise à jour détectée via WinGet.", texts);
-            Assert.Contains("À jour selon Windows Update.", texts);
-            Assert.Contains("vérification partielle", texts);
-            Assert.Contains(StoreReason, texts);
-            var storeButton = Assert.Single(buttons, button => Equals(button.Content, "Ouvrir le Microsoft Store"));
-            Assert.True(storeButton.IsEnabled);
-            await Assert.IsAssignableFrom<IAsyncRelayCommand>(storeButton.Command).ExecuteAsync(null).WaitAsync(Deadline);
-            var launch = Assert.Single(runner.Launches);
-            Assert.Equal("ms-windows-store://downloadsandupdates", launch.FileName);
-            Assert.True(launch.UseShellExecute);
-            Assert.Empty(launch.Arguments);
-        }).WaitAsync(Deadline);
+            var evidence = new[] { "# textes" }.Concat(texts).Append("# boutons")
+                .Concat(buttons.Select(button => button.Content?.ToString() ?? "")).ToArray();
+            try
+            {
+                Assert.Contains("1 mise à jour détectée via WinGet.", texts);
+                Assert.Contains("À jour selon Windows Update.", texts);
+                Assert.Contains("vérification partielle", texts);
+                Assert.Contains(StoreReason, texts);
+                var storeButton = Assert.Single(buttons, button => Equals(button.Content, "Ouvrir le Microsoft Store"));
+                Assert.True(storeButton.IsEnabled);
+                await WpfConditionWait.CompletionAsync(
+                    Assert.IsAssignableFrom<IAsyncRelayCommand>(storeButton.Command).ExecuteAsync(null),
+                    "ouverture du Microsoft Store", deadline);
+                var launch = Assert.Single(runner.Launches);
+                Assert.Equal("ms-windows-store://downloadsandupdates", launch.FileName);
+                Assert.True(launch.UseShellExecute);
+                Assert.Empty(launch.Arguments);
+            }
+            finally
+            {
+                var directory = Path.Combine(TestRepositoryRoot.FindRepositoryRoot(), "artifacts", "ui-smoke", "lot-t6a");
+                Directory.CreateDirectory(directory);
+                await WpfConditionWait.CompletionAsync(File.WriteAllLinesAsync(Path.Combine(directory, "mises-a-jour-sources.txt"),
+                    evidence, new UTF8Encoding(false), TestContextToken), "écriture de la preuve Store", deadline);
+            }
+        });
 
     [Fact]
     public async Task Store_up_to_date_without_unmatched_items_shows_current_status_at_scan()
