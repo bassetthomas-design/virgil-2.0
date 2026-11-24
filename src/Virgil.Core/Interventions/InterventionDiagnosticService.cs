@@ -144,6 +144,12 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     private string? FindWindowsExecutable(string executable)
     {
         var systemDirectory = _systemDirectory();
+        if (string.Equals(executable, "wsreset.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            var systemPath = Path.Combine(systemDirectory, executable);
+            return Path.IsPathFullyQualified(systemDirectory) && _fileExists(systemPath) ? systemPath : null;
+        }
+
         var windowsDirectory = Directory.GetParent(systemDirectory)?.FullName ?? systemDirectory;
         var candidates = new[]
         {

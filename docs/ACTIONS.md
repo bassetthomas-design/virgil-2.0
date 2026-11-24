@@ -78,7 +78,9 @@ Les modes « Vérifier » et « Scanner et réparer » passent par les services 
 
 Les changements système concernés exigent aperçu, confirmation et point de restauration créé/vérifié. Un refus UAC ou un échec de protection bloque l'action. Le helper n'accepte pas de commande libre.
 
-**Cible L12b :** un chkdsk planifié, une remise à zéro complète de Windows Update et `wsreset` pour le Store seraient des ajouts distincts. Ils ne sont pas livrés par l'allowlist actuelle. Les diagnostics son/imprimante/Store exhaustifs resteraient à compléter dans ce lot.
+Le lot R1 autorise `wsreset.exe` sans argument pour réinitialiser le cache du Microsoft Store. L’action est sélectionnable après « Analyser » si l’exécutable système est présent et requiert une confirmation explicite. Le Store peut s’ouvrir.
+
+**Cible L12b :** CHKDSK planifié au redémarrage et la remise à zéro complète de Windows Update restent à livrer. Les diagnostics son/imprimante/Store exhaustifs resteraient à compléter dans ce lot.
 
 ## Action 6 — Ressources
 

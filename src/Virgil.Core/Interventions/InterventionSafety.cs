@@ -7,7 +7,8 @@ public static class InterventionSafety
     public static bool RequiresRestorePoint(InterventionId id) => id is
         InterventionId.FlushDns or InterventionId.RenewIp or InterventionId.ResetWinsock or
         InterventionId.ResetTcpIp or InterventionId.SfcScan or InterventionId.DismRestoreHealth or
-        InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue;
+        InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or
+        InterventionId.ResetStoreCache;
 
     // Only machine-readable findings or explicit integrity-tool findings propose a repair.
     public static IReadOnlySet<InterventionId> RepairsFor(string output)

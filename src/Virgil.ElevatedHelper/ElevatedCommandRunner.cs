@@ -68,6 +68,14 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
             if (!process.Start()) return new ElevatedCommandResult(-1, "", "Processus non démarré.");
             var output = ReadAsync(process.StandardOutput, progress);
             var error = ReadAsync(process.StandardError, null);
+            if (command.FileName.Equals("wsreset.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return await WaitForWsResetAsync(process.WaitForExitAsync, () =>
+                {
+                    if (!process.HasExited) process.Kill();
+                }, output, error, () => process.ExitCode, timeout.Token).ConfigureAwait(false);
+            }
+
             // Une commande système non interruptible conserve son processus, même après demande d’arrêt.
             try { await process.WaitForExitAsync(command.NonInterruptible ? CancellationToken.None : linked.Token).ConfigureAwait(false); }
             catch (OperationCanceledException)
@@ -86,6 +94,30 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
         catch (OperationCanceledException) { return new ElevatedCommandResult(-1, "", "Commande annulée avant démarrage.", Cancelled: true); }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         { return new ElevatedCommandResult(-1, "", ex.Message); }
+    }
+
+    internal static async Task<ElevatedCommandResult> WaitForWsResetAsync(
+        Func<CancellationToken, Task> waitForExit,
+        Action stopProcess,
+        Task<string> output,
+        Task<string> error,
+        Func<int> exitCode,
+        CancellationToken timeout)
+    {
+        try
+        {
+            await waitForExit(timeout).ConfigureAwait(false);
+            await Task.WhenAll(output, error).WaitAsync(timeout).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            stopProcess();
+            await waitForExit(CancellationToken.None).ConfigureAwait(false);
+            return new ElevatedCommandResult(-1, output.IsCompletedSuccessfully ? await output.ConfigureAwait(false) : "",
+                "wsreset n'a pas terminé en 5 minutes.", TimedOut: true);
+        }
+
+        return new ElevatedCommandResult(exitCode(), await output.ConfigureAwait(false), await error.ConfigureAwait(false));
     }
 
     private static async Task<string> ReadAsync(StreamReader reader, IProgress<int?>? progress)

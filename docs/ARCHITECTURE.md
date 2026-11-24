@@ -73,7 +73,7 @@ La progression et l'annulation restent locales à UpdatesView : arrêt entre ét
 
 `StartupChangeService` construit et confirme activation/désactivation/restauration des autorisations reconnues. `WindowsStartupApprovalStore` sauvegarde et vérifie l'état précédent. `StartupApprovalHandler` limite l'écriture HKLM à StartupApproved ; aucun chemin arbitraire. La sauvegarde, le point de restauration et la comparaison de l'état précèdent l'écriture. Une protection indisponible bloque le changement. Aucune entrée n'est supprimée ; les tâches restent en lecture seule. Logos, impact et temps avant/après : **cible L12**, non mesuré actuellement.
 
-`InterventionDiagnosticService` et `InterventionExecutionService` portent Vérifier / Scanner et réparer. `ElevatedActionAllowlist` autorise SFC, DISM et `chkdsk /scan`, plus les actions fixes réseau et services. `virgil-update` redémarre le service Windows Update ; il ne fait pas une remise à zéro complète. `chkdsk` planifié et `wsreset` ne sont pas livrés : **cible L12b**. Les changements système concernés sont bloqués sans point de restauration vérifié.
+`InterventionDiagnosticService` et `InterventionExecutionService` portent Vérifier / Scanner et réparer. `ElevatedActionAllowlist` autorise SFC, DISM et `chkdsk /scan`, plus les actions fixes réseau et services. `virgil-update` redémarre le service Windows Update ; il ne fait pas une remise à zéro complète. Après « Analyser », `wsreset.exe` sans argument est disponible sur sélection et confirmation si l’exécutable se trouve dans le répertoire système. CHKDSK planifié reste en **cible L12b**. Les changements système concernés sont bloqués sans point de restauration vérifié.
 
 ## Rapports, Réseau et distribution
 

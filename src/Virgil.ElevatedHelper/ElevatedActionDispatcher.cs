@@ -205,6 +205,7 @@ public sealed class ElevatedActionDispatcher
             "dism.exe" when Has("/RestoreHealth") => "Image Windows (DISM, réparation)",
             "chkdsk.exe" => "Disque système (CHKDSK, analyse en ligne)",
             "virgil-services" => "Services Windows",
+            "wsreset.exe" => "Cache du Microsoft Store (wsreset)",
             "virgil-update" => "Service Windows Update",
             "virgil-audio" => "Services audio",
             "virgil-print" => "File d'impression",
