@@ -36,11 +36,12 @@ public sealed class LauncherShutdownTests
         var clock = new Clock();
         var pending = Execute(backend, clock);
         Assert.Equal(new[] { false }, backend.Commands);
-        await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(14));
+        var firstArming = await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(14));
+        await clock.WaitForArmingAsync(firstArming);
         Assert.False(pending.IsCompleted);
         Assert.Single(backend.Commands);
         if (exits) backend.Snapshot = backend.Snapshot with { Processes = [] };
-        await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(1));
+        clock.Advance(TimeSpan.FromSeconds(1));
         var result = await WaitForShutdownAsync(pending);
         Assert.Equal(exits ? new[] { false } : new[] { false, true }, backend.Commands);
         if (!exits) Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
@@ -182,9 +183,10 @@ public sealed class LauncherShutdownTests
         UpdateSequenceStep[] selected = [new("launchers", "Virgil fermera : Steam", UpdateComponent.Launcher)];
         var pending = service.ExecuteAsync(selected, authority.Issue(service.CreatePreview(selected), new(ConfirmationLevel.Reinforced, null)), null, default);
         Assert.Equal(@"C:\Steam\steam.exe", Assert.Single(runner.Requests, r => r.Arguments.Contains("-shutdown")).FileName);
-        await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(14));
+        var firstArming = await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(14));
+        await clock.WaitForArmingAsync(firstArming);
         Assert.DoesNotContain(runner.Requests, r => r.Arguments.Contains("/F"));
-        await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(1));
+        clock.Advance(TimeSpan.FromSeconds(1));
         var result = await WaitForShutdownAsync(pending);
         Assert.Contains(runner.Requests, r => r.Arguments.Contains("/F"));
         Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
@@ -196,8 +198,9 @@ public sealed class LauncherShutdownTests
         var backend = new Backend();
         var clock = new Clock();
         var pending = Execute(backend, clock);
+        await clock.WaitForArmingAsync(previousGeneration: 0);
         backend.Snapshot = backend.Snapshot with { Processes = [] };
-        await clock.AdvanceWhenArmedAsync(TimeSpan.FromSeconds(1));
+        clock.Advance(TimeSpan.FromSeconds(1));
         await WaitForShutdownAsync(pending);
         Assert.Equal(new[] { false }, backend.Commands);
     }
@@ -236,6 +239,7 @@ public sealed class LauncherShutdownTests
     {
         private readonly object _timersLock = new();
         private TaskCompletionSource armed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private long armingGeneration;
         private DateTimeOffset now = DateTimeOffset.UtcNow;
         private long timestamp;
         public override long GetTimestamp() { lock (_timersLock) return timestamp; }
@@ -248,17 +252,27 @@ public sealed class LauncherShutdownTests
             {
                 var timer = new Timer(this, callback, state, now + dueTime);
                 timers.Add(timer);
-                SignalTimerChange();
+                SignalArming(dueTime);
                 return timer;
             }
         }
-        private void SignalTimerChange()
+        // Called under _timersLock when the delay registers or changes its timer.
+        private void SignalArming(TimeSpan dueTime)
         {
-            armed.TrySetResult();
+            if (dueTime == Timeout.InfiniteTimeSpan) return;
+            armingGeneration++;
+            armed.SetResult();
             armed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        public async Task AdvanceWhenArmedAsync(TimeSpan span)
+        public async Task<long> AdvanceWhenArmedAsync(TimeSpan span)
+        {
+            var generation = await WaitForArmingAsync(previousGeneration: 0);
+            Advance(span);
+            return generation;
+        }
+
+        public async Task<long> WaitForArmingAsync(long previousGeneration)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             while (true)
@@ -266,7 +280,7 @@ public sealed class LauncherShutdownTests
                 Task changed;
                 lock (_timersLock)
                 {
-                    if (timers.Any(timer => timer.IsArmedAfter(now))) break;
+                    if (armingGeneration > previousGeneration) return armingGeneration;
                     changed = armed.Task;
                 }
                 try { await changed.WaitAsync(deadline.Token); }
@@ -274,12 +288,11 @@ public sealed class LauncherShutdownTests
                 {
                     lock (_timersLock)
                     {
-                        if (timers.Any(timer => timer.IsArmedAfter(now))) break;
-                        Assert.Fail($"Minuteur actif avec échéance future attendu sous 10 s. Horloge : {now:O}, minuteurs enregistrés : {timers.Count}, actifs avec échéance future : 0.");
+                        if (armingGeneration > previousGeneration) return armingGeneration;
+                        Assert.Fail($"Nouvel armement attendu sous 10 s après la génération {previousGeneration}. Génération observée : {armingGeneration}, horloge : {now:O}.");
                     }
                 }
             }
-            Advance(span);
         }
 
         public void Advance(TimeSpan span)
@@ -298,14 +311,13 @@ public sealed class LauncherShutdownTests
         private sealed class Timer(Clock clock, TimerCallback callback, object? state, DateTimeOffset due) : ITimer
         {
             private bool disposed;
-            public bool IsArmedAfter(DateTimeOffset time) => !disposed && due > time;
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
                 lock (clock._timersLock)
                 {
                     if (disposed) return false;
                     due = clock.now + dueTime;
-                    clock.SignalTimerChange();
+                    clock.SignalArming(dueTime);
                     return true;
                 }
             }
