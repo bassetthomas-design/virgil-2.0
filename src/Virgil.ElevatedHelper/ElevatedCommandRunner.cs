@@ -113,7 +113,7 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
         {
             stopProcess();
             await waitForExit(CancellationToken.None).ConfigureAwait(false);
-            return new ElevatedCommandResult(-1, output.IsCompletedSuccessfully ? output.Result : "",
+            return new ElevatedCommandResult(-1, output.IsCompletedSuccessfully ? await output.ConfigureAwait(false) : "",
                 "wsreset n'a pas terminé en 5 minutes.", TimedOut: true);
         }
 
