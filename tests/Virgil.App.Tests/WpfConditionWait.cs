@@ -31,6 +31,19 @@ internal static class WpfConditionWait
             deadline);
     }
 
+    internal static async Task CompletionAsync(Task pending, string step, TimeSpan timeout)
+    {
+        using var deadline = new CancellationTokenSource(timeout);
+        try
+        {
+            await pending.WaitAsync(deadline.Token);
+        }
+        catch (OperationCanceledException error) when (error.CancellationToken == deadline.Token)
+        {
+            Assert.Fail($"Événement attendu : {step}. État observé : {pending.Status} après un plafond de {timeout.TotalSeconds} s.");
+        }
+    }
+
     internal static async Task CompletionAsync(Task pending, string step, CancellationToken deadline)
     {
         try { await pending.WaitAsync(deadline); }

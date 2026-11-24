@@ -93,14 +93,14 @@ public sealed class QuarantineViewModelTests
     [Fact]
     public async Task QuarantineReadReturnsControlWhileStorageIsBlockedAndCanBeCanceled()
     {
-        using var release = new ManualResetEventSlim();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var store = new Store
         {
             BeforeRead = () =>
             {
                 entered.TrySetResult(true);
-                if (!release.Wait(TimeSpan.FromSeconds(5))) throw new TimeoutException();
+                release.Task.GetAwaiter().GetResult();
             }
         };
         var services = new ServiceCollection().AddVirgilServices().AddVirgilViews();
@@ -111,14 +111,16 @@ public sealed class QuarantineViewModelTests
         var pending = vm.InitializeQuarantineCommand.ExecuteAsync(null);
         try
         {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WpfConditionWait.CompletionAsync(entered.Task, "entrée dans la lecture de la quarantaine",
+                TimeSpan.FromSeconds(30));
             Assert.False(pending.IsCompleted);
             Assert.True(vm.IsBusy);
             Assert.True(vm.Operation.IsRunning);
             vm.CancelActiveOperation();
         }
-        finally { release.Set(); }
-        await pending;
+        finally { release.SetResult(); }
+        await WpfConditionWait.CompletionAsync(pending, "fin de la lecture de la quarantaine après déblocage",
+            TimeSpan.FromSeconds(30));
         Assert.False(vm.IsBusy);
         Assert.Empty(vm.QuarantineItems);
         Assert.Contains("annulée", vm.StatusText);

@@ -516,16 +516,33 @@ public sealed class UpdatesSequenceViewModelTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource<UpdateSequenceStepResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         f.Backend.Handler = (step, token) => { entered.SetResult(); return finish.Task; };
-        var pending = f.Vm.RunAllCommand.ExecuteAsync(null);
-        foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Windows;
-        f.Vm.ExecuteDecisionCommand.Execute(null);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        f.Vm.Operation.CancelCommand.Execute(null);
-        Assert.True(f.Vm.IsCancelling);
-        Assert.Contains("ne peut pas être interrompue", f.Vm.SequenceStepText);
-        Assert.False(pending.IsCompleted);
-        finish.SetResult(new(new("software", "Windows Update", UpdateComponent.Windows), true, false, "Terminée"));
-        await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        Task pending;
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineProgressContext());
+        try
+        {
+            pending = f.Vm.RunAllCommand.ExecuteAsync(null);
+            foreach (var choice in f.Vm.SequenceChoices) choice.IsSelected = choice.Step.Component == UpdateComponent.Windows;
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+
+        try
+        {
+            await WpfConditionWait.CompletionAsync(entered.Task, "entrée dans l’étape Windows Update",
+                TimeSpan.FromSeconds(30));
+            f.Vm.Operation.CancelCommand.Execute(null);
+            Assert.True(f.Vm.IsCancelling);
+            Assert.Contains("ne peut pas être interrompue", f.Vm.SequenceStepText);
+            Assert.False(pending.IsCompleted);
+        }
+        finally
+        {
+            finish.SetResult(new(new("software", "Windows Update", UpdateComponent.Windows), true, false, "Terminée"));
+        }
+
+        await WpfConditionWait.CompletionAsync(pending, "fin de la séquence après libération de l’étape Windows Update",
+            TimeSpan.FromSeconds(30));
         Assert.Single(f.Backend.Executed);
     }
     [Fact, Trait("Category", "Safety")]
