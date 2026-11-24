@@ -6,7 +6,11 @@ Base vérifiée `73e1cb5d5624872afd635563dbd51ecc5d899b1a`. Périmètre arbitré
 
 Le run [45226479738](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45226479738), tentative 1, signale `System.TimeoutException : The operation has timed out.` dans `VerifyNativeShutdown` à `LauncherShutdownTests.cs:188`. Le symptôme a aussi été signalé sur la PR #103. Les théories et cas voisins qui utilisent la même horloge sont traités par précaution.
 
-À `73e1cb5`, `LauncherShutdownPolicy.cs:42` attend un minuteur par seconde virtuelle et peut réarmer après le retour du rappel. Deux avances du test pouvaient se succéder pendant que cette continuation attendait son tour. Chaque avance attend désormais l’enregistrement d’un minuteur actif avec échéance future, et le test attend ensuite la fin de la fermeture. Les plafonds de 10 s absorbent la planification des continuations concurrentes sans changer les 15 s virtuelles.
+À `73e1cb5`, `LauncherShutdownPolicy.cs:42` attend un minuteur par seconde virtuelle et peut réarmer après le retour du rappel. Deux avances du test pouvaient se succéder pendant que cette continuation attendait son tour. Chaque avance attend désormais un numéro d’armement supérieur à celui précédemment observé. À 14 s, le test attend le deuxième armement avant ses assertions et avant de simuler une éventuelle sortie, puis déclenche le rappel à 15 s et attend la fin de la fermeture. Les plafonds de 10 s couvrent la planification des continuations concurrentes. Le délai virtuel de 15 s est conservé.
+
+Lors du run [45371210664](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45371210664), tentative 1, `Launcher_is_force_closed_only_after_15_seconds(exits: True)` a échoué avec « Minuteur actif avec échéance future attendu sous 10 s. Horloge : 2026-11-24T10:06:23.4178708+00:00, minuteurs enregistrés : 1, actifs avec échéance future : 0. » Le test pouvait publier la sortie simulée avant le traitement du rappel à 14 s. La politique terminait alors légitimement sans créer de second minuteur. Le compteur signale l’enregistrement sous verrou et le test publie la sortie seulement après ce signal.
+
+Vérification locale après correction. 50 boucles de `dotnet test --configuration Release --no-build --no-restore --filter "FullyQualifiedName=Virgil.Tests.LauncherShutdownTests.Launcher_is_force_closed_only_after_15_seconds"` ont réussi. Les variantes `exits: True` et `exits: False` tournent à chaque boucle, soit 100 réussites, aucun échec et aucun cas ignoré. Sur Linux, la copie de compilation isolée omet la dépendance d’exécution `Microsoft.WindowsDesktop.App` de son fichier généré `.runtimeconfig.json` pour exécuter ce test à backend simulé. La CI Windows valide la configuration du dépôt.
 
 Assertions de `Launcher_is_force_closed_only_after_15_seconds`, `Known_launcher_helpers_allow_shutdown`, `VerifyNativeShutdown` (commun aux deux tests natifs) et `Launcher_exit_before_deadline_does_not_wait_for_force`.
 
@@ -160,7 +164,7 @@ Assert.False(next.Handled);
 
 | Cas | Avant | Après |
 | --- | --- | --- |
-| Lanceurs | Avances consécutives, fin sous 1 s ou 30 s | Réarmement observable puis fin de tâche, 10 s par condition |
+| Lanceurs | Avances consécutives, fin sous 1 s ou 30 s | Armements successifs signalés puis fin de tâche, 10 s par condition |
 | Aperçu | Première case avec l’identifiant, visibilité sous 60 s | Ouverture vérifiée sous 120 s, case Windows Update unique et visible sous 10 s |
 | Rendus | Inactivité du répartiteur et 10 s incluant la file | Mise en page et textes attendus, 10 s à compter de l’entrée sur le STA |
 | Échap | Échantillonnage avec 1 s réelle, fin sous 5 s | Horloge contrôlée et fin de présentation sous 5 s sur le STA |
@@ -174,22 +178,23 @@ Cette preuve cite le dernier commit comportant du code de test. La CI du commit 
 | Commit de tests | Run Windows | Conclusion | Durée du job | Moteur | Application | Interface |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
 | `7b5e93bd1db5ce102fc6df1df39ba2ad36f7e9e2` | [45370265245](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45370265245), tentative 1 | Succès | 4 min 36 s | 1 341 | 906 | 14 |
+| `d5ff0efdd33e8897c7f50b6b41e88ee266bcd0e2` | [45372409033](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45372409033), tentative 1 | Succès | 5 min 45 s | 1 341 | 906 | 14 |
 
-La durée est calculée à partir des premiers et derniers horodatages du journal du job. Aucun dépassement WM_NULL signalé dans ce run.
+Le premier run retrace la validation initiale et le second valide le dernier commit de tests. La durée est calculée à partir des premiers et derniers horodatages du journal du job. Aucun dépassement WM_NULL signalé dans ces runs.
 
 ## Périmètre du diff
 
 Seuls les fichiers autorisés sont touchés. Diff contre la branche principale distante vérifiée (`git diff --stat origin/main...HEAD`).
 
 ```text
- docs/proofs/Lot-S1-Stabilisation.md              | 195 +++++++++++++++++++++++
+ docs/proofs/Lot-S1-Stabilisation.md              | 200 +++++++++++++++++++++++
  tests/Virgil.App.Tests/L6BehaviorTests.cs        |  57 ++++++-
  tests/Virgil.App.Tests/LotDiagnosticTests.cs     |  20 +--
  tests/Virgil.App.Tests/LotMisesAJourTests.cs     |  57 ++++---
  tests/Virgil.App.Tests/LotPrioritesTests.cs      |  31 ++--
  tests/Virgil.App.Tests/ThemeContrastTests.cs     |   7 +
  tests/Virgil.App.Tests/WpfConditionWait.cs       |  42 +++++
- tests/Virgil.Core.Tests/LauncherShutdownTests.cs |  65 ++++++--
+ tests/Virgil.Core.Tests/LauncherShutdownTests.cs |  71 +++++++-
  tests/Virgil.UiTests/UiSession.cs                |  79 ++++++++-
- 9 files changed, 482 insertions(+), 71 deletions(-)
+ 9 files changed, 496 insertions(+), 68 deletions(-)
 ```
