@@ -3,7 +3,6 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using System.Xml.Linq;
 using Virgil.App.ViewModels;
 using Virgil.App.Views;
@@ -79,14 +78,16 @@ public sealed class LotDiagnosticTests
     }
 
     [Fact, Trait("Category", "Windows")]
-    public Task Rendered_screen_explains_use_shows_result_first_and_folds_details() => ThemeContrastTests.OnSta(async () =>
+    public Task Rendered_screen_explains_use_shows_result_first_and_folds_details() => ThemeContrastTests.OnStaWithin(TimeSpan.FromSeconds(10), async deadline =>
     {
         var (vm, source) = CreateViewModel();
         var view = new DiagnosticView(vm);
         var window = Show(view);
         try
         {
-            await Settle(window);
+            await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(view), deadline,
+                "Mesurer ce qui ralentit le PC et savoir quoi vérifier.",
+                "Aucun relevé terminé pour le moment.", "Constats disponibles après le premier relevé.");
             var texts = VisibleTexts(view);
             var buttons = VisibleButtons(view);
             WriteEvidence(1, texts, buttons);
@@ -98,7 +99,9 @@ public sealed class LotDiagnosticTests
             Assert.DoesNotContain("Actualiser", buttons);
 
             vm.ApplyFindings(Loaded(T0));
-            await Settle(window);
+            await WpfConditionWait.LayoutAsync(window, () => VisibleTexts(view), deadline,
+                "Dernier relevé à 18 h 24", "Note de santé : 50/100", "À vérifier en priorité",
+                "Processeur : ça chauffe", "Action proposée : vérifiez la ventilation et réduisez la charge.", "Détails techniques");
             texts = VisibleTexts(view);
             buttons = VisibleButtons(view);
             WriteEvidence(2, texts, buttons);
@@ -127,7 +130,7 @@ public sealed class LotDiagnosticTests
         {
             window.Close();
         }
-    }).WaitAsync(TimeSpan.FromSeconds(10));
+    });
 
     [Fact]
     public void Process_grid_stays_outside_folded_details()
@@ -230,13 +233,6 @@ public sealed class LotDiagnosticTests
         window.Show();
         window.UpdateLayout();
         return window;
-    }
-
-    private static async Task Settle(Window window)
-    {
-        window.UpdateLayout();
-        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        window.UpdateLayout();
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

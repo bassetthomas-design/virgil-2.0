@@ -68,18 +68,27 @@ public sealed class L6AppBehaviorTests
     }
 
     [Fact, Trait("Category", "Windows"), Trait("Category", "Safety")]
-    public Task Escape_closes_diagnostic_validation_even_when_process_grid_has_focus() => ThemeContrastTests.OnSta(async () =>
+    public Task Escape_closes_diagnostic_validation_even_when_process_grid_has_focus() => ThemeContrastTests.OnStaWithin(TimeSpan.FromSeconds(5), async deadline =>
     {
-        var authority = new ConfirmationService(TimeProvider.System);
-        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new Source(), TimeProvider.System)), TimeProvider.System, authority);
+        var clock = new DiagnosticClock();
+        var authority = new ConfirmationService(clock);
+        var vm = new DiagnosticViewModel(new DiagnosticModule(new DiagnosticSampler(new Source(), clock)), clock, authority);
         var view = new DiagnosticView(vm);
         var window = new Window { Content = view, Width = 1280, Height = 900, ShowInTaskbar = false };
         try
         {
+            var initialPresentation = vm.PresentationTask;
             window.Show();
-            await vm.PresentationTask.WaitAsync(TimeSpan.FromSeconds(5));
+            await WpfConditionWait.UntilAsync(() =>
+            {
+                clock.AdvanceIfArmed();
+                return vm.PresentationTask != initialPresentation && vm.PresentationTask.IsCompleted;
+            }, "chargement de la vue et présentation du diagnostic terminée",
+                () => $"vue chargée : {view.IsLoaded}, présentation démarrée : {vm.PresentationTask != initialPresentation}, " +
+                    $"tâche : {vm.PresentationTask.Status}, minuteurs : {clock.ArmedCount}", deadline);
+            await vm.PresentationTask;
             var action = new RecordingAction();
-            await vm.PrepareActionAsync(action);
+            await WpfConditionWait.CompletionAsync(vm.PrepareActionAsync(action), "ouverture de la confirmation", deadline);
             window.UpdateLayout();
             var grid = Descendants<DataGrid>(view).Single();
             grid.ScrollIntoView(grid.Items[0]);
@@ -95,7 +104,7 @@ public sealed class L6AppBehaviorTests
             cell.RaiseEvent(key);
             Assert.True(key.Handled);
             Assert.False(vm.IsValidationOpen);
-            await vm.ExecuteDecisionCommand.ExecuteAsync(null);
+            await WpfConditionWait.CompletionAsync(vm.ExecuteDecisionCommand.ExecuteAsync(null), "traitement de la décision", deadline);
             Assert.Equal(0, action.Calls);
             // Sans overlay visible, Échap n'est pas intercepté.
             var next = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, Key.Escape)
@@ -105,6 +114,42 @@ public sealed class L6AppBehaviorTests
         }
         finally { window.Close(); }
     });
+
+    private sealed class DiagnosticClock : TimeProvider
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<SampleTimer> timers = new();
+        private readonly DateTimeOffset start = DateTimeOffset.UtcNow;
+        private long ticks;
+
+        public int ArmedCount => timers.Count;
+        public override DateTimeOffset GetUtcNow() => start.AddTicks(GetTimestamp());
+        public override long GetTimestamp() => Interlocked.Read(ref ticks);
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new SampleTimer(callback, state, dueTime);
+            timers.Enqueue(timer);
+            return timer;
+        }
+
+        public void AdvanceIfArmed()
+        {
+            if (!timers.TryDequeue(out var timer)) return;
+            Interlocked.Add(ref ticks, timer.DueTime.Ticks);
+            timer.Fire();
+        }
+
+        private sealed class SampleTimer(TimerCallback callback, object? state, TimeSpan dueTime) : ITimer
+        {
+            private TimerCallback? pending = callback;
+            public TimeSpan DueTime => dueTime;
+            public bool Change(TimeSpan dueTime, TimeSpan period) => throw new NotSupportedException();
+            public void Fire() => Interlocked.Exchange(ref pending, null)?.Invoke(state);
+            public void Dispose() => Interlocked.Exchange(ref pending, null);
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
+    }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {
