@@ -28,7 +28,7 @@ Assert.Contains("annulée", vm.StatusText);
 Assert.Equal(0, store.Effects);
 ```
 
-Répétitions locales par filtre exact : 0/50 effectuées. Le poste Codex tourne sous Linux et son SDK 8.0.419 ne dispose pas de `Microsoft.WindowsDesktop.App`, requis par le projet WPF. Durée des répétitions indisponible.
+Répétitions locales avec `dotnet test --filter "FullyQualifiedName=Virgil.Tests.QuarantineViewModelTests.QuarantineReadReturnsControlWhileStorageIsBlockedAndCanBeCanceled"` : 0/50 effectuées, durée indisponible.
 
 ## T2 — Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately
 
@@ -59,7 +59,9 @@ Assert.False(pending.IsCompleted);
 Assert.Single(f.Backend.Executed);
 ```
 
-Répétitions locales par filtre exact : 0/50 effectuées. Le runtime WPF requis est indisponible sur ce poste Linux. Durée des répétitions indisponible.
+Répétitions locales avec `dotnet test --filter "FullyQualifiedName=Virgil.Tests.UpdatesSequenceViewModelTests.Cancel_during_Windows_Update_acknowledges_non_interruptible_step_immediately"` : 0/50 effectuées, durée indisponible.
+
+La tentative locale des deux filtres a compilé `Virgil.App.Tests` en Release avec le SDK 8.0.419 en activant le ciblage Windows. VSTest a interrompu le lancement avant l’exécution des tests : `Microsoft.WindowsDesktop.App` 8.0 est requis et indisponible sur le poste Linux.
 
 ## Délais avant et après
 
@@ -76,7 +78,15 @@ Seuils R4 intacts : 15 s avant fermeture forcée d’un lanceur, 500 ms de laten
 
 ## CI Windows
 
-Résultats du dernier commit qui touche aux tests à relever après exécution de `build.yml` (numéro, conclusion, durée du job et nombres de tests réussis dans moteur, application et interface). La CI du commit final consacré à cette preuve figure dans la description de la PR.
+Dernier commit touchant aux tests : `95c2877931b8b2a62b5ea717a97d0d8878ec8216`. Le run [517](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45449886636), identifiant `45449886636`, a réussi sur Windows. Durée du job `build` : environ 4 min 12 s d’après les horodatages de son journal.
+
+| Étape | Projet | Réussis |
+| --- | --- | ---: |
+| `Category!=UI` | `Virgil.Core.Tests` | 1 341 |
+| `Category!=UI` | `Virgil.App.Tests` | 906 |
+| `Category=UI` | `Virgil.UiTests` | 14 |
+
+Les deux tests du lot figurent parmi les réussites applicatives (T1 : 89 ms, T2 : 2 ms). La CI du commit final consacré à cette preuve figure dans la description de la PR.
 
 ## Périmètre
 
@@ -85,9 +95,9 @@ Les modifications portent sur les quatre fichiers autorisés. Aucun fichier sous
 Sortie de `git diff --stat origin/main...HEAD` (ce clone référence `main` par `origin/main`) :
 
 ```text
- docs/proofs/Lot-S1b-Stabilisation.md               | 93 ++++++++++++++++++++++
- tests/Virgil.App.Tests/QuarantineViewModelTests.cs | 12 +--
- .../UpdatesSequenceViewModelTests.cs               | 37 ++++++---
- tests/Virgil.App.Tests/WpfConditionWait.cs         | 13 +++
- 4 files changed, 140 insertions(+), 15 deletions(-)
+ docs/proofs/Lot-S1b-Stabilisation.md               | 103 +++++++++++++++++++++
+ tests/Virgil.App.Tests/QuarantineViewModelTests.cs |  12 ++-
+ .../UpdatesSequenceViewModelTests.cs               |  37 ++++++--
+ tests/Virgil.App.Tests/WpfConditionWait.cs         |  13 +++
+ 4 files changed, 150 insertions(+), 15 deletions(-)
 ```
