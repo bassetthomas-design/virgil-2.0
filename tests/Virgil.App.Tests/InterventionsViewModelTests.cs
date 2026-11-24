@@ -90,6 +90,34 @@ public sealed class InterventionsViewModelTests
     }
 
     [Fact]
+    public async Task Wsreset_validation_displays_command_and_refusal_runs_nothing()
+    {
+        var f = new Fixture();
+        f.Confirmation.Refuse = true;
+        var service = new InterventionDiagnosticService(new InterventionCatalog(), _ => true,
+            () => Path.Combine(Path.GetTempPath(), "System32"), _ => [], () => []);
+        f.Diagnostics.Items = [await service.DiagnoseAsync(InterventionId.ResetStoreCache, CancellationToken.None)];
+        await f.Analyze();
+        Assert.Single(f.Items).IsSelected = true;
+
+        var pending = f.Run();
+        Assert.Equal("ACTION SENSIBLE", f.Vm.ValidationTitle);
+        Assert.StartsWith("Réinitialiser le cache du Microsoft Store", f.Vm.ValidationDetails);
+        Assert.Contains("Le Store peut s’ouvrir", f.Vm.ValidationDetails);
+        Assert.Equal("wsreset.exe", f.Vm.ValidationCommand.TrimEnd());
+        Assert.Contains("Droits administrateur demandés uniquement après confirmation.", f.Vm.ValidationSafety);
+        Assert.Empty(f.Actions.Executed);
+
+        f.Vm.ExecuteDecisionCommand.Execute(null);
+        await pending;
+
+        Assert.Equal(1, f.Confirmation.Calls);
+        Assert.Empty(f.Actions.Executed);
+        Assert.Single(f.Actions.Cancelled);
+        Assert.Equal("Parcours annulé par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+    }
+
+    [Fact]
     public void InitialStateMatchesView()
     {
         var vm = new Fixture().Vm;

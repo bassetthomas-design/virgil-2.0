@@ -172,7 +172,22 @@ public sealed class InterventionCatalog : IInterventionCatalog
                 new InterventionCommandPreview { Executable = "chkdsk.exe", Arguments = ["<system-drive>", "/scan"], RunsElevated = true },
                 new InterventionCommandPreview { Executable = "virgil-services", RunsElevated = true }
             }
-        }
+        },
+        Define(
+            InterventionId.ResetStoreCache,
+            "Réinitialiser le cache du Microsoft Store",
+            InterventionCategory.System,
+            "Exécute wsreset.exe après création et vérification d’un point de restauration. Le Microsoft Store peut s’ouvrir.",
+            "Réinitialise le cache du Microsoft Store. Le Store peut s’ouvrir et Virgil le laisse ouvert. L’action ne réactive pas les services Store désactivés et ne réinstalle pas les applications.",
+            "Fichiers personnels, applications installées et autres caches Windows.",
+            InterventionRiskLevel.Sensitive,
+            admin: true,
+            reboot: false,
+            "Jusqu’à cinq minutes",
+            "Disponible si wsreset.exe est présent dans le répertoire système.",
+            18,
+            interruptible: false,
+            Commands(true, "wsreset.exe"))
     }).Select(definition => InterventionSafety.RequiresRestorePoint(definition.Id)
         ? definition with { RiskLevel = InterventionRiskLevel.Sensitive } : definition).ToArray();
 

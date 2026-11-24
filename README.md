@@ -50,7 +50,7 @@ Le visage de Virgil réagit à l’état de l’application et ses répliques s�
 
 - La source Windows du Diagnostic ne fournit pas la température CPU et affiche les données non exposées comme indisponibles. Aucun monitoring continu du système ni budget CPU mesuré en usage Windows.
 - Aucun projet Agent/Tray ni icône Virgil dans la zone de notification.
-- Réparation reste partielle : CHKDSK planifié au redémarrage, remise à zéro complète de Windows Update et `wsreset` ne sont pas livrés.
+- Réparation reste partielle : après analyse, la réinitialisation du cache du Microsoft Store (`wsreset.exe`) est disponible sur sélection et confirmation si l’exécutable est présent. CHKDSK planifié au redémarrage et la remise à zéro complète de Windows Update restent à livrer.
 - Démarrage reste partiel : logos et recommandations absents, impact et temps avant/après non mesurés.
 - L’historique propose le détail et l’export texte, sans export PDF ni comparaison.
 - Le fil Communication et les répliques de Virgil n’offrent aucun réglage de ton.
