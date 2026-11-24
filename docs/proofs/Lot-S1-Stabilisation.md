@@ -12,19 +12,19 @@ Assertions de `Launcher_is_force_closed_only_after_15_seconds`, `Known_launcher_
 
 ```csharp
 Assert.Equal(new[] { false }, backend.Commands);
-        Assert.False(pending.IsCompleted);
-        Assert.Single(backend.Commands);
-        Assert.Equal(exits ? new[] { false } : new[] { false, true }, backend.Commands);
-        if (!exits) Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
+Assert.False(pending.IsCompleted);
+Assert.Single(backend.Commands);
+Assert.Equal(exits ? new[] { false } : new[] { false, true }, backend.Commands);
+if (!exits) Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
 
 Assert.Equal(new[] { false }, backend.Commands);
-        Assert.Equal(new[] { false, true }, backend.Commands);
-        Assert.Contains(result.Steps, step => step.Message.Contains("fermé de force", StringComparison.Ordinal));
+Assert.Equal(new[] { false, true }, backend.Commands);
+Assert.Contains(result.Steps, step => step.Message.Contains("fermé de force", StringComparison.Ordinal));
 
 Assert.Equal(@"C:\Steam\steam.exe", Assert.Single(runner.Requests, r => r.Arguments.Contains("-shutdown")).FileName);
-        Assert.DoesNotContain(runner.Requests, r => r.Arguments.Contains("/F"));
-        Assert.Contains(runner.Requests, r => r.Arguments.Contains("/F"));
-        Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
+Assert.DoesNotContain(runner.Requests, r => r.Arguments.Contains("/F"));
+Assert.Contains(runner.Requests, r => r.Arguments.Contains("/F"));
+Assert.Contains(result.Steps, s => s.Message.Contains("fermé de force", StringComparison.Ordinal));
 
 Assert.Equal(new[] { false }, backend.Commands);
 ```
@@ -41,18 +41,19 @@ Assertions de l’aperçu, de `AssertNoSideEffects`, de `AssertHealthy`, de la c
 
 ```csharp
 Assert.Equal(FlaUI.Core.Definitions.ToggleState.On, drivers.Patterns.Toggle.Pattern.ToggleState.Value);
-            Assert.Equal(before, SessionFiles.SnapshotReports());
+Assert.Equal(before, SessionFiles.SnapshotReports());
 
 Assert.Null(updatePreviewError);
-        Assert.Equal("Témoin de lecture seule : ne jamais nettoyer.",
-            File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
-        Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
-        Assert.Equal(expected, actual);
+files.AssertQuarantineUnchanged();
+Assert.Equal("Témoin de lecture seule : ne jamais nettoyer.",
+    File.ReadAllText(Path.Combine(fixtureTemp, "temoin-smoke.tmp")));
+Assert.False(Directory.Exists(Path.Combine(SessionFiles.ArtifactDirectory, "temp-lecture-seule")));
+Assert.Equal(expected, actual);
 
 Assert.NotNull(process);
-        Assert.False(process.HasExited, "Le processus Virgil a quitté pendant les tests.");
-        Assert.True(files.ErrorLines.Count == 0, string.Join(Environment.NewLine, files.ErrorLines));
-        Assert.True(violations.IsEmpty, string.Join(Environment.NewLine, violations));
+Assert.False(process.HasExited, "Le processus Virgil a quitté pendant les tests.");
+Assert.True(files.ErrorLines.Count == 0, string.Join(Environment.NewLine, files.ErrorLines));
+Assert.True(violations.IsEmpty, string.Join(Environment.NewLine, violations));
 
 Assert.True(HasPixelVariance(capture.Bitmap), $"Capture uniforme/noire : {filename}");
 
@@ -73,70 +74,74 @@ Le run [45144114142](https://github.com/bassetthomas-design/virgil-2.0/actions/r
 
 ```csharp
 Assert.Contains(DiskText, texts);
-                Assert.Contains("Scan · mesuré à 18 h 24", texts);
-                Assert.Contains("Diagnostic · mesuré à 18 h 34", texts);
-                Assert.Contains(DiskResolved, texts);
-                Assert.DoesNotContain(DiskText, texts);
-                    Assert.Equal(new[] { "PRIORITÉS", "1", "1 POINT À VÉRIFIER · Mesuré à 18:44" }, texts);
-                    Assert.Equal("Voir les priorités", AutomationProperties.GetName(button));
-                    Assert.Equal(new[] { "Priorités" }, destinations);
+Assert.Contains("Scan · mesuré à 18 h 24", texts);
+Assert.Contains("Diagnostic · mesuré à 18 h 34", texts);
+Assert.Contains(DiskResolved, texts);
+Assert.DoesNotContain(DiskText, texts);
+Assert.Equal(new[] { "PRIORITÉS", "1", "1 POINT À VÉRIFIER · Mesuré à 18:44" }, texts);
+var button = Assert.Single(Descendants<Button>(tile));
+Assert.Equal("Voir les priorités", AutomationProperties.GetName(button));
+Assert.Equal(new[] { "Priorités" }, destinations);
 ```
 
 ### Priorités avant et après analyse
 
 ```csharp
 Assert.Contains("Aucune analyse récente : lancez un scan pour voir les priorités.", VisibleTexts(panel));
-                Assert.Contains("Aucun point prioritaire au dernier contrôle.", texts);
-                Assert.Contains("Mesuré à 18:24", texts);
+Assert.Contains("Aucun point prioritaire au dernier contrôle.", texts);
+Assert.Contains("Mesuré à 18:24", texts);
 ```
 
 ### Diagnostic
 
 ```csharp
 Assert.Contains("Mesurer ce qui ralentit le PC et savoir quoi vérifier.", texts);
-            Assert.Contains("Aucun relevé terminé pour le moment.", texts);
-            Assert.Contains("Constats disponibles après le premier relevé.", texts);
-            Assert.DoesNotContain("Aucun problème détecté dans les signaux disponibles.", texts);
-            Assert.Contains("Actualiser le diagnostic", buttons);
-            Assert.DoesNotContain("Actualiser", buttons);
-            Assert.Contains("Dernier relevé à 18 h 24", texts);
-            Assert.Contains("Note de santé : 50/100", texts);
-            Assert.Contains("À vérifier en priorité", texts);
-            Assert.Contains("Processeur : ça chauffe", texts);
-            Assert.Contains("Action proposée : vérifiez la ventilation et réduisez la charge.", texts);
-            Assert.Contains("Détails techniques", texts);
-            Assert.DoesNotContain("Windows a quelques réclamations", texts);
-            Assert.Contains("Mettre à jour…", buttons);
-            Assert.Contains("Nettoyer…", buttons);
-            Assert.Equal(new[]
-            {
-                "Tous les constats", "Démarrage", "Signaux indisponibles — non mesurés ou lectures en échec",
-                "Processeur", "Mémoire", "Disques", "Réseau", "Carte graphique"
-            }, expanders.Select(expander => (string)expander.Header));
-            Assert.Equal(new[] { false, false, false, false, false, false, false, false },
-                expanders.Select(expander => expander.IsExpanded));
-            Assert.Single(Descendants<DataGrid>(view));
-            Assert.InRange(source.Reads, 0, 1);
+Assert.Contains("Aucun relevé terminé pour le moment.", texts);
+Assert.Contains("Constats disponibles après le premier relevé.", texts);
+Assert.DoesNotContain("Aucun problème détecté dans les signaux disponibles.", texts);
+Assert.Contains("Actualiser le diagnostic", buttons);
+Assert.DoesNotContain("Actualiser", buttons);
+Assert.Contains("Dernier relevé à 18 h 24", texts);
+Assert.Contains("Note de santé : 50/100", texts);
+Assert.Contains("À vérifier en priorité", texts);
+Assert.Contains("Processeur : ça chauffe", texts);
+Assert.Contains("Action proposée : vérifiez la ventilation et réduisez la charge.", texts);
+Assert.Contains("Détails techniques", texts);
+Assert.DoesNotContain("Windows a quelques réclamations", texts);
+Assert.Contains("Mettre à jour…", buttons);
+Assert.Contains("Nettoyer…", buttons);
+Assert.Equal(new[]
+{
+    "Tous les constats", "Démarrage", "Signaux indisponibles — non mesurés ou lectures en échec",
+    "Processeur", "Mémoire", "Disques", "Réseau", "Carte graphique"
+}, expanders.Select(expander => (string)expander.Header));
+Assert.Equal(new[] { false, false, false, false, false, false, false, false },
+    expanders.Select(expander => expander.IsExpanded));
+Assert.Single(Descendants<DataGrid>(view));
+Assert.InRange(source.Reads, 0, 1);
 ```
 
 ### Mises à jour et ouverture du Store
 
 ```csharp
 Assert.Contains("1 mise à jour détectée via WinGet.", texts);
-            Assert.Contains("À jour selon Windows Update.", texts);
-            Assert.Contains("vérification partielle", texts);
-            Assert.Contains(StoreReason, texts);
-            Assert.True(storeButton.IsEnabled);
-            Assert.Equal("ms-windows-store://downloadsandupdates", launch.FileName);
-            Assert.True(launch.UseShellExecute);
-            Assert.Empty(launch.Arguments);
+Assert.Contains("À jour selon Windows Update.", texts);
+Assert.Contains("vérification partielle", texts);
+Assert.Contains(StoreReason, texts);
+var storeButton = Assert.Single(buttons, button => Equals(button.Content, "Ouvrir le Microsoft Store"));
+Assert.True(storeButton.IsEnabled);
+await Assert.IsAssignableFrom<IAsyncRelayCommand>(storeButton.Command).ExecuteAsync(null).WaitAsync(Deadline);
+var launch = Assert.Single(runner.Launches);
+Assert.Equal("ms-windows-store://downloadsandupdates", launch.FileName);
+Assert.True(launch.UseShellExecute);
+Assert.Empty(launch.Arguments);
 ```
 
-L’assertion enchaînée `Assert.IsAssignableFrom<IAsyncRelayCommand>(storeButton.Command)` est conservée avant l’exécution de la commande.
+L’assertion enchaînée sur le type de commande est conservée. Son appel utilise désormais l’attente de fin nommée.
 
 ## T5 — Échap depuis la grille de processus
 
-Le dépassement du plafond de 5 s à `L6BehaviorTests.cs:80` a été signalé sans run d’échec confirmé. Le run [45226479738](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45226479738), tentative 1, est cité comme exemple de réussite, pas comme preuve de ce dépassement.
+Le dépassement du plafond de 5 s à `L6BehaviorTests.cs:80` a été signalé sans run d’échec confirmé. Le run [45226479738](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45226479738), tentative 1, a été cité comme exemple de réussite.
 
 À `73e1cb5`, `L6BehaviorTests.cs:73–80` fournit l’horloge système à la présentation et `DiagnosticSampler.cs:16` attend une seconde réelle. Le test injecte la même horloge contrôlée dans l’échantillonneur, le modèle de vue et la confirmation. Il avance quand un minuteur est enregistré et attend que la tâche de présentation lancée par la vue se termine. Les 5 s restent un plafond d’échec démarrant sur le STA, suffisant pour le scénario sans source externe.
 
@@ -144,11 +149,11 @@ Assertions d’Échap.
 
 ```csharp
 Assert.True(cell.Focus());
-            Assert.True(cell.IsKeyboardFocusWithin);
-            Assert.True(key.Handled);
-            Assert.False(vm.IsValidationOpen);
-            Assert.Equal(0, action.Calls);
-            Assert.False(next.Handled);
+Assert.True(cell.IsKeyboardFocusWithin);
+Assert.True(key.Handled);
+Assert.False(vm.IsValidationOpen);
+Assert.Equal(0, action.Calls);
+Assert.False(next.Handled);
 ```
 
 ## Attentes avant et après
@@ -166,14 +171,18 @@ Les seuils R4 restent à 15 s pour la fermeture forcée, 500 ms pour la latence 
 
 Cette preuve cite le dernier commit comportant du code de test. La CI du commit final, qui modifie uniquement cette preuve, est consignée dans la description de la PR.
 
-Validation du commit de tests en attente.
+| Commit de tests | Run Windows | Conclusion | Durée du job | Moteur | Application | Interface |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| `7b5e93bd1db5ce102fc6df1df39ba2ad36f7e9e2` | [45370265245](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45370265245), tentative 1 | Succès | 4 min 36 s | 1 341 | 906 | 14 |
+
+La durée est calculée à partir des premiers et derniers horodatages du journal du job. Aucun dépassement WM_NULL signalé dans ce run.
 
 ## Périmètre du diff
 
-Seuls les fichiers autorisés sont touchés.
+Seuls les fichiers autorisés sont touchés. Diff contre la branche principale distante vérifiée (`git diff --stat origin/main...HEAD`).
 
 ```text
- docs/proofs/Lot-S1-Stabilisation.md              | 186 +++++++++++++++++++++++
+ docs/proofs/Lot-S1-Stabilisation.md              | 195 +++++++++++++++++++++++
  tests/Virgil.App.Tests/L6BehaviorTests.cs        |  57 ++++++-
  tests/Virgil.App.Tests/LotDiagnosticTests.cs     |  20 +--
  tests/Virgil.App.Tests/LotMisesAJourTests.cs     |  57 ++++---
@@ -181,6 +190,6 @@ Seuls les fichiers autorisés sont touchés.
  tests/Virgil.App.Tests/ThemeContrastTests.cs     |   7 +
  tests/Virgil.App.Tests/WpfConditionWait.cs       |  42 +++++
  tests/Virgil.Core.Tests/LauncherShutdownTests.cs |  65 ++++++--
- tests/Virgil.UiTests/UiSession.cs                |  79 +++++++++-
- 9 files changed, 473 insertions(+), 71 deletions(-)
+ tests/Virgil.UiTests/UiSession.cs                |  79 ++++++++-
+ 9 files changed, 482 insertions(+), 71 deletions(-)
 ```
