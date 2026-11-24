@@ -17,8 +17,34 @@ Aucun test ajouté ne lance de processus système réel. Les assertions CHKDSK `
 
 ## Validations
 
-Résultats locaux et relevé CI à compléter après exécution. La CI du dernier commit de production ou de test sera inscrite ici. La CI du commit final, s’il modifie uniquement cette preuve, sera inscrite dans la description de la PR.
+- Moteur en local, `dotnet test --no-build --filter` avec les noms exacts des cas R1 et des gardes de catalogue, d’allowlist, de confirmation, d’annulation, de constats, de délais et d’attente asynchrone. 36 réussis, aucun échec. La copie de validation Linux utilise le runtime .NET seul pour ces tests sans interface.
+- Application en local, `dotnet test --filter FullyQualifiedName=Virgil.Tests.InterventionsViewModelTests.Wsreset_validation_displays_command_and_refusal_runs_nothing`. Compilation réussie avec `EnableWindowsTargeting=true`. Le test n’a pas pu être exécuté localement faute de runtime Windows Desktop. Il a réussi sur la CI Windows.
+- [Run #522](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45468674221), environ 2 min 19 s. Échec du garde d’attente asynchrone sur `Task.Result`, corrigé par `await`. Moteur 1 356 réussis et 1 échec, application 907 réussis, interface non exécutée.
+- [Run #523](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45469301328), dernier commit de code `11cb85171017a099c55f211071fb57af19e5d9be`. Job Windows réussi en environ 4 min 47 s. Moteur 1 357, application 907, interface 14 réussis. Aucun échec ni relance pour test fragile.
+
+La CI du commit final, qui modifie uniquement cette preuve, figure dans la description de la PR.
 
 ## Périmètre
 
-Seuls les fichiers autorisés par la consigne initiale et les deux relances de virgil (relecture) sont touchés. Le diff récapitulatif sera inscrit à la clôture. CHKDSK planifié au redémarrage et la remise à zéro complète de Windows Update restent hors lot.
+Seuls les fichiers autorisés par la consigne initiale et les deux relances de virgil (relecture) sont touchés. CHKDSK planifié au redémarrage et la remise à zéro complète de Windows Update restent hors lot.
+
+Sortie de `git diff --stat origin/main...HEAD` avec la base main vérifiée.
+
+```text
+ README.md                                          |   2 +-
+ docs/ACTIONS.md                                    |   4 +-
+ docs/ARCHITECTURE.md                               |   2 +-
+ docs/PROJECT_STATUS.md                             |   2 +-
+ docs/proofs/Lot-R1-WsReset.md                      |  50 ++++
+ .../Interventions/InterventionModels.cs            |   3 +-
+ .../Interventions/InterventionCatalog.cs           |  17 +-
+ .../Interventions/InterventionDiagnosticService.cs |   6 +
+ .../Interventions/InterventionSafety.cs            |   3 +-
+ .../ElevatedActionAllowlist.cs                     |   3 +-
+ .../ElevatedActionDispatcher.cs                    |   1 +
+ src/Virgil.ElevatedHelper/ElevatedCommandRunner.cs |  32 +++
+ .../InterventionsViewModelTests.cs                 |  28 ++
+ .../Virgil.Core.Tests/LotReparationWsResetTests.cs | 282 +++++++++++++++++++++
+ .../OperationCancellationSafetyTests.cs            |   1 +
+ 15 files changed, 428 insertions(+), 8 deletions(-)
+```
