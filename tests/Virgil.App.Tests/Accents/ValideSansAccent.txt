@@ -65,3 +65,6 @@ fonctionne=Présent du verbe fonctionner (« il fonctionne »), distinct du part
 note=Nom (« une note de santé ») ou présent du verbe noter, distinct du participe noté.
 charge=Nom (« la charge du processeur ») ou présent du verbe charger, distinct du participe chargé.
 mesures=Nom pluriel (« des mesures ») ou présent du verbe mesurer, distinct du participe pluriel mesurés.
+affiche=Présent ou impératif du verbe afficher, distinct du participe affiché.
+occupe=Présent ou impératif du verbe occuper, distinct du participe occupé.
+zero=Nom technique du membre IntPtr.Zero, distinct du nombre français « zéro ».

@@ -28,6 +28,8 @@ Virgil conserve les dossiers renommés, ne change aucun type de démarrage et ne
 
 Les assertions existantes sont conservées, dont l’inventaire fermé des scripts. Le nouveau test vérifie le titre, l’ordre et la commande de `RestartWindowsUpdate`, ainsi que l’absence de proposition du reset pour un constat `wuauserv`. Les gardes `IsForbiddenArgument`, `IsSafe`, le comportement de `RepairsFor`, les délais `TimeoutFor` et les seuils RG4 restent ceux de la base. Aucune correction n’a été nécessaire au titre de la règle générale.
 
+virgil (relecture) a autorisé exceptionnellement les trois ajouts `affiche`, `occupe` et `zero` dans `tests/Virgil.App.Tests/Accents/ValideSansAccent.txt`. Ces entrées distinguent les formes verbales et le membre technique `IntPtr.Zero` des mots accentués introduits par le lot R3.
+
 ## Vérifications
 
 Dans une copie Linux isolée, le projet moteur a compilé en Release avec les avertissements traités comme erreurs. Les filtres par nom de test ont donné 53 réussites et aucun échec après retrait de la dépendance d’exécution à Windows Desktop dans le fichier généré de la copie. Le scénario nominal avec chemins Windows et le cas R2 de la théorie d’annulation sont réservés à la CI Windows. Le premier lancement Linux de cette théorie a été interrompu, car le cas R2 attend le démarrage d’une commande qui exige un lecteur Windows valide. Aucun fichier de projet ni test versionné n’a été modifié pour cette vérification.
