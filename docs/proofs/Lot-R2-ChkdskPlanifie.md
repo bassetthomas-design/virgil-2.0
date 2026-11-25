@@ -28,12 +28,15 @@ Les tests utilisent les doubles du diagnostic, de la confirmation, du client du 
 ## Vérification locale
 
 - Moteur, `dotnet test --filter` par noms complets avec `Category!=Windows` sur le fichier R2 et le garde d’allowlist modifié. **16 réussis, 0 échec** sous Linux après retrait de la référence au runtime Windows Desktop dans le seul fichier de configuration généré par la copie de travail temporaire.
+- Annulation atomique, `dotnet test --filter` sur le nom complet de la méthode, sans le cas dépendant du lecteur Windows. **7 cas existants réussis, 0 échec** avec la même adaptation temporaire du runtime.
 - Application, `dotnet test --filter FullyQualifiedName=Virgil.Tests.InterventionsViewModelTests.Scheduled_disk_check_preview_and_cancellation_precede_execution`. Compilation Release réussie. Exécution locale interrompue au démarrage de testhost, faute de runtime Windows Desktop.
 - Les tests nécessitant l’interprétation Windows du chemin du lecteur système, dont le nouveau cas du test d’annulation atomique, sont réservés à la CI Windows.
 
 ## CI Windows
 
-La CI du dernier commit de production ou de test sera consignée ici. Si le commit final ne modifie que cette preuve, son run est indiqué dans la description de la PR.
+Le [run Windows n° 526](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45560921774) du commit `87d9c332857a046180b7a6c6e421e0be378cdb00`, dernier commit de production et de test, a réussi. Le journal du job couvre 5 min 05 s. Compilation Release avec 0 avertissement, puis 1 382 tests moteur (`Virgil.Core.Tests`), 909 tests application (`Virgil.App.Tests`) et 14 tests interface (`Virgil.UiTests`), tous réussis.
+
+Le commit final ne modifie que ce fichier. Son résultat CI est indiqué dans la description de la PR.
 
 ## Périmètre
 
@@ -42,5 +45,21 @@ La branche est basée sur `754e71412a565896757e1cb0f0704bc2e2c3fd58`. Les fichie
 Sortie de `git diff --stat origin/main...HEAD` (la référence locale de main est `origin/main`).
 
 ```text
-Diff en attente de publication.
+ README.md                                          |   4 +-
+ docs/ACTIONS.md                                    |   4 +-
+ docs/ARCHITECTURE.md                               |   2 +-
+ docs/PROJECT_STATUS.md                             |   4 +-
+ docs/proofs/Lot-R2-ChkdskPlanifie.md               |  65 +++++
+ .../Interventions/InterventionModels.cs            |   3 +-
+ .../Interventions/InterventionCatalog.cs           |  17 +-
+ .../Interventions/InterventionDiagnosticService.cs |  22 +-
+ .../Interventions/InterventionExecutionService.cs  |  12 +-
+ .../Interventions/InterventionSafety.cs            |   2 +-
+ .../ElevatedActionAllowlist.cs                     |   4 +-
+ .../ElevatedActionDispatcher.cs                    |   8 +-
+ .../InterventionsViewModelTests.cs                 |  42 +++
+ .../Virgil.Core.Tests/InterventionsModuleTests.cs  |   6 +
+ .../LotReparationChkdskPlanifieTests.cs            | 294 +++++++++++++++++++++
+ .../OperationCancellationSafetyTests.cs            |   1 +
+ 16 files changed, 475 insertions(+), 15 deletions(-)
 ```
