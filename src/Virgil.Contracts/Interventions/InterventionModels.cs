@@ -27,7 +27,8 @@ public enum InterventionId
     SetStartupApproval,
     PrepareMicrosoftUpdates,
     InstallMicrosoftUpdates,
-    ResetStoreCache
+    ResetStoreCache,
+    ScheduleSystemDiskCheck
 }
 
 public enum InterventionCategory

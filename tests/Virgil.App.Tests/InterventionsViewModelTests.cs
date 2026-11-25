@@ -117,6 +117,48 @@ public sealed class InterventionsViewModelTests
         Assert.Equal("Parcours annulé par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Scheduled_disk_check_preview_and_cancellation_precede_execution(bool refuseConfirmation)
+    {
+        var f = new Fixture();
+        f.Confirmation.Refuse = refuseConfirmation;
+        f.Diagnostics.Items =
+        [
+            new InterventionDiagnostic
+            {
+                Definition = new InterventionCatalog().Get(InterventionId.ScheduleSystemDiskCheck),
+                IsAvailable = true,
+                Status = InterventionStatus.Available,
+                TechnicalData = new Dictionary<string, string> { ["SystemDrive"] = "C:" }
+            }
+        ];
+        await f.Analyze();
+        Assert.Single(f.Items).IsSelected = true;
+
+        var pending = f.Run();
+        Assert.Equal("ACTION SENSIBLE", f.Vm.ValidationTitle);
+        Assert.Contains("Un redémarrage sera nécessaire", f.Vm.ValidationDetails);
+        Assert.Contains("Virgil ne peut pas l’annuler", f.Vm.ValidationDetails);
+        Assert.Contains("Redémarrage possible : oui", f.Vm.ValidationDetails);
+        Assert.Contains("Aucun redémarrage automatique.", f.Vm.ValidationSafety);
+        Assert.Equal("fsutil.exe dirty set C:", f.Vm.ValidationCommand);
+        Assert.Empty(f.Actions.Executed);
+        Assert.Equal(0, f.Confirmation.Calls);
+
+        if (refuseConfirmation)
+            f.Vm.ExecuteDecisionCommand.Execute(null);
+        else
+            f.Vm.CancelDecisionCommand.Execute(null);
+        await pending;
+
+        Assert.Equal(refuseConfirmation ? 1 : 0, f.Confirmation.Calls);
+        Assert.Empty(f.Actions.Executed);
+        Assert.Single(f.Actions.Cancelled);
+        Assert.Equal("Parcours annulé par l'utilisateur.", Assert.Single(f.Actions.Report!.Errors));
+    }
+
     [Fact]
     public void InitialStateMatchesView()
     {

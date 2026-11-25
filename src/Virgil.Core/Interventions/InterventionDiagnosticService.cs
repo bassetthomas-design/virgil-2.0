@@ -108,6 +108,19 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
             }
         }
 
+        if (definition.Id == InterventionId.ScheduleSystemDiskCheck)
+        {
+            var drive = TryGetSystemDrive();
+            available = available && drive is not null;
+            status = available ? InterventionStatus.Available : InterventionStatus.Unavailable;
+            recommendation = available ? recommendation : "Indisponible dans l'état actuel.";
+            technicalData["SystemDrive"] = drive ?? "Invalide";
+            if (drive is null)
+            {
+                errors.Add("Lecteur système invalide pour la vérification planifiée.");
+            }
+        }
+
         return Task.FromResult(new InterventionDiagnostic
         {
             Definition = definition,
@@ -144,7 +157,8 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
     private string? FindWindowsExecutable(string executable)
     {
         var systemDirectory = _systemDirectory();
-        if (string.Equals(executable, "wsreset.exe", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(executable, "wsreset.exe", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(executable, "fsutil.exe", StringComparison.OrdinalIgnoreCase))
         {
             var systemPath = Path.Combine(systemDirectory, executable);
             return Path.IsPathFullyQualified(systemDirectory) && _fileExists(systemPath) ? systemPath : null;
@@ -236,7 +250,11 @@ public sealed class InterventionDiagnosticService : IInterventionDiagnosticServi
             yield return "Droits administrateur demandés uniquement après confirmation.";
         }
 
-        if (definition.RebootPossible)
+        if (definition.Id == InterventionId.ScheduleSystemDiskCheck)
+        {
+            yield return "Redémarrage nécessaire pour lancer la vérification. Virgil ne redémarre pas le PC.";
+        }
+        else if (definition.RebootPossible)
         {
             yield return "Redémarrage manuel potentiellement requis. Virgil ne redémarre pas le PC.";
         }
