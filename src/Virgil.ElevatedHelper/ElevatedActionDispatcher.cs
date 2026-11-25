@@ -213,6 +213,7 @@ public sealed class ElevatedActionDispatcher
             "virgil-services" => "Services Windows",
             "wsreset.exe" => "Cache du Microsoft Store (wsreset)",
             "virgil-update" => "Service Windows Update",
+            "virgil-update-reset" => "Remise à zéro de Windows Update",
             "virgil-audio" => "Services audio",
             "virgil-print" => "File d'impression",
             "virgil-restore-point" or "powershell.exe" => "Point de restauration",

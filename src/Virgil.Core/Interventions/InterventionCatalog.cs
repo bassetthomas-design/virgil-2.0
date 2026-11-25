@@ -202,7 +202,22 @@ public sealed class InterventionCatalog : IInterventionCatalog
             "Disponible si fsutil.exe est présent dans le répertoire système et que le lecteur système est valide.",
             19,
             interruptible: false,
-            Commands(true, "fsutil.exe", "dirty", "set", "<system-drive>"))
+            Commands(true, "fsutil.exe", "dirty", "set", "<system-drive>")),
+        Define(
+            InterventionId.ResetWindowsUpdate,
+            "Remettre à zéro Windows Update",
+            InterventionCategory.System,
+            "Arrête wuauserv, bits, cryptsvc et msiserver, renomme SoftwareDistribution et catroot2 avec un suffixe daté, puis redémarre les services Windows Update. Aucun dossier n’est supprimé. Virgil ne redémarre pas le PC.",
+            "Windows recrée le cache de Windows Update. Les téléchargements en attente sont à refaire et l’historique affiché peut apparaître vide. Les mises à jour déjà installées restent installées. En cas d’échec, Virgil remet les noms d’origine quand c’est possible et redémarre les services.",
+            "Mises à jour installées, fichiers personnels, applications, pilotes, magasin de composants Windows et type de démarrage des services.",
+            InterventionRiskLevel.Sensitive,
+            admin: true,
+            reboot: false,
+            "Quelques minutes",
+            "Les préconditions sont vérifiées au lancement.",
+            20,
+            interruptible: false,
+            Commands(true, "virgil-update-reset"))
     }).Select(definition => InterventionSafety.RequiresRestorePoint(definition.Id)
         ? definition with { RiskLevel = InterventionRiskLevel.Sensitive } : definition).ToArray();
 

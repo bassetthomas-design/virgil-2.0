@@ -8,7 +8,7 @@ public static class InterventionSafety
         InterventionId.FlushDns or InterventionId.RenewIp or InterventionId.ResetWinsock or
         InterventionId.ResetTcpIp or InterventionId.SfcScan or InterventionId.DismRestoreHealth or
         InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or
-        InterventionId.ResetStoreCache or InterventionId.ScheduleSystemDiskCheck;
+        InterventionId.ResetStoreCache or InterventionId.ScheduleSystemDiskCheck or InterventionId.ResetWindowsUpdate;
 
     // Only machine-readable findings or explicit integrity-tool findings propose a repair.
     public static IReadOnlySet<InterventionId> RepairsFor(string output)

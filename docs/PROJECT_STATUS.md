@@ -135,7 +135,7 @@ Livré : accents des messages Communication, récapitulatif Nettoyage corrigé e
 - **Applications.** Inventaire, recherche et désinstallation officielle individuelle ou multiple après confirmation, y compris les jeux Steam via le client officiel.
 - **Mises à jour.** Scan WinGet, Windows Update, Microsoft Store et Steam, avec résultats conservés en cas de vérification partielle. Steam affiche les états des jeux et propose « Ouvrir Steam » quand le client est fermé ou hors ligne. « Tout mettre à jour » et « Mettre à jour » pour un seul élément proposent un aperçu, une confirmation et un contrôle final.
 - **Réseau.** État réseau et lien vers Réparation. Le bandeau permanent et l’encadré d’accueil ouvrent cet écran existant.
-- **Réparation.** « Vérifier » et « Scanner et réparer » limités aux commandes autorisées, dont SFC, DISM et `chkdsk /scan` en ligne. Vérification du disque système planifiable au prochain redémarrage après analyse et confirmation. Progression par étape, bilans en français et correctif Services pour la file d’impression.
+- **Réparation.** « Vérifier » et « Scanner et réparer » limités aux commandes autorisées, dont SFC, DISM et `chkdsk /scan` en ligne. Vérification du disque système planifiable au prochain redémarrage et remise à zéro de Windows Update, sur sélection et confirmation après analyse. Progression par étape, bilans en français et correctif Services pour la file d’impression.
 
 Le bandeau « Connexion & Sécurité réseau » affiche les badges « Internet : … » et « VPN : … » dans l’en-tête de tous les écrans. Un clic ouvre Réseau. L’infobulle indique l’état Internet, le VPN et la protection, avec « Mesure locale en lecture seule uniquement. ». Le moteur (routes, Wi-Fi et sondes d’accès Internet) était déjà livré dans l’alpha.9 sans interface. Il ne modifie aucun réglage système, ne demande aucune élévation et n’installe rien. L’affichage ne promet pas une sécurité totale. La mesure périodique a lieu au plus toutes les 30 s, les transitions sont confirmées après 5 s et les notifications suivent un délai de 30 s par clé.
 
@@ -147,7 +147,7 @@ Le visage de Virgil réagit à l’état de l’application et ses répliques s�
 
 - La source Windows du Diagnostic ne fournit pas la température CPU et affiche les données non exposées comme indisponibles. Aucun monitoring continu du système ni budget CPU mesuré en usage Windows.
 - Aucun projet Agent/Tray ni icône Virgil dans la zone de notification.
-- Réparation reste partielle : le lot R1 ajoute la réinitialisation du cache du Microsoft Store (`wsreset.exe`) sur sélection et confirmation après analyse. Le lot R2 ajoute la vérification planifiée du disque système au prochain redémarrage. La remise à zéro complète de Windows Update reste à livrer.
+- Réparation reste partielle : le lot R1 ajoute la réinitialisation du cache du Microsoft Store (`wsreset.exe`) sur sélection et confirmation après analyse. Le lot R2 ajoute la vérification planifiée du disque système au prochain redémarrage. Le lot R3 ajoute la remise à zéro complète de Windows Update (`virgil-update-reset`) après analyse, confirmation et vérification du point de restauration. L’hôte réel reste à essayer sur un PC Windows.
 - Démarrage reste partiel : logos et recommandations absents, impact et temps avant/après non mesurés.
 - L’historique propose le détail et l’export texte, sans export PDF ni comparaison.
 - Le fil Communication et les répliques de Virgil n’offrent aucun réglage de ton.

@@ -26,6 +26,10 @@ public sealed class ElevatedCommandRunner : IElevatedCommandRunner
     public async Task<ElevatedCommandResult> RunAsync(ElevatedCommandSpec command, IProgress<int?>? progress,
         CancellationToken cancellationToken)
     {
+        if (command.FileName == "virgil-update-reset")
+            return await new WindowsUpdateResetRunner(new WindowsUpdateResetHost(), TimeProvider.System,
+                Environment.SystemDirectory).RunAsync().ConfigureAwait(false);
+
         var script = command.FileName switch
         {
             "virgil-update" => "$ErrorActionPreference='Stop'; Restart-Service -Name wuauserv -ErrorAction Stop; Get-Service wuauserv",

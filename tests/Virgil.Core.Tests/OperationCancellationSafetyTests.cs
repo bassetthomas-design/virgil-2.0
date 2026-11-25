@@ -62,6 +62,7 @@ public sealed class OperationCancellationSafetyTests
     [InlineData(InterventionId.CreateRestorePoint)]
     [InlineData(InterventionId.ResetStoreCache)]
     [InlineData(InterventionId.ScheduleSystemDiskCheck)]
+    [InlineData(InterventionId.ResetWindowsUpdate)]
     public async Task ElevatedAtomicCommandFinishesAfterCancellationWithoutReceivingKillToken(InterventionId action)
     {
         using var cancellation = new CancellationTokenSource();
