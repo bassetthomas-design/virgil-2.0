@@ -28,7 +28,8 @@ public enum InterventionId
     PrepareMicrosoftUpdates,
     InstallMicrosoftUpdates,
     ResetStoreCache,
-    ScheduleSystemDiskCheck
+    ScheduleSystemDiskCheck,
+    ResetWindowsUpdate
 }
 
 public enum InterventionCategory

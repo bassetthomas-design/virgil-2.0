@@ -45,6 +45,7 @@ public sealed class ElevatedActionAllowlist
             InterventionId.CheckServices => Spec(actionId, false, Command("virgil-services")),
             InterventionId.CreateRestorePoint => Spec(actionId, false, Command("virgil-restore-point")),
             InterventionId.RestartWindowsUpdate => Spec(actionId, false, Command("virgil-update")),
+            InterventionId.ResetWindowsUpdate => Spec(actionId, reboot: false, Command("virgil-update-reset")),
             InterventionId.ResetStoreCache => Spec(actionId, reboot: false, Command("wsreset.exe")),
             InterventionId.RestartAudio => Spec(actionId, false, Command("virgil-audio")),
             InterventionId.ResetPrintQueue => Spec(actionId, false, Command("virgil-print")),
@@ -74,7 +75,7 @@ public sealed class ElevatedActionAllowlist
                     InterventionId.DismScanHealth or InterventionId.ResetWinsock or InterventionId.ResetTcpIp or
                     InterventionId.CreateRestorePoint or InterventionId.CreateStartupRestorePoint or InterventionId.RenewIp or
                     InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or InterventionId.FlushDns ||
-                    actionId is InterventionId.ResetStoreCache or InterventionId.ScheduleSystemDiskCheck || command.Arguments.Contains("/ScanHealth")
+                    actionId is InterventionId.ResetStoreCache or InterventionId.ScheduleSystemDiskCheck or InterventionId.ResetWindowsUpdate || command.Arguments.Contains("/ScanHealth")
             }).ToArray() };
             return true;
         }

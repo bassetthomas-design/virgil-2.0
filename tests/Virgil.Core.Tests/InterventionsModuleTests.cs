@@ -307,6 +307,135 @@ public sealed class InterventionsModuleTests
         Assert.Contains("Erreur session lisible", text);
     }
 
+    [Theory]
+    [InlineData(false, 0, InterventionStatus.Failed)]
+    [InlineData(true, 0, InterventionStatus.Completed)]
+    [InlineData(true, 1, InterventionStatus.PartialFailure)]
+    [InlineData(true, 2, InterventionStatus.PartialFailure)]
+    public async Task Windows_update_reset_dispatches_only_the_fixed_command_and_preserves_its_journal(
+        bool administrator, int exitCode, InterventionStatus expected)
+    {
+        var runner = new RecordingElevatedCommandRunner(_ => new(exitCode, "Journal brut du rattrapage.", ""));
+        var progress = new WindowsUpdateResetProgress();
+        var result = await CreateDispatcher(runner, administrator)
+            .ExecuteValidatedAsync(Request(InterventionId.ResetWindowsUpdate), progress);
+
+        Assert.Equal(expected, result.Status);
+        Assert.False(result.RebootRequired);
+        if (administrator)
+        {
+            Assert.Equal(exitCode, result.ExitCode);
+            var command = Assert.Single(runner.Commands);
+            Assert.Equal("virgil-update-reset", command.FileName);
+            Assert.Empty(command.Arguments);
+            Assert.Equal("Étape 1 sur 1 : Remise à zéro de Windows Update", Assert.Single(progress.Steps));
+            Assert.Contains("Journal brut du rattrapage.", result.SummaryOutput);
+            if (exitCode != 0)
+                Assert.Contains("Journal brut du rattrapage.", result.ReadableError);
+        }
+        else
+        {
+            Assert.Contains("administrateur", result.ReadableError);
+            Assert.Empty(runner.Commands);
+            Assert.Empty(progress.Steps);
+        }
+    }
+
+    [Fact]
+    public async Task Windows_update_reset_requires_confirmation_then_verified_restore_before_dispatch()
+    {
+        var diagnostic = Diagnostic(InterventionId.ResetWindowsUpdate);
+        var runner = new RecordingElevatedCommandRunner();
+        var dispatcher = CreateDispatcher(runner, isAdministrator: true);
+        var helper = new RecordingHelperClient
+        {
+            OnExecute = (definition, token) =>
+            {
+                if (definition.Id == InterventionId.CreateRestorePoint)
+                {
+                    Assert.Empty(runner.Commands);
+                    return Task.FromResult(new ElevatedInterventionResult { Status = InterventionStatus.Completed });
+                }
+
+                return dispatcher.ExecuteValidatedAsync(Request(definition.Id), null, token);
+            }
+        };
+        var service = new InterventionExecutionService(helper, new FakeExplorerRestarter(), TestPlans.Authority);
+
+        var refused = await service.ExecuteAsync(diagnostic, null, CancellationToken.None);
+        Assert.Contains("Intervention annulée.", refused.ReadableError);
+        Assert.Empty(helper.Received);
+        Assert.Empty(runner.Commands);
+
+        var result = await service.ExecuteAsync(diagnostic, TestPlans.Intervention(diagnostic), CancellationToken.None);
+        Assert.Equal(InterventionStatus.Completed, result.Status);
+        Assert.True(result.WasConfirmed);
+        Assert.True(result.WasElevated);
+        Assert.Equal(new[] { InterventionId.CreateRestorePoint, InterventionId.ResetWindowsUpdate }, helper.Received);
+        Assert.Equal("virgil-update-reset", Assert.Single(runner.Commands).FileName);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Windows_update_reset_blocks_unverified_restore_even_if_override_is_requested(bool allowOverride)
+    {
+        var original = Diagnostic(InterventionId.ResetWindowsUpdate);
+        var diagnostic = original with { Definition = original.Definition with { AllowWithoutRestorePoint = allowOverride } };
+        var helper = new RecordingHelperClient
+        {
+            OnExecute = (_, _) => Task.FromResult(new ElevatedInterventionResult
+            {
+                Status = InterventionStatus.Failed,
+                ReadableError = "Point introuvable."
+            })
+        };
+        var service = new InterventionExecutionService(helper, new FakeExplorerRestarter(), TestPlans.Authority);
+        var preview = InterventionActionPreviewFactory.Create(diagnostic.Definition);
+        var plan = allowOverride
+            ? TestPlans.Authority.Issue(preview, new(Virgil.Contracts.Actions.ConfirmationLevel.Critical,
+                Virgil.Core.Actions.ConfirmationService.ExpectedCriticalText(preview)))
+            : TestPlans.Intervention(diagnostic);
+
+        var result = await service.ExecuteAsync(diagnostic, plan, CancellationToken.None);
+
+        Assert.Equal(InterventionStatus.Failed, result.Status);
+        Assert.StartsWith("Remise à zéro de Windows Update non lancée : point de restauration non créé ou non vérifié.", result.ReadableError);
+        Assert.Contains("Point introuvable.", result.ReadableError);
+        Assert.Contains("Activez la protection du système dans Windows.", result.ReadableError);
+        Assert.Equal(InterventionId.CreateRestorePoint, Assert.Single(helper.Received));
+    }
+
+    [Theory]
+    [InlineData(InterventionStatus.Completed)]
+    [InlineData(InterventionStatus.Cancelled)]
+    public async Task Windows_update_reset_cancellation_during_or_after_restore_prevents_dispatch(InterventionStatus restoreStatus)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var helper = new RecordingHelperClient
+        {
+            OnExecute = (_, _) =>
+            {
+                cancellation.Cancel();
+                return Task.FromResult(new ElevatedInterventionResult { Status = restoreStatus });
+            }
+        };
+        var diagnostic = Diagnostic(InterventionId.ResetWindowsUpdate);
+        var service = new InterventionExecutionService(helper, new FakeExplorerRestarter(), TestPlans.Authority);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.ExecuteAsync(diagnostic, TestPlans.Intervention(diagnostic), cancellation.Token));
+
+        Assert.Equal(InterventionId.CreateRestorePoint, Assert.Single(helper.Received));
+        Assert.Contains("Parcours annulé", service.Cancel(diagnostic).SummaryOutput);
+    }
+
+    private sealed class WindowsUpdateResetProgress : IProgress<InterventionProgress>
+    {
+        public List<string> Steps { get; } = [];
+        public void Report(InterventionProgress value) => Steps.Add(value.Step);
+    }
+
     private static ElevatedActionDispatcher CreateDispatcher(
         RecordingElevatedCommandRunner runner,
         bool isAdministrator)
@@ -407,6 +536,8 @@ public sealed class InterventionsModuleTests
 
     private sealed class RecordingHelperClient : IInterventionElevatedHelperClient
     {
+        public List<InterventionId> Received { get; } = [];
+        public Func<InterventionDefinition, CancellationToken, Task<ElevatedInterventionResult>>? OnExecute { get; init; }
         public int Calls { get; private set; }
 
         public Task<ElevatedInterventionResult> ExecuteAsync(
@@ -414,6 +545,9 @@ public sealed class InterventionsModuleTests
             CancellationToken cancellationToken)
         {
             Calls++;
+            Received.Add(definition.Id);
+            if (OnExecute is not null)
+                return OnExecute(definition, cancellationToken);
             return Task.FromResult(new ElevatedInterventionResult
             {
                 ActionId = definition.Id,
