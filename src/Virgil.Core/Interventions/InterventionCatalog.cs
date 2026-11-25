@@ -187,7 +187,22 @@ public sealed class InterventionCatalog : IInterventionCatalog
             "Disponible si wsreset.exe est présent dans le répertoire système.",
             18,
             interruptible: false,
-            Commands(true, "wsreset.exe"))
+            Commands(true, "wsreset.exe")),
+        Define(
+            InterventionId.ScheduleSystemDiskCheck,
+            "Planifier la vérification du disque système au prochain redémarrage",
+            InterventionCategory.Storage,
+            "Planifie la vérification du disque système après création et vérification d’un point de restauration. Un redémarrage sera nécessaire. Virgil ne redémarre pas le PC.",
+            "Au prochain redémarrage, Windows vérifie et répare le système de fichiers du disque système (équivalent de CHKDSK /F). La vérification peut durer de quelques minutes à plus d’une heure selon le disque. N’éteignez pas le PC pendant la vérification. Une fois la vérification planifiée, Virgil ne peut pas l’annuler.",
+            "Fichiers personnels, applications, autres disques. Aucun redémarrage lancé par Virgil.",
+            InterventionRiskLevel.Sensitive,
+            admin: true,
+            reboot: true,
+            "Quelques secondes, puis vérification au redémarrage",
+            "Disponible si fsutil.exe est présent dans le répertoire système et que le lecteur système est valide.",
+            19,
+            interruptible: false,
+            Commands(true, "fsutil.exe", "dirty", "set", "<system-drive>"))
     }).Select(definition => InterventionSafety.RequiresRestorePoint(definition.Id)
         ? definition with { RiskLevel = InterventionRiskLevel.Sensitive } : definition).ToArray();
 

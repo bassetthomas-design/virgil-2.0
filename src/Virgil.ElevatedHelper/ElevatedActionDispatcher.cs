@@ -167,10 +167,13 @@ public sealed class ElevatedActionDispatcher
                 return Result(request, startedAt, -1, InterventionStatus.Cancelled, string.Join("\n", outputs), false);
             if (commandResult.ExitCode != 0 && request.ActionId is not (InterventionId.VerifyHealth or InterventionId.VerifyHealthDeep or InterventionId.RenewIp))
             {
+                var scheduledDiskCheck = request.ActionId == InterventionId.ScheduleSystemDiskCheck;
+                if (scheduledDiskCheck)
+                    outputs.Add("Vérification du disque système non planifiée.");
                 return Result(request, startedAt, commandResult.ExitCode,
                     InterventionStatus.PartialFailure,
                     string.Join("\n", outputs),
-                    spec.RebootRequiredOnSuccess);
+                    !scheduledDiskCheck && spec.RebootRequiredOnSuccess);
             }
         }
 
@@ -185,6 +188,8 @@ public sealed class ElevatedActionDispatcher
                 checkFailed ? InterventionStatus.PartialFailure : InterventionStatus.Completed,
                 string.Join("\n", outputs), false);
         }
+        if (request.ActionId == InterventionId.ScheduleSystemDiskCheck)
+            outputs.Add("Vérification du disque système planifiée au prochain redémarrage. Virgil ne redémarre pas le PC.");
         if (cancellationToken.IsCancellationRequested) outputs.Add("Étape terminée après annulation. Aucune commande suivante lancée.");
         var status = checkFailed ? InterventionStatus.PartialFailure : spec.RebootRequiredOnSuccess
             ? InterventionStatus.RebootRequired
@@ -204,6 +209,7 @@ public sealed class ElevatedActionDispatcher
             "dism.exe" when Has("/ScanHealth") => "Image Windows (DISM, analyse)",
             "dism.exe" when Has("/RestoreHealth") => "Image Windows (DISM, réparation)",
             "chkdsk.exe" => "Disque système (CHKDSK, analyse en ligne)",
+            "fsutil.exe" when Has("dirty") => "Disque système (vérification planifiée au redémarrage)",
             "virgil-services" => "Services Windows",
             "wsreset.exe" => "Cache du Microsoft Store (wsreset)",
             "virgil-update" => "Service Windows Update",

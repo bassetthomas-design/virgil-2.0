@@ -74,13 +74,13 @@ Des cartes complètes avec logo, éditeur, taille et dates fiables seraient des 
 
 **État à 4af1cce : partiel.**
 
-Les modes « Vérifier » et « Scanner et réparer » passent par les services d'intervention. L'allowlist du helper borne les commandes : SFC vérification/réparation, DISM CheckHealth/ScanHealth/RestoreHealth et `chkdsk /scan` en ligne. Le redémarrage du service Windows Update (`virgil-update`), les actions audio/impression et les opérations réseau autorisées restent des actions précises, pas une réparation universelle.
+Les modes « Vérifier » et « Scanner et réparer » passent par les services d'intervention. L'allowlist du helper borne les commandes : SFC vérification/réparation, DISM CheckHealth/ScanHealth/RestoreHealth et `chkdsk /scan` en ligne. Après « Analyser », le lot R2 propose de planifier la vérification du disque système au prochain redémarrage avec `fsutil.exe dirty set <lecteur>`, après confirmation et vérification du point de restauration. Virgil ne redémarre pas le PC. Le redémarrage du service Windows Update (`virgil-update`), les actions audio/impression et les opérations réseau autorisées restent des actions précises, pas une réparation universelle.
 
 Les changements système concernés exigent aperçu, confirmation et point de restauration créé/vérifié. Un refus UAC ou un échec de protection bloque l'action. Le helper n'accepte pas de commande libre.
 
 Le lot R1 autorise `wsreset.exe` sans argument pour réinitialiser le cache du Microsoft Store. L’action est sélectionnable après « Analyser » si l’exécutable système est présent et requiert une confirmation explicite. Le Store peut s’ouvrir.
 
-**Cible L12b :** CHKDSK planifié au redémarrage et la remise à zéro complète de Windows Update restent à livrer. Les diagnostics son/imprimante/Store exhaustifs resteraient à compléter dans ce lot.
+**Cible L12b :** La remise à zéro complète de Windows Update reste à livrer. Les diagnostics son/imprimante/Store exhaustifs resteraient à compléter dans ce lot.
 
 ## Action 6 — Ressources
 

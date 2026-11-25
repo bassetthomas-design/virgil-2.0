@@ -47,13 +47,23 @@ public sealed class InterventionExecutionService : IInterventionExecutionService
         if (restartExplorer)
             return await _explorerRestarter.RestartAsync(diagnostic, cancellationToken).ConfigureAwait(false);
 
-        if (InterventionSafety.RequiresRestorePoint(diagnostic.Definition.Id) && !diagnostic.Definition.AllowWithoutRestorePoint)
+        var scheduledDiskCheck = diagnostic.Definition.Id == InterventionId.ScheduleSystemDiskCheck;
+        if (InterventionSafety.RequiresRestorePoint(diagnostic.Definition.Id) &&
+            (scheduledDiskCheck || !diagnostic.Definition.AllowWithoutRestorePoint))
         {
             progress?.Report(new InterventionProgress { Step = "Création et vérification du point de restauration" });
             var protection = await _helperClient.ExecuteAsync(new InterventionCatalog().Get(InterventionId.CreateRestorePoint),
                 progress, cancellationToken).ConfigureAwait(false);
             if (protection.Status != InterventionStatus.Completed)
+            {
+                if (scheduledDiskCheck)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return Failure(diagnostic, "Vérification non planifiée : point de restauration non créé ou non vérifié. " +
+                        protection.ReadableError + "\nActivez la protection du système dans Windows.");
+                }
                 return Failure(diagnostic, "Réparation bloquée : point de restauration non créé ou non vérifié. " + protection.ReadableError + "\nActivez la protection du système dans Windows, ou demandez explicitement de continuer sans point de restauration.");
+            }
         }
         cancellationToken.ThrowIfCancellationRequested();
         var result = await _helperClient

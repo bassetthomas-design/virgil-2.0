@@ -54,6 +54,12 @@ public sealed class InterventionsModuleTests
                 Assert.DoesNotContain("&", text);
                 Assert.DoesNotContain("|", text);
                 Assert.DoesNotContain(";", text);
+                Assert.DoesNotContain("/f", command.Arguments, StringComparer.OrdinalIgnoreCase);
+                Assert.DoesNotContain("/r", command.Arguments, StringComparer.OrdinalIgnoreCase);
+                Assert.DoesNotContain("/x", command.Arguments, StringComparer.OrdinalIgnoreCase);
+                Assert.DoesNotContain("/ResetBase", command.Arguments, StringComparer.OrdinalIgnoreCase);
+                Assert.DoesNotContain(command.FileName, new[] { "shutdown.exe", "chkntfs.exe", "cmd.exe" },
+                    StringComparer.OrdinalIgnoreCase);
             }
         }
 

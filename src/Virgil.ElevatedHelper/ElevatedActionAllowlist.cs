@@ -61,6 +61,8 @@ public sealed class ElevatedActionAllowlist
                 Command("dism.exe", "/Online", "/Cleanup-Image", "/RestoreHealth")),
             InterventionId.ChkdskOnlineScan when IsValidSystemDrive(systemDrive) => Spec(actionId, reboot: false,
                 Command("chkdsk.exe", systemDrive, "/scan")),
+            InterventionId.ScheduleSystemDiskCheck when IsValidSystemDrive(systemDrive) => Spec(actionId, reboot: true,
+                Command("fsutil.exe", "dirty", "set", systemDrive)),
             _ => new ElevatedActionSpec(actionId, false, Array.Empty<ElevatedCommandSpec>(), false)
         };
 
@@ -72,7 +74,7 @@ public sealed class ElevatedActionAllowlist
                     InterventionId.DismScanHealth or InterventionId.ResetWinsock or InterventionId.ResetTcpIp or
                     InterventionId.CreateRestorePoint or InterventionId.CreateStartupRestorePoint or InterventionId.RenewIp or
                     InterventionId.RestartWindowsUpdate or InterventionId.RestartAudio or InterventionId.ResetPrintQueue or InterventionId.FlushDns ||
-                    actionId is InterventionId.ResetStoreCache || command.Arguments.Contains("/ScanHealth")
+                    actionId is InterventionId.ResetStoreCache or InterventionId.ScheduleSystemDiskCheck || command.Arguments.Contains("/ScanHealth")
             }).ToArray() };
             return true;
         }
