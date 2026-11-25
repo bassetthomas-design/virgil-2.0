@@ -44,11 +44,15 @@ Les motifs d’échec à la base sont établis par comparaison avec `67516e3`. L
 - Les 81 cas de `InterfaceAccentTests` passent dans un projet temporaire .NET exécutant le même fichier de test sur les sources du dépôt.
 - Les vues Réparation, Nettoyage, Applications et Mises à jour sont valides en XML. `git diff --check` et `git diff -w --check` passent.
 
-Les tests existants cités dans les consignes restent identiques, à l’exception de l’assertion de Corbeille ci-dessus. La CI Windows vérifie les suites moteur, application et interface.
+Le run 533 confirme les suites `LotCorbeilleSelectionCoreTests`, `CleanupSelectionPolicyTests`, `ApplicationsUninstallViewModelSafetyTests`, `InterventionsViewModelTests`, `LongOperationArchitectureTests`, `UpdatesSequenceViewModelTests`, `D1InformationOnlyTests`, `D2SourceCardsTests`, `D1bisAConfirmationTests` et `L6PlusSequenceTests` ainsi que `CleanupScanTransitionTests.Individual_personal_choice_requires_existing_typed_critical_consent` et `CleanupViewModelTests.PersonalSelectionRequiresIndividualChoiceAndTypedCriticalConsent`. Ces tests ont passé sans modification.
 
 ### CI du dernier commit de code ou de tests
 
-Résultat Windows à compléter après publication du code.
+[Run 533](https://github.com/bassetthomas-design/virgil-2.0/actions/runs/45616052703) sur le commit `db540f0be50c685840d0cf03380ae80a94b4eaa4` — succès. La compilation Release compte zéro avertissement et zéro erreur. Tests réussis par projet
+
+- Moteur (`Virgil.Core.Tests`) — 1 422.
+- Application (`Virgil.App.Tests`) — 916.
+- Interface (`Virgil.UiTests`, filtre `Category=UI`) — 14.
 
 La CI du head final, y compris celle d’un éventuel commit de preuve seul, figure dans la description de la PR.
 
@@ -57,7 +61,7 @@ La CI du head final, y compris celle d’un éventuel commit de preuve seul, fig
 Le diff est limité à la liste autorisée. Comparaison avec `origin/main`, qui pointe sur la base demandée.
 
 ```text
- docs/proofs/Correctifs-alpha12.md                  | 83 ++++++++++++++
+ docs/proofs/Correctifs-alpha12.md                  | 87 +++++++++++++++++++
  src/Virgil.App/ViewModels/ApplicationsViewModel.cs | 26 ++++--
  src/Virgil.App/ViewModels/CleanupViewModel.cs      | 61 +++++++++++--
  .../ViewModels/InterventionsViewModel.cs           |  3 +
@@ -75,7 +79,7 @@ Le diff est limité à la liste autorisée. Comparaison avec `origin/main`, qui 
  .../Alpha11ReparationVisibleTests.cs               | 74 ++++++++++++++++
  .../Virgil.App.Tests/LotCorbeilleSelectionTests.cs |  1 +
  .../Alpha11DesinstallationTests.cs                 | 84 ++++++++++++++++++
- 18 files changed, 637 insertions(+), 30 deletions(-)
+ 18 files changed, 641 insertions(+), 30 deletions(-)
 ```
 
 ## Essais sur un PC Windows
