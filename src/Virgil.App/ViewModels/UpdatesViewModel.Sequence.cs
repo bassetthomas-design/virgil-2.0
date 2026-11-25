@@ -27,7 +27,9 @@ public partial class UpdatesViewModel
     private bool _sequenceWasCancelled;
     private bool _isWaitingForSteam;
     [ObservableProperty] private bool isSequencePreview;
-    [ObservableProperty] private bool isRunAllEnabled;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunAllCommand))]
+    private bool isRunAllEnabled;
     [ObservableProperty] private string sequenceStepText = "Aucune séquence en cours.";
     [ObservableProperty] private bool rebootRequired;
     public string RebootStatusText => RebootRequired ? "REDÉMARRAGE WINDOWS REQUIS — Redémarrez puis relancez « Tout mettre à jour » pour terminer." : "Aucun redémarrage en attente.";
@@ -69,7 +71,7 @@ public partial class UpdatesViewModel
         CancelActiveOperation();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsRunAllEnabled))]
     private async Task RunAllAsync()
     {
         if (_sequenceService is null || !BeginOperation("Préparation de l’aperçu des mises à jour…")) return;

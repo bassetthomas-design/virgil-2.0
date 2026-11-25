@@ -64,7 +64,9 @@
     </UserControl.Resources>
     <Grid ClipToBounds="True">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-        <controls:OperationProgressPanel Grid.Row="0" DataContext="{Binding Operation}" CancelAutomationId="UpdatesCancelButton"/>
+        <ScrollViewer Grid.Row="0" MaxHeight="220" VerticalScrollBarVisibility="Auto" Focusable="False">
+            <controls:OperationProgressPanel DataContext="{Binding Operation}" CancelAutomationId="UpdatesCancelButton"/>
+        </ScrollViewer>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Focusable="False"
@@ -126,7 +128,7 @@
                             Margin="0,0,8,8"
                             AutomationProperties.Name="Voir le rapport mises à jour"
                             Command="{Binding ViewReportCommand}" />
-                    <Button x:Name="ReturnHomeButton" IsEnabled="{Binding IsIdle}"
+                    <Button x:Name="ReturnHomeButton" IsEnabled="{Binding IsReturnHomeEnabled}"
                             Content="RETOUR"
                             Style="{StaticResource VirgilSecondaryButton}"
                             MinWidth="100"

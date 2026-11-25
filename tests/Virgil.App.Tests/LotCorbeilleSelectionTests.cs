@@ -91,6 +91,7 @@ public sealed class LotCorbeilleSelectionTests
             {
                 "exact" => new[] { "Execute:RecycleBin", "Execute:UserTemporaryFiles" },
                 "passer" => new[] { "Skip:RecycleBin", "Skip:UserTemporaryFiles" },
+                "vide" or "faux" => new[] { "Cancel:RecycleBin", "Execute:UserTemporaryFiles" },
                 _ => new[] { "Cancel:RecycleBin", "Cancel:UserTemporaryFiles" }
             };
             Assert.Equal(expected, f.Actions.Order);

@@ -77,8 +77,10 @@ public partial class InterventionsViewModel : ObservableObject
     [ObservableProperty] private string interfaceNotice = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(IsRunSelectionEnabled))]
     private bool isBusy;
     public bool IsIdle => !IsBusy;
+    public bool IsRunSelectionEnabled => IsIdle && _selectionById.Values.Any(item => item.IsAvailable && item.IsSelected);
     [ObservableProperty] private bool isRunGuidedEnabled;
     [ObservableProperty] private bool isReportButtonEnabled;
     [ObservableProperty] private bool isValidationOpen;
@@ -440,6 +442,7 @@ public partial class InterventionsViewModel : ObservableObject
 
     private void UpdateCommandState()
     {
+        OnPropertyChanged(nameof(IsRunSelectionEnabled));
         IsRunGuidedEnabled = !_operationInProgress && GuidedCandidates().Any();
         IsReportButtonEnabled = !_operationInProgress && _lastReport is not null;
     }

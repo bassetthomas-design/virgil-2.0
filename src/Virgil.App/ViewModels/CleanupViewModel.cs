@@ -372,12 +372,20 @@ public partial class CleanupViewModel : ObservableObject
             VirgilMessageRequested?.Invoke("Aucune zone éligible.\nRelancez une analyse.");
             return;
         }
+        if (selected.Any(zone => DateTimeOffset.UtcNow - zone.GeneratedAt > CleanupExecutionService.PreviewValidity))
+        {
+            StatusText = "Analyse expirée : relancez l'analyse avant de nettoyer.";
+            VirgilMessageRequested?.Invoke(StatusText);
+            return;
+        }
         if (!BeginOperation("Nettoyage guidé en attente de validation.")) return;
         foreach (var zone in selected)
             Operation.SetStep(zone.Definition.Id.ToString(), zone.Definition.DisplayName, "Non lancée");
         var startedAt = DateTimeOffset.Now;
         var results = new List<CleanupStepResult>();
         var sessionErrors = new List<string>();
+        const string invalidPhraseMessage = "Phrase de confirmation absente ou incorrecte : la Corbeille et les dossiers personnels n'ont pas été touchés.";
+        string? confirmationMessage = null;
         try
         {
             var action = _module.Select(selected, CreateProgress());
@@ -407,19 +415,53 @@ public partial class CleanupViewModel : ObservableObject
             var choice = await decision.Task;
             if (choice == CleanupZoneDecision.Execute)
             {
+                var invalidPhrase = RequiresCriticalConfirmation &&
+                    !string.Equals(CriticalConfirmationText, ExpectedCriticalConfirmation, StringComparison.Ordinal);
+                ConfirmedPlan? plan = null;
                 try
                 {
                     var level = RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel);
-                    var plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, RequiresCriticalConfirmation ? CriticalConfirmationText : null));
-                    var outcome = (CleanupSelectionActionResult)await Task.Run(() => action.ExecuteAsync(plan, _operationCancellation.Token), _operationCancellation.Token);
-                    results.AddRange(outcome.Selection.Steps);
-                    if (outcome.WasRefused) sessionErrors.Add(outcome.RefusalReason!);
+                    plan = _confirmationService.Issue(preview, new ConfirmationConsent(level, RequiresCriticalConfirmation ? CriticalConfirmationText : null));
+                }
+                catch (ConfirmationRefusedException) when (invalidPhrase)
+                {
+                    confirmationMessage = invalidPhraseMessage;
+                    var nonCritical = selected.Where(zone => CleanupActionPreviewFactory.Create(zone).RiskLevel != RiskLevel.Critical).ToArray();
+                    if (nonCritical.Length == 0)
+                    {
+                        choice = CleanupZoneDecision.CancelAll;
+                    }
+                    else
+                    {
+                        results.AddRange(selected.Except(nonCritical).Select(zone => _module.CancelZone(zone) with
+                        {
+                            Errors = [invalidPhraseMessage]
+                        }));
+                        action = _module.Select(nonCritical, CreateProgress());
+                        preview = await action.PreviewAsync(_operationCancellation.Token);
+                        plan = _confirmationService.Issue(preview,
+                            new ConfirmationConsent(RiskConfirmationPolicy.RequiredLevel(preview.RiskLevel), null));
+                    }
                 }
                 catch (ConfirmationRefusedException) { choice = CleanupZoneDecision.CancelAll; }
+
+                if (plan is not null)
+                {
+                    var outcome = (CleanupSelectionActionResult)await Task.Run(
+                        () => action.ExecuteAsync(plan, _operationCancellation.Token), _operationCancellation.Token);
+                    results.AddRange(outcome.Selection.Steps);
+                    if (outcome.WasRefused) sessionErrors.Add(outcome.RefusalReason!);
+                    if (confirmationMessage is not null && !outcome.WasRefused)
+                    {
+                        var cleaned = outcome.Selection.Steps.Sum(step => step.DeletedFiles + step.QuarantinedFiles);
+                        confirmationMessage += $" {cleaned} éléments non sensibles nettoyés.";
+                    }
+                }
             }
             if (choice != CleanupZoneDecision.Execute)
             {
-                results.AddRange(selected.Select(p => choice == CleanupZoneDecision.Skip ? _module.SkipZone(p) : _module.CancelZone(p)));
+                results.AddRange(selected.Select(p => choice == CleanupZoneDecision.Skip ? _module.SkipZone(p) :
+                    confirmationMessage is null ? _module.CancelZone(p) : _module.CancelZone(p) with { Errors = [invalidPhraseMessage] }));
                 if (choice == CleanupZoneDecision.CancelAll) sessionErrors.Add("Session annulée par l'utilisateur.");
             }
         }
@@ -429,6 +471,7 @@ public partial class CleanupViewModel : ObservableObject
         {
             try { await LoadQuarantineAsync(CancellationToken.None); }
             catch { sessionErrors.Add("Lecture de la quarantaine impossible."); }
+            if (confirmationMessage is not null) sessionErrors.Add(confirmationMessage);
             var storage = _lastStorageAnalysis;
             _lastReport = _module.CreateReport(startedAt, results, sessionErrors) with
             {
@@ -453,7 +496,15 @@ public partial class CleanupViewModel : ObservableObject
             StatusText = (IsCancellationReport(_lastReport) ? "Nettoyage interrompu." : (HasBlockingFailure(_lastReport) || _lastReport.Results.Any(result => result.Zone.Id == CleanupZoneId.RecycleBin && result.Status == CleanupStepStatus.Failed)) ? "Nettoyage terminé avec erreurs." : "Nettoyage terminé.")
                 + $"\n{_lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones traitées. " + StatusText
                 + $"\n{selected.Count - _lastReport.Results.Count(result => result.Status == CleanupStepStatus.Completed)} zones non terminées ; {_lastReport.ErrorFiles} fichiers en erreur. Fichiers hors sélection et racines conservés.";
-            AnnounceSessionEnd(_lastReport);
+            if (confirmationMessage is not null)
+            {
+                StatusText += "\n" + confirmationMessage;
+                VirgilMessageRequested?.Invoke(confirmationMessage);
+            }
+            else
+            {
+                AnnounceSessionEnd(_lastReport);
+            }
             EndOperation(IsCancellationReport(_lastReport));
             ShowReport();
         }
