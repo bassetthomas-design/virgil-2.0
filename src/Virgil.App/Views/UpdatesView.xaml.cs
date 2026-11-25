@@ -43,8 +43,8 @@ public partial class UpdatesView : UserControl
                 if (_viewModel.IsReportOpen) CloseUpdatesReportButton.Focus();
                 else ViewUpdatesReportButton.Focus();
             }), DispatcherPriority.Input);
-        if (args.PropertyName == nameof(UpdatesViewModel.IsBusy))
-            Mouse.OverrideCursor = _viewModel.IsBusy ? Cursors.Wait : null;
+        if (args.PropertyName == nameof(UpdatesViewModel.IsReturnHomeEnabled))
+            Cursor = _viewModel.IsReturnHomeEnabled ? null : Cursors.Wait;
         if (args.PropertyName == nameof(UpdatesViewModel.MiniCoreState))
             UpdatesMiniCore.SetState(_viewModel.MiniCoreState);
         if (args.PropertyName == nameof(UpdatesViewModel.ValidationCoreState))

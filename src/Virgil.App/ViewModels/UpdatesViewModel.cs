@@ -63,8 +63,12 @@ public partial class UpdatesViewModel : ObservableObject
     [ObservableProperty] private string driversStatus = "NON INVENTORIÉ";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(IsReturnHomeEnabled))]
+    [NotifyCanExecuteChangedFor(nameof(ScanUpdatesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReturnHomeCommand))]
     private bool isBusy;
     public bool IsIdle => !IsBusy;
+    public bool IsReturnHomeEnabled => IsIdle || IsCancelling;
     [ObservableProperty] private bool isRunSelectedEnabled;
     [ObservableProperty] private bool isReportButtonEnabled;
     [ObservableProperty] private bool isValidationOpen;
@@ -95,10 +99,13 @@ public partial class UpdatesViewModel : ObservableObject
     {
         Operation.AcknowledgeCancellation();
         OnPropertyChanged(nameof(IsCancelling));
+        OnPropertyChanged(nameof(IsReturnHomeEnabled));
+        ReturnHomeCommand.NotifyCanExecuteChanged();
         SequenceStepText = _isWaitingForSteam ? "Attente arrêtée — Steam continue en arrière-plan."
             : SequenceStepText.Contains("Windows Update", StringComparison.Ordinal)
             ? "Annulation demandée — l'opération Windows Update en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé."
             : "Annulation demandée — l'étape en cours se termine (elle ne peut pas être interrompue), rien d'autre ne sera lancé.";
+        SequenceStepText += " Vous pouvez revenir à l'accueil ; le rapport sera disponible à la fin.";
         Operation.Step = SequenceStepText;
         _operationCancellation?.Cancel();
         CompleteDecision(UpdateDecision.CancelAll);
@@ -128,12 +135,12 @@ public partial class UpdatesViewModel : ObservableObject
         return false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsIdle))]
     private Task ScanUpdatesAsync() => ScanUpdatesAsync(UpdateScanRequest.DeepPreview);
 
     [RelayCommand]
     private void ViewReport() => ShowReport();
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(IsReturnHomeEnabled))]
     private void ReturnHome() => ReturnHomeRequested?.Invoke(this, EventArgs.Empty);
     [RelayCommand]
     private void ExecuteDecision()

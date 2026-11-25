@@ -87,6 +87,18 @@
 
                             AutomationProperties.Name="Lancer le parcours guidé"
                             Command="{Binding ScanRepairCommand}" />
+                    <Button x:Name="ShowAllRepairsButton"
+                            Content="TOUTES LES RÉPARATIONS"
+                            Command="{Binding AnalyzeCommand}"
+                            IsEnabled="{Binding IsIdle}"
+                            Style="{StaticResource VirgilSecondaryButton}"
+                            Margin="0,0,8,8" />
+                    <Button x:Name="RunSelectionButton"
+                            Content="LANCER LA SÉLECTION"
+                            Command="{Binding RunGuidedCommand}"
+                            IsEnabled="{Binding IsRunSelectionEnabled}"
+                            Style="{StaticResource VirgilPrimaryButton}"
+                            Margin="0,0,8,8" />
                     <Button x:Name="ViewInterventionsReportButton"
                             IsEnabled="{Binding IsReportButtonEnabled}"
                             Content="VOIR LE DERNIER RAPPORT"

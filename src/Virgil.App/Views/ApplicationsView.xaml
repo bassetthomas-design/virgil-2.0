@@ -246,11 +246,18 @@
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 KeyboardNavigation.TabNavigation="Continue">
-                        <Button x:Name="LaunchUninstallButton" IsEnabled="{Binding IsLaunchUninstallEnabled}"
-                                Content="{Binding LaunchUninstallLabel}"
-                                Style="{StaticResource VirgilPrimaryButton}"
-                                AutomationProperties.Name="Lancer le désinstallateur officiel"
-                                Command="{Binding LaunchUninstallCommand}" />
+                        <StackPanel>
+                            <Button x:Name="LaunchUninstallButton" IsEnabled="{Binding IsLaunchUninstallEnabled}"
+                                    Content="{Binding LaunchUninstallLabel}"
+                                    Style="{StaticResource VirgilPrimaryButton}"
+                                    AutomationProperties.Name="Lancer le désinstallateur officiel"
+                                    Command="{Binding LaunchUninstallCommand}" />
+                            <TextBlock x:Name="UninstallBlockedReasonText"
+                                       Text="{Binding UninstallBlockedReason}"
+                                       Visibility="{Binding HasUninstallBlockedReason, Converter={StaticResource BoolVisibility}}"
+                                       Style="{StaticResource VirgilHudSecondaryText}"
+                                       MaxWidth="320" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
                         <Button x:Name="OpenApplicationLocationButton" IsEnabled="{Binding IsOpenApplicationLocationEnabled}"
                                 Content="{Binding OpenApplicationLocationLabel}"
                                 Style="{StaticResource VirgilSecondaryButton}"

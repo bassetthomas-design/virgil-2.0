@@ -64,7 +64,7 @@ public sealed class ApplicationRegistryReader : IApplicationInventorySourceReade
             return new InstalledApplication();
         }
 
-        var productCode = TryExtractProductCode(entry);
+        var productCode = entry.WindowsInstaller ? TryExtractProductCode(entry) : null;
         var steam = ApplicationUninstallCommandValidator.IsOfficialSteamUninstallUri(entry.UninstallString?.Trim());
         var uninstallKind = steam ? ApplicationUninstallKind.Steam : !string.IsNullOrWhiteSpace(productCode)
             ? ApplicationUninstallKind.Msi

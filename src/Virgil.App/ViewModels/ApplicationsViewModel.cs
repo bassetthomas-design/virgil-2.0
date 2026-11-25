@@ -87,6 +87,10 @@ public partial class ApplicationsViewModel : ObservableObject
     public bool IsIdle => !IsBusy;
     [ObservableProperty] private bool isReportButtonEnabled;
     [ObservableProperty] private bool isLaunchUninstallEnabled;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUninstallBlockedReason))]
+    private string uninstallBlockedReason = string.Empty;
+    public bool HasUninstallBlockedReason => UninstallBlockedReason.Length != 0;
     [ObservableProperty] private bool isOpenApplicationLocationEnabled;
     [ObservableProperty] private bool isDetailsOpen;
     [ObservableProperty] private bool isReportOpen;
@@ -308,10 +312,10 @@ public partial class ApplicationsViewModel : ObservableObject
             _lastUninstallResult = result;
             RenderUninstallResult(result);
             ShowDetails(application);
-            await PersistReportAsync(ApplicationReportMapper.FromUninstall(result)).ConfigureAwait(true);
+            await PersistUninstallReportAsync(result).ConfigureAwait(true);
             IsReportButtonEnabled = true;
             RequestVirgilState(result.Errors.Count == 0 ? VirgilCoreState.Success : VirgilCoreState.Warning, "APPLICATIONS");
-            VirgilMessageRequested?.Invoke(result.Method == ApplicationUninstallKind.Steam ? result.Result : result.WasLaunched
+            VirgilMessageRequested?.Invoke(result.Method == ApplicationUninstallKind.Steam || result.ExitCode is not (null or 0 or 3010) ? result.Result : result.WasLaunched
                 ? "Désinstalleur officiel lancé.\nLe statut final peut dépendre de l'assistant externe.\nRestes analysés en lecture seule."
                 : $"Désinstalleur non lancé.\n{result.Result}\nRapport disponible.");
         }
@@ -437,7 +441,7 @@ public partial class ApplicationsViewModel : ObservableObject
             _batchResults = await _uninstallService.LaunchBatchAsync(selected, plan, new ApplicationUninstallConfirmation
             { ExplicitlyConfirmed = true, ReinforcedConfirmed = reinforced, Source = "ApplicationsBatchPreview" },
                 progress, _operationCancellation!.Token, _ => { var skip = _skipNext; _skipNext = false; return skip; }).ConfigureAwait(true);
-            foreach (var result in _batchResults) await PersistReportAsync(ApplicationReportMapper.FromUninstall(result));
+            foreach (var result in _batchResults) await PersistUninstallReportAsync(result);
             StatusText = selected.Any(app => app.UninstallKind == ApplicationUninstallKind.Steam)
                 ? string.Join("\n", _batchResults.Select(result => result.Application.DisplayName + " : " + result.Result))
                 : "Parcours de désinstallation terminé. Rapport disponible.";
@@ -576,7 +580,10 @@ public partial class ApplicationsViewModel : ObservableObject
             : application.RiskLevel == ApplicationRiskLevel.Caution
                 ? "LANCER AVEC VALIDATION RENFORCÉE"
                 : "LANCER DÉSINSTALLATEUR";
-        IsLaunchUninstallEnabled = !_operationInProgress && application.CanUninstall && !IsProtectedComponent(application);
+        var plan = _uninstallService.BuildPlan(application);
+        UninstallBlockedReason = !plan.CanLaunch ? plan.Validation.Reason : string.Empty;
+        IsLaunchUninstallEnabled = !_operationInProgress && application.CanUninstall &&
+            !IsProtectedComponent(application) && !HasUninstallBlockedReason;
         IsOpenApplicationLocationEnabled = application.CanOpenLocation || application.UninstallKind == ApplicationUninstallKind.StoreSettings;
         OpenApplicationLocationLabel = application.UninstallKind == ApplicationUninstallKind.StoreSettings
             ? "PARAMÈTRES WINDOWS"
@@ -725,6 +732,14 @@ public partial class ApplicationsViewModel : ObservableObject
         _selectedApplication = null;
     }
 
+    private Task PersistUninstallReportAsync(ApplicationUninstallResult result)
+    {
+        var report = ApplicationReportMapper.FromUninstall(result);
+        if (result.ExitCode is not (null or 0 or 3010) && !result.WasCancelled)
+            report = report with { Status = "Échec de la désinstallation" };
+        return PersistReportAsync(report);
+    }
+
     private async Task PersistReportAsync(ReportEntry report)
     {
         var result = await _reportHistoryService.SaveAsync(report, CancellationToken.None).ConfigureAwait(true);
@@ -785,7 +800,8 @@ public partial class ApplicationsViewModel : ObservableObject
     {
         IsBusy = !enabled;
         IsReportButtonEnabled = enabled && (_lastInventoryReport is not null || _lastUninstallResult is not null);
-        IsLaunchUninstallEnabled = enabled && _selectedApplication?.CanUninstall == true && !IsProtectedComponent(_selectedApplication);
+        IsLaunchUninstallEnabled = enabled && _selectedApplication?.CanUninstall == true &&
+            !IsProtectedComponent(_selectedApplication) && !HasUninstallBlockedReason;
         IsOpenApplicationLocationEnabled = enabled && (_selectedApplication?.CanOpenLocation == true ||
             _selectedApplication?.UninstallKind == ApplicationUninstallKind.StoreSettings);
     }

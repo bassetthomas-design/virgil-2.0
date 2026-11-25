@@ -131,6 +131,7 @@ public sealed class ApplicationUninstallService
             .LaunchAsync(executable, arguments, useShellExecute: true, CancellationToken.None)
             .ConfigureAwait(false);
 
+        var exitMessage = UninstallExitMessage(launch.ExitCode);
         Report(progress, 3, 5, 55, "assistant officiel", "Suivre l'assistant officiel si une fenêtre s'ouvre.");
         Report(progress, 4, 5, 78, "restes", "Analyse lecture seule des restes.");
         var remnants = cancellationToken.IsCancellationRequested
@@ -144,13 +145,15 @@ public sealed class ApplicationUninstallService
             Method = plan.Method,
             WasLaunched = launch.Started,
             StatusUnknown = launch.Started && launch.ExitCode is null,
+            WasCancelled = launch.ExitCode is 1602 or 1223,
             ExitCode = launch.ExitCode,
             WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed,
             WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-            Result = plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
+            Result = exitMessage ?? (plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation. Aucune étape suivante lancée." : launch.Started
                 ? "Désinstalleur officiel lancé. Statut final potentiellement géré par l'assistant externe."
-                : launch.ReadableError ?? "Désinstalleur officiel non lancé.",
-            Errors = string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
+                : launch.ReadableError ?? "Désinstalleur officiel non lancé."),
+            Errors = exitMessage is not null ? remnants.Errors.Append(exitMessage).ToList() :
+                string.IsNullOrWhiteSpace(launch.ReadableError) ? remnants.Errors : remnants.Errors.Append(launch.ReadableError).ToList(),
             Remnants = remnants
         };
     }
@@ -196,14 +199,17 @@ public sealed class ApplicationUninstallService
                 var remnants = !cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode is 0 or 3010
                     ? await _remnantScanner.ScanAsync(plan.Application, cancellationToken).ConfigureAwait(false)
                     : new ApplicationRemnantScanReport { Application = plan.Application };
+                var exitMessage = UninstallExitMessage(launch.ExitCode);
                 results.Add(new ApplicationUninstallResult
                 {
                     Application = plan.Application, Method = plan.Method, WasLaunched = launch.Started,
+                    WasCancelled = launch.ExitCode is 1602 or 1223,
                     ExitCode = launch.ExitCode, StatusUnknown = launch.Started && launch.ExitCode is null,
                     WasExplicitlyConfirmed = confirmation.ExplicitlyConfirmed, WasReinforcedConfirmed = confirmation.ReinforcedConfirmed,
-                    Result = plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation ; éléments suivants non lancés." : launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
-                        : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé."),
-                    Errors = launch.ReadableError is null ? remnants.Errors : [launch.ReadableError], Remnants = remnants
+                    Result = exitMessage ?? (plan.Method == ApplicationUninstallKind.Steam ? SteamLaunchMessage(launch.Started) : cancellationToken.IsCancellationRequested && launch.Started && launch.ExitCode.HasValue ? "Désinstalleur terminé après annulation ; éléments suivants non lancés." : launch.ReadableError ?? (launch.ExitCode is 0 or 3010 ? "Désinstalleur terminé ; restes examinés en lecture seule."
+                        : launch.Started ? "Désinstalleur lancé ; état final à vérifier." : "Désinstalleur non lancé.")),
+                    Errors = exitMessage is not null ? [exitMessage] : launch.ReadableError is null ? remnants.Errors : [launch.ReadableError],
+                    Remnants = remnants
                 });
                 // Never overlap installers when an external bootstrapper's final state is unknown.
                 if (launch.Started && launch.ExitCode is null) break;
@@ -243,6 +249,14 @@ public sealed class ApplicationUninstallService
             Status = status
         });
     }
+
+    private static string? UninstallExitMessage(int? exitCode) => exitCode switch
+    {
+        null or 0 or 3010 => null,
+        1602 or 1223 => $"Désinstallation annulée dans l'assistant (code {exitCode}).",
+        1605 => "Produit introuvable pour Windows Installer (code 1605) : rien n'a été désinstallé.",
+        _ => $"Le désinstalleur a échoué (code {exitCode})."
+    };
 
     private static string SteamLaunchMessage(bool started) => started
         ? "Steam a été ouvert pour désinstaller ce jeu. Suivez l'assistant Steam."
